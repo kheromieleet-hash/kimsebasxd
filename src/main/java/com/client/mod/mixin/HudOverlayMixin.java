@@ -1,6 +1,5 @@
 package com.client.mod.mixin;
 
-import com.client.mod.EspRenderHandler;
 import com.client.mod.KeybindsHudRenderer;
 import com.client.mod.StatsHudRenderer;
 import com.client.mod.UpdateNoticeManager;
@@ -23,7 +22,6 @@ public class HudOverlayMixin {
         if (!this.isHidden) {
             StatsHudRenderer.render(graphics);
             KeybindsHudRenderer.render(graphics);
-            EspRenderHandler.render(graphics, deltaTracker);
             UpdateNoticeManager.renderHudToast(graphics);
         }
     }

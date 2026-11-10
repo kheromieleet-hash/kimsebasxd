@@ -50,22 +50,6 @@ final class ModernIcons {
         g.fill(x + 6, y + 6, x + 10, y + 10, color);
     }
 
-    /** Eye / ESP studio radar icon (10x10). */
-    static void drawEyeIcon(GuiGraphicsExtractor g, int x, int y, int color) {
-        if (drawAtlasIcon(g, SmoothUiAtlas.IconKind.EYE, x, y, 10, 10, color)) {
-            return;
-        }
-        g.fill(x + 2, y + 2, x + 8, y + 3, color);
-        g.fill(x + 1, y + 3, x + 3, y + 4, color);
-        g.fill(x + 7, y + 3, x + 9, y + 4, color);
-        g.fill(x, y + 4, x + 2, y + 6, color);
-        g.fill(x + 8, y + 4, x + 10, y + 6, color);
-        g.fill(x + 1, y + 6, x + 3, y + 7, color);
-        g.fill(x + 7, y + 6, x + 9, y + 7, color);
-        g.fill(x + 2, y + 7, x + 8, y + 8, color);
-        g.fill(x + 4, y + 4, x + 6, y + 6, color);
-    }
-
     /** Lightning bolt macro icon (10x10). */
     static void drawBoltIcon(GuiGraphicsExtractor g, int x, int y, int color) {
         if (drawAtlasIcon(g, SmoothUiAtlas.IconKind.BOLT, x, y, 10, 10, color)) {

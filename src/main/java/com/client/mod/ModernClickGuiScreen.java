@@ -13,8 +13,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 
 import java.util.*;
 
@@ -27,7 +25,6 @@ public class ModernClickGuiScreen extends Screen {
 
     public enum NavTab {
         MODULES("Modules"),
-        ESP("ESP Studio"),
         MACROS("Macros"),
         SETTINGS("Settings");
 
@@ -37,25 +34,6 @@ public class ModernClickGuiScreen extends Screen {
             this.label = label;
         }
     }
-
-    // Color Palette presets for Player ESP (indices preserved in ModConfig.espColorIndex)
-    public static final int[] PALETTE_COLORS = {
-            0xFFC084FC, // Pastel Violet
-            0xFFF472B6, // Rose Pink
-            0xFF00E5FF, // Neon Cyan
-            0xFF00E676, // Emerald Green
-            0xFFE53935, // Crimson Red
-            0xFFFFAB00  // Sunset Gold
-    };
-
-    public static final String[] PALETTE_NAMES = {
-            "Pastel Violet",
-            "Rose Pink",
-            "Neon Cyan",
-            "Emerald Green",
-            "Crimson Red",
-            "Sunset Gold"
-    };
 
     private static final int SIDEBAR_WIDTH = 148;
     private static final int HEADER_HEIGHT = 44;
@@ -97,10 +75,7 @@ public class ModernClickGuiScreen extends Screen {
     private int draggingSliderStartX = 0;
     private int draggingSliderWidth = 100;
 
-    // Interactive ESP Preview state
-    private boolean simulatedDamaged = false;
     private long lastFrameNanos = 0L;
-    private float mannequinBreathe = 0.0f;
 
     // Module Keybind listening state
     private String listeningKeybindModule = null;
@@ -113,13 +88,6 @@ public class ModernClickGuiScreen extends Screen {
     private boolean tempMacroIsMouse = false;
     private EditBox macroNameBox;
     private EditBox macroCmdBox;
-
-    // ESP Preview Armor Items
-    private final ItemStack HELMET_STACK = new ItemStack(Items.DIAMOND_HELMET);
-    private final ItemStack CHEST_STACK = new ItemStack(Items.DIAMOND_CHESTPLATE);
-    private final ItemStack LEGS_STACK = new ItemStack(Items.DIAMOND_LEGGINGS);
-    private final ItemStack BOOTS_STACK = new ItemStack(Items.DIAMOND_BOOTS);
-    private final ItemStack SWORD_STACK = new ItemStack(Items.DIAMOND_SWORD);
 
     public ModernClickGuiScreen(Screen parent) {
         super(Component.literal("Sestia ClickGUI"));
@@ -193,7 +161,6 @@ public class ModernClickGuiScreen extends Screen {
         long now = System.nanoTime();
         float dt = this.lastFrameNanos == 0L ? 0.016f : Mth.clamp((now - this.lastFrameNanos) / 1.0e9f, 0.001f, 0.05f);
         this.lastFrameNanos = now;
-        this.mannequinBreathe += dt * 2.5f;
 
         boolean hasInspectorTarget = isInspectorOpen();
         float targetAnim = hasInspectorTarget ? 1.0f : 0.0f;
@@ -222,9 +189,7 @@ public class ModernClickGuiScreen extends Screen {
             renderModulesWorkspace(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH, dt);
         } else {
             graphics.enableScissor(contentX, contentY, contentX + contentW, contentY + contentH);
-            if (this.activeNav == NavTab.ESP) {
-                renderEspSettingsView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH, dt);
-            } else if (this.activeNav == NavTab.MACROS) {
+            if (this.activeNav == NavTab.MACROS) {
                 renderMacrosView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH, dt);
             } else if (this.activeNav == NavTab.SETTINGS) {
                 renderClientSettingsView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH, dt);
@@ -335,18 +300,11 @@ public class ModernClickGuiScreen extends Screen {
             int iconY = itemY + 12;
             switch (tab) {
                 case MODULES -> ModernIcons.drawGridIcon(graphics, iconX, iconY, iconColor);
-                case ESP -> ModernIcons.drawEyeIcon(graphics, iconX, iconY, iconColor);
                 case MACROS -> ModernIcons.drawBoltIcon(graphics, iconX, iconY, iconColor);
                 case SETTINGS -> ModernIcons.drawSlidersIcon(graphics, iconX, iconY, iconColor);
             }
 
             graphics.text(this.font, Component.literal(tab.label), sideX + 35, itemY + 13, textColor, false);
-
-            if (tab == NavTab.ESP) {
-                int tagX = sideX + sideW - 36;
-                JelloTheme.fillRounded(graphics, tagX, itemY + 11, tagX + 26, itemY + 22, 3, 0x2610B981);
-                graphics.centeredText(this.font, Component.literal("LIVE"), tagX + 13, itemY + 13, 0xFF34D399);
-            }
         }
 
         // Interaction legend card at bottom of sidebar
@@ -636,73 +594,7 @@ public class ModernClickGuiScreen extends Screen {
         graphics.disableScissor();
     }
 
-    // ==========================================
-    // ESP SETTINGS VIEW
-    // ==========================================
-    private void renderEspSettingsView(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, int contentH, float dt) {
-        this.contentTotalHeight = contentH;
-        int innerY = contentY + 12;
-
-        ModConfig config = ModConfig.getInstance();
-        int leftColW = Math.min(320, contentW / 2 - 10);
-        int leftColX = contentX + 14;
-        int rightColX = leftColX + leftColW + 14;
-        int rightColW = contentW - leftColW - 38;
-        int rightColH = contentH - 24;
-
-        ModernIcons.drawEyeIcon(graphics, leftColX, innerY - 1, JelloTheme.ACCENT);
-        String espTitle = "PLAYER ESP CONFIGURATION";
-        graphics.text(this.font, Component.literal("§l" + espTitle), leftColX + 15, innerY, JelloTheme.TEXT, false);
-        int espTitleW = this.font.width(espTitle) + 15;
-        JelloTheme.fillHorizontalGradient(graphics, leftColX, innerY + 13, leftColX + espTitleW + 10, innerY + 14, JelloTheme.ACCENT, 0x33FF5252);
-        int cardY = innerY + 20;
-
-        cardY = renderEspToggleCard(graphics, mouseX, mouseY, leftColX, cardY, leftColW, "ESP Master Switch", "Toggle all player ESP visuals on/off", config.espEnabled, dt);
-        cardY = renderEspToggleCard(graphics, mouseX, mouseY, leftColX, cardY, leftColW, "2D Bounding Box", "Framed player bounds with corner accents", config.espBox, dt);
-        cardY = renderEspToggleCard(graphics, mouseX, mouseY, leftColX, cardY, leftColW, "Health Bar", "Dynamic health indicator with numeric HP", config.espHealth, dt);
-        cardY = renderEspToggleCard(graphics, mouseX, mouseY, leftColX, cardY, leftColW, "Player Nametags", "Distance badge with heart counter", config.espNametags, dt);
-        cardY = renderEspToggleCard(graphics, mouseX, mouseY, leftColX, cardY, leftColW, "Skeleton Wireframe", "Player joint & bone outline connections", config.espSkeleton, dt);
-        cardY = renderEspToggleCard(graphics, mouseX, mouseY, leftColX, cardY, leftColW, "Armor & Held Items", "Equipped armor slots & durabilities", config.espArmor, dt);
-
-        int paletteY = cardY + 6;
-        graphics.text(this.font, Component.literal("§lESP ACCENT COLOR"), leftColX, paletteY, JelloTheme.TEXT, false);
-        int chipsY = paletteY + 14;
-
-        int chipSize = 22;
-        int chipGap = 12;
-        for (int i = 0; i < PALETTE_COLORS.length; i++) {
-            int cx = leftColX + i * (chipSize + chipGap);
-            boolean isSelected = config.espColorIndex == i;
-            boolean hovered = mouseX >= cx - 2 && mouseX <= cx + chipSize + 2 && mouseY >= chipsY - 2 && mouseY <= chipsY + chipSize + 2;
-            int color = PALETTE_COLORS[i];
-
-            if (isSelected) {
-                JelloTheme.fillCircle(graphics, cx + chipSize / 2, chipsY + chipSize / 2, chipSize / 2 + 2, 0xFFFFFFFF);
-            } else if (hovered) {
-                JelloTheme.fillCircle(graphics, cx + chipSize / 2, chipsY + chipSize / 2, chipSize / 2 + 2, 0x66FFFFFF);
-            }
-            JelloTheme.fillCircle(graphics, cx + chipSize / 2, chipsY + chipSize / 2, chipSize / 2, color);
-            if (isSelected) {
-                ModernIcons.drawCheckIcon(graphics, cx + chipSize / 2 - 4, chipsY + chipSize / 2 - 4, 0xFFFFFFFF);
-            }
-        }
-
-        String activeColorName = PALETTE_NAMES[Mth.clamp(config.espColorIndex, 0, PALETTE_NAMES.length - 1)];
-        graphics.text(this.font, Component.literal(activeColorName), leftColX + 5 * (chipSize + chipGap) + 4, chipsY + 6, JelloTheme.TEXT_MUTED, false);
-
-        int distY = chipsY + chipSize + 14;
-        graphics.text(this.font, Component.literal("Render Distance"), leftColX, distY, JelloTheme.TEXT, false);
-        String distVal = config.espMaxDistance + "m";
-        int sliderW = leftColW - 10;
-        graphics.text(this.font, Component.literal(distVal), leftColX + sliderW - this.font.width(distVal), distY, JelloTheme.TEXT_DIM, false);
-
-        renderInteractiveSlider(graphics, mouseX, mouseY, leftColX, distY + 14, sliderW, 8,
-                "espDist", (config.espMaxDistance - 16) / 112.0f);
-
-        renderLiveMannequinPreview(graphics, mouseX, mouseY, rightColX, innerY - 2, rightColW, rightColH, config, dt);
-    }
-
-    private int renderEspToggleCard(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int x, int y, int w, String title, String desc, boolean active, float dt) {
+    private int renderSettingsToggleCard(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int x, int y, int w, String title, String desc, boolean active, float dt) {
         int cardH = 38;
         boolean hovered = isInside(mouseX, mouseY, x, y, w, cardH);
 
@@ -717,180 +609,6 @@ public class ModernClickGuiScreen extends Screen {
 
         renderSmoothSwitch(graphics, mouseX, mouseY, x + w - 42, y + (cardH - 16) / 2, 32, 16, "cfg:" + title, active, dt);
         return y + cardH + 6;
-    }
-
-    // ==========================================
-    // LIVE PREVIEW PANEL & MINECRAFT MANNEQUIN
-    // ==========================================
-    private void renderLiveMannequinPreview(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int x, int y, int w, int h, ModConfig config, float dt) {
-        JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + h, 7, JelloTheme.CONTAINER_BG, JelloTheme.BORDER_SUBTLE);
-
-        int pulseAlpha = 0xAA + (int) (Math.sin(System.currentTimeMillis() * 0.005) * 50);
-        JelloTheme.fillCircle(graphics, x + 14, y + 15, 3, (pulseAlpha << 24) | 0x00E676);
-        graphics.text(this.font, Component.literal("§c§lLIVE PREVIEW"), x + 23, y + 10, JelloTheme.TEXT, false);
-
-        int simBtnW = 96;
-        int simBtnH = 18;
-        int simBtnX = x + w - simBtnW - 10;
-        int simBtnY = y + 8;
-        boolean simHovered = isInside(mouseX, mouseY, simBtnX, simBtnY, simBtnW, simBtnH);
-        JelloTheme.fillRoundedCard(graphics, simBtnX, simBtnY, simBtnX + simBtnW, simBtnY + simBtnH, 4,
-                simHovered ? 0x44E53935 : JelloTheme.CARD_INACTIVE, simHovered ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
-        graphics.centeredText(this.font, Component.literal(this.simulatedDamaged ? "Reset Health" : "Simulate Hit"),
-                simBtnX + simBtnW / 2, simBtnY + 5, simHovered ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT);
-
-        int gridSpacing = 28;
-        for (int gx = x + gridSpacing; gx < x + w; gx += gridSpacing) {
-            graphics.fill(gx, y + 30, gx + 1, y + h - 10, 0x07FFFFFF);
-        }
-        for (int gy = y + 30 + gridSpacing; gy < y + h - 10; gy += gridSpacing) {
-            graphics.fill(x + 10, gy, x + w - 10, gy + 1, 0x07FFFFFF);
-        }
-
-        int centerX = x + w / 2 - 20;
-        int centerY = y + h / 2 + 14;
-        int bobY = Math.round((float) Math.sin(this.mannequinBreathe) * 1.5f);
-        int mannequinTop = centerY - 80 + bobY;
-        int mannequinBottom = centerY + 80 + bobY;
-        int mannequinLeft = centerX - 30;
-        int mannequinRight = centerX + 30;
-
-        JelloTheme.fillRounded(graphics, centerX - 35, mannequinBottom + 2, centerX + 35, mannequinBottom + 7, 3, 0x55000000);
-        drawStylizedMannequin(graphics, centerX, mannequinTop, mannequinBottom);
-
-        if (config.espEnabled) {
-            int espColor = config.getEspColorHex();
-            float simulatedHealth = this.simulatedDamaged ? 7.5f : 20.0f;
-            float hpPercent = Mth.clamp(simulatedHealth / 20.0f, 0.0f, 1.0f);
-
-            if (config.espBox) renderPreviewBox(graphics, mannequinLeft, mannequinTop, mannequinRight, mannequinBottom, espColor);
-            if (config.espHealth) renderPreviewHealthBar(graphics, mannequinLeft, mannequinTop, mannequinBottom, simulatedHealth, hpPercent);
-            if (config.espSkeleton) renderPreviewSkeleton(graphics, mannequinLeft, mannequinTop, mannequinRight, mannequinBottom, espColor);
-            if (config.espNametags) renderPreviewNametag(graphics, mannequinLeft, mannequinTop, mannequinRight, simulatedHealth, hpPercent, espColor);
-            if (config.espArmor) renderPreviewArmor(graphics, mannequinRight, mannequinTop);
-        }
-    }
-
-    private void drawStylizedMannequin(GuiGraphicsExtractor graphics, int midX, int top, int bottom) {
-        int headTop = top + 8;
-        int headBottom = headTop + 28;
-        int torsoTop = headBottom;
-        int torsoBottom = torsoTop + 44;
-
-        graphics.fill(midX - 14, headTop, midX + 14, headBottom, 0xFFD29D74);
-        graphics.fill(midX - 14, headTop, midX + 14, headTop + 9, 0xFF4B3322);
-        graphics.fill(midX - 14, headTop, midX - 10, headTop + 16, 0xFF4B3322);
-        graphics.fill(midX + 10, headTop, midX + 14, headTop + 16, 0xFF4B3322);
-        graphics.fill(midX - 10, headTop + 14, midX - 5, headTop + 18, 0xFFFFFFFF);
-        graphics.fill(midX - 8, headTop + 14, midX - 5, headTop + 18, 0xFF2E5CB8);
-        graphics.fill(midX + 5, headTop + 14, midX + 10, headTop + 18, 0xFFFFFFFF);
-        graphics.fill(midX + 5, headTop + 14, midX + 8, headTop + 18, 0xFF2E5CB8);
-        graphics.fill(midX - 4, headTop + 18, midX + 4, headTop + 21, 0xFFBD845C);
-        graphics.fill(midX - 7, headTop + 22, midX + 7, headTop + 26, 0xFF3C2618);
-
-        graphics.fill(midX - 14, torsoTop, midX + 14, torsoBottom, 0xFF00A2B0);
-        graphics.fill(midX - 6, torsoTop, midX + 6, torsoTop + 6, 0xFFD29D74);
-
-        graphics.fill(midX - 26, torsoTop, midX - 14, torsoTop + 16, 0xFF00A2B0);
-        graphics.fill(midX - 26, torsoTop + 16, midX - 14, torsoBottom - 2, 0xFFD29D74);
-        graphics.fill(midX + 14, torsoTop, midX + 26, torsoTop + 16, 0xFF00A2B0);
-        graphics.fill(midX + 14, torsoTop + 16, midX + 26, torsoBottom - 2, 0xFFD29D74);
-
-        graphics.fill(midX - 14, torsoBottom, midX - 1, bottom - 10, 0xFF29326D);
-        graphics.fill(midX - 14, bottom - 10, midX - 1, bottom, 0xFF444444);
-        graphics.fill(midX + 1, torsoBottom, midX + 14, bottom - 10, 0xFF29326D);
-        graphics.fill(midX + 1, bottom - 10, midX + 14, bottom, 0xFF444444);
-    }
-
-    private void renderPreviewBox(GuiGraphicsExtractor graphics, int left, int top, int right, int bottom, int color) {
-        graphics.fill(left, top, right, bottom, (0x22 << 24) | (color & 0x00FFFFFF));
-        graphics.fill(left - 1, top - 1, right + 1, top, 0xFF000000);
-        graphics.fill(left - 1, bottom, right + 1, bottom + 1, 0xFF000000);
-        graphics.fill(left - 1, top, left, bottom, 0xFF000000);
-        graphics.fill(right, top, right + 1, bottom, 0xFF000000);
-
-        graphics.fill(left, top, right, top + 1, color);
-        graphics.fill(left, bottom - 1, right, bottom, color);
-        graphics.fill(left, top + 1, left + 1, bottom - 1, color);
-        graphics.fill(right - 1, top + 1, right, bottom - 1, color);
-
-        int cLen = 8;
-        graphics.fill(left - 1, top - 1, left + cLen, top + 1, color);
-        graphics.fill(left - 1, top - 1, left + 1, top + cLen, color);
-        graphics.fill(right - cLen, top - 1, right + 1, top + 1, color);
-        graphics.fill(right - 1, top - 1, right + 1, top + cLen, color);
-        graphics.fill(left - 1, bottom - 1, left + cLen, bottom + 1, color);
-        graphics.fill(left - 1, bottom - cLen, left + 1, bottom + 1, color);
-        graphics.fill(right - cLen, bottom - 1, right + 1, bottom + 1, color);
-        graphics.fill(right - 1, bottom - cLen, right + 1, bottom + 1, color);
-    }
-
-    private void renderPreviewHealthBar(GuiGraphicsExtractor graphics, int left, int top, int bottom, float health, float hpPercent) {
-        int barW = 3;
-        int barRight = left - 3;
-        int barLeft = barRight - barW;
-        graphics.fill(barLeft - 1, top - 1, barRight + 1, bottom + 1, 0xFF000000);
-
-        int totalH = bottom - top;
-        int filledH = Math.max(1, (int) (totalH * hpPercent));
-        int hpTop = bottom - filledH;
-        graphics.fill(barLeft, hpTop, barRight, bottom, EspRenderHandler.getHealthColor(hpPercent));
-
-        String hpStr = String.valueOf((int) Math.ceil(health));
-        graphics.text(this.font, Component.literal(hpStr), barLeft - this.font.width(hpStr) - 2, hpTop - 2, 0xFFFFFFFF, true);
-    }
-
-    private void renderPreviewSkeleton(GuiGraphicsExtractor graphics, int left, int top, int right, int bottom, int color) {
-        int midX = (left + right) / 2;
-        int headBottom = top + 36;
-        int spineBottom = top + 98;
-        EspRenderHandler.drawLine(graphics, midX, headBottom, midX, spineBottom, color);
-
-        int shoulderY = top + 44;
-        int handY = top + 90;
-        EspRenderHandler.drawLine(graphics, midX, shoulderY, left + 6, handY, color);
-        EspRenderHandler.drawLine(graphics, midX, shoulderY, right - 6, handY, color);
-
-        int kneeY = top + 130;
-        int legSpan = 9;
-        EspRenderHandler.drawLine(graphics, midX, spineBottom, midX - legSpan, kneeY, color);
-        EspRenderHandler.drawLine(graphics, midX - legSpan, kneeY, midX - legSpan, bottom, color);
-        EspRenderHandler.drawLine(graphics, midX, spineBottom, midX + legSpan, kneeY, color);
-        EspRenderHandler.drawLine(graphics, midX + legSpan, kneeY, midX + legSpan, bottom, color);
-
-        int headRad = 11;
-        graphics.fill(midX - headRad, top + 8, midX + headRad, headBottom, (0x33 << 24) | (color & 0x00FFFFFF));
-        graphics.fill(midX - headRad, top + 8, midX + headRad, top + 9, color);
-        graphics.fill(midX - headRad, headBottom - 1, midX + headRad, headBottom, color);
-        graphics.fill(midX - headRad, top + 8, midX - headRad + 1, headBottom, color);
-        graphics.fill(midX + headRad - 1, top + 8, midX + headRad, headBottom, color);
-    }
-
-    private void renderPreviewNametag(GuiGraphicsExtractor graphics, int left, int top, int right, float health, float hpPercent, int espColor) {
-        String hpColorCode = hpPercent > 0.6f ? "§a" : (hpPercent > 0.25f ? "§e" : "§c");
-        String badge = "Steve §7[12m] " + hpColorCode + (int) Math.ceil(health) + " HP";
-        int badgeW = this.font.width(badge);
-        int badgeX = (left + right) / 2 - badgeW / 2;
-        int badgeY = top - 15;
-
-        JelloTheme.fillRounded(graphics, badgeX - 6, badgeY - 2, badgeX + badgeW + 6, badgeY + 11, 4, 0xDD0D0D11);
-        JelloTheme.fillRounded(graphics, badgeX - 6, badgeY - 2, badgeX - 4, badgeY + 11, 1, espColor);
-        graphics.text(this.font, Component.literal(badge), badgeX, badgeY, 0xFFFFFFFF, true);
-    }
-
-    private void renderPreviewArmor(GuiGraphicsExtractor graphics, int right, int top) {
-        int itemX = right + 6;
-        int itemY = top + 4;
-        ItemStack[] previewItems = {HELMET_STACK, CHEST_STACK, LEGS_STACK, BOOTS_STACK, SWORD_STACK};
-        String[] durStrings = {"100%", "88%", "94%", this.simulatedDamaged ? "24%" : "72%", "100%"};
-        int[] durColors = {0xFF00FF66, 0xFF00FF66, 0xFF00FF66, this.simulatedDamaged ? 0xFFFF3333 : 0xFFFFAA00, 0xFF00FF66};
-
-        for (int i = 0; i < previewItems.length; i++) {
-            graphics.item(previewItems[i], itemX, itemY);
-            graphics.itemDecorations(this.font, previewItems[i], itemX, itemY);
-            graphics.text(this.font, Component.literal(durStrings[i]), itemX + 18, itemY + 4, durColors[i], true);
-            itemY += 17;
-        }
     }
 
     // ==========================================
@@ -1094,11 +812,11 @@ public class ModernClickGuiScreen extends Screen {
         int cardY = topY + 22;
         int colW = contentW - 28;
 
-        cardY = renderEspToggleCard(graphics, mouseX, mouseY, contentX + 14, cardY, colW, "Modern Dashboard GUI", "Switch between Modern ClickGUI and Classic Floating Windows", config.clickGuiStyle == 1, dt);
-        cardY = renderEspToggleCard(graphics, mouseX, mouseY, contentX + 14, cardY, colW, "Glass Background Blur", "Enable blurred backdrop behind ClickGUI screens", config.jelloBlur, dt);
-        cardY = renderEspToggleCard(graphics, mouseX, mouseY, contentX + 14, cardY, colW, "Keybinds HUD Table", "Render active draggable keybinds overlay on screen", config.keybindsHudEnabled, dt);
-        cardY = renderEspToggleCard(graphics, mouseX, mouseY, contentX + 14, cardY, colW, "Infinite Chat History", "Remove chat line limits and preserve all messages", config.chatInfinite, dt);
-        cardY = renderEspToggleCard(graphics, mouseX, mouseY, contentX + 14, cardY, colW, "Anti Chat Clear", "Prevent servers from clearing your chat buffer", config.chatAntiClear, dt);
+        cardY = renderSettingsToggleCard(graphics, mouseX, mouseY, contentX + 14, cardY, colW, "Modern Dashboard GUI", "Switch between Modern ClickGUI and Classic Floating Windows", config.clickGuiStyle == 1, dt);
+        cardY = renderSettingsToggleCard(graphics, mouseX, mouseY, contentX + 14, cardY, colW, "Glass Background Blur", "Enable blurred backdrop behind ClickGUI screens", config.jelloBlur, dt);
+        cardY = renderSettingsToggleCard(graphics, mouseX, mouseY, contentX + 14, cardY, colW, "Keybinds HUD Table", "Render active draggable keybinds overlay on screen", config.keybindsHudEnabled, dt);
+        cardY = renderSettingsToggleCard(graphics, mouseX, mouseY, contentX + 14, cardY, colW, "Infinite Chat History", "Remove chat line limits and preserve all messages", config.chatInfinite, dt);
+        cardY = renderSettingsToggleCard(graphics, mouseX, mouseY, contentX + 14, cardY, colW, "Anti Chat Clear", "Prevent servers from clearing your chat buffer", config.chatAntiClear, dt);
 
         this.contentTotalHeight = cardY - contentY + (int) this.scrollAmount + 20;
     }
@@ -1259,10 +977,6 @@ public class ModernClickGuiScreen extends Screen {
             boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
             if (showingModules) {
                 if (handleModulesWorkspaceClick(mouseX, mouseY, button, contentX, contentY, contentW, contentH)) {
-                    return true;
-                }
-            } else if (this.activeNav == NavTab.ESP) {
-                if (handleEspSettingsClick(mouseX, mouseY, button, contentX, contentY, contentW)) {
                     return true;
                 }
             } else if (this.activeNav == NavTab.MACROS) {
@@ -1451,71 +1165,6 @@ public class ModernClickGuiScreen extends Screen {
             );
         }
         return true;
-    }
-
-    private boolean handleEspSettingsClick(int mouseX, int mouseY, int button, int contentX, int contentY, int contentW) {
-        if (!MouseButtonMapping.isLeftClick(button)) return false;
-        ModConfig config = ModConfig.getInstance();
-        int leftColW = Math.min(320, contentW / 2 - 10);
-        int leftColX = contentX + 14;
-        int innerY = contentY + 12;
-        int rightColX = leftColX + leftColW + 14;
-        int rightColW = contentW - leftColW - 38;
-
-        int simBtnW = 96;
-        int simBtnX = rightColX + rightColW - simBtnW - 10;
-        if (isInside(mouseX, mouseY, simBtnX, innerY + 6, simBtnW, 18)) {
-            this.simulatedDamaged = !this.simulatedDamaged;
-            playClickSound();
-            return true;
-        }
-
-        int cardY = innerY + 20;
-        int cardH = 38;
-        boolean[] flags = {config.espEnabled, config.espBox, config.espHealth, config.espNametags, config.espSkeleton, config.espArmor};
-        for (int idx = 0; idx < flags.length; idx++) {
-            if (isInside(mouseX, mouseY, leftColX, cardY, leftColW, cardH)) {
-                switch (idx) {
-                    case 0 -> config.espEnabled = !config.espEnabled;
-                    case 1 -> config.espBox = !config.espBox;
-                    case 2 -> config.espHealth = !config.espHealth;
-                    case 3 -> config.espNametags = !config.espNametags;
-                    case 4 -> config.espSkeleton = !config.espSkeleton;
-                    case 5 -> config.espArmor = !config.espArmor;
-                }
-                config.save();
-                playClickSound();
-                return true;
-            }
-            cardY += cardH + 6;
-        }
-
-        int chipsY = cardY + 20;
-        int chipSize = 22;
-        int chipGap = 12;
-        for (int i = 0; i < PALETTE_COLORS.length; i++) {
-            int cx = leftColX + i * (chipSize + chipGap);
-            if (mouseX >= cx - 2 && mouseX <= cx + chipSize + 2 && mouseY >= chipsY - 2 && mouseY <= chipsY + chipSize + 2) {
-                config.espColorIndex = i;
-                config.save();
-                playClickSound();
-                return true;
-            }
-        }
-
-        int distSliderY = chipsY + chipSize + 28;
-        int distSliderW = leftColW - 10;
-        if (mouseX >= leftColX && mouseX <= leftColX + distSliderW && mouseY >= distSliderY - 4 && mouseY <= distSliderY + 12) {
-            this.draggingSliderKey = "espDist";
-            this.activeSlider = null;
-            this.draggingSliderStartX = leftColX;
-            this.draggingSliderWidth = distSliderW;
-            updateSliderValue(mouseX);
-            playClickSound();
-            return true;
-        }
-
-        return false;
     }
 
     private boolean handleMacrosClick(int mouseX, int mouseY, int button, int contentX, int contentY, int contentW, int contentH) {
@@ -1847,10 +1496,6 @@ public class ModernClickGuiScreen extends Screen {
         float pct = Mth.clamp((float) (mouseX - this.draggingSliderStartX) / (float) this.draggingSliderWidth, 0.0f, 1.0f);
         if (this.activeSlider != null) {
             this.activeSlider.pctSetter().accept(pct);
-            return;
-        }
-        if ("espDist".equals(this.draggingSliderKey)) {
-            ModConfig.getInstance().espMaxDistance = Math.round(16 + pct * 112.0f);
         }
     }
 
