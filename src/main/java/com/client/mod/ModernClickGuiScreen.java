@@ -61,8 +61,7 @@ public class ModernClickGuiScreen extends Screen {
     private static final int HEADER_HEIGHT = 44;
     private static final int NAV_ROW_HEIGHT = 34;
     private static final int CHIP_BAR_HEIGHT = 30;
-    private static final int CARD_HEIGHT = 50;
-    private static final int CARD_BIND_OFFSET_Y = 29;
+    private static final int CARD_HEIGHT = 36;
     private static final int INSPECTOR_TARGET_WIDTH = 264;
     private static final int INSPECTOR_HEADER_HEIGHT = 68;
     private static final int INSPECTOR_PILL_ROW_OFFSET = 46;
@@ -471,11 +470,54 @@ public class ModernClickGuiScreen extends Screen {
         this.contentTotalHeight = 20 + rows * CARD_HEIGHT + Math.max(0, rows - 1) * gapY;
     }
 
+    private record CardControlsBounds(
+            int switchX,
+            int switchY,
+            int switchW,
+            int switchH,
+            int bindX,
+            int bindY,
+            int bindW,
+            int bindH,
+            int tuneX,
+            int tuneY,
+            int tuneW,
+            int tuneH,
+            String bindTag,
+            boolean isListening,
+            boolean hasSettings
+    ) {
+    }
+
+    private CardControlsBounds computeCardControls(int x, int y, int w, ClickGuiScreen.ModuleEntry mod, ModConfig cfg) {
+        boolean hasSettings = ModernModuleSettings.hasSettings(mod.name, cfg, this.settingsActions);
+        boolean isListening = mod.name.equals(this.listeningKeybindModule);
+        String bindTag = getBindPillText(cfg, mod.name, isListening);
+        int controlY = y + 10;
+        int switchW = 30;
+        int switchH = 15;
+        int switchX = x + w - switchW - 10;
+
+        int bindW = this.font.width(bindTag) + 8;
+        int bindH = 15;
+        int bindX = switchX - bindW - 5;
+
+        int tuneW = 17;
+        int tuneH = 15;
+        int tuneX = bindX - tuneW - 5;
+        return new CardControlsBounds(
+                switchX, controlY, switchW, switchH,
+                bindX, controlY, bindW, bindH,
+                tuneX, controlY, tuneW, tuneH,
+                bindTag, isListening, hasSettings
+        );
+    }
+
     private void renderUniformModuleCard(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int x, int y, int w, ClickGuiScreen.ModuleEntry mod, float dt) {
         ModConfig cfg = ModConfig.getInstance();
         boolean active = mod.getter.get();
-        boolean hasSettings = ModernModuleSettings.hasSettings(mod.name, cfg, this.settingsActions);
-        boolean isInspected = hasSettings && mod.name.equals(this.inspectedModule);
+        CardControlsBounds layout = computeCardControls(x, y, w, mod, cfg);
+        boolean isInspected = layout.hasSettings() && mod.name.equals(this.inspectedModule);
         boolean hovered = isInside(mouseX, mouseY, x, y, w, CARD_HEIGHT);
 
         int bg = active
@@ -486,43 +528,29 @@ public class ModernClickGuiScreen extends Screen {
                 : (active ? (hovered ? JelloTheme.ACCENT_HOVER : 0x66E53935) : (hovered ? 0x5594A3B8 : JelloTheme.BORDER_SUBTLE));
         JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + CARD_HEIGHT, 7, bg, border);
 
-        // Top Row: Title + optional Settings Tune Icon + Toggle Switch
-        int switchW = 30;
-        int switchH = 15;
-        int switchX = x + w - switchW - 10;
-        int switchY = y + 8;
-        int titleMaxW = w - switchW - (hasSettings ? 48 : 26);
-
+        // Single-Row Layout: Title (left) ... [Tune] [Bind] [Toggle] (right)
+        int controlsLeft = layout.hasSettings() ? layout.tuneX() : layout.bindX();
+        int titleMaxW = Math.max(24, controlsLeft - (x + 12) - 6);
         String title = fitText(mod.name, titleMaxW);
-        graphics.text(this.font, Component.literal(title), x + 12, y + 10, active ? JelloTheme.TEXT : 0xFFE2E8F0, false);
+        graphics.text(this.font, Component.literal(title), x + 12, y + 14, active ? JelloTheme.TEXT : 0xFFE2E8F0, false);
 
-        if (hasSettings) {
-            int tuneX = switchX - 22;
-            int tuneY = y + 8;
-            boolean tuneHov = isInside(mouseX, mouseY, tuneX, tuneY, 17, 15);
+        if (layout.hasSettings()) {
+            boolean tuneHov = isInside(mouseX, mouseY, layout.tuneX(), layout.tuneY(), layout.tuneW(), layout.tuneH());
             int tuneBg = isInspected ? 0x44E53935 : (tuneHov ? 0x26FFFFFF : 0xFF1B1B25);
             int tuneBorder = isInspected ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE;
-            JelloTheme.fillRoundedCard(graphics, tuneX, tuneY, tuneX + 17, tuneY + 15, 4, tuneBg, tuneBorder);
-            ModernIcons.drawTuneIcon(graphics, tuneX + 4, tuneY + 3,
+            JelloTheme.fillRoundedCard(graphics, layout.tuneX(), layout.tuneY(), layout.tuneX() + layout.tuneW(), layout.tuneY() + layout.tuneH(), 4, tuneBg, tuneBorder);
+            ModernIcons.drawTuneIcon(graphics, layout.tuneX() + 4, layout.tuneY() + 3,
                     isInspected ? JelloTheme.ACCENT_HOVER : (tuneHov ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED));
         }
 
-        renderSmoothSwitch(graphics, mouseX, mouseY, switchX, switchY, switchW, switchH, "mod:" + mod.name, active, dt);
+        boolean bindHovered = isInside(mouseX, mouseY, layout.bindX(), layout.bindY(), layout.bindW(), layout.bindH());
+        int bindBg = layout.isListening() ? 0x55E53935 : (bindHovered ? 0x33E53935 : 0xFF1A1A24);
+        int bindBorder = layout.isListening() ? JelloTheme.ACCENT_HOVER : (bindHovered ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+        JelloTheme.fillRoundedCard(graphics, layout.bindX(), layout.bindY(), layout.bindX() + layout.bindW(), layout.bindY() + layout.bindH(), 4, bindBg, bindBorder);
+        graphics.centeredText(this.font, Component.literal(layout.bindTag()), layout.bindX() + layout.bindW() / 2, layout.bindY() + 4,
+                layout.isListening() ? 0xFFFFDD55 : (cfg.getModuleKey(mod.name) >= 0 ? JelloTheme.TEXT_DIM : JelloTheme.TEXT_MUTED));
 
-        // Bottom Row: Keybind Pill only (descriptions are displayed inside Inspector Settings Drawer)
-        boolean isListening = mod.name.equals(this.listeningKeybindModule);
-        String bindTag = getBindPillText(cfg, mod.name, isListening);
-        int bindW = this.font.width(bindTag) + 8;
-        int bindX = x + w - 10 - bindW;
-        int bindY = y + CARD_BIND_OFFSET_Y;
-        int bindH = 15;
-
-        boolean bindHovered = isInside(mouseX, mouseY, bindX, bindY, bindW, bindH);
-        int bindBg = isListening ? 0x55E53935 : (bindHovered ? 0x33E53935 : 0xFF1A1A24);
-        int bindBorder = isListening ? JelloTheme.ACCENT_HOVER : (bindHovered ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
-        JelloTheme.fillRoundedCard(graphics, bindX, bindY, bindX + bindW, bindY + bindH, 4, bindBg, bindBorder);
-        graphics.centeredText(this.font, Component.literal(bindTag), bindX + bindW / 2, bindY + 4,
-                isListening ? 0xFFFFDD55 : (cfg.getModuleKey(mod.name) >= 0 ? JelloTheme.TEXT_DIM : JelloTheme.TEXT_MUTED));
+        renderSmoothSwitch(graphics, mouseX, mouseY, layout.switchX(), layout.switchY(), layout.switchW(), layout.switchH(), "mod:" + mod.name, active, dt);
     }
 
     // ==========================================
@@ -1316,37 +1344,29 @@ public class ModernClickGuiScreen extends Screen {
 
             if (isInside(mouseX, mouseY, cx, cy, colW, CARD_HEIGHT)) {
                 ClickGuiScreen.ModuleEntry mod = modules.get(i);
-                boolean hasSettings = ModernModuleSettings.hasSettings(mod.name, cfg, this.settingsActions);
+                CardControlsBounds layout = computeCardControls(cx, cy, colW, mod, cfg);
 
-                // Keybind Pill (bottom-right)
-                boolean isListening = mod.name.equals(this.listeningKeybindModule);
-                String bindTag = getBindPillText(cfg, mod.name, isListening);
-                int bindW = this.font.width(bindTag) + 8;
-                int bindX = cx + colW - 10 - bindW;
-                int bindY = cy + CARD_BIND_OFFSET_Y;
-                if (isInside(mouseX, mouseY, bindX, bindY, bindW, 15)) {
+                // Keybind Pill (immediately left of toggle switch)
+                if (isInside(mouseX, mouseY, layout.bindX(), layout.bindY(), layout.bindW(), layout.bindH())) {
                     if (MouseButtonMapping.isRightClick(button)) {
                         cfg.setModuleKey(mod.name, -1, false);
                         this.listeningKeybindModule = null;
                         cfg.save();
                         playClickSound();
                     } else if (MouseButtonMapping.isLeftClick(button)) {
-                        this.listeningKeybindModule = isListening ? null : mod.name;
+                        this.listeningKeybindModule = layout.isListening() ? null : mod.name;
                         cfg.save();
                         playClickSound();
                     }
                     return true;
                 }
 
-                // Settings Tune Icon (top-right next to switch, only on configurable modules)
-                if (hasSettings) {
-                    int switchX = cx + colW - 30 - 10;
-                    int tuneX = switchX - 22;
-                    int tuneY = cy + 8;
-                    if (isInside(mouseX, mouseY, tuneX, tuneY, 17, 15) && (MouseButtonMapping.isLeftClick(button) || MouseButtonMapping.isRightClick(button))) {
-                        toggleInspector(mod.name);
-                        return true;
-                    }
+                // Settings Tune Icon (immediately left of keybind pill, only on configurable modules)
+                if (layout.hasSettings()
+                        && isInside(mouseX, mouseY, layout.tuneX(), layout.tuneY(), layout.tuneW(), layout.tuneH())
+                        && (MouseButtonMapping.isLeftClick(button) || MouseButtonMapping.isRightClick(button))) {
+                    toggleInspector(mod.name);
+                    return true;
                 }
 
                 // Main Card Body / Toggle Switch: Left-click toggles ON/OFF, Right-click opens Settings (if configurable)
@@ -1356,7 +1376,7 @@ public class ModernClickGuiScreen extends Screen {
                     return true;
                 }
                 if (MouseButtonMapping.isRightClick(button)) {
-                    if (hasSettings) {
+                    if (layout.hasSettings()) {
                         toggleInspector(mod.name);
                     }
                     return true;
