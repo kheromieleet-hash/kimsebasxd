@@ -143,6 +143,30 @@ public class ModConfig {
     // Advanced PvP & Render Modules
     public boolean trueSight = true;
     public boolean itemEsp = true;
+
+    // ESP Configuration
+    public boolean espEnabled = true;
+    public boolean espBox = true;
+    public boolean espHealth = true;
+    public boolean espNametags = true;
+    public boolean espSkeleton = false;
+    public boolean espArmor = true;
+    public int espColorIndex = 0; // 0=Red, 1=Cyan, 2=Green, 3=Purple, 4=Gold
+    public int espMaxDistance = 64; // 16 to 128 blocks
+
+    // ClickGUI Style: 0 = Classic Multi-Window, 1 = Modern Single-Panel
+    public int clickGuiStyle = 1;
+
+    public int getEspColorHex() {
+        return switch (espColorIndex) {
+            case 1 -> 0xFF00E5FF; // Cyan
+            case 2 -> 0xFF00E676; // Green
+            case 3 -> 0xFFD500F9; // Purple
+            case 4 -> 0xFFFFAB00; // Gold
+            default -> 0xFFE53935; // Red (Default)
+        };
+    }
+
     public boolean fastBreak = false;
     public int fastBreakMode = 1; // 0 = Vanilla (0 Delay), 1 = Vulcan (Anti-Cheat Bypass)
     public float fastBreakSpeed = 1.15f;
@@ -371,6 +395,15 @@ public class ModConfig {
         this.tntTimer = other.tntTimer;
         this.trueSight = other.trueSight;
         this.itemEsp = other.itemEsp;
+        this.espEnabled = other.espEnabled;
+        this.espBox = other.espBox;
+        this.espHealth = other.espHealth;
+        this.espNametags = other.espNametags;
+        this.espSkeleton = other.espSkeleton;
+        this.espArmor = other.espArmor;
+        this.espColorIndex = other.espColorIndex;
+        this.espMaxDistance = other.espMaxDistance;
+        this.clickGuiStyle = other.clickGuiStyle;
         this.fastBreak = other.fastBreak;
         this.fastBreakMode = other.fastBreakMode;
         this.fastBreakSpeed = other.fastBreakSpeed;
@@ -449,6 +482,9 @@ public class ModConfig {
                     }
                     if (this.fastBreakSpeed < 0.5f || this.fastBreakSpeed > 5.0f) this.fastBreakSpeed = 1.15f;
                     if (this.fastBreakMode < 0 || this.fastBreakMode > 1) this.fastBreakMode = 1;
+                    if (this.espColorIndex < 0 || this.espColorIndex > 4) this.espColorIndex = 0;
+                    if (this.espMaxDistance < 16 || this.espMaxDistance > 256) this.espMaxDistance = 64;
+                    if (this.clickGuiStyle < 0 || this.clickGuiStyle > 1) this.clickGuiStyle = 1;
                     if (this.targetVersionName == null) this.targetVersionName = "Auto";
                     if (this.categoryX == null) this.categoryX = new HashMap<>();
                     if (this.categoryY == null) this.categoryY = new HashMap<>();
