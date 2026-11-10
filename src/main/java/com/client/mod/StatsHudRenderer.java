@@ -90,16 +90,8 @@ public class StatsHudRenderer {
         MutableComponent pingComp = buildPair("Ping: ", Integer.toString(ping));
         MutableComponent speedComp = buildPair("Speed: ", formatRound1(speed));
 
-        // Sestia Crimson Watermark Pill at top-left (smooth rounded card + vector crest, no boxy Unicode glyphs)
-        String wmLabel = "§c§lSCT CLIENT §7| §f" + ClientBuildInfo.getDisplayVersion() + " §7| §f" + fps + " FPS";
-        int wmW = mc.font.width(wmLabel) + 23;
-        int wmH = 16;
-        JelloTheme.fillRoundedCard(graphics, 4, 4, 4 + wmW, 4 + wmH, 4, 0xD8120B0E, 0x66E53935);
-        ModernIcons.drawBrandEmblem(graphics, 12, 12, JelloTheme.ACCENT, 0xFFFFCDD2);
-        graphics.text(mc.font, Component.literal(wmLabel), 20, 8, 0xFFFFFFFF, true);
-
         int x = 4;
-        int y = 24;
+        int y = 4;
         graphics.text(mc.font, fpsComp, x, y, -1, true);
         graphics.text(mc.font, tpsComp, x, y + lineSpacing, -1, true);
         graphics.text(mc.font, pingComp, x, y + lineSpacing * 2, -1, true);
