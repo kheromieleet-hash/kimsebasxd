@@ -9,30 +9,32 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Rise 6 / Tenacity Luxury Theme: Dark Indigo Glass with Pastel Violet & Rose accents.
+ * OLED Obsidian & Crimson Red Theme constants and rounded drawing utilities.
  */
 public final class JelloTheme {
     public static final int ACCENT = 0xFFE53935;        // Crimson Red
     public static final int ACCENT_HOVER = 0xFFFF5252;  // Vibrant Scarlet Red
-    public static final int PANEL = 0xF2140B0E;         // Dark Obsidian Crimson panel body
-    public static final int HEADER = 0xFA0E080B;        // Deep Obsidian header
-    public static final int BORDER = 0x55E53935;        // Glowing Crimson border outline
+    public static final int PANEL = 0xF50E0E14;             // OLED Obsidian panel body
+    public static final int HEADER = 0xFA0A0A0F;            // Deep OLED header
+    public static final int BORDER = 0x55E53935;            // Glowing Crimson border outline
     public static final int ROW_HOVER = 0x22E53935;
-    public static final int TEXT = 0xFFF8FAFC;
-    public static final int TEXT_DIM = 0xFFFCA5A5;      // Soft Warm Red text
+    public static final int TEXT = 0xFFF8FAFC;              // Primary high-contrast white
+    public static final int TEXT_MUTED = 0xFF94A3B8;        // Crisp slate secondary text
+    public static final int TEXT_DIM = 0xFFFCA5A5;          // Warm Soft Red accent text
     public static final int TRACK = 0x33E53935;
-    public static final int SWITCH_OFF = 0x5529161B;
-    public static final int SWITCH_OFF_HOVER = 0x663A1E25;
+    public static final int SWITCH_OFF = 0xFF22222D;        // Neutral OLED off-track
+    public static final int SWITCH_OFF_HOVER = 0xFF30303E;
 
-    public static final int WINDOW_BG = 0xF2120B0E;
-    public static final int HEADER_BG = 0xDD11090C;
-    public static final int SIDEBAR_BG = 0xD00D080A;
-    public static final int CONTAINER_BG = 0xE00D080B;
-    public static final int CARD_INACTIVE = 0x99160E12;
-    public static final int CARD_INACTIVE_HOVER = 0xBB201419;
-    public static final int CARD_ACTIVE = 0xDD261217;
-    public static final int CARD_ACTIVE_HOVER = 0xEE33171E;
-    public static final int BORDER_SUBTLE = 0x2252333B;
+    public static final int WINDOW_BG = 0xF50B0B10;         // Deep OLED Obsidian window
+    public static final int HEADER_BG = 0xFF0E0E15;         // Elevated dark top bar
+    public static final int SIDEBAR_BG = 0xFF09090D;        // Recessed navigation rail
+    public static final int CONTAINER_BG = 0xF0101017;      // Inspector / preview container
+    public static final int CARD_INACTIVE = 0xFF14141C;     // Clean elevated dark card
+    public static final int CARD_INACTIVE_HOVER = 0xFF1B1B26;
+    public static final int CARD_ACTIVE = 0xFF1D1116;       // Deep crimson-tinted active card
+    public static final int CARD_ACTIVE_HOVER = 0xFF27151C;
+    public static final int BORDER_SUBTLE = 0xFF242431;     // Crisp OLED hairline border
+    public static final int DIVIDER = 0xFF1E1E29;           // Subtle structural divider
 
     private static float alpha = 1.0f;
 
