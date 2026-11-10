@@ -8,7 +8,6 @@ import dlovin.inventoryhud.platform.ConfigAccess;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 
@@ -38,7 +37,7 @@ final class ModernModuleCardUi {
     private ModernModuleCardUi() {
     }
 
-    static ModernModuleSettings.Actions createActions(Screen parentScreen) {
+    static ModernModuleSettings.Actions createActions() {
         ModernModuleSettings.InventoryBridge invBridge = new ModernModuleSettings.InventoryBridge() {
             @Override
             public boolean isActive() {
@@ -189,17 +188,6 @@ final class ModernModuleCardUi {
                     Minecraft mc = Minecraft.getInstance();
                     if (mc != null && mc.gui != null) {
                         mc.gui.setScreen(new InGameConfigScreen(0, true));
-                    }
-                } catch (Throwable ignored) {
-                }
-            }
-
-            @Override
-            public void openVersionSwitcher() {
-                try {
-                    Minecraft mc = Minecraft.getInstance();
-                    if (mc != null && mc.gui != null) {
-                        mc.gui.setScreen(new VersionSwitcherScreen(parentScreen));
                     }
                 } catch (Throwable ignored) {
                 }
@@ -426,7 +414,6 @@ final class ModernModuleCardUi {
             case "GUI Style" -> "Switch between Modern Dashboard and Classic Windows";
             case "No Pitch Limit" -> "Unlock vertical camera pitch limits";
             case "Abort Breaking" -> "Prevent block-break reset glitches";
-            case "Version Switcher" -> "Spoof target Minecraft protocol version";
             case "Inventory Tweaks" -> "One-click sort & smart inventory handling";
             case "Auto Replenish" -> "Refill hotbar slots from inventory";
             default -> fallbackCategory.toUpperCase(java.util.Locale.ROOT) + " MODULE";

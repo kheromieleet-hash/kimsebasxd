@@ -76,7 +76,7 @@ public class ModernClickGuiScreen extends Screen {
 
     // Module Keybind listening state
     private String listeningKeybindModule = null;
-    private final ModernModuleSettings.Actions settingsActions = ModernModuleCardUi.createActions(this);
+    private final ModernModuleSettings.Actions settingsActions = ModernModuleCardUi.createActions();
 
     // Macro editor state
     private int editingMacroIndex = -1;

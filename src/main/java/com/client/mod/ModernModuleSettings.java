@@ -60,7 +60,6 @@ public final class ModernModuleSettings {
         void persist(boolean reloadChunks);
         void openInventorySettings();
         void openInventoryMove();
-        void openVersionSwitcher();
         InventoryBridge inventory();
     }
 
@@ -179,9 +178,6 @@ public final class ModernModuleSettings {
             );
             case "Auto Crafter" -> buildAutoCrafterControls(cfg, actions);
             case "Better Chat" -> buildBetterChatControls(cfg, actions);
-            case "Version Switcher" -> List.of(
-                    new ActionControl(() -> "Open Menu (" + cfg.getDisplayVersion() + ")", actions::openVersionSwitcher)
-            );
             default -> List.of();
         };
     }

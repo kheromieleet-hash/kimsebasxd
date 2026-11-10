@@ -27,7 +27,6 @@ public class ModernInspectorLayoutTest {
             @Override public void persist(boolean reloadChunks) {}
             @Override public void openInventorySettings() {}
             @Override public void openInventoryMove() {}
-            @Override public void openVersionSwitcher() {}
             @Override public ModernModuleSettings.InventoryBridge inventory() { return inv; }
         };
     }
