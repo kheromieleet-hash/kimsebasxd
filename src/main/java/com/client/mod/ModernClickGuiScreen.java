@@ -45,20 +45,22 @@ public class ModernClickGuiScreen extends Screen {
         }
     }
 
-    // Color Palette presets (Red, Cyan, Green, Purple, Gold)
+    // Color Palette presets (Rise 6 Luxury Violet & Rose, Cyan, Green, Crimson, Gold)
     public static final int[] PALETTE_COLORS = {
-            0xFFE53935, // Red (Default)
-            0xFF00E5FF, // Cyan
-            0xFF00E676, // Green
-            0xFFD500F9, // Purple
-            0xFFFFAB00  // Gold
+            0xFFC084FC, // Rise 6 Luxury Violet (Default)
+            0xFFF472B6, // Luxury Rose Pink
+            0xFF00E5FF, // Neon Cyan
+            0xFF00E676, // Emerald Green
+            0xFFE53935, // Crimson Red
+            0xFFFFAB00  // Sunset Gold
     };
 
     public static final String[] PALETTE_NAMES = {
-            "Crimson Red",
+            "Rise Violet",
+            "Rose Pink",
             "Neon Cyan",
             "Emerald Green",
-            "Vibrant Purple",
+            "Crimson Red",
             "Sunset Gold"
     };
 
@@ -190,12 +192,12 @@ public class ModernClickGuiScreen extends Screen {
         // Dark dim background over the world
         graphics.fill(0, 0, this.width, this.height, 0x88000000);
 
-        // Window drop shadow & ambient crimson glow
-        graphics.fill(this.windowX - 3, this.windowY - 3, this.windowX + this.windowW + 3, this.windowY + this.windowH + 3, 0x1A000000);
-        graphics.fill(this.windowX - 1, this.windowY - 1, this.windowX + this.windowW + 1, this.windowY + this.windowH + 1, 0x55E53935);
+        // Window drop shadow & ambient Rise 6 Luxury violet glow
+        graphics.fill(this.windowX - 3, this.windowY - 3, this.windowX + this.windowW + 3, this.windowY + this.windowH + 3, 0x22000000);
+        graphics.fill(this.windowX - 1, this.windowY - 1, this.windowX + this.windowW + 1, this.windowY + this.windowH + 1, 0x55C084FC);
 
-        // Main glass panel body: 0xEE0A0B0E
-        graphics.fill(this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 0xEE0A0B0E);
+        // Main glass panel body: Dark Indigo Slate (0xF20D0F1D)
+        graphics.fill(this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 0xF20D0F1D);
 
         // Top Header
         renderHeader(graphics, mouseX, mouseY);
@@ -241,37 +243,40 @@ public class ModernClickGuiScreen extends Screen {
         int headW = this.windowW;
 
         // Header background & subtle gradient separator
-        graphics.fill(headX, headY, headX + headW, headY + HEADER_HEIGHT, 0xF508090C);
-        graphics.fill(headX, headY + HEADER_HEIGHT - 1, headX + headW, headY + HEADER_HEIGHT, 0x44E53935);
+        graphics.fill(headX, headY, headX + headW, headY + HEADER_HEIGHT, 0xF50E1022);
+        // Dual-gradient line at bottom of header (Rise 6 Luxury: Violet to Rose Pink)
+        int halfHeadW = headW / 2;
+        graphics.fill(headX, headY + HEADER_HEIGHT - 1, headX + halfHeadW, headY + HEADER_HEIGHT, 0xFFC084FC);
+        graphics.fill(headX + halfHeadW, headY + HEADER_HEIGHT - 1, headX + headW, headY + HEADER_HEIGHT, 0xFFF472B6);
 
         // Client Logo & Version
         int logoX = headX + 16;
         int logoY = headY + 14;
 
-        graphics.text(this.font, Component.literal("§c§l✦ SCT CLIENT§r §f§lv1.0.0"), logoX, logoY, 0xFFFFFFFF, false);
+        graphics.text(this.font, Component.literal("§d§l✦ SCT CLIENT§r §f§lv1.0.0"), logoX, logoY, 0xFFFFFFFF, false);
 
         // Subtle subtitle badge
-        String badgeText = "MODERN SINGLE-PANEL";
+        String badgeText = "RISE 6 LUXURY";
         int badgeX = logoX + 130;
         int badgeW = this.font.width(badgeText) + 8;
-        graphics.fill(badgeX, logoY - 1, badgeX + badgeW, logoY + 11, 0x26E53935);
-        graphics.fill(badgeX, logoY - 1, badgeX + badgeW, logoY, 0x66E53935);
-        graphics.fill(badgeX, logoY + 10, badgeX + badgeW, logoY + 11, 0x66E53935);
-        graphics.fill(badgeX, logoY - 1, badgeX + 1, logoY + 11, 0x66E53935);
-        graphics.fill(badgeX + badgeW - 1, logoY - 1, badgeX + badgeW, logoY + 11, 0x66E53935);
-        graphics.text(this.font, Component.literal(badgeText), badgeX + 4, logoY + 1, 0xFFE53935, false);
+        graphics.fill(badgeX, logoY - 1, badgeX + badgeW, logoY + 11, 0x26C084FC);
+        graphics.fill(badgeX, logoY - 1, badgeX + badgeW, logoY, 0x66C084FC);
+        graphics.fill(badgeX, logoY + 10, badgeX + badgeW, logoY + 11, 0x66C084FC);
+        graphics.fill(badgeX, logoY - 1, badgeX + 1, logoY + 11, 0x66C084FC);
+        graphics.fill(badgeX + badgeW - 1, logoY - 1, badgeX + badgeW, logoY + 11, 0x66C084FC);
+        graphics.text(this.font, Component.literal(badgeText), badgeX + 4, logoY + 1, 0xFFC084FC, false);
 
         // Close button '✕' at top right
         int closeX = headX + headW - 30;
         int closeY = headY + 13;
         boolean closeHovered = mouseX >= closeX && mouseX <= closeX + 20 && mouseY >= closeY && mouseY <= closeY + 20;
 
-        graphics.fill(closeX, closeY, closeX + 20, closeY + 20, closeHovered ? 0x44E53935 : 0x1AFFFFFF);
-        graphics.fill(closeX, closeY, closeX + 20, closeY + 1, closeHovered ? 0xFFE53935 : 0x33FFFFFF);
-        graphics.fill(closeX, closeY + 19, closeX + 20, closeY + 20, closeHovered ? 0xFFE53935 : 0x33FFFFFF);
-        graphics.fill(closeX, closeY, closeX + 1, closeY + 20, closeHovered ? 0xFFE53935 : 0x33FFFFFF);
-        graphics.fill(closeX + 19, closeY, closeX + 20, closeY + 20, closeHovered ? 0xFFE53935 : 0x33FFFFFF);
-        graphics.centeredText(this.font, Component.literal("✕"), closeX + 10, closeY + 5, closeHovered ? 0xFFFF5555 : 0xFFCCCCCC);
+        graphics.fill(closeX, closeY, closeX + 20, closeY + 20, closeHovered ? 0x44C084FC : 0x1AFFFFFF);
+        graphics.fill(closeX, closeY, closeX + 20, closeY + 1, closeHovered ? 0xFFC084FC : 0x33FFFFFF);
+        graphics.fill(closeX, closeY + 19, closeX + 20, closeY + 20, closeHovered ? 0xFFC084FC : 0x33FFFFFF);
+        graphics.fill(closeX, closeY, closeX + 1, closeY + 20, closeHovered ? 0xFFC084FC : 0x33FFFFFF);
+        graphics.fill(closeX + 19, closeY, closeX + 20, closeY + 20, closeHovered ? 0xFFC084FC : 0x33FFFFFF);
+        graphics.centeredText(this.font, Component.literal("✕"), closeX + 10, closeY + 5, closeHovered ? 0xFFF472B6 : 0xFFCCCCCC);
     }
 
     // ==========================================
@@ -284,8 +289,8 @@ public class ModernClickGuiScreen extends Screen {
         int sideH = this.windowH - HEADER_HEIGHT;
 
         // Dark pane background & separator
-        graphics.fill(sideX, sideY, sideX + sideW, sideY + sideH, 0xD907080B);
-        graphics.fill(sideX + sideW, sideY, sideX + sideW + 1, sideY + sideH, 0x33E53935);
+        graphics.fill(sideX, sideY, sideX + sideW, sideY + sideH, 0xD90A0C18);
+        graphics.fill(sideX + sideW, sideY, sideX + sideW + 1, sideY + sideH, 0x33C084FC);
 
         // Smooth vertical sliding indicator
         float targetY = sideY + this.activeTab.ordinal() * TAB_HEIGHT;
@@ -293,9 +298,9 @@ public class ModernClickGuiScreen extends Screen {
 
         int indY = Math.round(this.indicatorY);
         // Pill background behind active tab
-        graphics.fill(sideX + 6, indY + 2, sideX + sideW - 6, indY + TAB_HEIGHT - 2, 0x2AE53935);
-        // Vertical crimson stripe indicator
-        graphics.fill(sideX + 6, indY + 5, sideX + 9, indY + TAB_HEIGHT - 5, 0xFFE53935);
+        graphics.fill(sideX + 6, indY + 2, sideX + sideW - 6, indY + TAB_HEIGHT - 2, 0x2AC084FC);
+        // Vertical violet stripe indicator
+        graphics.fill(sideX + 6, indY + 5, sideX + 9, indY + TAB_HEIGHT - 5, 0xFFC084FC);
 
         // Tab items
         CategoryTab[] tabs = CategoryTab.values();
@@ -311,7 +316,7 @@ public class ModernClickGuiScreen extends Screen {
 
             // Icon + Label
             int textColor = isCurrent ? 0xFFFFFFFF : (hovered ? 0xFFDDDDDD : 0xFF888E9B);
-            int iconColor = isCurrent ? 0xFFE53935 : (hovered ? 0xFFFF7777 : 0xFFA0A5B2);
+            int iconColor = isCurrent ? 0xFFC084FC : (hovered ? 0xFFF472B6 : 0xFFA0A5B2);
 
             graphics.text(this.font, Component.literal(tab.icon), sideX + 18, itemY + 14, iconColor, false);
             graphics.text(this.font, Component.literal(tab.label), sideX + 38, itemY + 14, textColor, false);
@@ -343,7 +348,7 @@ public class ModernClickGuiScreen extends Screen {
         // LEFT COLUMN: Toggles & Color Palette
         // Section Header
         graphics.text(this.font, Component.literal("§l⭐ PLAYER ESP CONFIGURATION"), leftColX, innerY, 0xFFFFFFFF, false);
-        graphics.fill(leftColX, innerY + 14, leftColX + leftColW, innerY + 15, 0x33E53935);
+        graphics.fill(leftColX, innerY + 14, leftColX + leftColW, innerY + 15, 0x33C084FC);
         int cardY = innerY + 20;
 
         // 1. ESP Master Enable
@@ -418,13 +423,13 @@ public class ModernClickGuiScreen extends Screen {
         int cardH = 36;
         boolean hovered = mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY < y + cardH;
 
-        // Card background
-        int bg = active ? (hovered ? 0xCC1A1B24 : 0xAA13141B) : (hovered ? 0x99111216 : 0x770D0E12);
+        // Card background (Dark Indigo Slate: Rise 6 Luxury)
+        int bg = active ? (hovered ? 0xD9222845 : 0xCC181D33) : (hovered ? 0x99141829 : 0x77101320);
         graphics.fill(x, y, x + w, y + cardH, bg);
-        graphics.fill(x, y, x + w, y + 1, active ? 0x44E53935 : 0x1AFFFFFF);
-        graphics.fill(x, y + cardH - 1, x + w, y + cardH, active ? 0x44E53935 : 0x1AFFFFFF);
-        graphics.fill(x, y, x + 1, y + cardH, active ? 0x66E53935 : 0x1AFFFFFF);
-        graphics.fill(x + w - 1, y, x + w, y + cardH, active ? 0x66E53935 : 0x1AFFFFFF);
+        graphics.fill(x, y, x + w, y + 1, active ? 0x55C084FC : 0x1AFFFFFF);
+        graphics.fill(x, y + cardH - 1, x + w, y + cardH, active ? 0x55C084FC : 0x1AFFFFFF);
+        graphics.fill(x, y, x + 1, y + cardH, active ? 0x88C084FC : 0x1AFFFFFF);
+        graphics.fill(x + w - 1, y, x + w, y + cardH, active ? 0x88C084FC : 0x1AFFFFFF);
 
         // Title and description
         int titleColor = active ? 0xFFFFFFFF : 0xFFCCCCCC;
@@ -446,18 +451,18 @@ public class ModernClickGuiScreen extends Screen {
     // LIVE PREVIEW PANEL & MINECRAFT MANNEQUIN
     // ==========================================
     private void renderLiveMannequinPreview(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int x, int y, int w, int h, ModConfig config, float dt) {
-        // Dark container background
-        graphics.fill(x, y, x + w, y + h, 0xE007080A);
-        graphics.fill(x, y, x + w, y + 1, 0x44E53935);
-        graphics.fill(x, y + h - 1, x + w, y + h, 0x44E53935);
-        graphics.fill(x, y, x + 1, y + h, 0x44E53935);
-        graphics.fill(x + w - 1, y, x + w, y + h, 0x44E53935);
+        // Dark container background (Rise 6 Dark Indigo Slate)
+        graphics.fill(x, y, x + w, y + h, 0xE00A0C18);
+        graphics.fill(x, y, x + w, y + 1, 0x55C084FC);
+        graphics.fill(x, y + h - 1, x + w, y + h, 0x55C084FC);
+        graphics.fill(x, y, x + 1, y + h, 0x55C084FC);
+        graphics.fill(x + w - 1, y, x + w, y + h, 0x55C084FC);
 
         // Header of Preview
         int pulseAlpha = 0xAA + (int) (Math.sin(System.currentTimeMillis() * 0.005) * 50);
         int liveDotColor = (pulseAlpha << 24) | 0x00E676;
         graphics.fill(x + 12, y + 12, x + 18, y + 18, liveDotColor);
-        graphics.text(this.font, Component.literal("§lLIVE PREVIEW §7- Steve Mannequin"), x + 24, y + 10, 0xFFFFFFFF, false);
+        graphics.text(this.font, Component.literal("§d§lLIVE PREVIEW §7- Steve Mannequin"), x + 24, y + 10, 0xFFFFFFFF, false);
 
         // Interactive Simulation Button on top right
         int simBtnW = 104;
@@ -466,14 +471,14 @@ public class ModernClickGuiScreen extends Screen {
         int simBtnY = y + 8;
         boolean simHovered = mouseX >= simBtnX && mouseX <= simBtnX + simBtnW && mouseY >= simBtnY && mouseY <= simBtnY + simBtnH;
 
-        graphics.fill(simBtnX, simBtnY, simBtnX + simBtnW, simBtnY + simBtnH, simHovered ? 0x44E53935 : 0x22FFFFFF);
-        graphics.fill(simBtnX, simBtnY, simBtnX + simBtnW, simBtnY + 1, 0x55E53935);
-        graphics.fill(simBtnX, simBtnY + simBtnH - 1, simBtnX + simBtnW, simBtnY + simBtnH, 0x55E53935);
-        graphics.fill(simBtnX, simBtnY, simBtnX + 1, simBtnY + simBtnH, 0x55E53935);
-        graphics.fill(simBtnX + simBtnW - 1, simBtnY, simBtnX + simBtnW, simBtnY + simBtnH, 0x55E53935);
+        graphics.fill(simBtnX, simBtnY, simBtnX + simBtnW, simBtnY + simBtnH, simHovered ? 0x44C084FC : 0x22FFFFFF);
+        graphics.fill(simBtnX, simBtnY, simBtnX + simBtnW, simBtnY + 1, 0x66C084FC);
+        graphics.fill(simBtnX, simBtnY + simBtnH - 1, simBtnX + simBtnW, simBtnY + simBtnH, 0x66C084FC);
+        graphics.fill(simBtnX, simBtnY, simBtnX + 1, simBtnY + simBtnH, 0x66C084FC);
+        graphics.fill(simBtnX + simBtnW - 1, simBtnY, simBtnX + simBtnW, simBtnY + simBtnH, 0x66C084FC);
 
         String simText = this.simulatedDamaged ? "⚡ Reset Health" : "⚔ Simulate Hit";
-        graphics.centeredText(this.font, Component.literal(simText), simBtnX + simBtnW / 2, simBtnY + 4, simHovered ? 0xFFFF7777 : 0xFFE0E0E0);
+        graphics.centeredText(this.font, Component.literal(simText), simBtnX + simBtnW / 2, simBtnY + 4, simHovered ? 0xFFF472B6 : 0xFFE0E0E0);
 
         // Subtle viewport grid
         int gridSpacing = 28;
@@ -734,8 +739,8 @@ public class ModernClickGuiScreen extends Screen {
 
         // LEFT COLUMN: Macro List Header
         graphics.text(this.font, Component.literal("§l⌨ CONFIGURED MACROS"), leftColX, innerY, 0xFFFFFFFF, false);
-        graphics.text(this.font, Component.literal("§7" + config.macros.size() + " active macros"), leftColX + leftColW - 130, innerY, 0xFF888888, false);
-        graphics.fill(leftColX, innerY + 14, leftColX + leftColW, innerY + 15, 0x33E53935);
+        graphics.text(this.font, Component.literal("§7" + config.macros.size() + " active macros"), leftColX + leftColW - 130, innerY, 0xFFC4B5FD, false);
+        graphics.fill(leftColX, innerY + 14, leftColX + leftColW, innerY + 15, 0x33C084FC);
 
         // Calculate scroll height
         int listStartY = innerY + 24;
@@ -747,7 +752,7 @@ public class ModernClickGuiScreen extends Screen {
         // Render Macro Cards in Left Column
         if (config.macros.isEmpty()) {
             int emptyH = 80;
-            graphics.fill(leftColX, listStartY, leftColX + leftColW, listStartY + emptyH, 0xE00C0E14);
+            graphics.fill(leftColX, listStartY, leftColX + leftColW, listStartY + emptyH, 0xE00D0F1D);
             graphics.fill(leftColX, listStartY, leftColX + leftColW, listStartY + 1, 0x22FFFFFF);
             graphics.fill(leftColX, listStartY + emptyH - 1, leftColX + leftColW, listStartY + emptyH, 0x22FFFFFF);
             graphics.fill(leftColX, listStartY, leftColX + 1, listStartY + emptyH, 0x22FFFFFF);
@@ -768,9 +773,9 @@ public class ModernClickGuiScreen extends Screen {
                 boolean isEditingThis = (this.editingMacroIndex == i);
                 boolean hovered = mouseX >= leftColX && mouseX <= leftColX + leftColW && mouseY >= cardY && mouseY <= cardY + cardH;
 
-                // Card background & border
-                int cardBg = isEditingThis ? 0x24E53935 : (hovered ? 0x1AFFFFFF : 0xE00C0E14);
-                int borderColor = isEditingThis ? 0xAAE53935 : (hovered ? 0x55E53935 : 0x22FFFFFF);
+                // Card background & border (Dark Indigo Slate: Rise 6 Luxury)
+                int cardBg = isEditingThis ? 0x24C084FC : (hovered ? 0x1AC084FC : 0xE00D0F1D);
+                int borderColor = isEditingThis ? 0xAAC084FC : (hovered ? 0x66C084FC : 0x22FFFFFF);
 
                 graphics.fill(leftColX, cardY, leftColX + leftColW, cardY + cardH, cardBg);
                 graphics.fill(leftColX, cardY, leftColX + leftColW, cardY + 1, borderColor);
@@ -787,7 +792,7 @@ public class ModernClickGuiScreen extends Screen {
                 if (cmdPreview.length() > 30) {
                     cmdPreview = cmdPreview.substring(0, 27) + "...";
                 }
-                int cmdColor = cmdPreview.startsWith("/") ? 0xFF64B5F6 : 0xFF81C784;
+                int cmdColor = cmdPreview.startsWith("/") ? 0xFFC084FC : 0xFF81C784;
                 graphics.text(this.font, Component.literal("§7Cmd: " + cmdPreview), leftColX + 10, cardY + 25, cmdColor, false);
 
                 // Keybind Badge
@@ -798,8 +803,8 @@ public class ModernClickGuiScreen extends Screen {
                 int bindBadgeY = cardY + 13;
 
                 boolean bindHovered = mouseX >= bindBadgeX && mouseX <= bindBadgeX + bindBadgeW && mouseY >= bindBadgeY && mouseY <= bindBadgeY + bindBadgeH;
-                int bindBg = (isEditingThis && this.listeningMacroKey) ? 0x55E53935 : (bindHovered ? 0x35FFFFFF : 0x1AFFFFFF);
-                int bindBorder = (isEditingThis && this.listeningMacroKey) ? 0xCCE53935 : (bindHovered ? 0x88FFFFFF : 0x33FFFFFF);
+                int bindBg = (isEditingThis && this.listeningMacroKey) ? 0x55C084FC : (bindHovered ? 0x35C084FC : 0x1AFFFFFF);
+                int bindBorder = (isEditingThis && this.listeningMacroKey) ? 0xCCC084FC : (bindHovered ? 0x88C084FC : 0x33FFFFFF);
 
                 graphics.fill(bindBadgeX, bindBadgeY, bindBadgeX + bindBadgeW, bindBadgeY + bindBadgeH, bindBg);
                 graphics.fill(bindBadgeX, bindBadgeY, bindBadgeX + bindBadgeW, bindBadgeY + 1, bindBorder);
@@ -807,7 +812,7 @@ public class ModernClickGuiScreen extends Screen {
                 graphics.fill(bindBadgeX, bindBadgeY, bindBadgeX + 1, bindBadgeY + bindBadgeH, bindBorder);
                 graphics.fill(bindBadgeX + bindBadgeW - 1, bindBadgeY, bindBadgeX + bindBadgeW, bindBadgeY + bindBadgeH, bindBorder);
 
-                int bindTextColor = (isEditingThis && this.listeningMacroKey) ? 0xFFFF5555 : (m.keyCode >= 0 ? 0xFFFFD54F : 0xFF888888);
+                int bindTextColor = (isEditingThis && this.listeningMacroKey) ? 0xFFF472B6 : (m.keyCode >= 0 ? 0xFFFFD54F : 0xFF888888);
                 graphics.centeredText(this.font, Component.literal(bindText), bindBadgeX + bindBadgeW / 2, bindBadgeY + 6, bindTextColor);
 
                 // Edit Button [ ✏ ]
@@ -817,11 +822,11 @@ public class ModernClickGuiScreen extends Screen {
                 int editBtnH = 20;
                 boolean editHovered = mouseX >= editBtnX && mouseX <= editBtnX + editBtnW && mouseY >= editBtnY && mouseY <= editBtnY + editBtnH;
 
-                graphics.fill(editBtnX, editBtnY, editBtnX + editBtnW, editBtnY + editBtnH, editHovered ? 0x44E53935 : 0x1AFFFFFF);
-                graphics.fill(editBtnX, editBtnY, editBtnX + editBtnW, editBtnY + 1, editHovered ? 0xCCE53935 : 0x33FFFFFF);
-                graphics.fill(editBtnX, editBtnY + editBtnH - 1, editBtnX + editBtnW, editBtnY + editBtnH, editHovered ? 0xCCE53935 : 0x33FFFFFF);
-                graphics.fill(editBtnX, editBtnY, editBtnX + 1, editBtnY + editBtnH, editHovered ? 0xCCE53935 : 0x33FFFFFF);
-                graphics.fill(editBtnX + editBtnW - 1, editBtnY, editBtnX + editBtnW, editBtnY + editBtnH, editHovered ? 0xCCE53935 : 0x33FFFFFF);
+                graphics.fill(editBtnX, editBtnY, editBtnX + editBtnW, editBtnY + editBtnH, editHovered ? 0x44C084FC : 0x1AFFFFFF);
+                graphics.fill(editBtnX, editBtnY, editBtnX + editBtnW, editBtnY + 1, editHovered ? 0xCCC084FC : 0x33FFFFFF);
+                graphics.fill(editBtnX, editBtnY + editBtnH - 1, editBtnX + editBtnW, editBtnY + editBtnH, editHovered ? 0xCCC084FC : 0x33FFFFFF);
+                graphics.fill(editBtnX, editBtnY, editBtnX + 1, editBtnY + editBtnH, editHovered ? 0xCCC084FC : 0x33FFFFFF);
+                graphics.fill(editBtnX + editBtnW - 1, editBtnY, editBtnX + editBtnW, editBtnY + editBtnH, editHovered ? 0xCCC084FC : 0x33FFFFFF);
                 graphics.centeredText(this.font, Component.literal("✏"), editBtnX + editBtnW / 2, editBtnY + 5, editHovered ? 0xFFFFFFFF : 0xFFCCCCCC);
 
                 // Delete Button [ ✕ ]
@@ -845,18 +850,18 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     private void renderMacroEditorOrHelp(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int x, int y, int w, int h, ModConfig config) {
-        // Container background
-        graphics.fill(x, y, x + w, y + h, 0xE00C0E14);
-        graphics.fill(x, y, x + w, y + 1, 0x44E53935);
-        graphics.fill(x, y + h - 1, x + w, y + h, 0x44E53935);
-        graphics.fill(x, y, x + 1, y + h, 0x44E53935);
-        graphics.fill(x + w - 1, y, x + w, y + h, 0x44E53935);
+        // Container background (Rise 6 Dark Indigo Slate)
+        graphics.fill(x, y, x + w, y + h, 0xE00D0F1D);
+        graphics.fill(x, y, x + w, y + 1, 0x55C084FC);
+        graphics.fill(x, y + h - 1, x + w, y + h, 0x55C084FC);
+        graphics.fill(x, y, x + 1, y + h, 0x55C084FC);
+        graphics.fill(x + w - 1, y, x + w, y + h, 0x55C084FC);
 
         if (this.editingMacroIndex != -1) {
             // EDIT / CREATE MODE
             String title = (this.editingMacroIndex == -2) ? "§l➕ CREATE NEW MACRO" : "§l✏ EDIT MACRO";
             graphics.text(this.font, Component.literal(title), x + 12, y + 12, 0xFFFFFFFF, false);
-            graphics.fill(x + 12, y + 26, x + w - 12, y + 27, 0x33E53935);
+            graphics.fill(x + 12, y + 26, x + w - 12, y + 27, 0x33C084FC);
 
             int formY = y + 36;
             int boxW = Math.max(120, w - 24);
@@ -889,8 +894,8 @@ public class ModernClickGuiScreen extends Screen {
             int bindBtnH = 22;
 
             boolean bindHovered = mouseX >= bindBtnX && mouseX <= bindBtnX + bindBtnW && mouseY >= bindBtnY && mouseY <= bindBtnY + bindBtnH;
-            int bindBg = this.listeningMacroKey ? 0x55E53935 : (bindHovered ? 0x33FFFFFF : 0x1AFFFFFF);
-            int bindBorder = this.listeningMacroKey ? 0xCCE53935 : (bindHovered ? 0x66FFFFFF : 0x22FFFFFF);
+            int bindBg = this.listeningMacroKey ? 0x55C084FC : (bindHovered ? 0x33FFFFFF : 0x1AFFFFFF);
+            int bindBorder = this.listeningMacroKey ? 0xCCC084FC : (bindHovered ? 0x66FFFFFF : 0x22FFFFFF);
 
             graphics.fill(bindBtnX, bindBtnY, bindBtnX + bindBtnW, bindBtnY + bindBtnH, bindBg);
             graphics.fill(bindBtnX, bindBtnY, bindBtnX + bindBtnW, bindBtnY + 1, bindBorder);
@@ -899,7 +904,7 @@ public class ModernClickGuiScreen extends Screen {
             graphics.fill(bindBtnX + bindBtnW - 1, bindBtnY, bindBtnX + bindBtnW, bindBtnY + bindBtnH, bindBorder);
 
             String keyDisplay = this.listeningMacroKey ? "⌨ Press any key... (Esc: cancel)" : ClickGuiScreen.getBindDisplayName(this.tempMacroKey, this.tempMacroIsMouse);
-            int keyColor = this.listeningMacroKey ? 0xFFFF5555 : (this.tempMacroKey >= 0 ? 0xFFFFD54F : 0xFFFFFFFF);
+            int keyColor = this.listeningMacroKey ? 0xFFF472B6 : (this.tempMacroKey >= 0 ? 0xFFFFD54F : 0xFFFFFFFF);
             graphics.centeredText(this.font, Component.literal(keyDisplay), bindBtnX + bindBtnW / 2, bindBtnY + 6, keyColor);
 
             graphics.text(this.font, Component.literal("§8Left-click to bind, Right-click to clear"), x + 12, formY + 38, 0xFF666666, false);
@@ -915,8 +920,8 @@ public class ModernClickGuiScreen extends Screen {
             boolean saveHov = mouseX >= saveBtnX && mouseX <= saveBtnX + btnW && mouseY >= actionBtnY && mouseY <= actionBtnY + btnH;
             boolean cancelHov = mouseX >= cancelBtnX && mouseX <= cancelBtnX + btnW && mouseY >= actionBtnY && mouseY <= actionBtnY + btnH;
 
-            // Save button
-            graphics.fill(saveBtnX, actionBtnY, saveBtnX + btnW, actionBtnY + btnH, saveHov ? 0xFFE53935 : 0xCCE53935);
+            // Save button (Rise 6 Luxury Violet)
+            graphics.fill(saveBtnX, actionBtnY, saveBtnX + btnW, actionBtnY + btnH, saveHov ? 0xFFF472B6 : 0xFFC084FC);
             graphics.centeredText(this.font, Component.literal("💾 Save Macro"), saveBtnX + btnW / 2, actionBtnY + 7, 0xFFFFFFFF);
 
             // Cancel button
@@ -929,20 +934,20 @@ public class ModernClickGuiScreen extends Screen {
             if (this.macroCmdBox != null) this.macroCmdBox.visible = false;
 
             graphics.text(this.font, Component.literal("§lℹ MACRO GUIDE"), x + 12, y + 12, 0xFFFFFFFF, false);
-            graphics.fill(x + 12, y + 26, x + w - 12, y + 27, 0x33E53935);
+            graphics.fill(x + 12, y + 26, x + w - 12, y + 27, 0x33C084FC);
 
-            // [+ Add New Macro] Button
+            // [+ Add New Macro] Button (Rise 6 Luxury Accent)
             int addBtnX = x + 12;
             int addBtnY = y + 36;
             int addBtnW = w - 24;
             int addBtnH = 26;
             boolean addHovered = mouseX >= addBtnX && mouseX <= addBtnX + addBtnW && mouseY >= addBtnY && mouseY <= addBtnY + addBtnH;
 
-            graphics.fill(addBtnX, addBtnY, addBtnX + addBtnW, addBtnY + addBtnH, addHovered ? 0xFFE53935 : 0xCCE53935);
-            graphics.fill(addBtnX, addBtnY, addBtnX + addBtnW, addBtnY + 1, 0xFFFF7777);
-            graphics.fill(addBtnX, addBtnY + addBtnH - 1, addBtnX + addBtnW, addBtnY + addBtnH, 0x88E53935);
-            graphics.fill(addBtnX, addBtnY, addBtnX + 1, addBtnY + addBtnH, 0xFFFF7777);
-            graphics.fill(addBtnX + addBtnW - 1, addBtnY, addBtnX + addBtnW, addBtnY + addBtnH, 0x88E53935);
+            graphics.fill(addBtnX, addBtnY, addBtnX + addBtnW, addBtnY + addBtnH, addHovered ? 0xFFF472B6 : 0xFFC084FC);
+            graphics.fill(addBtnX, addBtnY, addBtnX + addBtnW, addBtnY + 1, 0xFFF472B6);
+            graphics.fill(addBtnX, addBtnY + addBtnH - 1, addBtnX + addBtnW, addBtnY + addBtnH, 0x88C084FC);
+            graphics.fill(addBtnX, addBtnY, addBtnX + 1, addBtnY + addBtnH, 0xFFF472B6);
+            graphics.fill(addBtnX + addBtnW - 1, addBtnY, addBtnX + addBtnW, addBtnY + addBtnH, 0x88C084FC);
             graphics.centeredText(this.font, Component.literal("§l+ Add New Macro"), addBtnX + addBtnW / 2, addBtnY + 8, 0xFFFFFFFF);
 
             // Help / Info paragraphs
@@ -981,7 +986,7 @@ public class ModernClickGuiScreen extends Screen {
 
         int topY = (int) (contentY + 12 - this.scrollAmount);
         graphics.text(this.font, Component.literal("§l" + this.activeTab.icon + " " + this.activeTab.label.toUpperCase() + " MODULES"), contentX + 14, topY, 0xFFFFFFFF, false);
-        graphics.fill(contentX + 14, topY + 14, contentX + contentW - 14, topY + 15, 0x33E53935);
+        graphics.fill(contentX + 14, topY + 14, contentX + contentW - 14, topY + 15, 0x33C084FC);
 
         if (modules.isEmpty()) {
             int emptyY = topY + 36;
@@ -1026,17 +1031,21 @@ public class ModernClickGuiScreen extends Screen {
 
         boolean hovered = mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY < y + totalH;
 
-        // Card background
-        int bg = active ? (hovered ? 0xD9161720 : 0xB3111218) : (hovered ? 0x990F1014 : 0x770B0C0F);
+        // Card background (Dark Indigo Slate: Rise 6 Luxury)
+        int bg = active ? (hovered ? 0xE6222845 : 0xCC181D33) : (hovered ? 0x99141829 : 0x77101320);
         graphics.fill(x, y, x + w, y + totalH, bg);
-        graphics.fill(x, y, x + w, y + 1, active ? 0x44E53935 : 0x1AFFFFFF);
-        graphics.fill(x, y + totalH - 1, x + w, y + totalH, active ? 0x44E53935 : 0x1AFFFFFF);
-        graphics.fill(x, y, x + 1, y + totalH, active ? 0x66E53935 : 0x1AFFFFFF);
-        graphics.fill(x + w - 1, y, x + w, y + totalH, active ? 0x66E53935 : 0x1AFFFFFF);
+        graphics.fill(x, y, x + w, y + 1, active ? 0x55C084FC : 0x1AFFFFFF);
+        graphics.fill(x, y + totalH - 1, x + w, y + totalH, active ? 0x55C084FC : 0x1AFFFFFF);
+        graphics.fill(x, y, x + 1, y + totalH, active ? 0x88C084FC : 0x1AFFFFFF);
+        graphics.fill(x + w - 1, y, x + w, y + totalH, active ? 0x88C084FC : 0x1AFFFFFF);
+        if (active) {
+            // Elegant left accent bar on active cards
+            graphics.fill(x + 1, y + 3, x + 3, y + totalH - 3, 0xFFC084FC);
+        }
 
         // Module Title & Category Tag
         graphics.text(this.font, Component.literal(mod.name), x + 12, y + 10, active ? 0xFFFFFFFF : 0xFFCCCCCC, false);
-        graphics.text(this.font, Component.literal("§7" + mod.category.name.toUpperCase()), x + 12, y + 26, 0xFF717885, false);
+        graphics.text(this.font, Component.literal("§7" + mod.category.name.toUpperCase()), x + 12, y + 26, 0xFF94A3B8, false);
 
         // Keybind Pill
         ModConfig cfg = ModConfig.getInstance();
@@ -1050,8 +1059,8 @@ public class ModernClickGuiScreen extends Screen {
         int bindY = y + 14;
 
         boolean bindHovered = mouseX >= bindX && mouseX <= bindX + bindW && mouseY >= bindY && mouseY <= bindY + 16;
-        graphics.fill(bindX, bindY, bindX + bindW, bindY + 16, isListening ? 0x55E53935 : (bindHovered ? 0x33FFFFFF : 0x1AFFFFFF));
-        graphics.centeredText(this.font, Component.literal(bindTag), bindX + bindW / 2, bindY + 4, isListening ? 0xFFFFDD55 : 0xFFB0B5C0);
+        graphics.fill(bindX, bindY, bindX + bindW, bindY + 16, isListening ? 0x66C084FC : (bindHovered ? 0x33C084FC : 0x1AC084FC));
+        graphics.centeredText(this.font, Component.literal(bindTag), bindX + bindW / 2, bindY + 4, isListening ? 0xFFFFDD55 : 0xFFC4B5FD);
 
         // Animated Toggle Switch
         int switchW = 32;
@@ -1216,8 +1225,8 @@ public class ModernClickGuiScreen extends Screen {
 
         boolean hovered = mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h;
 
-        // Track background
-        int trackColor = JelloTheme.lerpColor(0x552A2C38, 0xFFE53935, nextAnim);
+        // Track background (Rise 6 Luxury Violet fade)
+        int trackColor = JelloTheme.lerpColor(0x551E2340, 0xFFC084FC, nextAnim);
         graphics.fill(x, y, x + w, y + h, trackColor);
 
         // Knob
@@ -1226,7 +1235,7 @@ public class ModernClickGuiScreen extends Screen {
         int knobMaxX = x + w - knobSize - 2;
         int knobX = Math.round(knobMinX + nextAnim * (knobMaxX - knobMinX));
 
-        int knobColor = hovered ? 0xFFFFFFFF : 0xFFE6E6E6;
+        int knobColor = hovered ? 0xFFFFFFFF : 0xFFF1F5F9;
         graphics.fill(knobX, y + 2, knobX + knobSize, y + 2 + knobSize, knobColor);
     }
 
@@ -1236,11 +1245,11 @@ public class ModernClickGuiScreen extends Screen {
         boolean isDraggingThis = key.equals(this.draggingSliderKey);
 
         // Track
-        graphics.fill(x, y, x + w, y + h, 0x5520222A);
+        graphics.fill(x, y, x + w, y + h, 0x551A1E34);
 
-        // Filled active progress
+        // Filled active progress (Rise 6 Luxury: Violet to Rose Pink gradient)
         int fillW = Math.max(2, (int) (w * value));
-        int fillColor = isDraggingThis ? 0xFFFF4D4D : (hovered ? 0xFFE53935 : 0xCCE53935);
+        int fillColor = isDraggingThis ? 0xFFF472B6 : (hovered ? 0xFFC084FC : 0xDDC084FC);
         graphics.fill(x, y, x + fillW, y + h, fillColor);
 
         // Draggable knob
@@ -1262,8 +1271,8 @@ public class ModernClickGuiScreen extends Screen {
 
         // Track
         graphics.fill(barX, contentY, barX + 4, contentY + contentH, 0x33000000);
-        // Crimson thumb
-        graphics.fill(barX, thumbY, barX + 4, thumbY + thumbH, 0xAAE53935);
+        // Luxury Violet thumb
+        graphics.fill(barX, thumbY, barX + 4, thumbY + thumbH, 0xAAC084FC);
     }
 
     // ==========================================

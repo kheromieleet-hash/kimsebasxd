@@ -100,24 +100,26 @@ public class KeybindsHudRenderer {
         x = Mth.clamp(x, 2, Math.max(2, screenW - width - 2));
         y = Mth.clamp(y, 2, Math.max(2, screenH - bodyH - 2));
 
-        // 1. Drop shadow / border
-        int shadowColor = isHoveredOrDragging ? 0x88E53935 : 0x55000000;
+        // 1. Drop shadow & glowing violet outline
+        int shadowColor = isHoveredOrDragging ? 0x88C084FC : 0x55000000;
         JelloTheme.fill(graphics, x - 1, y - 1, x + width + 1, y + bodyH + 1, shadowColor);
 
-        // 2. Background body
+        // 2. Background body (Dark Indigo Glass)
         if (!collapsed) {
-            JelloTheme.fill(graphics, x, y + HEADER_HEIGHT, x + width, y + bodyH, 0xD00D0D11);
+            JelloTheme.fill(graphics, x, y + HEADER_HEIGHT, x + width, y + bodyH, 0xD80D0F1D);
         }
 
         // 3. Header background
-        int headerBg = isHoveredOrDragging ? 0xFA1E1215 : 0xF0121217;
+        int headerBg = isHoveredOrDragging ? 0xFA1F1832 : 0xF0121424;
         JelloTheme.fill(graphics, x, y, x + width, y + HEADER_HEIGHT, headerBg);
 
-        // 4. Accent line (Red & Black style)
-        JelloTheme.fill(graphics, x, y + HEADER_HEIGHT - 1, x + width, y + HEADER_HEIGHT, JelloTheme.ACCENT);
+        // 4. Dual-gradient accent line (Rise 6 Luxury: Violet -> Rose Pink)
+        int halfW = width / 2;
+        JelloTheme.fill(graphics, x, y + HEADER_HEIGHT - 1, x + halfW, y + HEADER_HEIGHT, 0xFFC084FC);
+        JelloTheme.fill(graphics, x + halfW, y + HEADER_HEIGHT - 1, x + width, y + HEADER_HEIGHT, 0xFFF472B6);
 
         // 5. Header title
-        JelloTheme.text(graphics, font, "⌨ Keybinds", x + 5, y + 4, 0xFFFFFFFF);
+        JelloTheme.text(graphics, font, "§d⌨ §fKeybinds", x + 5, y + 4, 0xFFFFFFFF);
 
         // 6. Header interactive buttons (Collapse [-]/[+] and Close [X])
         int closeX = x + width - 14;

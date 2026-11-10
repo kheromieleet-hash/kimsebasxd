@@ -151,7 +151,7 @@ public class ModConfig {
     public boolean espNametags = true;
     public boolean espSkeleton = false;
     public boolean espArmor = true;
-    public int espColorIndex = 0; // 0=Red, 1=Cyan, 2=Green, 3=Purple, 4=Gold
+    public int espColorIndex = 0; // 0=Rise Violet, 1=Rose Pink, 2=Cyan, 3=Green, 4=Red, 5=Gold
     public int espMaxDistance = 64; // 16 to 128 blocks
 
     // ClickGUI Style: 0 = Classic Multi-Window, 1 = Modern Single-Panel
@@ -159,11 +159,12 @@ public class ModConfig {
 
     public int getEspColorHex() {
         return switch (espColorIndex) {
-            case 1 -> 0xFF00E5FF; // Cyan
-            case 2 -> 0xFF00E676; // Green
-            case 3 -> 0xFFD500F9; // Purple
-            case 4 -> 0xFFFFAB00; // Gold
-            default -> 0xFFE53935; // Red (Default)
+            case 1 -> 0xFFF472B6; // Rose Pink
+            case 2 -> 0xFF00E5FF; // Neon Cyan
+            case 3 -> 0xFF00E676; // Emerald Green
+            case 4 -> 0xFFE53935; // Crimson Red
+            case 5 -> 0xFFFFAB00; // Sunset Gold
+            default -> 0xFFC084FC; // Rise 6 Luxury Violet (Default)
         };
     }
 
@@ -482,7 +483,7 @@ public class ModConfig {
                     }
                     if (this.fastBreakSpeed < 0.5f || this.fastBreakSpeed > 5.0f) this.fastBreakSpeed = 1.15f;
                     if (this.fastBreakMode < 0 || this.fastBreakMode > 1) this.fastBreakMode = 1;
-                    if (this.espColorIndex < 0 || this.espColorIndex > 4) this.espColorIndex = 0;
+                    if (this.espColorIndex < 0 || this.espColorIndex > 5) this.espColorIndex = 0;
                     if (this.espMaxDistance < 16 || this.espMaxDistance > 256) this.espMaxDistance = 64;
                     if (this.clickGuiStyle < 0 || this.clickGuiStyle > 1) this.clickGuiStyle = 1;
                     if (this.targetVersionName == null) this.targetVersionName = "Auto";

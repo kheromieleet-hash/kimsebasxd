@@ -9,19 +9,19 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Red & Black Theme: sleek dark panel, crimson accents matching the Taunahi vortex.
+ * Rise 6 / Tenacity Luxury Theme: Dark Indigo Glass with Pastel Violet & Rose accents.
  */
 public final class JelloTheme {
-    public static final int ACCENT = 0xFFE53935;        // Crimson Red
-    public static final int ACCENT_HOVER = 0xFFFF4D4D;  // Vibrant Red Hover
-    public static final int PANEL = 0xF00D0D11;         // Deep Charcoal Black panel body
-    public static final int HEADER = 0xFA08080B;        // Pitch Black category header
-    public static final int BORDER = 0x55E53935;        // Crimson Red border outline
-    public static final int ROW_HOVER = 0x22FFFFFF;
-    public static final int TEXT = 0xFFFFFFFF;
-    public static final int TEXT_DIM = 0xFF8F98A8;
-    public static final int TRACK = 0x33FFFFFF;
-    public static final int SWITCH_OFF = 0x552A2B32;
+    public static final int ACCENT = 0xFFC084FC;        // Rise 6 Luxury Pastel Violet
+    public static final int ACCENT_HOVER = 0xFFF472B6;  // Luxury Pastel Rose Pink
+    public static final int PANEL = 0xF20F1222;         // Dark Indigo Slate panel body
+    public static final int HEADER = 0xFA0B0D18;        // Deep Indigo header
+    public static final int BORDER = 0x55C084FC;        // Glowing Violet border outline
+    public static final int ROW_HOVER = 0x22C084FC;
+    public static final int TEXT = 0xFFF8FAFC;
+    public static final int TEXT_DIM = 0xFFC4B5FD;      // Soft Lilac text
+    public static final int TRACK = 0x33C084FC;
+    public static final int SWITCH_OFF = 0x551E2340;
 
     private static float alpha = 1.0f;
 

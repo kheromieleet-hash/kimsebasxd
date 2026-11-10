@@ -207,6 +207,13 @@ public final class EspRenderHandler {
         int boxBg = (0x1F << 24) | (color & 0x00FFFFFF);
         graphics.fill(left, top, right, bottom, boxBg);
 
+        // Soft glowing ambient bloom
+        int bloomColor = (0x33 << 24) | (color & 0x00FFFFFF);
+        graphics.fill(left - 2, top - 2, right + 2, top - 1, bloomColor);
+        graphics.fill(left - 2, bottom + 1, right + 2, bottom + 2, bloomColor);
+        graphics.fill(left - 2, top - 1, left - 1, bottom + 1, bloomColor);
+        graphics.fill(right + 1, top - 1, right + 2, bottom + 1, bloomColor);
+
         // Crisp outer black shadow
         graphics.fill(left - 1, top - 1, right + 1, top, 0xFF000000);
         graphics.fill(left - 1, bottom, right + 1, bottom + 1, 0xFF000000);
@@ -317,10 +324,16 @@ public final class EspRenderHandler {
         int badgeX = midX - badgeW / 2;
         int badgeY = Math.max(2, top - 13);
 
-        // Background pill
-        graphics.fill(badgeX - 4, badgeY - 2, badgeX + badgeW + 4, badgeY + 10, 0xAA0D0D11);
-        // Left accent strip
-        graphics.fill(badgeX - 4, badgeY - 2, badgeX - 2, badgeY + 10, espColor);
+        // Background pill (Rise 6 Dark Indigo Glass)
+        graphics.fill(badgeX - 5, badgeY - 2, badgeX + badgeW + 5, badgeY + 10, 0xD00D0F1D);
+        // Glowing outline
+        int tagGlow = (0x66 << 24) | (espColor & 0x00FFFFFF);
+        graphics.fill(badgeX - 5, badgeY - 2, badgeX + badgeW + 5, badgeY - 1, tagGlow);
+        graphics.fill(badgeX - 5, badgeY + 9, badgeX + badgeW + 5, badgeY + 10, tagGlow);
+        graphics.fill(badgeX - 5, badgeY - 1, badgeX - 4, badgeY + 9, tagGlow);
+        graphics.fill(badgeX + badgeW + 4, badgeY - 1, badgeX + badgeW + 5, badgeY + 9, tagGlow);
+        // Left gradient accent strip
+        graphics.fill(badgeX - 4, badgeY - 1, badgeX - 2, badgeY + 9, espColor);
 
         graphics.text(mc.font, badge, badgeX, badgeY, 0xFFFFFFFF, true);
     }

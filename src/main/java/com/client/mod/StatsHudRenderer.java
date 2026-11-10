@@ -90,8 +90,19 @@ public class StatsHudRenderer {
         MutableComponent pingComp = buildPair("Ping: ", Integer.toString(ping));
         MutableComponent speedComp = buildPair("Speed: ", formatRound1(speed));
 
+        // Rise 6 Luxury Watermark Pill at top-left
+        String wmText = "✦ SCT CLIENT §7| §fv1.0.0 §7| §d" + fps + " FPS";
+        int wmW = mc.font.width(wmText) + 12;
+        int wmH = 15;
+        graphics.fill(4, 4, 4 + wmW, 4 + wmH, 0xD80D0F1D);
+        graphics.fill(4, 4, 4 + wmW, 5, 0xFFC084FC); // top violet accent
+        graphics.fill(4, 4 + wmH - 1, 4 + wmW, 4 + wmH, 0x44F472B6);
+        graphics.fill(4, 4, 5, 4 + wmH, 0x88C084FC);
+        graphics.fill(4 + wmW - 1, 4, 4 + wmW, 4 + wmH, 0x44F472B6);
+        graphics.text(mc.font, Component.literal("§d§l✦ SCT CLIENT §7| §fv1.0.0 §7| §f" + fps + " FPS"), 9, 7, 0xFFFFFFFF, true);
+
         int x = 4;
-        int y = 4;
+        int y = 24;
         graphics.text(mc.font, fpsComp, x, y, -1, true);
         graphics.text(mc.font, tpsComp, x, y + lineSpacing, -1, true);
         graphics.text(mc.font, pingComp, x, y + lineSpacing * 2, -1, true);
