@@ -1,7 +1,7 @@
 param(
     [string]$Version = "1.0.0",
     [int]$VersionCode = 1,
-    [string]$Changelog = "Initial Rise 6 Luxury release",
+    [string]$Changelog = "Initial release",
     [string]$Repo = "kheromieallah/sestia",
     [switch]$Upload
 )
