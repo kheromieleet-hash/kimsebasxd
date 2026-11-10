@@ -11,14 +11,15 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 
 import java.util.*;
 
 /**
  * Sestia OLED Obsidian & Crimson Red ClickGUI Dashboard.
- * Inline card-accordion layout: left-click toggles modules, right-click expands
- * a row-anchored settings accordion directly beneath the module's row.
+ * Unified card-accordion layout: left-click toggles modules, right-click expands
+ * the module card downward within its own column to reveal inline settings.
  */
 public class ModernClickGuiScreen extends Screen {
 
@@ -338,7 +339,9 @@ public class ModernClickGuiScreen extends Screen {
             int startY,
             ModernModuleGridLayout.GridPlan plan,
             ClickGuiScreen.ModuleEntry expandedEntry,
-            List<ModernModuleSettings.Control> expandedControls
+            List<ModernModuleSettings.Control> expandedControls,
+            List<FormattedCharSequence> descLines,
+            int descHeaderHeight
     ) {
     }
 
@@ -349,12 +352,24 @@ public class ModernClickGuiScreen extends Screen {
         List<ModernModuleSettings.Control> expandedControls = expandedEntry != null
                 ? ModernModuleSettings.getControls(expandedEntry.name, ModConfig.getInstance(), this.settingsActions)
                 : List.of();
-        int fullH = ModernModuleGridLayout.computeAccordionFullHeight(contentW, expandedControls);
+        ModernModuleGridLayout.GridMetrics baseMetrics = ModernModuleGridLayout.computeGridMetrics(contentW, modules.size());
+        List<FormattedCharSequence> descLines = List.of();
+        int descHeaderH = 0;
+        int fullH = 0;
+        if (expandedEntry != null) {
+            String desc = ModernModuleCardUi.getModuleDescription(expandedEntry.name, expandedEntry.category.name);
+            descLines = this.font.split(
+                    Component.literal(desc),
+                    ModernModuleGridLayout.computeCardControlsWidth(baseMetrics.colWidth())
+            );
+            descHeaderH = ModernModuleGridLayout.computeExpandedDescHeaderHeight(descLines.size());
+            fullH = ModernModuleGridLayout.computeCardExtraHeight(baseMetrics.colWidth(), descHeaderH, expandedControls);
+        }
         int startY = (int) (bodyY + ModernModuleGridLayout.GRID_PAD_Y - this.scrollAmount);
         ModernModuleGridLayout.GridPlan plan = ModernModuleGridLayout.computeGridPlan(
                 contentX, startY, contentW, modules.size(), expIdx, fullH, this.expandAnim
         );
-        return new ResolvedAccordionPlan(modules, startY, plan, expandedEntry, expandedControls);
+        return new ResolvedAccordionPlan(modules, startY, plan, expandedEntry, expandedControls, descLines, descHeaderH);
     }
 
     private void renderModulesWorkspace(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, int contentH, float dt) {
@@ -374,11 +389,14 @@ public class ModernClickGuiScreen extends Screen {
                 int expIdx = resolved.plan().expandedIndex();
                 if (expIdx >= 0) {
                     int row = expIdx / resolved.plan().metrics().columns();
-                    int fullH = ModernModuleGridLayout.computeAccordionFullHeight(contentW, resolved.expandedControls());
+                    int fullH = ModernModuleGridLayout.computeCardExtraHeight(
+                            resolved.plan().metrics().colWidth(),
+                            resolved.descHeaderHeight(),
+                            resolved.expandedControls()
+                    );
                     int desiredBottom = bodyY + ModernModuleGridLayout.GRID_PAD_Y
                             + row * (ModernModuleGridLayout.CARD_HEIGHT + ModernModuleGridLayout.GRID_GAP_Y)
                             + ModernModuleGridLayout.CARD_HEIGHT
-                            + ModernModuleGridLayout.ACCORDION_TOP_GAP
                             + fullH + 8;
                     int viewBottom = bodyY + bodyH;
                     double screenBottom = desiredBottom - this.scrollAmount;
@@ -403,9 +421,6 @@ public class ModernClickGuiScreen extends Screen {
 
         graphics.enableScissor(contentX, bodyY, contentX + contentW, bodyY + bodyH);
         renderModuleCardsGrid(graphics, mouseX, mouseY, contentX, bodyY, contentW, bodyH, resolved, dt);
-        if (resolved.plan().accordion() != null && resolved.expandedEntry() != null) {
-            renderInlineAccordion(graphics, mouseX, mouseY, resolved.plan(), resolved.expandedEntry(), resolved.expandedControls(), dt);
-        }
         graphics.disableScissor();
 
         this.contentTotalHeight = resolved.plan().totalHeight();
@@ -459,15 +474,18 @@ public class ModernClickGuiScreen extends Screen {
         }
 
         ModernModuleGridLayout.GridPlan plan = resolved.plan();
+        ModernModuleGridLayout.AccordionBounds acc = plan.accordion();
         int colW = plan.metrics().colWidth();
         int cardH = plan.metrics().cardHeight();
 
         for (int i = 0; i < modules.size(); i++) {
             int cx = plan.cardX(gridX, i);
             int cy = plan.cardY(resolved.startY(), i);
+            boolean isAccordionCard = acc != null && i == plan.expandedIndex();
+            int cardTotalH = cardH + (isAccordionCard ? acc.visibleHeight() : 0);
 
-            if (cy + cardH >= gridY - 10 && cy <= gridY + gridH + 10) {
-                renderUniformModuleCard(graphics, mouseX, mouseY, cx, cy, colW, modules.get(i), dt);
+            if (cy + cardTotalH >= gridY - 10 && cy <= gridY + gridH + 10) {
+                renderUniformModuleCard(graphics, mouseX, mouseY, cx, cy, colW, cardTotalH, modules.get(i), isAccordionCard, resolved, dt);
             }
         }
     }
@@ -489,7 +507,19 @@ public class ModernClickGuiScreen extends Screen {
         return new CardControlsBounds(layout, bindTag, isListening, hasSettings);
     }
 
-    private void renderUniformModuleCard(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int x, int y, int w, ClickGuiScreen.ModuleEntry mod, float dt) {
+    private void renderUniformModuleCard(
+            GuiGraphicsExtractor graphics,
+            int mouseX,
+            int mouseY,
+            int x,
+            int y,
+            int w,
+            int cardTotalH,
+            ClickGuiScreen.ModuleEntry mod,
+            boolean isAccordionCard,
+            ResolvedAccordionPlan resolved,
+            float dt
+    ) {
         ModConfig cfg = ModConfig.getInstance();
         boolean active = mod.getter.get();
         CardControlsBounds controls = computeCardControls(x, y, w, mod, cfg);
@@ -504,7 +534,7 @@ public class ModernClickGuiScreen extends Screen {
         int border = isExpanded
                 ? JelloTheme.ACCENT
                 : (active ? (hovered ? JelloTheme.ACCENT_HOVER : 0x66E53935) : (hovered ? 0x5594A3B8 : JelloTheme.BORDER_SUBTLE));
-        JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + cardH, ModernModuleGridLayout.CARD_CORNER_RADIUS, bg, border);
+        JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + cardTotalH, ModernModuleGridLayout.CARD_CORNER_RADIUS, bg, border);
 
         // Compact 2-Row Bento Tile: Full Title (top) + [Tune] [Bind] [Toggle] (bottom-right)
         String title = fitText(mod.name, layout.titleMaxW());
@@ -531,77 +561,37 @@ public class ModernClickGuiScreen extends Screen {
                 controls.isListening() ? 0xFFFFDD55 : (cfg.getModuleKey(mod.name) >= 0 ? JelloTheme.TEXT_DIM : JelloTheme.TEXT_MUTED));
 
         renderSmoothSwitch(graphics, mouseX, mouseY, layout.switchX(), layout.switchY(), layout.switchW(), layout.switchH(), "mod:" + mod.name, active, dt);
-    }
 
-    // ==========================================
-    // INLINE ROW-ANCHORED ACCORDION (SETTINGS)
-    // ==========================================
-    private void renderInlineAccordion(
-            GuiGraphicsExtractor graphics,
-            int mouseX,
-            int mouseY,
-            ModernModuleGridLayout.GridPlan plan,
-            ClickGuiScreen.ModuleEntry mod,
-            List<ModernModuleSettings.Control> controls,
-            float dt
-    ) {
-        ModernModuleGridLayout.AccordionBounds acc = plan.accordion();
-        if (acc == null || mod == null) {
-            return;
+        ModernModuleGridLayout.AccordionBounds acc = resolved.plan().accordion();
+        if (isAccordionCard && acc != null && acc.visibleHeight() > 6) {
+            graphics.enableScissor(x + 1, y + cardH, x + w - 1, y + cardTotalH - 1);
+            graphics.fill(x + 1, y + cardH, x + w - 1, y + cardH + 1, JelloTheme.DIVIDER);
+
+            List<FormattedCharSequence> descLines = resolved.descLines();
+            int maxDescLines = Math.min(2, descLines.size());
+            for (int lineIdx = 0; lineIdx < maxDescLines; lineIdx++) {
+                int lineY = y + cardH + 1 + ModernModuleGridLayout.ACCORDION_TOP_DIVIDER_PAD
+                        + lineIdx * ModernModuleGridLayout.ACCORDION_DESC_LINE_HEIGHT;
+                graphics.text(this.font, descLines.get(lineIdx),
+                        x + ModernModuleGridLayout.CARD_PADDING_X, lineY, JelloTheme.TEXT_MUTED, false);
+            }
+
+            int controlsY = y + cardH + 1 + resolved.descHeaderHeight();
+            ModernModuleCardUi.renderControls(
+                    graphics,
+                    this.font,
+                    mouseX,
+                    mouseY,
+                    x + ModernModuleGridLayout.CARD_PADDING_X,
+                    controlsY,
+                    acc.controlsWidth(),
+                    mod.name,
+                    resolved.expandedControls(),
+                    (sx, sy, sw, sh, skey, pct) -> renderInteractiveSlider(graphics, mouseX, mouseY, sx, sy, sw, sh, skey, pct),
+                    (tx, ty, tw, th, tkey, tactive) -> renderSmoothSwitch(graphics, mouseX, mouseY, tx, ty, tw, th, tkey, tactive, dt)
+            );
+            graphics.disableScissor();
         }
-
-        // Subtle crimson bridge connector linking the active module card to its row accordion
-        int bridgeX1 = acc.anchorCenterX() - 12;
-        int bridgeX2 = acc.anchorCenterX() + 12;
-        int bridgeY1 = acc.y() - ModernModuleGridLayout.ACCORDION_TOP_GAP;
-        int bridgeY2 = acc.y() + 1;
-        graphics.fill(bridgeX1, bridgeY1, bridgeX2, bridgeY2, 0x44E53935);
-        graphics.fill(acc.anchorCenterX() - 6, bridgeY1, acc.anchorCenterX() + 6, bridgeY2, 0x88E53935);
-        graphics.fill(acc.anchorCenterX() - 1, bridgeY1, acc.anchorCenterX() + 1, bridgeY2, JelloTheme.ACCENT);
-
-        graphics.enableScissor(acc.x(), acc.y(), acc.x() + acc.w(), acc.y() + acc.visibleHeight());
-
-        JelloTheme.fillRoundedCard(graphics, acc.x(), acc.y(), acc.x() + acc.w(), acc.y() + acc.fullHeight(),
-                7, JelloTheme.CONTAINER_BG, 0x88E53935);
-
-        int headerBottom = acc.y() + ModernModuleGridLayout.ACCORDION_HEADER_HEIGHT;
-        JelloTheme.fillRoundedTop(graphics, acc.x() + 1, acc.y() + 1, acc.x() + acc.w() - 1,
-                headerBottom, 6, JelloTheme.HEADER_BG);
-        graphics.fill(acc.x() + 1, headerBottom, acc.x() + acc.w() - 1, headerBottom + 1, JelloTheme.DIVIDER);
-
-        JelloTheme.fillCircle(graphics, acc.x() + 12, acc.y() + 11, 2, JelloTheme.ACCENT);
-        String desc = fitText(ModernModuleCardUi.getModuleDescription(mod.name, mod.category.name), acc.w() - 44);
-        graphics.text(this.font, Component.literal(desc), acc.x() + 19, acc.y() + 7, JelloTheme.TEXT_MUTED, false);
-
-        int[] closeBtn = plan.closeButtonBounds();
-        if (closeBtn != null) {
-            int bx = closeBtn[0];
-            int by = closeBtn[1];
-            int bw = closeBtn[2];
-            int bh = closeBtn[3];
-            boolean closeHov = isInside(mouseX, mouseY, bx, by, bw, bh);
-            JelloTheme.fillRoundedCard(graphics, bx, by, bx + bw, by + bh, 4,
-                    closeHov ? 0x44E53935 : JelloTheme.CARD_INACTIVE,
-                    closeHov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
-            ModernIcons.drawCloseIcon(graphics, bx + 7, by + 7,
-                    closeHov ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED);
-        }
-
-        ModernModuleCardUi.renderControls(
-                graphics,
-                this.font,
-                mouseX,
-                mouseY,
-                acc.x() + 12,
-                headerBottom,
-                acc.controlsWidth(),
-                mod.name,
-                controls,
-                (sx, sy, sw, sh, skey, pct) -> renderInteractiveSlider(graphics, mouseX, mouseY, sx, sy, sw, sh, skey, pct),
-                (tx, ty, tw, th, tkey, tactive) -> renderSmoothSwitch(graphics, mouseX, mouseY, tx, ty, tw, th, tkey, tactive, dt)
-        );
-
-        graphics.disableScissor();
     }
 
     private int renderSettingsToggleCard(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int x, int y, int w, String title, String desc, boolean active, float dt) {
@@ -1046,45 +1036,7 @@ public class ModernClickGuiScreen extends Screen {
         ModernModuleGridLayout.GridPlan plan = resolved.plan();
         ModernModuleGridLayout.AccordionBounds acc = plan.accordion();
 
-        // 2. Inline Accordion interaction (isolated from cards)
-        if (acc != null && resolved.expandedEntry() != null
-                && isInside(mouseX, mouseY, acc.x(), acc.y(), acc.w(), acc.visibleHeight())) {
-            int[] closeBtn = plan.closeButtonBounds();
-            if (closeBtn != null && isInside(mouseX, mouseY, closeBtn[0], closeBtn[1], closeBtn[2], closeBtn[3])
-                    && (MouseButtonMapping.isLeftClick(button) || MouseButtonMapping.isRightClick(button))) {
-                closeExpandedModule();
-                playClickSound();
-                return true;
-            }
-            if (MouseButtonMapping.isRightClick(button)) {
-                closeExpandedModule();
-                playClickSound();
-                return true;
-            }
-            if (this.expandedModule != null
-                    && MouseButtonMapping.isLeftClick(button)
-                    && mouseY >= acc.y() + ModernModuleGridLayout.ACCORDION_HEADER_HEIGHT) {
-                ModernModuleCardUi.handleControlsClick(
-                        mouseX,
-                        mouseY,
-                        acc.x() + 12,
-                        acc.y() + ModernModuleGridLayout.ACCORDION_HEADER_HEIGHT,
-                        acc.controlsWidth(),
-                        resolved.expandedControls(),
-                        (slider, startX, width, initialPct) -> {
-                            this.draggingSliderKey = slider.key();
-                            this.activeSlider = slider;
-                            this.draggingSliderStartX = startX;
-                            this.draggingSliderWidth = width;
-                            slider.pctSetter().accept(initialPct);
-                        },
-                        this::playClickSound
-                );
-            }
-            return true;
-        }
-
-        // 3. Module Grid interaction
+        // 2. Module Grid & Unified Card Accordion interaction
         List<ClickGuiScreen.ModuleEntry> modules = resolved.modules();
         int colW = plan.metrics().colWidth();
         int cardH = plan.metrics().cardHeight();
@@ -1093,9 +1045,39 @@ public class ModernClickGuiScreen extends Screen {
         for (int i = 0; i < modules.size(); i++) {
             int cx = plan.cardX(contentX, i);
             int cy = plan.cardY(resolved.startY(), i);
+            boolean isAccordionCard = acc != null && i == plan.expandedIndex();
+            int cardTotalH = cardH + (isAccordionCard ? acc.visibleHeight() : 0);
 
-            if (isInside(mouseX, mouseY, cx, cy, colW, cardH)) {
+            if (isInside(mouseX, mouseY, cx, cy, colW, cardTotalH)) {
                 ClickGuiScreen.ModuleEntry mod = modules.get(i);
+                if (isAccordionCard && mouseY >= cy + cardH) {
+                    if (MouseButtonMapping.isRightClick(button)) {
+                        closeExpandedModule();
+                        playClickSound();
+                        return true;
+                    }
+                    if (this.expandedModule != null && MouseButtonMapping.isLeftClick(button)) {
+                        int controlsY = cy + cardH + 1 + resolved.descHeaderHeight();
+                        ModernModuleCardUi.handleControlsClick(
+                                mouseX,
+                                mouseY,
+                                cx + ModernModuleGridLayout.CARD_PADDING_X,
+                                controlsY,
+                                acc.controlsWidth(),
+                                resolved.expandedControls(),
+                                (slider, startX, width, initialPct) -> {
+                                    this.draggingSliderKey = slider.key();
+                                    this.activeSlider = slider;
+                                    this.draggingSliderStartX = startX;
+                                    this.draggingSliderWidth = width;
+                                    slider.pctSetter().accept(initialPct);
+                                },
+                                this::playClickSound
+                        );
+                    }
+                    return true;
+                }
+
                 CardControlsBounds controls = computeCardControls(cx, cy, colW, mod, cfg);
                 ModernModuleGridLayout.CardControlLayout layout = controls.layout();
 

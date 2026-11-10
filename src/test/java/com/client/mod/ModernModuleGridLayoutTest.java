@@ -5,7 +5,7 @@ import java.util.List;
 /**
  * Verifies {@link ModernModuleGridLayout} column breakpoints, card coordinates,
  * control ordering, alphabetical module sorting, non-overlapping compact tile bounds,
- * and inline row-anchored accordion grid plans.
+ * and single-column masonry card accordion grid plans.
  */
 public class ModernModuleGridLayoutTest {
 
@@ -123,101 +123,121 @@ public class ModernModuleGridLayoutTest {
         int gridX = 160;
         int startY = 60;
         int gridW = 694;
-        int moduleCount = 23;
-        int fullH = 140;
+        int moduleCount = 22;
+        int fullExtraH = 140;
         ModernModuleGridLayout.GridMetrics metrics = ModernModuleGridLayout.computeGridMetrics(gridW, moduleCount);
+        assert metrics.columns() == 4 : "Expected 4 columns at gridW=694";
+        assert metrics.colWidth() == 162 : "Expected colWidth=162 at gridW=694, got " + metrics.colWidth();
+        // 22 modules in 4 cols -> cols 0 & 1 have 6 rows (319px), cols 2 & 3 have 5 rows (268px)
+        assert metrics.totalHeight() == 319 : "Expected base totalHeight=319 for 6 rows, got " + metrics.totalHeight();
 
-        // Collapsed states: expandedIndex=-1, expandAnim=0.0f, fullAccordionHeight=0, tiny anim <= 6px, out-of-range index
+        // Collapsed states: expandedIndex=-1, expandAnim=0.0f, fullExtraHeight=0, visH <= 6, out-of-range index
         List<ModernModuleGridLayout.GridPlan> collapsedPlans = List.of(
-                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, -1, fullH, 1.0f),
-                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 2, fullH, 0.0f),
-                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 2, 0, 1.0f),
-                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 2, 100, 0.05f),
-                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, moduleCount, fullH, 1.0f)
+                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, -1, fullExtraH, 1.0f),
+                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 3, fullExtraH, 0.0f),
+                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 3, 0, 1.0f),
+                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 3, 100, 0.05f),
+                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 3, 100, 0.06f),
+                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 3, fullExtraH, 0.005f),
+                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, moduleCount, fullExtraH, 1.0f),
+                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, -2, fullExtraH, 1.0f)
         );
         for (ModernModuleGridLayout.GridPlan collapsed : collapsedPlans) {
             assert collapsed.accordion() == null : "Collapsed plan must have null accordion";
             assert collapsed.expandedIndex() == -1 && collapsed.expandedRow() == -1;
-            assert collapsed.closeButtonBounds() == null : "Collapsed plan must have null close button";
             assert collapsed.totalHeight() == metrics.totalHeight() : "Collapsed totalHeight must equal base metrics";
             for (int i = 0; i < moduleCount; i++) {
                 assert collapsed.cardY(startY, i) == metrics.cardY(startY, i) : "Collapsed cards must not shift";
             }
         }
 
-        // Mid-animation: expandAnim = 0.5f
+        // Empty module count must also collapse cleanly
+        ModernModuleGridLayout.GridPlan emptyPlan =
+                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, 0, 0, fullExtraH, 1.0f);
+        assert emptyPlan.accordion() == null && emptyPlan.expandedIndex() == -1 && emptyPlan.totalHeight() == 100;
+
+        // Single-column card accordion bounds at expandedIndex = 3 (col 3, row 0) with extra = 140
+        ModernModuleGridLayout.GridPlan fullPlan =
+                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 3, fullExtraH, 1.0f);
+        ModernModuleGridLayout.AccordionBounds acc = fullPlan.accordion();
+        assert acc != null : "Expected non-null AccordionBounds when expanded";
+        assert fullPlan.expandedIndex() == 3 && fullPlan.expandedRow() == 0;
+        assert acc.expandedCol() == 3 && acc.expandedRow() == 0;
+        assert acc.fullHeight() == fullExtraH && acc.visibleHeight() == fullExtraH;
+        assert acc.w() == metrics.colWidth()
+                : "Single-column accordion width must equal colWidth (" + metrics.colWidth() + "), got " + acc.w();
+        assert acc.x() == fullPlan.cardX(gridX, 3)
+                : "Accordion x must align with expanded card 3 x, got " + acc.x();
+        assert acc.y() == startY + ModernModuleGridLayout.CARD_HEIGHT
+                : "Accordion y must sit directly below card header with zero gap, got " + acc.y();
+        assert acc.controlsWidth() == ModernModuleGridLayout.computeCardControlsWidth(metrics.colWidth())
+                : "Accordion controlsWidth mismatch: " + acc.controlsWidth();
+
+        // Per-column masonry shift: ONLY col == 3 && row > 0 (indices 7, 11, 15, 19) shift by acc.visibleHeight()
+        List<Integer> shiftedCol3Indices = List.of(7, 11, 15, 19);
+        for (int i = 0; i < moduleCount; i++) {
+            int col = i % metrics.columns();
+            int row = i / metrics.columns();
+            int actualY = fullPlan.cardY(startY, i);
+            if (col == 3 && row > 0) {
+                assert shiftedCol3Indices.contains(i) : "Unexpected shifted index " + i;
+                assert actualY == metrics.cardY(startY, i) + acc.visibleHeight()
+                        : "Col 3 card " + i + " must shift down by exact visibleHeight";
+            } else {
+                assert actualY == metrics.cardY(startY, i)
+                        : "Card " + i + " (col=" + col + ", row=" + row + ") must remain unshifted";
+            }
+        }
+        assert fullPlan.cardY(startY, 7) == acc.y() + acc.visibleHeight() + metrics.gapY()
+                : "First shifted card in col 3 must sit exactly gapY below expanded card bottom";
+
+        // Uneven column totalHeight() test:
+        // Col 0 & 1 have 6 rows (319px); col 2 & 3 have 5 rows (268px).
+        // With extra=140 in col 3: col 3 = 268 + 140 = 408 > 319 -> totalHeight == 408
+        assert fullPlan.totalHeight() == 408
+                : "Expected totalHeight=408 when expanded col 3 exceeds col 0 height, got " + fullPlan.totalHeight();
+
+        // With extra=30 in col 3: col 3 = 268 + 30 = 298 <= 319 -> totalHeight remains 319 (col 0 height)
+        ModernModuleGridLayout.GridPlan smallPlan =
+                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 3, 30, 1.0f);
+        assert smallPlan.accordion() != null && smallPlan.accordion().visibleHeight() == 30;
+        assert smallPlan.totalHeight() == 319
+                : "Expected totalHeight=319 when expanded col 3 (298) stays <= col 0 (319), got " + smallPlan.totalHeight();
+
+        // Exact crossover boundary: 268 + 51 = 319 vs 268 + 52 = 320
+        assert ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 3, 51, 1.0f).totalHeight() == 319;
+        assert ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 3, 52, 1.0f).totalHeight() == 320;
+
+        // Mid-animation expandAnim = 0.5f: scales visibleHeight to 70 and shifts ONLY col 3 && row > 0
         ModernModuleGridLayout.GridPlan halfPlan =
-                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 2, fullH, 0.5f);
+                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 3, fullExtraH, 0.5f);
         ModernModuleGridLayout.AccordionBounds halfAcc = halfPlan.accordion();
         assert halfAcc != null;
-        assert halfAcc.fullHeight() == fullH;
+        assert halfAcc.fullHeight() == fullExtraH;
         assert halfAcc.visibleHeight() == 70 && halfAcc.visibleHeight() < halfAcc.fullHeight()
-                : "Expected visibleHeight 70 < 140 at expandAnim=0.5f, got " + halfAcc.visibleHeight();
-        int halfShift = ModernModuleGridLayout.ACCORDION_TOP_GAP + halfAcc.visibleHeight() + ModernModuleGridLayout.ACCORDION_POST_GAP;
-        for (int i = 0; i < 4; i++) {
-            assert halfPlan.cardY(startY, i) == startY : "Row 0 must remain unshifted during mid-animation";
+                : "Expected visibleHeight=70 at expandAnim=0.5f, got " + halfAcc.visibleHeight();
+        assert halfAcc.w() == metrics.colWidth() && halfAcc.x() == halfPlan.cardX(gridX, 3);
+        assert halfAcc.y() == startY + ModernModuleGridLayout.CARD_HEIGHT;
+        assert halfAcc.expandedCol() == 3 && halfAcc.expandedRow() == 0;
+        for (int i = 0; i < moduleCount; i++) {
+            int expectedShift = shiftedCol3Indices.contains(i) ? halfAcc.visibleHeight() : 0;
+            assert halfPlan.cardY(startY, i) == metrics.cardY(startY, i) + expectedShift
+                    : "Mid-animation shift mismatch at index " + i;
         }
-        for (int i = 4; i < moduleCount; i++) {
-            assert halfPlan.cardY(startY, i) == metrics.cardY(startY, i) + halfShift
-                    : "Row > expandedRow must shift by exact accordion delta during animation";
+        assert halfPlan.totalHeight() == 338
+                : "Expected mid-animation totalHeight=338 (268 + 70), got " + halfPlan.totalHeight();
+
+        // Expanding a tall column (col 0, row 1 -> index 4) shifts only indices 8, 12, 16, 20 and grows totalHeight
+        ModernModuleGridLayout.GridPlan col0Row1Plan =
+                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 4, 30, 1.0f);
+        ModernModuleGridLayout.AccordionBounds col0Acc = col0Row1Plan.accordion();
+        assert col0Acc != null && col0Acc.expandedCol() == 0 && col0Acc.expandedRow() == 1;
+        assert col0Acc.y() == metrics.cardY(startY, 4) + ModernModuleGridLayout.CARD_HEIGHT;
+        for (int i = 0; i < moduleCount; i++) {
+            boolean shouldShift = (i % 4 == 0) && (i / 4 > 1);
+            assert col0Row1Plan.cardY(startY, i) == metrics.cardY(startY, i) + (shouldShift ? 30 : 0)
+                    : "Col 0 row 1 shift mismatch at index " + i;
         }
-        assert halfPlan.totalHeight() == metrics.totalHeight() + halfShift;
-
-        // Fully expanded card in row 0 (expandedIndex = 2 in 4 cols, gridW = 694, startY = 60)
-        ModernModuleGridLayout.GridPlan fullPlan =
-                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 2, fullH, 1.0f);
-        ModernModuleGridLayout.AccordionBounds acc = fullPlan.accordion();
-        assert acc != null;
-        assert fullPlan.expandedIndex() == 2 && fullPlan.expandedRow() == 0 && acc.expandedRow() == 0;
-        assert acc.visibleHeight() == fullH && acc.fullHeight() == fullH;
-
-        for (int i = 0; i < 4; i++) {
-            assert fullPlan.cardY(startY, i) == startY : "Row 0 card " + i + " must stay unshifted at startY";
-        }
-        assert acc.x() == gridX + ModernModuleGridLayout.GRID_PAD_X
-                : "Accordion x must align with grid left pad, got " + acc.x();
-        assert acc.w() == ModernModuleGridLayout.computeAccordionPanelWidth(gridW);
-        assert acc.x() + acc.w() == fullPlan.cardX(gridX, 3) + metrics.colWidth()
-                : "Accordion right edge must align flush with col 3 right edge";
-        assert acc.y() == startY + ModernModuleGridLayout.CARD_HEIGHT + ModernModuleGridLayout.ACCORDION_TOP_GAP
-                : "Accordion y must sit directly below row 0 + ACCORDION_TOP_GAP";
-        assert acc.anchorCenterX() == fullPlan.cardX(gridX, 2) + metrics.colWidth() / 2
-                : "Accordion anchorCenterX must center directly under expanded card 2";
-        assert acc.controlsWidth() == acc.w() - 24 : "Accordion controlsWidth must reserve 12px inner padding each side";
-
-        int fullShift = ModernModuleGridLayout.ACCORDION_TOP_GAP + acc.visibleHeight() + ModernModuleGridLayout.ACCORDION_POST_GAP;
-        for (int i = 4; i <= 7; i++) {
-            int cy = fullPlan.cardY(startY, i);
-            assert cy > acc.y() + acc.visibleHeight()
-                    : "Row 1 card " + i + " must sit cleanly below expanded accordion bottom";
-            assert cy == metrics.cardY(startY, i) + fullShift
-                    : "Row 1 card " + i + " shift mismatch";
-        }
-
-        int[] close = fullPlan.closeButtonBounds();
-        assert close != null && close.length == 4;
-        assert close[2] == 14 && close[3] == 14 : "Close button must be 14x14";
-        assert close[0] >= acc.x() && close[0] + close[2] <= acc.x() + acc.w()
-                : "Close button must stay horizontally inside accordion bounds";
-        assert close[1] >= acc.y() && close[1] + close[3] <= acc.y() + ModernModuleGridLayout.ACCORDION_HEADER_HEIGHT
-                : "Close button must stay vertically inside accordion header bar";
-
-        assert fullPlan.totalHeight() == metrics.totalHeight() + fullShift
-                : "totalHeight must exceed base metrics by exact ACCORDION_TOP_GAP + visibleHeight + ACCORDION_POST_GAP";
-
-        // Expanded card in row 1 (expandedIndex = 5): row 0 & 1 unshifted, row 2+ shifted
-        ModernModuleGridLayout.GridPlan row1Plan =
-                ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 5, fullH, 1.0f);
-        ModernModuleGridLayout.AccordionBounds row1Acc = row1Plan.accordion();
-        assert row1Acc != null && row1Plan.expandedRow() == 1;
-        assert row1Acc.y() == metrics.cardY(startY, 5) + ModernModuleGridLayout.CARD_HEIGHT + ModernModuleGridLayout.ACCORDION_TOP_GAP;
-        assert row1Acc.anchorCenterX() == row1Plan.cardX(gridX, 5) + metrics.colWidth() / 2;
-        for (int i = 0; i < 8; i++) {
-            assert row1Plan.cardY(startY, i) == metrics.cardY(startY, i) : "Rows <= expandedRow must stay unshifted";
-        }
-        for (int i = 8; i < moduleCount; i++) {
-            assert row1Plan.cardY(startY, i) > row1Acc.y() + row1Acc.visibleHeight();
-            assert row1Plan.cardY(startY, i) == metrics.cardY(startY, i) + fullShift;
-        }
+        assert col0Row1Plan.totalHeight() == 349 : "Expected col 0 totalHeight=349 (319 + 30), got " + col0Row1Plan.totalHeight();
     }
 }

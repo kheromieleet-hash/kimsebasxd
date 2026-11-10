@@ -201,7 +201,7 @@ public final class ModernModuleSettings {
                 toggle("Cancel Re-Equip", () -> cfg.cancelReEquip, v -> cfg.cancelReEquip = v, actions, false),
                 toggle("Rotationless Drink", () -> cfg.rotationlessDrink, v -> cfg.rotationlessDrink = v, actions, false),
                 toggle("AirWalker", () -> cfg.dulkirAirWalker, v -> cfg.dulkirAirWalker = v, actions, false),
-                new ActionControl(() -> "Reset Dulkir Defaults", () -> {
+                new ActionControl(() -> "Reset Defaults", () -> {
                     cfg.itemScale = 1.0f;
                     cfg.playerScale = 1.0f;
                     cfg.posX = 0;
@@ -233,8 +233,8 @@ public final class ModernModuleSettings {
                         () -> String.format(Locale.ROOT, "%.2fx", cfg.invHudScale),
                         false),
                 intSlider("invBgAlpha", "Bg Opacity", 0, 100, "%", inv::getBgAlpha, inv::setBgAlpha),
-                new ActionControl(() -> "Open Full Settings...", actions::openInventorySettings),
-                new ActionControl(() -> "Move HUD Positions...", actions::openInventoryMove)
+                new ActionControl(() -> "Open Settings...", actions::openInventorySettings),
+                new ActionControl(() -> "Move HUD...", actions::openInventoryMove)
         );
     }
 
@@ -280,7 +280,7 @@ public final class ModernModuleSettings {
     private static List<Control> buildFastBreakControls(ModConfig cfg, Actions actions) {
         return List.of(
                 new CycleControl("Mode",
-                        () -> cfg.fastBreakMode == 1 ? "Vulcan (Bypass)" : "Vanilla (0 Delay)",
+                        () -> cfg.fastBreakMode == 1 ? "Vulcan" : "Vanilla",
                         () -> {
                             cfg.fastBreakMode = (cfg.fastBreakMode == 1) ? 0 : 1;
                             if (cfg.fastBreakMode == 1 && cfg.fastBreakSpeed > 1.15f) {
@@ -303,7 +303,7 @@ public final class ModernModuleSettings {
                             }
                         },
                         () -> cfg.fastBreakMode == 1
-                                ? String.format(Locale.ROOT, "%.2fx (Safe)", Math.min(cfg.fastBreakSpeed, 1.15f))
+                                ? String.format(Locale.ROOT, "%.2fx", Math.min(cfg.fastBreakSpeed, 1.15f))
                                 : String.format(Locale.ROOT, "%.1fx", cfg.fastBreakSpeed),
                         false)
         );
@@ -316,8 +316,8 @@ public final class ModernModuleSettings {
                 intSlider("invSortingDelay", "Sorting Delay", 0, 10, "t",
                         () -> cfg.invSortingDelay, v -> cfg.invSortingDelay = v),
                 toggle("Protect Hotbar", () -> cfg.invProtectHotbar, v -> cfg.invProtectHotbar = v, actions, false),
-                toggle("Xcarry (2x2 Crafting)", () -> cfg.invXcarry, v -> cfg.invXcarry = v, actions, false),
-                toggle("Disable In Creative", () -> cfg.invDisableInCreative, v -> cfg.invDisableInCreative = v, actions, false),
+                toggle("Xcarry (2x2)", () -> cfg.invXcarry, v -> cfg.invXcarry = v, actions, false),
+                toggle("Skip In Creative", () -> cfg.invDisableInCreative, v -> cfg.invDisableInCreative = v, actions, false),
                 toggle("Shulker Preview", () -> cfg.invShulkerPreview, v -> cfg.invShulkerPreview = v, actions, false)
         );
     }
@@ -353,14 +353,14 @@ public final class ModernModuleSettings {
                 new SliderControl("autoCrafterDelay", "Delay",
                         () -> cfg.autoCrafterDelay / 5.0f,
                         pct -> cfg.autoCrafterDelay = clampInt(Math.round(pct * 5.0f), 0, 5),
-                        () -> cfg.autoCrafterDelay == 0 ? "0t (Instant)" : (cfg.autoCrafterDelay + "t"),
+                        () -> cfg.autoCrafterDelay == 0 ? "0t" : (cfg.autoCrafterDelay + "t"),
                         false),
                 toggle("Close When Done", () -> cfg.autoCrafterCloseWhenDone, v -> cfg.autoCrafterCloseWhenDone = v, actions, false),
                 new ActionControl(
                         () -> {
                             boolean allSelected = cfg.autoCrafterTargets != null
                                     && cfg.autoCrafterTargets.size() >= AutoCrafterHandler.TARGETS.size();
-                            return allSelected ? "Deselect All Targets" : "Select All Targets";
+                            return allSelected ? "Deselect All" : "Select All";
                         },
                         () -> {
                             boolean allSelected = cfg.autoCrafterTargets != null

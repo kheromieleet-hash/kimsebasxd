@@ -4,7 +4,7 @@ import java.util.List;
 
 /**
  * Verifies {@link ModernInspectorLayout} responsive multi-column control placement,
- * chip column sizing, and inline accordion full-height integration.
+ * chip column sizing, and single-column card accordion height integration.
  */
 public class ModernInspectorLayoutTest {
 
@@ -148,27 +148,77 @@ public class ModernInspectorLayoutTest {
         ModConfig cfg = new ModConfig();
         ModernModuleSettings.Actions actions = stubActions();
 
-        assert ModernModuleGridLayout.computeAccordionFullHeight(694, List.of()) == 0
-                : "Empty controls must return 0 accordion height";
-        assert ModernModuleGridLayout.computeAccordionFullHeight(694, null) == 0
-                : "Null controls must return 0 accordion height";
+        int cardW = 162;
+        int cardControlsW = ModernModuleGridLayout.computeCardControlsWidth(cardW);
+        assert cardControlsW == cardW - ModernModuleGridLayout.CARD_PADDING_X * 2
+                : "Expected cardControlsWidth=" + (cardW - 16) + ", got " + cardControlsW;
+        assert ModernModuleGridLayout.computeCardControlsWidth(70) == 60
+                : "Expected minimum cardControlsWidth clamp of 60";
+
+        // Description header height rules: 0 -> 0, 1 -> 18, 2+ -> 28
+        assert ModernModuleGridLayout.computeExpandedDescHeaderHeight(-1) == 0;
+        assert ModernModuleGridLayout.computeExpandedDescHeaderHeight(0) == 0;
+        assert ModernModuleGridLayout.computeExpandedDescHeaderHeight(1) == 18;
+        assert ModernModuleGridLayout.computeExpandedDescHeaderHeight(2) == 28;
+        assert ModernModuleGridLayout.computeExpandedDescHeaderHeight(5) == 28;
+
+        // Empty / null controls must return 0 extra height
+        assert ModernModuleGridLayout.computeCardExtraHeight(cardW, 28, List.of()) == 0
+                : "Empty controls must return 0 card extra height";
+        assert ModernModuleGridLayout.computeCardExtraHeight(cardW, 28, null) == 0
+                : "Null controls must return 0 card extra height";
+        assert ModernModuleGridLayout.computeCardExtraHeight(cardW, 0, List.of()) == 0;
 
         List<ModernModuleSettings.Control> dulkirControls = ModernModuleSettings.getControls("Dulkir", cfg, actions);
-        int panelW = ModernModuleGridLayout.computeAccordionPanelWidth(694);
-        int controlsW = Math.max(80, panelW - 24);
-        ModernInspectorLayout.ControlsFlow dulkirFlow = ModernInspectorLayout.computeControlsFlow(0, 0, controlsW, dulkirControls);
+        ModernInspectorLayout.ControlsFlow dulkirNarrowFlow =
+                ModernInspectorLayout.computeControlsFlow(0, 0, cardControlsW, dulkirControls);
 
-        int fullH = ModernModuleGridLayout.computeAccordionFullHeight(694, dulkirControls);
-        assert fullH == 22 + 1 + dulkirFlow.totalHeight() + 6
-                : "Accordion height mismatch: expected " + (22 + 1 + dulkirFlow.totalHeight() + 6) + ", got " + fullH;
-        assert fullH == ModernModuleGridLayout.ACCORDION_HEADER_HEIGHT + 1 + dulkirFlow.totalHeight() + ModernModuleGridLayout.ACCORDION_BOTTOM_PAD;
+        int dulkirExtraH = ModernModuleGridLayout.computeCardExtraHeight(cardW, 28, dulkirControls);
+        assert dulkirExtraH == 1 + 28 + 1 + dulkirNarrowFlow.totalHeight() + 6
+                : "Card extra height mismatch: expected " + (1 + 28 + 1 + dulkirNarrowFlow.totalHeight() + 6) + ", got " + dulkirExtraH;
+        assert dulkirExtraH == 1 + 28 + 1 + dulkirNarrowFlow.totalHeight() + ModernModuleGridLayout.ACCORDION_BOTTOM_PAD;
+        assert ModernModuleGridLayout.computeCardExtraHeight(cardW, 18, dulkirControls)
+                == 1 + 18 + 1 + dulkirNarrowFlow.totalHeight() + ModernModuleGridLayout.ACCORDION_BOTTOM_PAD;
+        assert ModernModuleGridLayout.computeCardExtraHeight(cardW, 0, dulkirControls)
+                == 1 + 0 + 1 + dulkirNarrowFlow.totalHeight() + ModernModuleGridLayout.ACCORDION_BOTTOM_PAD;
 
-        int narrowPanelW = ModernModuleGridLayout.computeAccordionPanelWidth(340);
-        int narrowControlsW = Math.max(80, narrowPanelW - 24);
-        assert narrowControlsW < 420 : "Expected 1-col controlsWidth at gridW=340, got " + narrowControlsW;
-        ModernInspectorLayout.ControlsFlow narrowFlow = ModernInspectorLayout.computeControlsFlow(0, 0, narrowControlsW, dulkirControls);
-        int narrowFullH = ModernModuleGridLayout.computeAccordionFullHeight(340, dulkirControls);
-        assert narrowFullH == 22 + 1 + narrowFlow.totalHeight() + 6;
-        assert narrowFullH > fullH : "1-col narrow accordion should be taller than 2-col wide accordion";
+        // Single-column layout without horizontal overflow for all configurable modules inside 162px card
+        List<String> configurableModules = List.of(
+                "Dulkir", "Inventory HUD+", "Fullbright", "Keybinds HUD",
+                "Fast Place", "Auto Break", "FastBreak", "Inventory Tweaks",
+                "Auto Replenish", "Fast Use", "Auto Tool", "Auto Crafter",
+                "Better Chat"
+        );
+        for (String modName : configurableModules) {
+            List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(modName, cfg, actions);
+            assert !controls.isEmpty() : "Expected controls for " + modName;
+
+            ModernInspectorLayout.ControlsFlow flow =
+                    ModernInspectorLayout.computeControlsFlow(8, 20, cardControlsW, controls);
+            assert flow.items().size() == controls.size()
+                    : modName + " placed item count mismatch";
+            assertNoOverflowWithinFlow(8, 20, cardControlsW, flow);
+
+            for (int i = 0; i < flow.items().size(); i++) {
+                ModernInspectorLayout.PlacedControl pc = flow.items().get(i);
+                assert pc.x() == 8 && pc.w() == cardControlsW
+                        : modName + " item " + i + " must use single-column exact width " + cardControlsW;
+                if (i > 0) {
+                    ModernInspectorLayout.PlacedControl prev = flow.items().get(i - 1);
+                    assert pc.y() == prev.y() + prev.h() + ModernModuleSettings.CONTROL_GAP
+                            : modName + " item " + i + " vertical gap mismatch";
+                }
+                if (pc.control() instanceof ModernModuleSettings.ChipsControl) {
+                    assert pc.chipCols() == 2 : modName + " narrow card chips must use 2 columns";
+                    int chipW = ModernInspectorLayout.computeChipWidth(cardControlsW, pc.chipCols());
+                    assert pc.chipCols() * chipW + (pc.chipCols() - 1) * ModernInspectorLayout.CHIP_GAP_X <= cardControlsW
+                            : modName + " chips overflowed cardControlsWidth=" + cardControlsW;
+                }
+            }
+
+            int expectedExtra = 1 + 28 + 1 + flow.totalHeight() + ModernModuleGridLayout.ACCORDION_BOTTOM_PAD;
+            assert ModernModuleGridLayout.computeCardExtraHeight(cardW, 28, controls) == expectedExtra
+                    : modName + " computeCardExtraHeight mismatch";
+        }
     }
 }
