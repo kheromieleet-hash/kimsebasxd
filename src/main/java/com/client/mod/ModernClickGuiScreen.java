@@ -257,11 +257,11 @@ public class ModernClickGuiScreen extends Screen {
         int logoX = headX + 16;
         int logoY = headY + 14;
 
-        graphics.text(this.font, Component.literal("§d§l✦ SCT CLIENT§r §f§lv1.0.0"), logoX, logoY, 0xFFFFFFFF, false);
+        graphics.text(this.font, Component.literal("§d§l✦ SCT CLIENT§r §f§l" + ClientBuildInfo.getDisplayVersion()), logoX, logoY, 0xFFFFFFFF, false);
 
         // Subtle subtitle badge
         String badgeText = "RISE 6 LUXURY";
-        int badgeX = logoX + 130;
+        int badgeX = logoX + Math.max(130, this.font.width("✦ SCT CLIENT " + ClientBuildInfo.getDisplayVersion()) + 10);
         int badgeW = this.font.width(badgeText) + 8;
         JelloTheme.fillRounded(graphics, badgeX, logoY - 2, badgeX + badgeW, logoY + 11, 4, 0x33C084FC);
         graphics.text(this.font, Component.literal(badgeText), badgeX + 4, logoY + 1, 0xFFC084FC, false);

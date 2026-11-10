@@ -37,7 +37,8 @@
     "ItemEntityRendererMixin",
     "LivingEntityRendererMixin",
     "EntityMixin",
-    "ConnectionMixin"
+    "ConnectionMixin",
+    "CoreAssetsPackMixin"
   ],
   "injectors": {
     "defaultRequire": 1

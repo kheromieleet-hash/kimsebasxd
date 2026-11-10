@@ -1,6 +1,7 @@
 package com.client.mod.mixin;
 
 import com.client.mod.ClickGuiScreen;
+import com.client.mod.UpdateNoticeManager;
 import com.client.mod.VortexLiveShader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -75,5 +76,6 @@ public abstract class ScreenMixin {
         if (ClickGuiScreen.isTargetScreen(self)) {
             ClickGuiScreen.renderTabPanel(graphics, mouseX, mouseY);
         }
+        UpdateNoticeManager.renderScreenToast(graphics);
     }
 }

@@ -20,6 +20,7 @@ public class ClientMod implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         ModConfig.getInstance().load();
+        UpdateNoticeManager.loadOnStartup();
         CustomTitleMenu.configureIasPosition();
 
         zoomKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
@@ -47,6 +48,7 @@ public class ClientMod implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             ZoomHandler.update();
             AutoReplenishHandler.tick(client);
+            UpdateNoticeManager.onClientTick(client);
 
             ModConfig cfg = ModConfig.getInstance();
             if (cfg.autoSprint) {

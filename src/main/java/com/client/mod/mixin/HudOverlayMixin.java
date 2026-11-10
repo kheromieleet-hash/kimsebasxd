@@ -3,6 +3,7 @@ package com.client.mod.mixin;
 import com.client.mod.EspRenderHandler;
 import com.client.mod.KeybindsHudRenderer;
 import com.client.mod.StatsHudRenderer;
+import com.client.mod.UpdateNoticeManager;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.Hud;
@@ -23,6 +24,7 @@ public class HudOverlayMixin {
             StatsHudRenderer.render(graphics);
             KeybindsHudRenderer.render(graphics);
             EspRenderHandler.render(graphics, deltaTracker);
+            UpdateNoticeManager.renderHudToast(graphics);
         }
     }
 }
