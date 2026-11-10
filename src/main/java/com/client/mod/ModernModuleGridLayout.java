@@ -21,6 +21,7 @@ final class ModernModuleGridLayout {
     static final int GRID_GAP_Y = 7;
 
     static final int CARD_PAD_X = 9;
+    static final int CARD_PADDING_X = 8;
     static final int TITLE_Y_OFFSET = 7;
     static final int CONTROL_Y_OFFSET = 22;
     static final int CONTROL_HEIGHT = 15;
@@ -28,10 +29,9 @@ final class ModernModuleGridLayout {
     static final int SWITCH_WIDTH = 28;
     static final int TUNE_WIDTH = 17;
 
-    static final int ACCORDION_HEADER_HEIGHT = 22;
-    static final int ACCORDION_TOP_GAP = 4;
+    static final int ACCORDION_TOP_DIVIDER_PAD = 4;
+    static final int ACCORDION_DESC_LINE_HEIGHT = 10;
     static final int ACCORDION_BOTTOM_PAD = 6;
-    static final int ACCORDION_POST_GAP = 2;
 
     private ModernModuleGridLayout() {
     }
@@ -80,7 +80,7 @@ final class ModernModuleGridLayout {
             int w,
             int fullHeight,
             int visibleHeight,
-            int anchorCenterX,
+            int expandedCol,
             int expandedRow,
             int controlsWidth
     ) {
@@ -88,6 +88,7 @@ final class ModernModuleGridLayout {
 
     record GridPlan(
             GridMetrics metrics,
+            int moduleCount,
             int expandedIndex,
             int expandedRow,
             AccordionBounds accordion
@@ -97,39 +98,60 @@ final class ModernModuleGridLayout {
         }
 
         int cardY(int startY, int index) {
+            int col = index % metrics.columns();
             int row = index / metrics.columns();
-            int extra = accordion != null && row > expandedRow
-                    ? ACCORDION_TOP_GAP + accordion.visibleHeight() + ACCORDION_POST_GAP
+            int extra = accordion != null && col == accordion.expandedCol() && row > expandedRow
+                    ? accordion.visibleHeight()
                     : 0;
             return startY + row * (metrics.cardHeight() + metrics.gapY()) + extra;
         }
 
         int totalHeight() {
-            return metrics.totalHeight() + (accordion == null
-                    ? 0
-                    : ACCORDION_TOP_GAP + accordion.visibleHeight() + ACCORDION_POST_GAP);
-        }
-
-        int[] closeButtonBounds() {
-            if (accordion == null) {
-                return null;
+            if (accordion == null || moduleCount <= 0) {
+                return metrics.totalHeight();
             }
-            return new int[]{accordion.x() + accordion.w() - 22, accordion.y() + 4, 14, 14};
+            int maxColH = metrics.totalHeight();
+            for (int col = 0; col < metrics.columns(); col++) {
+                int colCount = col < moduleCount ? ((moduleCount - 1 - col) / metrics.columns() + 1) : 0;
+                if (colCount == 0) {
+                    continue;
+                }
+                int colH = metrics.padY() * 2
+                        + colCount * metrics.cardHeight()
+                        + Math.max(0, colCount - 1) * metrics.gapY()
+                        + (col == accordion.expandedCol() ? accordion.visibleHeight() : 0);
+                if (colH > maxColH) {
+                    maxColH = colH;
+                }
+            }
+            return maxColH;
         }
     }
 
-    static int computeAccordionPanelWidth(int gridW) {
-        return computePanelWidth(computeGridMetrics(gridW, 1));
+    static int computeCardControlsWidth(int cardW) {
+        return Math.max(60, cardW - CARD_PADDING_X * 2);
     }
 
-    static int computeAccordionFullHeight(int gridW, List<ModernModuleSettings.Control> controls) {
+    static int computeExpandedDescHeaderHeight(int descLineCount) {
+        if (descLineCount <= 0) {
+            return 0;
+        }
+        return ACCORDION_TOP_DIVIDER_PAD
+                + Math.min(2, descLineCount) * ACCORDION_DESC_LINE_HEIGHT
+                + ACCORDION_TOP_DIVIDER_PAD;
+    }
+
+    static int computeCardExtraHeight(
+            int cardW,
+            int descHeaderHeight,
+            List<ModernModuleSettings.Control> controls
+    ) {
         if (controls == null || controls.isEmpty()) {
             return 0;
         }
-        int panelW = computeAccordionPanelWidth(gridW);
-        int controlsW = computeControlsWidth(panelW);
+        int controlsW = computeCardControlsWidth(cardW);
         int flowH = ModernInspectorLayout.computeControlsFlow(0, 0, controlsW, controls).totalHeight();
-        return ACCORDION_HEADER_HEIGHT + 1 + flowH + ACCORDION_BOTTOM_PAD;
+        return 1 + Math.max(0, descHeaderHeight) + 1 + flowH + ACCORDION_BOTTOM_PAD;
     }
 
     static GridPlan computeGridPlan(
@@ -138,39 +160,34 @@ final class ModernModuleGridLayout {
             int gridW,
             int moduleCount,
             int expandedIndex,
-            int fullAccordionHeight,
+            int fullExtraHeight,
             float expandAnim
     ) {
         GridMetrics base = computeGridMetrics(gridW, moduleCount);
         if (moduleCount <= 0 || expandedIndex < 0 || expandedIndex >= moduleCount
-                || fullAccordionHeight <= 0 || !(expandAnim > 0.005f)) {
-            return new GridPlan(base, -1, -1, null);
+                || fullExtraHeight <= 0 || !(expandAnim > 0.005f)) {
+            return new GridPlan(base, moduleCount, -1, -1, null);
         }
         float clamped = Math.max(0.0f, Math.min(1.0f, expandAnim));
-        int visH = Math.round(fullAccordionHeight * clamped);
+        int visH = Math.round(fullExtraHeight * clamped);
         if (visH <= 6) {
-            return new GridPlan(base, -1, -1, null);
+            return new GridPlan(base, moduleCount, -1, -1, null);
         }
+        int expCol = expandedIndex % base.columns();
         int expRow = expandedIndex / base.columns();
-        int panelX = gridX + GRID_PAD_X;
-        int panelW = computePanelWidth(base);
-        int panelY = startY + expRow * (CARD_HEIGHT + GRID_GAP_Y) + CARD_HEIGHT + ACCORDION_TOP_GAP;
-        int anchorCenterX = base.cardX(gridX, expandedIndex) + base.colWidth() / 2;
-        int controlsW = computeControlsWidth(panelW);
-        return new GridPlan(
-                base,
-                expandedIndex,
+        int cardX = base.cardX(gridX, expandedIndex);
+        int cardTopY = base.cardY(startY, expandedIndex);
+        AccordionBounds bounds = new AccordionBounds(
+                cardX,
+                cardTopY + CARD_HEIGHT,
+                base.colWidth(),
+                fullExtraHeight,
+                visH,
+                expCol,
                 expRow,
-                new AccordionBounds(panelX, panelY, panelW, fullAccordionHeight, visH, anchorCenterX, expRow, controlsW)
+                computeCardControlsWidth(base.colWidth())
         );
-    }
-
-    private static int computePanelWidth(GridMetrics metrics) {
-        return Math.max(80, metrics.columns() * metrics.colWidth() + (metrics.columns() - 1) * metrics.gapX());
-    }
-
-    private static int computeControlsWidth(int panelW) {
-        return Math.max(80, panelW - 24);
+        return new GridPlan(base, moduleCount, expandedIndex, expRow, bounds);
     }
 
     static int computeColumnCount(int gridW) {
