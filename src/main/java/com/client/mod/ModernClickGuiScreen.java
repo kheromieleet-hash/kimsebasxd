@@ -1518,27 +1518,14 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     private List<ClickGuiScreen.ModuleEntry> getVisibleModules() {
-        List<ClickGuiScreen.ModuleEntry> all = ClickGuiScreen.getAllModules();
-        if (!this.searchQuery.isEmpty()) {
-            String q = this.searchQuery.toLowerCase(Locale.ROOT);
-            List<ClickGuiScreen.ModuleEntry> matches = new ArrayList<>();
-            for (ClickGuiScreen.ModuleEntry m : all) {
-                if (m.name.toLowerCase(Locale.ROOT).contains(q) || m.category.name.toLowerCase(Locale.ROOT).contains(q)) {
-                    matches.add(m);
-                }
-            }
-            return matches;
-        }
-        if ("ALL".equals(this.selectedCategoryId)) {
-            return all;
-        }
-        List<ClickGuiScreen.ModuleEntry> filtered = new ArrayList<>();
-        for (ClickGuiScreen.ModuleEntry m : all) {
-            if (this.selectedCategoryId.equals(m.category.id)) {
-                filtered.add(m);
-            }
-        }
-        return filtered;
+        return ModernModuleGridLayout.filterAndSortModules(
+                ClickGuiScreen.getAllModules(),
+                m -> m.name,
+                m -> m.category.id,
+                m -> m.category.name,
+                this.selectedCategoryId,
+                this.searchQuery
+        );
     }
 
     private static int countActiveModules() {
