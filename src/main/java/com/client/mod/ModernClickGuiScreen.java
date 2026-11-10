@@ -33,6 +33,7 @@ public class ModernClickGuiScreen extends Screen {
         WORLD("World", "🌍"),
         PLAYER("Player", "👤"),
         EXPLOIT("Exploit", "💣"),
+        MACROS("Macros", "⌨"),
         SETTINGS("Settings", "⚙");
 
         public final String label;
@@ -99,6 +100,14 @@ public class ModernClickGuiScreen extends Screen {
     private String listeningKeybindModule = null;
     private String expandedModule = null;
 
+    // Macro editor state
+    private int editingMacroIndex = -1; // -1 = none, -2 = adding new, >= 0 = editing existing
+    private boolean listeningMacroKey = false;
+    private int tempMacroKey = -1;
+    private boolean tempMacroIsMouse = false;
+    private EditBox macroNameBox;
+    private EditBox macroCmdBox;
+
     // Preview Armor Items
     private final ItemStack HELMET_STACK = new ItemStack(Items.DIAMOND_HELMET);
     private final ItemStack CHEST_STACK = new ItemStack(Items.DIAMOND_CHESTPLATE);
@@ -148,6 +157,19 @@ public class ModernClickGuiScreen extends Screen {
         });
 
         this.addRenderableWidget(this.searchBox);
+
+        // Macro editor text fields
+        this.macroNameBox = new EditBox(this.font, 0, 0, 180, 20, Component.literal("Macro Name"));
+        this.macroNameBox.setHint(Component.literal("Name (e.g. Lobby)"));
+        this.macroNameBox.setMaxLength(32);
+        this.macroNameBox.visible = false;
+        this.addRenderableWidget(this.macroNameBox);
+
+        this.macroCmdBox = new EditBox(this.font, 0, 0, 240, 20, Component.literal("Macro Command"));
+        this.macroCmdBox.setHint(Component.literal("Command / Message (e.g. /hub)"));
+        this.macroCmdBox.setMaxLength(128);
+        this.macroCmdBox.visible = false;
+        this.addRenderableWidget(this.macroCmdBox);
     }
 
     @Override
@@ -193,6 +215,8 @@ public class ModernClickGuiScreen extends Screen {
             renderSearchResults(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH, dt);
         } else if (this.activeTab == CategoryTab.ESP) {
             renderEspSettingsView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH, dt);
+        } else if (this.activeTab == CategoryTab.MACROS) {
+            renderMacrosView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH, dt);
         } else if (this.activeTab == CategoryTab.SETTINGS) {
             renderClientSettingsView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH, dt);
         } else {
@@ -693,6 +717,263 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     // ==========================================
+    // MACROS & KEYBINDS VIEW
+    // ==========================================
+    private void renderMacrosView(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, int contentH, float dt) {
+        ModConfig config = ModConfig.getInstance();
+        if (config.macros == null) {
+            config.macros = new ArrayList<>();
+        }
+
+        int innerY = contentY + 12;
+        int leftColW = Math.max(280, contentW - 250);
+        int leftColX = contentX + 14;
+        int rightColX = leftColX + leftColW + 12;
+        int rightColW = contentW - leftColW - 38;
+        int rightColH = contentH - 24;
+
+        // LEFT COLUMN: Macro List Header
+        graphics.text(this.font, Component.literal("§l⌨ CONFIGURED MACROS"), leftColX, innerY, 0xFFFFFFFF, false);
+        graphics.text(this.font, Component.literal("§7" + config.macros.size() + " active macros"), leftColX + leftColW - 130, innerY, 0xFF888888, false);
+        graphics.fill(leftColX, innerY + 14, leftColX + leftColW, innerY + 15, 0x33E53935);
+
+        // Calculate scroll height
+        int listStartY = innerY + 24;
+        int cardH = 46;
+        int cardGap = 8;
+        int totalListH = 30 + config.macros.size() * (cardH + cardGap);
+        this.contentTotalHeight = Math.max(contentH, totalListH);
+
+        // Render Macro Cards in Left Column
+        if (config.macros.isEmpty()) {
+            int emptyH = 80;
+            graphics.fill(leftColX, listStartY, leftColX + leftColW, listStartY + emptyH, 0xE00C0E14);
+            graphics.fill(leftColX, listStartY, leftColX + leftColW, listStartY + 1, 0x22FFFFFF);
+            graphics.fill(leftColX, listStartY + emptyH - 1, leftColX + leftColW, listStartY + emptyH, 0x22FFFFFF);
+            graphics.fill(leftColX, listStartY, leftColX + 1, listStartY + emptyH, 0x22FFFFFF);
+            graphics.fill(leftColX + leftColW - 1, listStartY, leftColX + leftColW, listStartY + emptyH, 0x22FFFFFF);
+
+            graphics.centeredText(this.font, Component.literal("§7No macros configured yet."), leftColX + leftColW / 2, listStartY + 26, 0xFFAAAAAA);
+            graphics.centeredText(this.font, Component.literal("§8Click '+ Add New Macro' on the right to create your first macro!"), leftColX + leftColW / 2, listStartY + 44, 0xFF777777);
+        } else {
+            for (int i = 0; i < config.macros.size(); i++) {
+                ModConfig.MacroEntry m = config.macros.get(i);
+                int cardY = listStartY + i * (cardH + cardGap) - (int) this.scrollAmount;
+
+                // Frustum cull
+                if (cardY + cardH < contentY || cardY > contentY + contentH) {
+                    continue;
+                }
+
+                boolean isEditingThis = (this.editingMacroIndex == i);
+                boolean hovered = mouseX >= leftColX && mouseX <= leftColX + leftColW && mouseY >= cardY && mouseY <= cardY + cardH;
+
+                // Card background & border
+                int cardBg = isEditingThis ? 0x24E53935 : (hovered ? 0x1AFFFFFF : 0xE00C0E14);
+                int borderColor = isEditingThis ? 0xAAE53935 : (hovered ? 0x55E53935 : 0x22FFFFFF);
+
+                graphics.fill(leftColX, cardY, leftColX + leftColW, cardY + cardH, cardBg);
+                graphics.fill(leftColX, cardY, leftColX + leftColW, cardY + 1, borderColor);
+                graphics.fill(leftColX, cardY + cardH - 1, leftColX + leftColW, cardY + cardH, borderColor);
+                graphics.fill(leftColX, cardY, leftColX + 1, cardY + cardH, borderColor);
+                graphics.fill(leftColX + leftColW - 1, cardY, leftColX + leftColW, cardY + cardH, borderColor);
+
+                // Macro Name
+                String nameTitle = (m.name != null && !m.name.isEmpty()) ? m.name : "Unnamed Macro";
+                graphics.text(this.font, Component.literal("§f§l" + nameTitle), leftColX + 10, cardY + 9, 0xFFFFFFFF, false);
+
+                // Macro Command / Message preview
+                String cmdPreview = (m.message != null && !m.message.isEmpty()) ? m.message : "/help";
+                if (cmdPreview.length() > 30) {
+                    cmdPreview = cmdPreview.substring(0, 27) + "...";
+                }
+                int cmdColor = cmdPreview.startsWith("/") ? 0xFF64B5F6 : 0xFF81C784;
+                graphics.text(this.font, Component.literal("§7Cmd: " + cmdPreview), leftColX + 10, cardY + 25, cmdColor, false);
+
+                // Keybind Badge
+                String bindText = ClickGuiScreen.getBindDisplayName(m.keyCode, m.isMouse);
+                int bindBadgeW = Math.max(48, this.font.width(bindText) + 16);
+                int bindBadgeH = 20;
+                int bindBadgeX = leftColX + leftColW - 68 - bindBadgeW;
+                int bindBadgeY = cardY + 13;
+
+                boolean bindHovered = mouseX >= bindBadgeX && mouseX <= bindBadgeX + bindBadgeW && mouseY >= bindBadgeY && mouseY <= bindBadgeY + bindBadgeH;
+                int bindBg = (isEditingThis && this.listeningMacroKey) ? 0x55E53935 : (bindHovered ? 0x35FFFFFF : 0x1AFFFFFF);
+                int bindBorder = (isEditingThis && this.listeningMacroKey) ? 0xCCE53935 : (bindHovered ? 0x88FFFFFF : 0x33FFFFFF);
+
+                graphics.fill(bindBadgeX, bindBadgeY, bindBadgeX + bindBadgeW, bindBadgeY + bindBadgeH, bindBg);
+                graphics.fill(bindBadgeX, bindBadgeY, bindBadgeX + bindBadgeW, bindBadgeY + 1, bindBorder);
+                graphics.fill(bindBadgeX, bindBadgeY + bindBadgeH - 1, bindBadgeX + bindBadgeW, bindBadgeY + bindBadgeH, bindBorder);
+                graphics.fill(bindBadgeX, bindBadgeY, bindBadgeX + 1, bindBadgeY + bindBadgeH, bindBorder);
+                graphics.fill(bindBadgeX + bindBadgeW - 1, bindBadgeY, bindBadgeX + bindBadgeW, bindBadgeY + bindBadgeH, bindBorder);
+
+                int bindTextColor = (isEditingThis && this.listeningMacroKey) ? 0xFFFF5555 : (m.keyCode >= 0 ? 0xFFFFD54F : 0xFF888888);
+                graphics.centeredText(this.font, Component.literal(bindText), bindBadgeX + bindBadgeW / 2, bindBadgeY + 6, bindTextColor);
+
+                // Edit Button [ ✏ ]
+                int editBtnX = leftColX + leftColW - 60;
+                int editBtnY = cardY + 13;
+                int editBtnW = 24;
+                int editBtnH = 20;
+                boolean editHovered = mouseX >= editBtnX && mouseX <= editBtnX + editBtnW && mouseY >= editBtnY && mouseY <= editBtnY + editBtnH;
+
+                graphics.fill(editBtnX, editBtnY, editBtnX + editBtnW, editBtnY + editBtnH, editHovered ? 0x44E53935 : 0x1AFFFFFF);
+                graphics.fill(editBtnX, editBtnY, editBtnX + editBtnW, editBtnY + 1, editHovered ? 0xCCE53935 : 0x33FFFFFF);
+                graphics.fill(editBtnX, editBtnY + editBtnH - 1, editBtnX + editBtnW, editBtnY + editBtnH, editHovered ? 0xCCE53935 : 0x33FFFFFF);
+                graphics.fill(editBtnX, editBtnY, editBtnX + 1, editBtnY + editBtnH, editHovered ? 0xCCE53935 : 0x33FFFFFF);
+                graphics.fill(editBtnX + editBtnW - 1, editBtnY, editBtnX + editBtnW, editBtnY + editBtnH, editHovered ? 0xCCE53935 : 0x33FFFFFF);
+                graphics.centeredText(this.font, Component.literal("✏"), editBtnX + editBtnW / 2, editBtnY + 5, editHovered ? 0xFFFFFFFF : 0xFFCCCCCC);
+
+                // Delete Button [ ✕ ]
+                int delBtnX = leftColX + leftColW - 30;
+                int delBtnY = cardY + 13;
+                int delBtnW = 24;
+                int delBtnH = 20;
+                boolean delHovered = mouseX >= delBtnX && mouseX <= delBtnX + delBtnW && mouseY >= delBtnY && mouseY <= delBtnY + delBtnH;
+
+                graphics.fill(delBtnX, delBtnY, delBtnX + delBtnW, delBtnY + delBtnH, delHovered ? 0x66FF4444 : 0x1AFFFFFF);
+                graphics.fill(delBtnX, delBtnY, delBtnX + delBtnW, delBtnY + 1, delHovered ? 0xFFFF4444 : 0x33FFFFFF);
+                graphics.fill(delBtnX, delBtnY + delBtnH - 1, delBtnX + delBtnW, delBtnY + delBtnH, delHovered ? 0xFFFF4444 : 0x33FFFFFF);
+                graphics.fill(delBtnX, delBtnY, delBtnX + 1, delBtnY + delBtnH, delHovered ? 0xFFFF4444 : 0x33FFFFFF);
+                graphics.fill(delBtnX + delBtnW - 1, delBtnY, delBtnX + delBtnW, delBtnY + delBtnH, delHovered ? 0xFFFF4444 : 0x33FFFFFF);
+                graphics.centeredText(this.font, Component.literal("✕"), delBtnX + delBtnW / 2, delBtnY + 5, delHovered ? 0xFFFFFFFF : 0xFFFF6666);
+            }
+        }
+
+        // RIGHT COLUMN: Editor or Info Panel
+        renderMacroEditorOrHelp(graphics, mouseX, mouseY, rightColX, innerY - 2, rightColW, rightColH, config);
+    }
+
+    private void renderMacroEditorOrHelp(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int x, int y, int w, int h, ModConfig config) {
+        // Container background
+        graphics.fill(x, y, x + w, y + h, 0xE00C0E14);
+        graphics.fill(x, y, x + w, y + 1, 0x44E53935);
+        graphics.fill(x, y + h - 1, x + w, y + h, 0x44E53935);
+        graphics.fill(x, y, x + 1, y + h, 0x44E53935);
+        graphics.fill(x + w - 1, y, x + w, y + h, 0x44E53935);
+
+        if (this.editingMacroIndex != -1) {
+            // EDIT / CREATE MODE
+            String title = (this.editingMacroIndex == -2) ? "§l➕ CREATE NEW MACRO" : "§l✏ EDIT MACRO";
+            graphics.text(this.font, Component.literal(title), x + 12, y + 12, 0xFFFFFFFF, false);
+            graphics.fill(x + 12, y + 26, x + w - 12, y + 27, 0x33E53935);
+
+            int formY = y + 36;
+            int boxW = Math.max(120, w - 24);
+
+            // 1. Name Field
+            graphics.text(this.font, Component.literal("§7Macro Name:"), x + 12, formY, 0xFFAAAAAA, false);
+            if (this.macroNameBox != null) {
+                this.macroNameBox.setX(x + 12);
+                this.macroNameBox.setY(formY + 12);
+                this.macroNameBox.setWidth(boxW);
+                this.macroNameBox.visible = true;
+            }
+            formY += 40;
+
+            // 2. Command / Message Field
+            graphics.text(this.font, Component.literal("§7Command or Chat Message:"), x + 12, formY, 0xFFAAAAAA, false);
+            if (this.macroCmdBox != null) {
+                this.macroCmdBox.setX(x + 12);
+                this.macroCmdBox.setY(formY + 12);
+                this.macroCmdBox.setWidth(boxW);
+                this.macroCmdBox.visible = true;
+            }
+            formY += 40;
+
+            // 3. Trigger Keybind Field
+            graphics.text(this.font, Component.literal("§7Trigger Keybind:"), x + 12, formY, 0xFFAAAAAA, false);
+            int bindBtnX = x + 12;
+            int bindBtnY = formY + 12;
+            int bindBtnW = boxW;
+            int bindBtnH = 22;
+
+            boolean bindHovered = mouseX >= bindBtnX && mouseX <= bindBtnX + bindBtnW && mouseY >= bindBtnY && mouseY <= bindBtnY + bindBtnH;
+            int bindBg = this.listeningMacroKey ? 0x55E53935 : (bindHovered ? 0x33FFFFFF : 0x1AFFFFFF);
+            int bindBorder = this.listeningMacroKey ? 0xCCE53935 : (bindHovered ? 0x66FFFFFF : 0x22FFFFFF);
+
+            graphics.fill(bindBtnX, bindBtnY, bindBtnX + bindBtnW, bindBtnY + bindBtnH, bindBg);
+            graphics.fill(bindBtnX, bindBtnY, bindBtnX + bindBtnW, bindBtnY + 1, bindBorder);
+            graphics.fill(bindBtnX, bindBtnY + bindBtnH - 1, bindBtnX + bindBtnW, bindBtnY + bindBtnH, bindBorder);
+            graphics.fill(bindBtnX, bindBtnY, bindBtnX + 1, bindBtnY + bindBtnH, bindBorder);
+            graphics.fill(bindBtnX + bindBtnW - 1, bindBtnY, bindBtnX + bindBtnW, bindBtnY + bindBtnH, bindBorder);
+
+            String keyDisplay = this.listeningMacroKey ? "⌨ Press any key... (Esc: cancel)" : ClickGuiScreen.getBindDisplayName(this.tempMacroKey, this.tempMacroIsMouse);
+            int keyColor = this.listeningMacroKey ? 0xFFFF5555 : (this.tempMacroKey >= 0 ? 0xFFFFD54F : 0xFFFFFFFF);
+            graphics.centeredText(this.font, Component.literal(keyDisplay), bindBtnX + bindBtnW / 2, bindBtnY + 6, keyColor);
+
+            graphics.text(this.font, Component.literal("§8Left-click to bind, Right-click to clear"), x + 12, formY + 38, 0xFF666666, false);
+            formY += 56;
+
+            // 4. Action Buttons: Save & Cancel
+            int btnH = 24;
+            int btnW = (boxW - 8) / 2;
+            int saveBtnX = x + 12;
+            int cancelBtnX = saveBtnX + btnW + 8;
+            int actionBtnY = formY;
+
+            boolean saveHov = mouseX >= saveBtnX && mouseX <= saveBtnX + btnW && mouseY >= actionBtnY && mouseY <= actionBtnY + btnH;
+            boolean cancelHov = mouseX >= cancelBtnX && mouseX <= cancelBtnX + btnW && mouseY >= actionBtnY && mouseY <= actionBtnY + btnH;
+
+            // Save button
+            graphics.fill(saveBtnX, actionBtnY, saveBtnX + btnW, actionBtnY + btnH, saveHov ? 0xFFE53935 : 0xCCE53935);
+            graphics.centeredText(this.font, Component.literal("💾 Save Macro"), saveBtnX + btnW / 2, actionBtnY + 7, 0xFFFFFFFF);
+
+            // Cancel button
+            graphics.fill(cancelBtnX, actionBtnY, cancelBtnX + btnW, actionBtnY + btnH, cancelHov ? 0x44FFFFFF : 0x22FFFFFF);
+            graphics.centeredText(this.font, Component.literal("Cancel"), cancelBtnX + btnW / 2, actionBtnY + 7, cancelHov ? 0xFFFFFFFF : 0xFFCCCCCC);
+
+        } else {
+            // IDLE HELP & NEW MACRO BUTTON
+            if (this.macroNameBox != null) this.macroNameBox.visible = false;
+            if (this.macroCmdBox != null) this.macroCmdBox.visible = false;
+
+            graphics.text(this.font, Component.literal("§lℹ MACRO GUIDE"), x + 12, y + 12, 0xFFFFFFFF, false);
+            graphics.fill(x + 12, y + 26, x + w - 12, y + 27, 0x33E53935);
+
+            // [+ Add New Macro] Button
+            int addBtnX = x + 12;
+            int addBtnY = y + 36;
+            int addBtnW = w - 24;
+            int addBtnH = 26;
+            boolean addHovered = mouseX >= addBtnX && mouseX <= addBtnX + addBtnW && mouseY >= addBtnY && mouseY <= addBtnY + addBtnH;
+
+            graphics.fill(addBtnX, addBtnY, addBtnX + addBtnW, addBtnY + addBtnH, addHovered ? 0xFFE53935 : 0xCCE53935);
+            graphics.fill(addBtnX, addBtnY, addBtnX + addBtnW, addBtnY + 1, 0xFFFF7777);
+            graphics.fill(addBtnX, addBtnY + addBtnH - 1, addBtnX + addBtnW, addBtnY + addBtnH, 0x88E53935);
+            graphics.fill(addBtnX, addBtnY, addBtnX + 1, addBtnY + addBtnH, 0xFFFF7777);
+            graphics.fill(addBtnX + addBtnW - 1, addBtnY, addBtnX + addBtnW, addBtnY + addBtnH, 0x88E53935);
+            graphics.centeredText(this.font, Component.literal("§l+ Add New Macro"), addBtnX + addBtnW / 2, addBtnY + 8, 0xFFFFFFFF);
+
+            // Help / Info paragraphs
+            int infoY = addBtnY + addBtnH + 18;
+            graphics.text(this.font, Component.literal("§f§lHow Macros Work:"), x + 12, infoY, 0xFFFFFFFF, false);
+            infoY += 16;
+            graphics.text(this.font, Component.literal("§7• Pressing your bound key automatically"), x + 12, infoY, 0xFFAAAAAA, false);
+            infoY += 12;
+            graphics.text(this.font, Component.literal("§7  sends the command or message in-game."), x + 12, infoY, 0xFFAAAAAA, false);
+            infoY += 18;
+            graphics.text(this.font, Component.literal("§f§lCommands & Chat:"), x + 12, infoY, 0xFFFFFFFF, false);
+            infoY += 16;
+            graphics.text(this.font, Component.literal("§7• Start with §b'/' §7for commands:"), x + 12, infoY, 0xFFAAAAAA, false);
+            infoY += 12;
+            graphics.text(this.font, Component.literal("§e  /hub, /craft, /spawn, /gfs"), x + 12, infoY, 0xFFE0E0E0, false);
+            infoY += 16;
+            graphics.text(this.font, Component.literal("§7• Plain text sends to public chat:"), x + 12, infoY, 0xFFAAAAAA, false);
+            infoY += 12;
+            graphics.text(this.font, Component.literal("§a  gg, glhf, Thanks for game!"), x + 12, infoY, 0xFFE0E0E0, false);
+            infoY += 18;
+            graphics.text(this.font, Component.literal("§f§lKey & Mouse Bindings:"), x + 12, infoY, 0xFFFFFFFF, false);
+            infoY += 16;
+            graphics.text(this.font, Component.literal("§7• Supports any keyboard key or mouse"), x + 12, infoY, 0xFFAAAAAA, false);
+            infoY += 12;
+            graphics.text(this.font, Component.literal("§7  button (M3, M4, M5)."), x + 12, infoY, 0xFFAAAAAA, false);
+            infoY += 12;
+            graphics.text(this.font, Component.literal("§7• Right-click bind badge to unbind."), x + 12, infoY, 0xFFAAAAAA, false);
+        }
+    }
+
+    // ==========================================
     // MODULE CARDS VIEW FOR ALL CATEGORIES
     // ==========================================
     private void renderModuleCardsView(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, int contentH, float dt) {
@@ -1013,6 +1294,12 @@ public class ModernClickGuiScreen extends Screen {
                 this.activeTab = tabs[tabIndex];
                 this.scrollAmount = 0.0;
                 this.listeningKeybindModule = null;
+                if (this.activeTab != CategoryTab.MACROS) {
+                    this.editingMacroIndex = -1;
+                    this.listeningMacroKey = false;
+                    if (this.macroNameBox != null) this.macroNameBox.visible = false;
+                    if (this.macroCmdBox != null) this.macroCmdBox.visible = false;
+                }
                 playClickSound();
                 return true;
             }
@@ -1031,6 +1318,10 @@ public class ModernClickGuiScreen extends Screen {
                 }
             } else if (this.activeTab == CategoryTab.ESP) {
                 if (handleEspSettingsClick(mouseX, mouseY, button, contentX, contentY, contentW, contentH)) {
+                    return true;
+                }
+            } else if (this.activeTab == CategoryTab.MACROS) {
+                if (handleMacrosClick(mouseX, mouseY, button, contentX, contentY, contentW, contentH)) {
                     return true;
                 }
             } else if (this.activeTab == CategoryTab.SETTINGS) {
@@ -1151,6 +1442,228 @@ public class ModernClickGuiScreen extends Screen {
         }
 
         return false;
+    }
+
+    private boolean handleMacrosClick(int mouseX, int mouseY, int button, int contentX, int contentY, int contentW, int contentH) {
+        ModConfig config = ModConfig.getInstance();
+        if (config.macros == null) {
+            config.macros = new ArrayList<>();
+        }
+
+        int innerY = contentY + 12;
+        int leftColW = Math.max(280, contentW - 250);
+        int leftColX = contentX + 14;
+        int rightColX = leftColX + leftColW + 12;
+        int rightColW = contentW - leftColW - 38;
+        int rightColH = contentH - 24;
+
+        // 1. Right Column Click handling
+        if (mouseX >= rightColX && mouseX <= rightColX + rightColW && mouseY >= innerY - 2 && mouseY <= innerY + rightColH) {
+            if (this.editingMacroIndex != -1) {
+                int formY = innerY + 36;
+                int boxW = Math.max(120, rightColW - 24);
+
+                // Skip Name field
+                formY += 40;
+                // Skip Cmd field
+                formY += 40;
+
+                // Keybind Button
+                int bindBtnX = rightColX + 12;
+                int bindBtnY = formY + 12;
+                int bindBtnW = boxW;
+                int bindBtnH = 22;
+
+                if (mouseX >= bindBtnX && mouseX <= bindBtnX + bindBtnW && mouseY >= bindBtnY && mouseY <= bindBtnY + bindBtnH) {
+                    if (button == 1) { // Right-click clears bind
+                        this.tempMacroKey = -1;
+                        this.tempMacroIsMouse = false;
+                        this.listeningMacroKey = false;
+                    } else {
+                        this.listeningMacroKey = true;
+                    }
+                    playClickSound();
+                    return true;
+                }
+
+                // If currently listening and user clicks with an extra mouse button (button >= 2)
+                if (this.listeningMacroKey && button >= 2) {
+                    this.tempMacroKey = button;
+                    this.tempMacroIsMouse = true;
+                    this.listeningMacroKey = false;
+                    playClickSound();
+                    return true;
+                }
+
+                formY += 56;
+
+                // Save & Cancel Buttons
+                int btnH = 24;
+                int btnW = (boxW - 8) / 2;
+                int saveBtnX = rightColX + 12;
+                int cancelBtnX = saveBtnX + btnW + 8;
+                int actionBtnY = formY;
+
+                // Save Clicked
+                if (mouseX >= saveBtnX && mouseX <= saveBtnX + btnW && mouseY >= actionBtnY && mouseY <= actionBtnY + btnH) {
+                    String name = (this.macroNameBox != null) ? this.macroNameBox.getValue().trim() : "";
+                    if (name.isEmpty()) name = "Macro " + (config.macros.size() + 1);
+                    String cmd = (this.macroCmdBox != null) ? this.macroCmdBox.getValue().trim() : "";
+                    if (cmd.isEmpty()) cmd = "/help";
+
+                    if (this.editingMacroIndex == -2) {
+                        ModConfig.MacroEntry m = new ModConfig.MacroEntry();
+                        m.name = name;
+                        m.message = cmd;
+                        m.keyCode = this.tempMacroKey;
+                        m.isMouse = this.tempMacroIsMouse;
+                        config.macros.add(m);
+                    } else if (this.editingMacroIndex >= 0 && this.editingMacroIndex < config.macros.size()) {
+                        ModConfig.MacroEntry m = config.macros.get(this.editingMacroIndex);
+                        m.name = name;
+                        m.message = cmd;
+                        m.keyCode = this.tempMacroKey;
+                        m.isMouse = this.tempMacroIsMouse;
+                    }
+                    config.save();
+
+                    this.editingMacroIndex = -1;
+                    this.listeningMacroKey = false;
+                    if (this.macroNameBox != null) this.macroNameBox.visible = false;
+                    if (this.macroCmdBox != null) this.macroCmdBox.visible = false;
+
+                    playClickSound();
+                    return true;
+                }
+
+                // Cancel Clicked
+                if (mouseX >= cancelBtnX && mouseX <= cancelBtnX + btnW && mouseY >= actionBtnY && mouseY <= actionBtnY + btnH) {
+                    this.editingMacroIndex = -1;
+                    this.listeningMacroKey = false;
+                    if (this.macroNameBox != null) this.macroNameBox.visible = false;
+                    if (this.macroCmdBox != null) this.macroCmdBox.visible = false;
+                    playClickSound();
+                    return true;
+                }
+            } else {
+                // [+ Add New Macro] Clicked
+                int addBtnX = rightColX + 12;
+                int addBtnY = innerY + 36;
+                int addBtnW = rightColW - 24;
+                int addBtnH = 26;
+
+                if (mouseX >= addBtnX && mouseX <= addBtnX + addBtnW && mouseY >= addBtnY && mouseY <= addBtnY + addBtnH) {
+                    this.editingMacroIndex = -2;
+                    this.listeningMacroKey = false;
+                    this.tempMacroKey = -1;
+                    this.tempMacroIsMouse = false;
+                    if (this.macroNameBox != null) {
+                        this.macroNameBox.setValue("");
+                        this.macroNameBox.visible = true;
+                        this.macroNameBox.setFocused(true);
+                    }
+                    if (this.macroCmdBox != null) {
+                        this.macroCmdBox.setValue("");
+                        this.macroCmdBox.visible = true;
+                    }
+                    playClickSound();
+                    return true;
+                }
+            }
+        }
+
+        // 2. Left Column (Macro Cards) Click handling
+        int listStartY = innerY + 24;
+        int cardH = 46;
+        int cardGap = 8;
+
+        for (int i = 0; i < config.macros.size(); i++) {
+            int cardY = listStartY + i * (cardH + cardGap) - (int) this.scrollAmount;
+            if (cardY + cardH < contentY || cardY > contentY + contentH) {
+                continue;
+            }
+
+            if (mouseX >= leftColX && mouseX <= leftColX + leftColW && mouseY >= cardY && mouseY <= cardY + cardH) {
+                ModConfig.MacroEntry m = config.macros.get(i);
+
+                // Delete Button [✕]
+                int delBtnX = leftColX + leftColW - 30;
+                int delBtnY = cardY + 13;
+                int delBtnW = 24;
+                int delBtnH = 20;
+                if (mouseX >= delBtnX && mouseX <= delBtnX + delBtnW && mouseY >= delBtnY && mouseY <= delBtnY + delBtnH) {
+                    config.macros.remove(i);
+                    if (this.editingMacroIndex == i) {
+                        this.editingMacroIndex = -1;
+                        if (this.macroNameBox != null) this.macroNameBox.visible = false;
+                        if (this.macroCmdBox != null) this.macroCmdBox.visible = false;
+                    } else if (this.editingMacroIndex > i) {
+                        this.editingMacroIndex--;
+                    }
+                    config.save();
+                    playClickSound();
+                    return true;
+                }
+
+                // Edit Button [✏]
+                int editBtnX = leftColX + leftColW - 60;
+                int editBtnY = cardY + 13;
+                int editBtnW = 24;
+                int editBtnH = 20;
+                if (mouseX >= editBtnX && mouseX <= editBtnX + editBtnW && mouseY >= editBtnY && mouseY <= editBtnY + editBtnH) {
+                    loadMacroIntoEditor(i, m);
+                    playClickSound();
+                    return true;
+                }
+
+                // Keybind Badge Click
+                String bindText = ClickGuiScreen.getBindDisplayName(m.keyCode, m.isMouse);
+                int bindBadgeW = Math.max(48, this.font.width(bindText) + 16);
+                int bindBadgeH = 20;
+                int bindBadgeX = leftColX + leftColW - 68 - bindBadgeW;
+                int bindBadgeY = cardY + 13;
+
+                if (mouseX >= bindBadgeX && mouseX <= bindBadgeX + bindBadgeW && mouseY >= bindBadgeY && mouseY <= bindBadgeY + bindBadgeH) {
+                    if (button == 1) { // Right click to clear
+                        m.keyCode = -1;
+                        m.isMouse = false;
+                        if (this.editingMacroIndex == i) {
+                            this.tempMacroKey = -1;
+                            this.tempMacroIsMouse = false;
+                            this.listeningMacroKey = false;
+                        }
+                        config.save();
+                    } else {
+                        loadMacroIntoEditor(i, m);
+                        this.listeningMacroKey = true;
+                    }
+                    playClickSound();
+                    return true;
+                }
+
+                // Clicking anywhere else on the card selects it for editing
+                loadMacroIntoEditor(i, m);
+                playClickSound();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void loadMacroIntoEditor(int index, ModConfig.MacroEntry m) {
+        this.editingMacroIndex = index;
+        this.listeningMacroKey = false;
+        this.tempMacroKey = m.keyCode;
+        this.tempMacroIsMouse = m.isMouse;
+        if (this.macroNameBox != null) {
+            this.macroNameBox.setValue(m.name != null ? m.name : "");
+            this.macroNameBox.visible = true;
+        }
+        if (this.macroCmdBox != null) {
+            this.macroCmdBox.setValue(m.message != null ? m.message : "");
+            this.macroCmdBox.visible = true;
+        }
     }
 
     private boolean handleModuleCardsClick(int mouseX, int mouseY, int button, int contentX, int contentY, int contentW) {
@@ -1432,6 +1945,26 @@ public class ModernClickGuiScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
+        // Handle Keybind Listening for a macro
+        if (this.listeningMacroKey) {
+            int key = event.key();
+            if (key == InputConstants.KEY_ESCAPE) {
+                this.listeningMacroKey = false;
+            } else {
+                this.tempMacroKey = key;
+                this.tempMacroIsMouse = false;
+                this.listeningMacroKey = false;
+                if (this.editingMacroIndex >= 0 && this.editingMacroIndex < ModConfig.getInstance().macros.size()) {
+                    ModConfig.MacroEntry m = ModConfig.getInstance().macros.get(this.editingMacroIndex);
+                    m.keyCode = this.tempMacroKey;
+                    m.isMouse = false;
+                    ModConfig.getInstance().save();
+                }
+            }
+            playClickSound();
+            return true;
+        }
+
         // Handle Keybind Listening for a module
         if (this.listeningKeybindModule != null) {
             int key = event.key();
@@ -1451,6 +1984,13 @@ public class ModernClickGuiScreen extends Screen {
         if (event.key() == InputConstants.KEY_ESCAPE) {
             if (this.searchBox != null && this.searchBox.isFocused() && !this.searchQuery.isEmpty()) {
                 this.searchBox.setValue("");
+                return true;
+            }
+            if (this.editingMacroIndex != -1) {
+                this.editingMacroIndex = -1;
+                this.listeningMacroKey = false;
+                if (this.macroNameBox != null) this.macroNameBox.visible = false;
+                if (this.macroCmdBox != null) this.macroCmdBox.visible = false;
                 return true;
             }
             onClose();
