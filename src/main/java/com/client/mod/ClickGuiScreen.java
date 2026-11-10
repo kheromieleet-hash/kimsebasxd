@@ -987,9 +987,6 @@ public class ClickGuiScreen extends Screen {
                         "No Dark Corners: " + (config.noBlockShadows ? "ON" : "OFF"), config.noBlockShadows);
             }
             case "Fast Use" -> {
-                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
-                        "Auto Right Click: " + (config.fastUseAutoRightClick ? "ON" : "OFF"), config.fastUseAutoRightClick);
-                rowY += 22;
                 drawSlider(graphics, font, innerX, rowY, innerW,
                         "Cooldown: " + config.fastUseCooldown,
                         config.fastUseCooldown / 4.0f);
@@ -1039,6 +1036,9 @@ public class ClickGuiScreen extends Screen {
                         "Shulker Preview: " + (config.invShulkerPreview ? "ON" : "OFF"), config.invShulkerPreview);
             }
             case "Fast Place" -> {
+                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                        "Auto Right Click: " + (config.fastPlaceAutoRightClick ? "ON" : "OFF"), config.fastPlaceAutoRightClick);
+                rowY += 22;
                 drawSlider(graphics, font, innerX, rowY, innerW,
                         "Delay: " + config.fastPlaceDelay + "t",
                         config.fastPlaceDelay / 4.0f);
@@ -1173,8 +1173,8 @@ public class ClickGuiScreen extends Screen {
             case "Inventory Tweaks" -> 7;
             case "Auto Replenish" -> 6;
             case "Fullbright" -> 4;
-            case "Fast Use" -> 2;
-            case "Fast Place" -> 1;
+            case "Fast Use" -> 1;
+            case "Fast Place" -> 2;
             case "Auto Tool" -> 1;
             case "Auto Crafter" -> 3 + (AutoCrafterHandler.TARGETS.size() + 1) / 2;
             case "Auto Break" -> 1;
@@ -1980,14 +1980,7 @@ public class ClickGuiScreen extends Screen {
                 }
             }
             case "Fast Use" -> {
-                switch (specificRow) {
-                    case 0 -> {
-                        config.fastUseAutoRightClick = !config.fastUseAutoRightClick;
-                        config.save();
-                        playClickSound();
-                    }
-                    case 1 -> startSliderDrag(mouseX, innerX, innerW, "fastUseCooldown");
-                }
+                if (specificRow == 0) startSliderDrag(mouseX, innerX, innerW, "fastUseCooldown");
             }
             case "Auto Replenish" -> {
                 switch (specificRow) {
@@ -2051,7 +2044,14 @@ public class ClickGuiScreen extends Screen {
                 }
             }
             case "Fast Place" -> {
-                if (specificRow == 0) startSliderDrag(mouseX, innerX, innerW, "fastPlaceDelay");
+                switch (specificRow) {
+                    case 0 -> {
+                        config.fastPlaceAutoRightClick = !config.fastPlaceAutoRightClick;
+                        config.save();
+                        playClickSound();
+                    }
+                    case 1 -> startSliderDrag(mouseX, innerX, innerW, "fastPlaceDelay");
+                }
             }
             case "Auto Tool" -> {
                 if (specificRow == 0) {

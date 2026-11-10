@@ -53,6 +53,7 @@ public class ModernModuleSettingsTest {
         testConfigurableModulesHaveControlsAndHeight();
         testFullbrightControls();
         testFastBreakModeAndClamp();
+        testFastPlaceAndFastUseSettings();
         testDulkirSlidersAndReset();
         testAutoCrafterActionsAndChips();
         testInventoryHudAndVersionSwitcherActions();
@@ -128,6 +129,26 @@ public class ModernModuleSettingsTest {
         ModernModuleSettings.SliderControl speed = (ModernModuleSettings.SliderControl) controls.get(1);
         speed.pctSetter().accept(0.0f);
         assert Math.abs(cfg.fastBreakSpeed - 1.0f) < 0.001f;
+    }
+
+    private static void testFastPlaceAndFastUseSettings() {
+        ModConfig cfg = new ModConfig();
+        RecordingActions actions = new RecordingActions();
+
+        List<ModernModuleSettings.Control> fastPlaceControls = ModernModuleSettings.getControls("Fast Place", cfg, actions);
+        assert fastPlaceControls.size() == 2 : "Expected Auto Right Click + Fast Place Delay under Fast Place";
+        ModernModuleSettings.ToggleControl autoRightClick = (ModernModuleSettings.ToggleControl) fastPlaceControls.get(0);
+        assert "Auto Right Click".equals(autoRightClick.label());
+        assert !cfg.fastPlaceAutoRightClick;
+        autoRightClick.setter().accept(true);
+        assert cfg.fastPlaceAutoRightClick : "Expected Fast Place Auto Right Click toggle to update config";
+        ModernModuleSettings.SliderControl fpDelay = (ModernModuleSettings.SliderControl) fastPlaceControls.get(1);
+        assert "fastPlaceDelay".equals(fpDelay.key());
+
+        List<ModernModuleSettings.Control> fastUseControls = ModernModuleSettings.getControls("Fast Use", cfg, actions);
+        assert fastUseControls.size() == 1 : "Expected only Cooldown under Fast Use, got " + fastUseControls.size();
+        ModernModuleSettings.SliderControl cooldown = (ModernModuleSettings.SliderControl) fastUseControls.get(0);
+        assert "fastUseCooldown".equals(cooldown.key());
     }
 
     private static void testDulkirSlidersAndReset() {

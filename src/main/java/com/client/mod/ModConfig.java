@@ -112,7 +112,6 @@ public class ModConfig {
     public boolean fastUseItems = true;
     public boolean fastUseBlocks = true;
     public int fastUseCooldown = 0;      // 0 to 4 ticks
-    public boolean fastUseAutoRightClick = false;
 
     // Auto Replenish
     public boolean autoReplenishEnabled = false;
@@ -126,6 +125,7 @@ public class ModConfig {
     // Fast Place
     public boolean fastPlace = true;
     public int fastPlaceDelay = 0; // 0 to 4 ticks
+    public boolean fastPlaceAutoRightClick = false;
 
     // Safe Walk
     public boolean safeWalk = false;
@@ -358,7 +358,6 @@ public class ModConfig {
         this.fastUseItems = other.fastUseItems;
         this.fastUseBlocks = other.fastUseBlocks;
         this.fastUseCooldown = other.fastUseCooldown;
-        this.fastUseAutoRightClick = other.fastUseAutoRightClick;
         this.autoReplenishEnabled = other.autoReplenishEnabled;
         this.autoReplenishMinCount = other.autoReplenishMinCount;
         this.autoReplenishTickDelay = other.autoReplenishTickDelay;
@@ -368,6 +367,7 @@ public class ModConfig {
         this.autoReplenishSearchHotbar = other.autoReplenishSearchHotbar;
         this.fastPlace = other.fastPlace;
         this.fastPlaceDelay = other.fastPlaceDelay;
+        this.fastPlaceAutoRightClick = other.fastPlaceAutoRightClick;
         this.safeWalk = other.safeWalk;
         this.autoTool = other.autoTool;
         this.autoToolSwapBack = other.autoToolSwapBack;
