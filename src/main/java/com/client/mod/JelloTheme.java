@@ -12,16 +12,27 @@ import java.util.Map;
  * Rise 6 / Tenacity Luxury Theme: Dark Indigo Glass with Pastel Violet & Rose accents.
  */
 public final class JelloTheme {
-    public static final int ACCENT = 0xFFC084FC;        // Rise 6 Luxury Pastel Violet
-    public static final int ACCENT_HOVER = 0xFFF472B6;  // Luxury Pastel Rose Pink
-    public static final int PANEL = 0xF20F1222;         // Dark Indigo Slate panel body
-    public static final int HEADER = 0xFA0B0D18;        // Deep Indigo header
-    public static final int BORDER = 0x55C084FC;        // Glowing Violet border outline
-    public static final int ROW_HOVER = 0x22C084FC;
+    public static final int ACCENT = 0xFFE53935;        // Crimson Red
+    public static final int ACCENT_HOVER = 0xFFFF5252;  // Vibrant Scarlet Red
+    public static final int PANEL = 0xF2140B0E;         // Dark Obsidian Crimson panel body
+    public static final int HEADER = 0xFA0E080B;        // Deep Obsidian header
+    public static final int BORDER = 0x55E53935;        // Glowing Crimson border outline
+    public static final int ROW_HOVER = 0x22E53935;
     public static final int TEXT = 0xFFF8FAFC;
-    public static final int TEXT_DIM = 0xFFC4B5FD;      // Soft Lilac text
-    public static final int TRACK = 0x33C084FC;
-    public static final int SWITCH_OFF = 0x551E2340;
+    public static final int TEXT_DIM = 0xFFFCA5A5;      // Soft Warm Red text
+    public static final int TRACK = 0x33E53935;
+    public static final int SWITCH_OFF = 0x5529161B;
+    public static final int SWITCH_OFF_HOVER = 0x663A1E25;
+
+    public static final int WINDOW_BG = 0xF2120B0E;
+    public static final int HEADER_BG = 0xDD11090C;
+    public static final int SIDEBAR_BG = 0xD00D080A;
+    public static final int CONTAINER_BG = 0xE00D080B;
+    public static final int CARD_INACTIVE = 0x99160E12;
+    public static final int CARD_INACTIVE_HOVER = 0xBB201419;
+    public static final int CARD_ACTIVE = 0xDD261217;
+    public static final int CARD_ACTIVE_HOVER = 0xEE33171E;
+    public static final int BORDER_SUBTLE = 0x2252333B;
 
     private static float alpha = 1.0f;
 

@@ -20,6 +20,9 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.Locale;
+import java.util.Properties;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 /**
  * Resolves, downloads, SHA-256 verifies, and caches the active SCT Client Core JAR.
@@ -54,6 +57,9 @@ public final class SctUpdater {
         public String previousVersion;
         public String changelog;
         public String releaseUrl;
+    }
+
+    private record EmbeddedMeta(String version, int versionCode) {
     }
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -98,6 +104,14 @@ public final class SctUpdater {
 
         LocalState localState = readLocalState();
         Path localCore = validateLocalCore(localState);
+        try {
+            Path promoted = tryPromoteEmbeddedFallback(localCore, localState);
+            if (promoted != null) {
+                localCore = promoted;
+                localState = readLocalState();
+            }
+        } catch (IOException ignored) {
+        }
 
         this.listener.onChecking();
         RemoteManifest remote = null;
@@ -137,12 +151,13 @@ public final class SctUpdater {
             return safeCore;
         }
 
+        boolean localIsNewer = localCore != null && localState != null && localState.versionCode > remote.versionCode;
         boolean sameVersionAndValid = localCore != null
                 && localState != null
-                && localState.versionCode >= remote.versionCode
+                && localState.versionCode == remote.versionCode
                 && remote.sha256.trim().equalsIgnoreCase(localState.sha256);
 
-        if (sameVersionAndValid) {
+        if (localIsNewer || sameVersionAndValid) {
             this.listener.onReady(localState.version != null ? localState.version : targetVer, false);
             this.listener.close();
             return localCore;
@@ -292,26 +307,73 @@ public final class SctUpdater {
         if (localCore != null && Files.isRegularFile(localCore)) {
             return localCore;
         }
-        if (this.fallbackSupplier == null) {
-            throw new IOException("No cached core jar and no embedded fallback available");
+        Path promoted = tryPromoteEmbeddedFallback(null, localState);
+        if (promoted != null) {
+            return promoted;
         }
-        Path baselinePath = safeCorePath(SctUpdateConfig.BASELINE_VERSION);
-        Path baselinePart = this.coreDir.resolve(baselinePath.getFileName().toString() + ".part").normalize();
-        try (InputStream in = this.fallbackSupplier.openFallbackStream()) {
-            if (in == null) {
-                throw new IOException("Embedded fallback core stream is null");
-            }
-            Files.copy(in, baselinePart, StandardCopyOption.REPLACE_EXISTING);
-        }
-        Files.move(baselinePart, baselinePath, StandardCopyOption.REPLACE_EXISTING);
+        throw new IOException("No cached core jar and no embedded fallback available");
+    }
 
-        LocalState fallbackState = new LocalState();
-        fallbackState.versionCode = SctUpdateConfig.BASELINE_VERSION_CODE;
-        fallbackState.version = SctUpdateConfig.BASELINE_VERSION;
-        fallbackState.coreFile = baselinePath.getFileName().toString();
-        fallbackState.sha256 = computeSha256(baselinePath);
-        writeLocalState(fallbackState);
-        return baselinePath;
+    /**
+     * Extracts the embedded fallback core JAR when no valid cache exists or when
+     * the bundled bootloader carries a newer versionCode than the cached build.
+     */
+    private Path tryPromoteEmbeddedFallback(Path localCore, LocalState localState) throws IOException {
+        if (this.fallbackSupplier == null) {
+            return localCore;
+        }
+        Path stagePart = this.coreDir.resolve("fallback-check.part").normalize();
+        try {
+            try (InputStream in = this.fallbackSupplier.openFallbackStream()) {
+                if (in == null) {
+                    return localCore;
+                }
+                Files.copy(in, stagePart, StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            EmbeddedMeta meta = readEmbeddedCoreMeta(stagePart);
+            if (localCore != null && Files.isRegularFile(localCore) && localState != null && meta.versionCode() <= localState.versionCode) {
+                return localCore;
+            }
+
+            Path baselinePath = safeCorePath(meta.version());
+            Files.move(stagePart, baselinePath, StandardCopyOption.REPLACE_EXISTING);
+
+            LocalState fallbackState = new LocalState();
+            fallbackState.versionCode = meta.versionCode();
+            fallbackState.version = sanitizeVersionFileSegment(meta.version());
+            fallbackState.coreFile = baselinePath.getFileName().toString();
+            fallbackState.sha256 = computeSha256(baselinePath);
+            writeLocalState(fallbackState);
+            pruneOldCoreJars(baselinePath);
+            return baselinePath;
+        } finally {
+            Files.deleteIfExists(stagePart);
+        }
+    }
+
+    private static EmbeddedMeta readEmbeddedCoreMeta(Path jarPath) {
+        String ver = SctUpdateConfig.BASELINE_VERSION;
+        int code = SctUpdateConfig.BASELINE_VERSION_CODE;
+        try (ZipFile zip = new ZipFile(jarPath.toFile())) {
+            ZipEntry entry = zip.getEntry("sct-core-meta.properties");
+            if (entry != null) {
+                Properties props = new Properties();
+                try (InputStream in = zip.getInputStream(entry)) {
+                    props.load(in);
+                }
+                String v = props.getProperty("version");
+                if (v != null && !v.isBlank()) {
+                    ver = v.trim();
+                }
+                String c = props.getProperty("versionCode");
+                if (c != null && !c.isBlank()) {
+                    code = Math.max(1, Integer.parseInt(c.trim()));
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return new EmbeddedMeta(ver, code);
     }
 
     private Path validateLocalCore(LocalState state) {

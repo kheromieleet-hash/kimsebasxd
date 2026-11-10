@@ -137,18 +137,18 @@ public final class UpdateNoticeManager {
         int x = Math.round(graphics.guiWidth() - boxW - 10 + slideOffset);
         int y = 10;
 
-        int accentColor = isOutdated ? 0xFFFBBF24 : 0xFFC084FC;
-        int borderColor = isOutdated ? 0x99FBBF24 : 0x99C084FC;
+        int accentColor = isOutdated ? 0xFFFBBF24 : JelloTheme.ACCENT;
+        int borderColor = isOutdated ? 0x99FBBF24 : 0x99E53935;
         int pillBg = isOutdated ? 0x30FBBF24 : 0x3034D399;
         int pillText = isOutdated ? 0xFFFBBF24 : 0xFF34D399;
 
         JelloTheme.setAlpha(alpha);
         try {
-            JelloTheme.fillRoundedCard(graphics, x, y, x + boxW, y + boxH, 8, 0xEC0F1222, borderColor);
+            JelloTheme.fillRoundedCard(graphics, x, y, x + boxW, y + boxH, 8, 0xEC140B0E, borderColor);
             JelloTheme.fillRounded(graphics, x + 3, y + 6, x + 6, y + boxH - 6, 2, accentColor);
 
             JelloTheme.text(graphics, font, title, x + 12, y + 7, 0xFFFFFFFF);
-            JelloTheme.text(graphics, font, subtitle, x + 12, y + 21, 0xFFC4B5FD);
+            JelloTheme.text(graphics, font, subtitle, x + 12, y + 21, JelloTheme.TEXT_DIM);
 
             int px1 = x + boxW - pillW - 8;
             int py1 = y + 11;
@@ -172,12 +172,12 @@ public final class UpdateNoticeManager {
         String msg;
         if ("LOADER_OUTDATED".equalsIgnoreCase(notice.type)) {
             String url = notice.releaseUrl != null ? notice.releaseUrl : "https://github.com/kheromieallah/sestia/releases/latest";
-            msg = "§e§l⚠ [SCT Client] §fA newer §bsestia.jar §floader is required for §dv" + ver + "§f. Download latest from: §n" + url;
+            msg = "§e§l⚠ [SCT Client] §fA newer §bsestia.jar §floader is required for §cv" + ver + "§f. Download latest from: §n" + url;
         } else {
             String prev = (notice.previousVersion != null && !"initial".equals(notice.previousVersion))
                     ? (" §7(from v" + notice.previousVersion + ")") : "";
             String log = (notice.changelog != null && !notice.changelog.isBlank()) ? (" §7— " + notice.changelog) : "";
-            msg = "§d§l✦ [SCT Client] §aUpdated to v" + ver + prev + log;
+            msg = "§c§l✦ [SCT Client] §aUpdated to v" + ver + prev + log;
         }
         client.gui.hud.getChat().addClientSystemMessage(Component.literal(msg));
     }
