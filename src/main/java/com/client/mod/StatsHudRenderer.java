@@ -90,16 +90,13 @@ public class StatsHudRenderer {
         MutableComponent pingComp = buildPair("Ping: ", Integer.toString(ping));
         MutableComponent speedComp = buildPair("Speed: ", formatRound1(speed));
 
-        // Rise 6 Luxury Watermark Pill at top-left
-        String wmText = "✦ SCT CLIENT §7| §f" + ClientBuildInfo.getDisplayVersion() + " §7| §c" + fps + " FPS";
-        int wmW = mc.font.width(wmText) + 12;
-        int wmH = 15;
-        graphics.fill(4, 4, 4 + wmW, 4 + wmH, 0xD8120B0E);
-        graphics.fill(4, 4, 4 + wmW, 5, JelloTheme.ACCENT); // top crimson accent
-        graphics.fill(4, 4 + wmH - 1, 4 + wmW, 4 + wmH, 0x44FF5252);
-        graphics.fill(4, 4, 5, 4 + wmH, 0x88E53935);
-        graphics.fill(4 + wmW - 1, 4, 4 + wmW, 4 + wmH, 0x44FF5252);
-        graphics.text(mc.font, Component.literal("§c§l✦ SCT CLIENT §7| §f" + ClientBuildInfo.getDisplayVersion() + " §7| §f" + fps + " FPS"), 9, 7, 0xFFFFFFFF, true);
+        // Sestia Crimson Watermark Pill at top-left (smooth rounded card + vector crest, no boxy Unicode glyphs)
+        String wmLabel = "§c§lSCT CLIENT §7| §f" + ClientBuildInfo.getDisplayVersion() + " §7| §f" + fps + " FPS";
+        int wmW = mc.font.width(wmLabel) + 23;
+        int wmH = 16;
+        JelloTheme.fillRoundedCard(graphics, 4, 4, 4 + wmW, 4 + wmH, 4, 0xD8120B0E, 0x66E53935);
+        ModernIcons.drawBrandEmblem(graphics, 12, 12, JelloTheme.ACCENT, 0xFFFFCDD2);
+        graphics.text(mc.font, Component.literal(wmLabel), 20, 8, 0xFFFFFFFF, true);
 
         int x = 4;
         int y = 24;

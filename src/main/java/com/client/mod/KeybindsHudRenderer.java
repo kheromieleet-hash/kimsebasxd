@@ -100,36 +100,30 @@ public class KeybindsHudRenderer {
         x = Mth.clamp(x, 2, Math.max(2, screenW - width - 2));
         y = Mth.clamp(y, 2, Math.max(2, screenH - bodyH - 2));
 
-        // 1. Drop shadow & glowing violet outline
-        int shadowColor = isHoveredOrDragging ? 0x88E53935 : 0x55000000;
-        JelloTheme.fill(graphics, x - 1, y - 1, x + width + 1, y + bodyH + 1, shadowColor);
+        // 1. Soft rounded glass frame & outline
+        int shadowColor = isHoveredOrDragging ? 0x88E53935 : 0x55242431;
+        JelloTheme.fillRoundedCard(graphics, x, y, x + width, y + bodyH, 5, 0xD8120B0E, shadowColor);
 
-        // 2. Background body (Dark Obsidian Crimson Glass)
-        if (!collapsed) {
-            JelloTheme.fill(graphics, x, y + HEADER_HEIGHT, x + width, y + bodyH, 0xD8120B0E);
-        }
-
-        // 3. Header background
+        // 2. Header fill + dual-gradient accent line (Crimson -> Scarlet)
         int headerBg = isHoveredOrDragging ? 0xFA261217 : 0xF0140B0E;
-        JelloTheme.fill(graphics, x, y, x + width, y + HEADER_HEIGHT, headerBg);
-
-        // 4. Dual-gradient accent line (Crimson -> Scarlet)
+        JelloTheme.fillRoundedTop(graphics, x + 1, y + 1, x + width - 1, y + HEADER_HEIGHT, 4, headerBg);
         int halfW = width / 2;
-        JelloTheme.fill(graphics, x, y + HEADER_HEIGHT - 1, x + halfW, y + HEADER_HEIGHT, JelloTheme.ACCENT);
-        JelloTheme.fill(graphics, x + halfW, y + HEADER_HEIGHT - 1, x + width, y + HEADER_HEIGHT, JelloTheme.ACCENT_HOVER);
+        JelloTheme.fill(graphics, x + 1, y + HEADER_HEIGHT - 1, x + halfW, y + HEADER_HEIGHT, JelloTheme.ACCENT);
+        JelloTheme.fill(graphics, x + halfW, y + HEADER_HEIGHT - 1, x + width - 1, y + HEADER_HEIGHT, JelloTheme.ACCENT_HOVER);
 
-        // 5. Header title
-        JelloTheme.text(graphics, font, "§c⌨ §fKeybinds", x + 5, y + 4, 0xFFFFFFFF);
+        // 3. Header title with crisp vector keyboard icon (no tofu glyph)
+        ModernIcons.drawKeyboardIcon(graphics, x + 5, y + 3, JelloTheme.ACCENT);
+        JelloTheme.text(graphics, font, "§fKeybinds", x + 17, y + 4, 0xFFFFFFFF);
 
-        // 6. Header interactive buttons (Collapse [-]/[+] and Close [X])
+        // 4. Header interactive buttons (Collapse [-]/[+] and Close [x])
         int closeX = x + width - 14;
         boolean closeHov = isGuiOpen && mouseX >= closeX && mouseX <= closeX + 11 && mouseY >= y + 1 && mouseY <= y + 14;
-        JelloTheme.text(graphics, font, "×", closeX + 2, y + 4, closeHov ? 0xFFFF3333 : 0x88FFFFFF);
+        ModernIcons.drawCloseIcon(graphics, closeX + 5, y + 7, closeHov ? 0xFFFF5252 : 0x88FFFFFF);
 
         int collX = x + width - 26;
         boolean collHov = isGuiOpen && mouseX >= collX && mouseX <= collX + 11 && mouseY >= y + 1 && mouseY <= y + 14;
-        String collSymbol = collapsed ? "+" : "−";
-        JelloTheme.text(graphics, font, collSymbol, collX + 2, y + 4, collHov ? 0xFFFFFFFF : 0x88FFFFFF);
+        String collSymbol = collapsed ? "+" : "-";
+        JelloTheme.text(graphics, font, collSymbol, collX + 3, y + 4, collHov ? 0xFFFFFFFF : 0x88FFFFFF);
 
         // If collapsed, don't draw rows
         if (collapsed) {

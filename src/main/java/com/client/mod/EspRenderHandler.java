@@ -317,7 +317,7 @@ public final class EspRenderHandler {
 
         String hpColorCode = hpPercent > 0.6f ? "§a" : (hpPercent > 0.25f ? "§e" : "§c");
         String nameStr = player.getName().getString();
-        String badge = nameStr + " §7[" + distInt + "m] " + hpColorCode + hpInt + "❤";
+        String badge = nameStr + " §7[" + distInt + "m] " + hpColorCode + hpInt + " HP";
 
         int badgeW = mc.font.width(badge);
         int midX = (left + right) / 2;
