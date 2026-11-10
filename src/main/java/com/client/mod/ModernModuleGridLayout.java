@@ -1,9 +1,15 @@
 package com.client.mod;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import java.util.function.Function;
+
 /**
- * Pure-Java layout calculator for the compact multi-column module card grid
+ * Pure-Java layout and ordering helper for the compact multi-column module card grid
  * in {@link ModernClickGuiScreen}, ensuring rendering and click hitboxes share
- * identical coordinates and never truncate module titles.
+ * identical coordinates and module lists are consistently ordered A-Z.
  */
 final class ModernModuleGridLayout {
 
@@ -93,5 +99,55 @@ final class ModernModuleGridLayout {
                 tuneX, controlY, TUNE_WIDTH, CONTROL_HEIGHT,
                 titleMaxW
         );
+    }
+
+    /** Sorts a mutable list of modules A-Z by display name using locale-independent ASCII folding. */
+    static <T> void sortByNameInPlace(List<T> items, Function<T, String> nameExtractor) {
+        if (items == null || items.size() <= 1) {
+            return;
+        }
+        items.sort(Comparator.comparing(
+                item -> {
+                    String name = nameExtractor.apply(item);
+                    return name == null ? "" : name;
+                },
+                String.CASE_INSENSITIVE_ORDER
+        ));
+    }
+
+    /** Filters by search/category and returns modules sorted A-Z by name. */
+    static <T> List<T> filterAndSortModules(
+            List<T> all,
+            Function<T, String> nameExtractor,
+            Function<T, String> catIdExtractor,
+            Function<T, String> catNameExtractor,
+            String selectedCategoryId,
+            String searchQuery
+    ) {
+        if (all == null || all.isEmpty()) {
+            return List.of();
+        }
+        List<T> result = new ArrayList<>();
+        if (searchQuery != null && !searchQuery.isEmpty()) {
+            String q = searchQuery.toLowerCase(Locale.ROOT);
+            for (T m : all) {
+                String name = nameExtractor.apply(m);
+                String catName = catNameExtractor.apply(m);
+                if ((name != null && name.toLowerCase(Locale.ROOT).contains(q))
+                        || (catName != null && catName.toLowerCase(Locale.ROOT).contains(q))) {
+                    result.add(m);
+                }
+            }
+        } else if (selectedCategoryId == null || "ALL".equals(selectedCategoryId)) {
+            result.addAll(all);
+        } else {
+            for (T m : all) {
+                if (selectedCategoryId.equals(catIdExtractor.apply(m))) {
+                    result.add(m);
+                }
+            }
+        }
+        sortByNameInPlace(result, nameExtractor);
+        return result;
     }
 }

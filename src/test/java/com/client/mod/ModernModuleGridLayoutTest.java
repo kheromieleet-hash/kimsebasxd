@@ -1,15 +1,20 @@
 package com.client.mod;
 
+import java.util.List;
+
 /**
  * Verifies {@link ModernModuleGridLayout} column breakpoints, card coordinates,
- * control ordering, and non-overlapping compact tile bounds.
+ * control ordering, alphabetical module sorting, and non-overlapping compact tile bounds.
  */
 public class ModernModuleGridLayoutTest {
+
+    private record StubModule(String name, String catId, String catName) {}
 
     public static void main(String[] args) {
         assertResponsiveColumnBreakpoints();
         assertFourColumnGeometryAndFit();
         assertControlRowOrderingAndBounds();
+        assertAlphabeticalFilteringAndSorting();
         System.out.println("ALL ModernModuleGridLayoutTest ASSERTIONS PASSED!");
     }
 
@@ -70,5 +75,46 @@ public class ModernModuleGridLayoutTest {
         assert layout.switchX() + layout.switchW() <= cardX + cardW - 8 : "Toggle switch leaked past card right bound";
         assert layout.bindY() == layout.switchY() && layout.tuneY() == layout.bindY() : "Controls must align on same bottom row";
         assert layout.bindY() + layout.bindH() < cardY + ModernModuleGridLayout.CARD_HEIGHT : "Controls must fit inside card height";
+    }
+
+    private static void assertAlphabeticalFilteringAndSorting() {
+        List<StubModule> unsorted = List.of(
+                new StubModule("Version Switcher", "exploit", "Exploit"),
+                new StubModule("Abort Breaking", "exploit", "Exploit"),
+                new StubModule("No Pitch Limit", "exploit", "Exploit"),
+                new StubModule("Safe Walk", "movement", "Movement"),
+                new StubModule("Auto Sprint", "movement", "Movement"),
+                new StubModule("TrueSight", "render", "Render"),
+                new StubModule("Dulkir", "render", "Render"),
+                new StubModule("Inventory HUD+", "render", "Render"),
+                new StubModule("HUD Info", "render", "Render"),
+                new StubModule("FastBreak", "world", "World"),
+                new StubModule("Auto Break", "world", "World"),
+                new StubModule("Fast Place", "world", "World"),
+                new StubModule("Inventory Tweaks", "player", "Player"),
+                new StubModule("Auto Crafter", "player", "Player")
+        );
+
+        List<StubModule> allSorted = ModernModuleGridLayout.filterAndSortModules(
+                unsorted, StubModule::name, StubModule::catId, StubModule::catName, "ALL", "");
+        assert allSorted.size() == unsorted.size();
+        assert "Abort Breaking".equals(allSorted.get(0).name());
+        assert "Auto Break".equals(allSorted.get(1).name());
+        assert "Version Switcher".equals(allSorted.get(allSorted.size() - 1).name());
+
+        List<StubModule> renderSorted = ModernModuleGridLayout.filterAndSortModules(
+                unsorted, StubModule::name, StubModule::catId, StubModule::catName, "render", "");
+        assert List.of("Dulkir", "HUD Info", "Inventory HUD+", "TrueSight")
+                .equals(renderSorted.stream().map(StubModule::name).toList());
+
+        List<StubModule> exploitSorted = ModernModuleGridLayout.filterAndSortModules(
+                unsorted, StubModule::name, StubModule::catId, StubModule::catName, "exploit", "");
+        assert List.of("Abort Breaking", "No Pitch Limit", "Version Switcher")
+                .equals(exploitSorted.stream().map(StubModule::name).toList());
+
+        List<StubModule> searchSorted = ModernModuleGridLayout.filterAndSortModules(
+                unsorted, StubModule::name, StubModule::catId, StubModule::catName, "render", "auto");
+        assert List.of("Auto Break", "Auto Crafter", "Auto Sprint")
+                .equals(searchSorted.stream().map(StubModule::name).toList());
     }
 }

@@ -386,6 +386,8 @@ public class ClickGuiScreen extends Screen {
                     config.save();
                 }
         ));
+
+        ModernModuleGridLayout.sortByNameInPlace(MODULES, m -> m.name);
     }
 
     public static List<ModuleEntry> getModulesForCategory(Category cat) {
