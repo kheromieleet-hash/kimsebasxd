@@ -236,48 +236,51 @@ final class ModernModuleCardUi {
             SwitchDrawer switchDrawer
     ) {
         graphics.fill(x, startY, x + w, startY + 1, JelloTheme.DIVIDER);
-        int curY = startY + ModernModuleSettings.SECTION_TOP_PAD;
+        ModernInspectorLayout.ControlsFlow flow = ModernInspectorLayout.computeControlsFlow(x, startY, w, controls);
 
-        for (ModernModuleSettings.Control control : controls) {
+        for (ModernInspectorLayout.PlacedControl placed : flow.items()) {
+            ModernModuleSettings.Control control = placed.control();
+            int cx = placed.x();
+            int cy = placed.y();
+            int cw = placed.w();
             if (control instanceof ModernModuleSettings.SliderControl s) {
                 String valText = s.valueLabel().get();
                 int valW = font.width(valText);
-                String label = fitText(font, s.label(), Math.max(24, w - valW - 10));
-                graphics.text(font, Component.literal(label), x, curY, JelloTheme.TEXT, false);
-                graphics.text(font, Component.literal(valText), x + w - valW, curY, JelloTheme.TEXT_DIM, false);
-                sliderDrawer.draw(x, curY + 12, w, 6, s.key(), s.pctGetter().get());
+                String label = fitText(font, s.label(), Math.max(24, cw - valW - 10));
+                graphics.text(font, Component.literal(label), cx, cy, JelloTheme.TEXT, false);
+                graphics.text(font, Component.literal(valText), cx + cw - valW, cy, JelloTheme.TEXT_DIM, false);
+                sliderDrawer.draw(cx, cy + 12, cw, 6, s.key(), s.pctGetter().get());
             } else if (control instanceof ModernModuleSettings.ToggleControl t) {
                 boolean active = t.getter().get();
-                boolean hovered = isInside(mouseX, mouseY, x, curY, w, t.height());
+                boolean hovered = isInside(mouseX, mouseY, cx, cy, cw, t.height());
                 int bg = active
                         ? (hovered ? JelloTheme.CARD_ACTIVE_HOVER : JelloTheme.CARD_ACTIVE)
                         : (hovered ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
                 int border = active ? 0x66E53935 : JelloTheme.BORDER_SUBTLE;
-                JelloTheme.fillRoundedCard(graphics, x, curY, x + w, curY + t.height(), 5, bg, border);
-                String text = fitText(font, t.label(), w - 46);
-                graphics.text(font, Component.literal(text), x + 8, curY + 6, active ? JelloTheme.TEXT : 0xFFCBD5E1, false);
-                switchDrawer.draw(x + w - 34, curY + 3, 28, 14, "sub:" + modName + ":" + t.label(), active);
+                JelloTheme.fillRoundedCard(graphics, cx, cy, cx + cw, cy + t.height(), 5, bg, border);
+                String text = fitText(font, t.label(), cw - 46);
+                graphics.text(font, Component.literal(text), cx + 8, cy + 6, active ? JelloTheme.TEXT : 0xFFCBD5E1, false);
+                switchDrawer.draw(cx + cw - 34, cy + 3, 28, 14, "sub:" + modName + ":" + t.label(), active);
             } else if (control instanceof ModernModuleSettings.CycleControl c) {
-                boolean hovered = isInside(mouseX, mouseY, x, curY, w, c.height());
+                boolean hovered = isInside(mouseX, mouseY, cx, cy, cw, c.height());
                 int bg = hovered ? 0x33E53935 : JelloTheme.CARD_INACTIVE;
                 int border = hovered ? JelloTheme.ACCENT : 0x55E53935;
-                JelloTheme.fillRoundedCard(graphics, x, curY, x + w, curY + c.height(), 5, bg, border);
+                JelloTheme.fillRoundedCard(graphics, cx, cy, cx + cw, cy + c.height(), 5, bg, border);
                 String valText = c.valueLabel().get();
                 int valW = font.width(valText);
-                String label = fitText(font, c.label(), Math.max(24, w - valW - 22));
-                graphics.text(font, Component.literal(label), x + 8, curY + 6, JelloTheme.TEXT, false);
-                graphics.text(font, Component.literal(valText), x + w - 8 - valW, curY + 6, JelloTheme.ACCENT_HOVER, false);
+                String label = fitText(font, c.label(), Math.max(24, cw - valW - 22));
+                graphics.text(font, Component.literal(label), cx + 8, cy + 6, JelloTheme.TEXT, false);
+                graphics.text(font, Component.literal(valText), cx + cw - 8 - valW, cy + 6, JelloTheme.ACCENT_HOVER, false);
             } else if (control instanceof ModernModuleSettings.ActionControl a) {
-                boolean hovered = isInside(mouseX, mouseY, x, curY, w, a.height());
+                boolean hovered = isInside(mouseX, mouseY, cx, cy, cw, a.height());
                 int bg = hovered ? 0x55E53935 : 0x28E53935;
                 int border = hovered ? JelloTheme.ACCENT : 0x66E53935;
-                JelloTheme.fillRoundedCard(graphics, x, curY, x + w, curY + a.height(), 5, bg, border);
-                String label = fitText(font, a.labelSupplier().get(), w - 12);
-                graphics.centeredText(font, Component.literal(label), x + w / 2, curY + 6, JelloTheme.TEXT);
+                JelloTheme.fillRoundedCard(graphics, cx, cy, cx + cw, cy + a.height(), 5, bg, border);
+                String label = fitText(font, a.labelSupplier().get(), cw - 12);
+                graphics.centeredText(font, Component.literal(label), cx + cw / 2, cy + 6, JelloTheme.TEXT);
             } else if (control instanceof ModernModuleSettings.ChipsControl cc) {
-                renderChips(graphics, font, mouseX, mouseY, x, curY, w, cc.options());
+                renderChips(graphics, font, mouseX, mouseY, cx, cy, cw, placed.chipCols(), cc.options());
             }
-            curY += control.height() + ModernModuleSettings.CONTROL_GAP;
         }
     }
 
@@ -289,15 +292,15 @@ final class ModernModuleCardUi {
             int x,
             int y,
             int w,
+            int chipCols,
             List<ModernModuleSettings.ChipOption> options
     ) {
-        int gapX = 6;
-        int chipW = Math.max(20, (w - gapX) / 2);
+        int chipW = ModernInspectorLayout.computeChipWidth(w, chipCols);
         for (int i = 0; i < options.size(); i++) {
             ModernModuleSettings.ChipOption opt = options.get(i);
-            int col = i % 2;
-            int row = i / 2;
-            int cx = x + col * (chipW + gapX);
+            int col = i % chipCols;
+            int row = i / chipCols;
+            int cx = x + col * (chipW + ModernInspectorLayout.CHIP_GAP_X);
             int cy = y + row * (ModernModuleSettings.CHIP_HEIGHT + ModernModuleSettings.CHIP_GAP_Y);
             boolean active = opt.activeGetter().get();
             boolean hovered = isInside(mouseX, mouseY, cx, cy, chipW, ModernModuleSettings.CHIP_HEIGHT);
@@ -322,13 +325,17 @@ final class ModernModuleCardUi {
             SliderStartHandler sliderStartHandler,
             Runnable soundPlayer
     ) {
-        int curY = startY + ModernModuleSettings.SECTION_TOP_PAD;
-        for (ModernModuleSettings.Control control : controls) {
-            int h = control.height();
-            if (mouseY >= curY && mouseY < curY + h && mouseX >= x - 2 && mouseX <= x + w + 2) {
+        ModernInspectorLayout.ControlsFlow flow = ModernInspectorLayout.computeControlsFlow(x, startY, w, controls);
+        for (ModernInspectorLayout.PlacedControl placed : flow.items()) {
+            ModernModuleSettings.Control control = placed.control();
+            int cx = placed.x();
+            int cy = placed.y();
+            int cw = placed.w();
+            int ch = placed.h();
+            if (mouseY >= cy && mouseY < cy + ch && mouseX >= cx - 2 && mouseX <= cx + cw + 2) {
                 if (control instanceof ModernModuleSettings.SliderControl s) {
-                    float pct = Mth.clamp((float) (mouseX - x) / (float) Math.max(1, w), 0.0f, 1.0f);
-                    sliderStartHandler.onStart(s, x, w, pct);
+                    float pct = Mth.clamp((float) (mouseX - cx) / (float) Math.max(1, cw), 0.0f, 1.0f);
+                    sliderStartHandler.onStart(s, cx, cw, pct);
                     soundPlayer.run();
                     return true;
                 }
@@ -348,13 +355,12 @@ final class ModernModuleCardUi {
                     return true;
                 }
                 if (control instanceof ModernModuleSettings.ChipsControl cc) {
-                    if (handleChipsClick(mouseX, mouseY, x, curY, w, cc.options())) {
+                    if (handleChipsClick(mouseX, mouseY, cx, cy, cw, placed.chipCols(), cc.options())) {
                         soundPlayer.run();
                         return true;
                     }
                 }
             }
-            curY += h + ModernModuleSettings.CONTROL_GAP;
         }
         return false;
     }
@@ -365,10 +371,10 @@ final class ModernModuleCardUi {
             int x,
             int y,
             int w,
+            int chipCols,
             List<ModernModuleSettings.ChipOption> options
     ) {
-        int gapX = 6;
-        int chipW = Math.max(20, (w - gapX) / 2);
+        int chipW = ModernInspectorLayout.computeChipWidth(w, chipCols);
         int rowStep = ModernModuleSettings.CHIP_HEIGHT + ModernModuleSettings.CHIP_GAP_Y;
         int relY = mouseY - y;
         if (relY < 0) {
@@ -380,15 +386,17 @@ final class ModernModuleCardUi {
         }
         int relX = mouseX - x;
         int col = -1;
-        if (relX >= 0 && relX <= chipW) {
-            col = 0;
-        } else if (relX >= chipW + gapX && relX <= 2 * chipW + gapX) {
-            col = 1;
+        for (int c = 0; c < chipCols; c++) {
+            int colStart = c * (chipW + ModernInspectorLayout.CHIP_GAP_X);
+            if (relX >= colStart && relX <= colStart + chipW) {
+                col = c;
+                break;
+            }
         }
         if (col < 0) {
             return false;
         }
-        int idx = row * 2 + col;
+        int idx = row * chipCols + col;
         if (idx >= 0 && idx < options.size()) {
             options.get(idx).onToggle().run();
             return true;

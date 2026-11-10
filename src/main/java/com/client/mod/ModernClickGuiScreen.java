@@ -39,9 +39,6 @@ public class ModernClickGuiScreen extends Screen {
     private static final int HEADER_HEIGHT = 44;
     private static final int NAV_ROW_HEIGHT = 34;
     private static final int CHIP_BAR_HEIGHT = 30;
-    private static final int INSPECTOR_TARGET_WIDTH = 264;
-    private static final int INSPECTOR_HEADER_HEIGHT = 68;
-    private static final int INSPECTOR_PILL_ROW_OFFSET = 46;
 
     private final Screen parent;
 
@@ -65,6 +62,7 @@ public class ModernClickGuiScreen extends Screen {
     private int contentTotalHeight = 0;
     private String inspectedModule = null;
     private float inspectorAnim = 0.0f;
+    private int lastDrawerTargetHeight = 140;
     private double inspectorScroll = 0.0;
     private int inspectorTotalHeight = 0;
 
@@ -321,43 +319,29 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     // ==========================================
-    // MODULES WORKSPACE (CHIP FILTER + GRID + INSPECTOR DRAWER)
+    // MODULES WORKSPACE (CHIP FILTER + GRID + BOTTOM INSPECTOR DRAWER)
     // ==========================================
     private void renderModulesWorkspace(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, int contentH, float dt) {
         renderCategoryChipBar(graphics, mouseX, mouseY, contentX, contentY, contentW);
 
         int bodyY = contentY + CHIP_BAR_HEIGHT;
         int bodyH = contentH - CHIP_BAR_HEIGHT;
-        int drawerW = computeDrawerWidth(contentW);
-        boolean overlayFull = contentW < 540 && isInspectorOpen();
+        int drawerH = computeBottomDrawerHeight(contentW, bodyH);
+        int gridH = Math.max(0, bodyH - drawerH);
 
-        if (!overlayFull) {
-            int gridW = contentW - drawerW;
+        if (gridH > 16) {
             List<ClickGuiScreen.ModuleEntry> modules = getVisibleModules();
-            graphics.enableScissor(contentX, bodyY, contentX + gridW, bodyY + bodyH);
-            renderModuleCardsGrid(graphics, mouseX, mouseY, contentX, bodyY, gridW, bodyH, modules, dt);
+            graphics.enableScissor(contentX, bodyY, contentX + contentW, bodyY + gridH);
+            renderModuleCardsGrid(graphics, mouseX, mouseY, contentX, bodyY, contentW, gridH, modules, dt);
             graphics.disableScissor();
-            renderScrollbarAt(graphics, contentX + gridW - 6, bodyY + 4, bodyH - 8, this.contentTotalHeight, this.scrollAmount);
+            this.scrollAmount = Mth.clamp(this.scrollAmount, 0.0, Math.max(0, this.contentTotalHeight - gridH));
+            renderScrollbarAt(graphics, contentX + contentW - 6, bodyY + 4, gridH - 8, this.contentTotalHeight, this.scrollAmount);
         }
 
-        int[] inspBounds = computeInspectorBounds(contentX, bodyY, contentW, bodyH, drawerW, overlayFull);
+        int[] inspBounds = ModernInspectorLayout.computeBottomDrawerBounds(contentX, bodyY, contentW, bodyH, drawerH);
         if (inspBounds != null) {
             renderInspectorDrawer(graphics, mouseX, mouseY, inspBounds[0], inspBounds[1], inspBounds[2], inspBounds[3], dt);
         }
-    }
-
-    /** Returns inset rounded inspector drawer bounds {@code [x, y, w, h]}, or null while collapsed. */
-    private static int[] computeInspectorBounds(int contentX, int bodyY, int contentW, int bodyH, int drawerW, boolean overlayFull) {
-        if (drawerW <= 12) {
-            return null;
-        }
-        int rawX = overlayFull ? contentX : (contentX + contentW - drawerW);
-        int leftInset = overlayFull ? 10 : 0;
-        int rightPad = 10;
-        int verticalPad = 10;
-        int dw = Math.max(40, drawerW - leftInset - rightPad);
-        int dh = Math.max(80, bodyH - verticalPad * 2);
-        return new int[]{rawX + leftInset, bodyY + verticalPad, dw, dh};
     }
 
     private void renderCategoryChipBar(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW) {
@@ -482,7 +466,7 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     // ==========================================
-    // RIGHT INSPECTOR DRAWER (RIGHT-CLICK SETTINGS)
+    // BOTTOM INSPECTOR DRAWER (RIGHT-CLICK SETTINGS)
     // ==========================================
     private void renderInspectorDrawer(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int x, int y, int w, int h, float dt) {
         graphics.enableScissor(x, y, x + w, y + h);
@@ -497,50 +481,52 @@ public class ModernClickGuiScreen extends Screen {
         ModConfig cfg = ModConfig.getInstance();
         List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(mod.name, cfg, this.settingsActions);
         boolean active = mod.getter.get();
+        ModernInspectorLayout.HeaderLayout hdr = ModernInspectorLayout.computeHeaderLayout(x, y, w);
 
         // Pinned Inspector Header
-        JelloTheme.fillRoundedTop(graphics, x + 1, y + 1, x + w - 1, y + INSPECTOR_HEADER_HEIGHT, 6, JelloTheme.HEADER_BG);
-        graphics.fill(x + 1, y + INSPECTOR_HEADER_HEIGHT, x + w - 1, y + INSPECTOR_HEADER_HEIGHT + 1, JelloTheme.DIVIDER);
+        JelloTheme.fillRoundedTop(graphics, x + 1, y + 1, x + w - 1, y + hdr.headerHeight(), 6, JelloTheme.HEADER_BG);
+        graphics.fill(x + 1, y + hdr.headerHeight(), x + w - 1, y + hdr.headerHeight() + 1, JelloTheme.DIVIDER);
 
-        int closeBtnX = x + w - 28;
-        int closeBtnY = y + 9;
-        boolean closeHov = isInside(mouseX, mouseY, closeBtnX, closeBtnY, 18, 18);
-        JelloTheme.fillRoundedCard(graphics, closeBtnX, closeBtnY, closeBtnX + 18, closeBtnY + 18, 4,
+        boolean closeHov = isInside(mouseX, mouseY, hdr.closeX(), hdr.closeY(), hdr.closeW(), hdr.closeH());
+        JelloTheme.fillRoundedCard(graphics, hdr.closeX(), hdr.closeY(), hdr.closeX() + hdr.closeW(), hdr.closeY() + hdr.closeH(), 4,
                 closeHov ? 0x44E53935 : JelloTheme.CARD_INACTIVE, closeHov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
-        ModernIcons.drawCloseIcon(graphics, closeBtnX + 9, closeBtnY + 9, closeHov ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED);
-
-        String title = fitText(mod.name, w - 48);
-        graphics.text(this.font, Component.literal(title), x + 12, y + 10, JelloTheme.TEXT, false);
+        ModernIcons.drawCloseIcon(graphics, hdr.closeX() + 9, hdr.closeY() + 9, closeHov ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED);
 
         String desc = ModernModuleCardUi.getModuleDescription(mod.name, mod.category.name);
-        List<FormattedCharSequence> wrappedDesc = this.font.split(Component.literal(desc), Math.max(80, w - 44));
-        for (int lineIdx = 0; lineIdx < Math.min(2, wrappedDesc.size()); lineIdx++) {
-            graphics.text(this.font, wrappedDesc.get(lineIdx), x + 12, y + 21 + lineIdx * 10, JelloTheme.TEXT_MUTED, false);
+        if (hdr.wide()) {
+            graphics.text(this.font, Component.literal(fitText(mod.name, hdr.textMaxW())), x + 12, y + 7, JelloTheme.TEXT, false);
+            graphics.text(this.font, Component.literal(fitText(desc, hdr.textMaxW())), x + 12, y + 22, JelloTheme.TEXT_MUTED, false);
+        } else {
+            graphics.text(this.font, Component.literal(fitText(mod.name, w - 48)), x + 12, y + 10, JelloTheme.TEXT, false);
+            List<FormattedCharSequence> wrappedDesc = this.font.split(Component.literal(desc), hdr.textMaxW());
+            for (int lineIdx = 0; lineIdx < Math.min(2, wrappedDesc.size()); lineIdx++) {
+                graphics.text(this.font, wrappedDesc.get(lineIdx), x + 12, y + 21 + lineIdx * 10, JelloTheme.TEXT_MUTED, false);
+            }
         }
 
-        // Second header row: Module Status toggle + Bind pill
-        int rowY = y + INSPECTOR_PILL_ROW_OFFSET;
-        int pillW = (w - 28) / 2;
-        boolean statHov = isInside(mouseX, mouseY, x + 10, rowY, pillW, 17);
+        // Status & Keybind pills
+        boolean statHov = isInside(mouseX, mouseY, hdr.statX(), hdr.statY(), hdr.statW(), hdr.statH());
         int statBg = active ? (statHov ? JelloTheme.CARD_ACTIVE_HOVER : JelloTheme.CARD_ACTIVE) : (statHov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
-        JelloTheme.fillRoundedCard(graphics, x + 10, rowY, x + 10 + pillW, rowY + 17, 4, statBg, active ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
-        graphics.centeredText(this.font, Component.literal(active ? "Enabled" : "Disabled"), x + 10 + pillW / 2, rowY + 5,
+        JelloTheme.fillRoundedCard(graphics, hdr.statX(), hdr.statY(), hdr.statX() + hdr.statW(), hdr.statY() + hdr.statH(), 4, statBg, active ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+        graphics.centeredText(this.font, Component.literal(active ? "Enabled" : "Disabled"),
+                hdr.statX() + hdr.statW() / 2, hdr.statY() + (hdr.statH() - 8) / 2,
                 active ? JelloTheme.TEXT_DIM : JelloTheme.TEXT_MUTED);
 
-        int bindBtnX = x + 16 + pillW;
         boolean isListening = mod.name.equals(this.listeningKeybindModule);
         String bindText = isListening ? "Press key..." : ("Bind: " + ClickGuiScreen.getShortBindName(cfg.getModuleKey(mod.name), cfg.isModuleKeyMouse(mod.name)));
-        boolean bindHov = isInside(mouseX, mouseY, bindBtnX, rowY, pillW, 17);
-        JelloTheme.fillRoundedCard(graphics, bindBtnX, rowY, bindBtnX + pillW, rowY + 17, 4,
+        boolean bindHov = isInside(mouseX, mouseY, hdr.bindX(), hdr.bindY(), hdr.bindW(), hdr.bindH());
+        JelloTheme.fillRoundedCard(graphics, hdr.bindX(), hdr.bindY(), hdr.bindX() + hdr.bindW(), hdr.bindY() + hdr.bindH(), 4,
                 isListening ? 0x44E53935 : (bindHov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE),
                 isListening ? JelloTheme.ACCENT_HOVER : JelloTheme.BORDER_SUBTLE);
-        graphics.centeredText(this.font, Component.literal(fitText(bindText, pillW - 8)), bindBtnX + pillW / 2, rowY + 5,
+        graphics.centeredText(this.font, Component.literal(fitText(bindText, hdr.bindW() - 8)),
+                hdr.bindX() + hdr.bindW() / 2, hdr.bindY() + (hdr.bindH() - 8) / 2,
                 isListening ? 0xFFFFDD55 : JelloTheme.TEXT);
 
         // Scrollable controls body
-        int bodyY = y + INSPECTOR_HEADER_HEIGHT + 1;
-        int bodyH = h - INSPECTOR_HEADER_HEIGHT - 2;
-        this.inspectorTotalHeight = ModernModuleSettings.computeExpandedHeight(controls) + 12;
+        int bodyY = y + hdr.headerHeight() + 1;
+        int bodyH = h - hdr.headerHeight() - 2;
+        int innerW = Math.max(80, w - 24);
+        this.inspectorTotalHeight = ModernInspectorLayout.computeControlsFlow(0, 0, innerW, controls).totalHeight() + 8;
         double maxScroll = Math.max(0, this.inspectorTotalHeight - bodyH);
         this.inspectorScroll = Mth.clamp(this.inspectorScroll, 0.0, maxScroll);
 
@@ -552,7 +538,7 @@ public class ModernClickGuiScreen extends Screen {
                 mouseY,
                 x + 12,
                 bodyY + 2 - (int) this.inspectorScroll,
-                w - 24,
+                innerW,
                 mod.name,
                 controls,
                 (sx, sy, sw, sh, skey, pct) -> renderInteractiveSlider(graphics, mouseX, mouseY, sx, sy, sw, sh, skey, pct),
@@ -992,22 +978,20 @@ public class ModernClickGuiScreen extends Screen {
 
         int bodyY = contentY + CHIP_BAR_HEIGHT;
         int bodyH = contentH - CHIP_BAR_HEIGHT;
-        int drawerW = computeDrawerWidth(contentW);
-        boolean overlayFull = contentW < 540 && isInspectorOpen();
-        int[] inspBounds = isInspectorOpen() ? computeInspectorBounds(contentX, bodyY, contentW, bodyH, drawerW, overlayFull) : null;
+        int drawerH = computeBottomDrawerHeight(contentW, bodyH);
+        int gridH = Math.max(0, bodyH - drawerH);
+        int[] inspBounds = isInspectorOpen()
+                ? ModernInspectorLayout.computeBottomDrawerBounds(contentX, bodyY, contentW, bodyH, drawerH)
+                : null;
 
-        // 2. Right Inspector Drawer interaction (always isolated from grid beneath)
+        // 2. Bottom Inspector Drawer interaction (isolated from grid above)
         if (inspBounds != null && isInside(mouseX, mouseY, inspBounds[0], inspBounds[1], inspBounds[2], inspBounds[3])) {
             return handleInspectorClick(mouseX, mouseY, button, inspBounds[0], inspBounds[1], inspBounds[2]);
         }
 
-        if (overlayFull) {
-            return true;
-        }
-
         // 3. Module Grid interaction
-        int gridW = contentW - drawerW;
-        if (!isInside(mouseX, mouseY, contentX, bodyY, gridW, bodyH)) {
+        int gridW = contentW;
+        if (!isInside(mouseX, mouseY, contentX, bodyY, gridW, gridH)) {
             return false;
         }
 
@@ -1073,27 +1057,25 @@ public class ModernClickGuiScreen extends Screen {
             return true;
         }
         ModConfig cfg = ModConfig.getInstance();
+        ModernInspectorLayout.HeaderLayout hdr = ModernInspectorLayout.computeHeaderLayout(x, y, w);
 
         // Close button [X]
-        int closeBtnX = x + w - 28;
-        int closeBtnY = y + 9;
-        if (isInside(mouseX, mouseY, closeBtnX, closeBtnY, 18, 18) && (MouseButtonMapping.isLeftClick(button) || MouseButtonMapping.isRightClick(button))) {
+        if (isInside(mouseX, mouseY, hdr.closeX(), hdr.closeY(), hdr.closeW(), hdr.closeH())
+                && (MouseButtonMapping.isLeftClick(button) || MouseButtonMapping.isRightClick(button))) {
             closeInspector();
             playClickSound();
             return true;
         }
 
-        // Status & Bind row
-        int rowY = y + INSPECTOR_PILL_ROW_OFFSET;
-        int pillW = (w - 28) / 2;
-        if (isInside(mouseX, mouseY, x + 10, rowY, pillW, 17) && MouseButtonMapping.isLeftClick(button)) {
+        // Status pill
+        if (isInside(mouseX, mouseY, hdr.statX(), hdr.statY(), hdr.statW(), hdr.statH()) && MouseButtonMapping.isLeftClick(button)) {
             mod.setter.accept(!mod.getter.get());
             playClickSound();
             return true;
         }
 
-        int bindBtnX = x + 16 + pillW;
-        if (isInside(mouseX, mouseY, bindBtnX, rowY, pillW, 17)) {
+        // Bind pill
+        if (isInside(mouseX, mouseY, hdr.bindX(), hdr.bindY(), hdr.bindW(), hdr.bindH())) {
             boolean isListening = mod.name.equals(this.listeningKeybindModule);
             if (MouseButtonMapping.isRightClick(button)) {
                 cfg.setModuleKey(mod.name, -1, false);
@@ -1109,7 +1091,7 @@ public class ModernClickGuiScreen extends Screen {
         }
 
         // Scrollable controls body
-        int bodyY = y + INSPECTOR_HEADER_HEIGHT + 1;
+        int bodyY = y + hdr.headerHeight() + 1;
         if (mouseY >= bodyY && MouseButtonMapping.isLeftClick(button)) {
             List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(mod.name, cfg, this.settingsActions);
             ModernModuleCardUi.handleControlsClick(
@@ -1117,7 +1099,7 @@ public class ModernClickGuiScreen extends Screen {
                     mouseY,
                     x + 12,
                     bodyY + 2 - (int) this.inspectorScroll,
-                    w - 24,
+                    Math.max(80, w - 24),
                     controls,
                     (slider, startX, width, initialPct) -> {
                         this.draggingSliderKey = slider.key();
@@ -1374,20 +1356,23 @@ public class ModernClickGuiScreen extends Screen {
         int contentH = this.windowH - HEADER_HEIGHT - 2;
 
         boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
-        if (showingModules && isInspectorOpen()) {
+        int drawerH = 0;
+        if (showingModules) {
             int bodyY = contentY + CHIP_BAR_HEIGHT;
             int bodyH = contentH - CHIP_BAR_HEIGHT;
-            int drawerW = computeDrawerWidth(contentW);
-            boolean overlayFull = contentW < 540;
-            int[] inspBounds = computeInspectorBounds(contentX, bodyY, contentW, bodyH, drawerW, overlayFull);
-            if (inspBounds != null && isInside((int) mouseX, (int) mouseY, inspBounds[0], inspBounds[1], inspBounds[2], inspBounds[3])) {
-                int maxInsp = Math.max(0, this.inspectorTotalHeight - (inspBounds[3] - INSPECTOR_HEADER_HEIGHT - 2));
-                this.inspectorScroll = Mth.clamp(this.inspectorScroll - scrollY * 24.0, 0.0, maxInsp);
-                return true;
+            drawerH = computeBottomDrawerHeight(contentW, bodyH);
+            if (isInspectorOpen()) {
+                int[] inspBounds = ModernInspectorLayout.computeBottomDrawerBounds(contentX, bodyY, contentW, bodyH, drawerH);
+                if (inspBounds != null && isInside((int) mouseX, (int) mouseY, inspBounds[0], inspBounds[1], inspBounds[2], inspBounds[3])) {
+                    int hdrH = ModernInspectorLayout.computeHeaderHeight(inspBounds[2]);
+                    int maxInsp = Math.max(0, this.inspectorTotalHeight - (inspBounds[3] - hdrH - 2));
+                    this.inspectorScroll = Mth.clamp(this.inspectorScroll - scrollY * 24.0, 0.0, maxInsp);
+                    return true;
+                }
             }
         }
 
-        int viewH = showingModules ? (contentH - CHIP_BAR_HEIGHT) : contentH;
+        int viewH = showingModules ? Math.max(0, contentH - CHIP_BAR_HEIGHT - drawerH) : contentH;
         int maxScroll = Math.max(0, this.contentTotalHeight - viewH);
         if (maxScroll > 0) {
             this.scrollAmount = Mth.clamp(this.scrollAmount - scrollY * 26.0, 0.0, maxScroll);
@@ -1492,9 +1477,17 @@ public class ModernClickGuiScreen extends Screen {
         this.activeSlider = null;
     }
 
-    private int computeDrawerWidth(int contentW) {
-        int target = (contentW < 540) ? contentW : Math.min(INSPECTOR_TARGET_WIDTH, (int) (contentW * 0.44f));
-        return Math.round(target * this.inspectorAnim);
+    private int computeBottomDrawerHeight(int contentW, int bodyH) {
+        if (this.inspectorAnim <= 0.005f) {
+            return 0;
+        }
+        ClickGuiScreen.ModuleEntry mod = getInspectedEntry();
+        if (mod != null) {
+            List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(
+                    mod.name, ModConfig.getInstance(), this.settingsActions);
+            this.lastDrawerTargetHeight = ModernInspectorLayout.computeTargetDrawerSlotHeight(contentW, bodyH, controls);
+        }
+        return Math.round(this.lastDrawerTargetHeight * this.inspectorAnim);
     }
 
     private record FilterChip(String id, String label, int count) {}
