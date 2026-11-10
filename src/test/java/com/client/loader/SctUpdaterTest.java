@@ -14,7 +14,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
+import java.io.ByteArrayOutputStream;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 public class SctUpdaterTest {
     private static final class RecordingListener implements SctUpdateListener {
@@ -62,6 +65,7 @@ public class SctUpdaterTest {
         testNonLocalHttpRejected();
         testMinLoaderCodeTooHighWritesOutdatedNotice();
         testMaliciousVersionStringSanitized();
+        testNewerEmbeddedFallbackPreventsRemoteDowngrade();
         System.out.println("ALL SctUpdaterTest ASSERTIONS PASSED!");
     }
 
@@ -386,6 +390,57 @@ public class SctUpdaterTest {
             Path resolved = updater.resolveAndEnsureCore();
             Path coreDir = workDir.resolve("core").toAbsolutePath().normalize();
             assert resolved.toAbsolutePath().normalize().startsWith(coreDir) : "Path escaped coreDir: " + resolved;
+        } finally {
+            server.stop(0);
+            deleteRecursive(workDir);
+        }
+    }
+
+    private static void testNewerEmbeddedFallbackPreventsRemoteDowngrade() throws Exception {
+        Path workDir = Files.createTempDirectory("sct-test-nodowngrade-");
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        try {
+            ByteArrayOutputStream jarBuf = new ByteArrayOutputStream();
+            try (ZipOutputStream zos = new ZipOutputStream(jarBuf)) {
+                zos.putNextEntry(new ZipEntry("sct-core-meta.properties"));
+                zos.write("version=1.0.1\nversionCode=2\n".getBytes(StandardCharsets.UTF_8));
+                zos.closeEntry();
+            }
+            byte[] newerEmbeddedJar = jarBuf.toByteArray();
+            byte[] olderRemotePayload = "OLDER-1.0.0".getBytes(StandardCharsets.UTF_8);
+            String olderSha = sha256Hex(olderRemotePayload);
+            AtomicInteger downloads = new AtomicInteger(0);
+            int port = server.getAddress().getPort();
+
+            String manifest = String.format(
+                    "{\"versionCode\":1,\"version\":\"1.0.0\",\"changelog\":\"Old release\",\"downloadUrl\":\"http://127.0.0.1:%d/core.jar\",\"sha256\":\"%s\",\"minLoaderCode\":1}",
+                    port, olderSha
+            );
+            server.createContext("/version.json", ex -> {
+                byte[] resp = manifest.getBytes(StandardCharsets.UTF_8);
+                ex.sendResponseHeaders(200, resp.length);
+                try (OutputStream os = ex.getResponseBody()) { os.write(resp); }
+            });
+            server.createContext("/core.jar", ex -> {
+                downloads.incrementAndGet();
+                ex.sendResponseHeaders(200, olderRemotePayload.length);
+                try (OutputStream os = ex.getResponseBody()) { os.write(olderRemotePayload); }
+            });
+            server.start();
+
+            RecordingListener listener = new RecordingListener();
+            SctUpdater updater = new SctUpdater(
+                    workDir,
+                    "http://127.0.0.1:" + port + "/version.json",
+                    "https://github.com/kheromieallah/sestia/releases/latest",
+                    () -> new ByteArrayInputStream(newerEmbeddedJar),
+                    listener
+            );
+            Path resolved = updater.resolveAndEnsureCore();
+            assert downloads.get() == 0 : "Must not downgrade newer embedded fallback from older remote release";
+            assert resolved.getFileName().toString().equals("sestia-core-1.0.1.jar") : "Expected promoted 1.0.1 jar, got " + resolved;
+            assert Files.size(resolved) == newerEmbeddedJar.length;
+            assert listener.events.contains("ready:1.0.1:false") : "Expected ready:1.0.1:false, got " + listener.events;
         } finally {
             server.stop(0);
             deleteRecursive(workDir);

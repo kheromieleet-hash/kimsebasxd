@@ -325,7 +325,7 @@ public final class EspRenderHandler {
         int badgeY = Math.max(2, top - 13);
 
         // Background pill (Rise 6 Dark Indigo Glass)
-        graphics.fill(badgeX - 5, badgeY - 2, badgeX + badgeW + 5, badgeY + 10, 0xD00D0F1D);
+        graphics.fill(badgeX - 5, badgeY - 2, badgeX + badgeW + 5, badgeY + 10, 0xD0120B0E);
         // Glowing outline
         int tagGlow = (0x66 << 24) | (espColor & 0x00FFFFFF);
         graphics.fill(badgeX - 5, badgeY - 2, badgeX + badgeW + 5, badgeY - 1, tagGlow);

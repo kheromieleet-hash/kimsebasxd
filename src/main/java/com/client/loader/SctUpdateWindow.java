@@ -27,20 +27,20 @@ public final class SctUpdateWindow implements SctUpdateListener {
     private static final int WIN_W = 432;
     private static final int WIN_H = 198;
 
-    private static final Color BG_TOP = new Color(0x11, 0x14, 0x28);
-    private static final Color BG_BOTTOM = new Color(0x0B, 0x0D, 0x19);
-    private static final Color CARD_BG = new Color(24, 29, 51, 200);
+    private static final Color BG_TOP = new Color(0x18, 0x0C, 0x10);
+    private static final Color BG_BOTTOM = new Color(0x0E, 0x08, 0x0B);
+    private static final Color CARD_BG = new Color(34, 18, 22, 200);
     private static final Color CARD_BORDER = new Color(255, 255, 255, 22);
-    private static final Color OUTER_BORDER = new Color(192, 132, 252, 120);
-    private static final Color VIOLET = new Color(0xC0, 0x84, 0xFC);
-    private static final Color ROSE = new Color(0xF4, 0x72, 0xB6);
+    private static final Color OUTER_BORDER = new Color(229, 57, 53, 120);
+    private static final Color VIOLET = new Color(0xE5, 0x39, 0x35);
+    private static final Color ROSE = new Color(0xFF, 0x52, 0x52);
     private static final Color EMERALD_A = new Color(0x34, 0xD3, 0x99);
     private static final Color EMERALD_B = new Color(0x10, 0xB9, 0x81);
     private static final Color AMBER_A = new Color(0xFB, 0xBF, 0x24);
     private static final Color AMBER_B = new Color(0xF5, 0x9E, 0x0B);
     private static final Color TEXT_MUTED = new Color(0x94, 0xA3, 0xB8);
-    private static final Color TEXT_SOFT = new Color(0xC4, 0xB5, 0xFD);
-    private static final Color TRACK_BG = new Color(30, 35, 64, 230);
+    private static final Color TEXT_SOFT = new Color(0xFC, 0xA5, 0xA5);
+    private static final Color TRACK_BG = new Color(42, 22, 28, 230);
 
     private final boolean headless;
     private JDialog dialog;
@@ -58,7 +58,7 @@ public final class SctUpdateWindow implements SctUpdateListener {
     private volatile String rightMeta = "Timeout: 4s";
     private volatile double progress = 0.25;
     private volatile Color accentA = VIOLET;
-    private volatile Color accentB = new Color(0x81, 0x8C, 0xF8);
+    private volatile Color accentB = new Color(0xFB, 0x71, 0x85);
     private volatile boolean shimmerActive = true;
     private volatile float shimmerPhase = 0.0f;
 
@@ -162,7 +162,7 @@ public final class SctUpdateWindow implements SctUpdateListener {
         this.rightMeta = "Timeout: 4s";
         this.progress = 0.28;
         this.accentA = VIOLET;
-        this.accentB = new Color(0x81, 0x8C, 0xF8);
+        this.accentB = new Color(0xFB, 0x71, 0x85);
         this.shimmerActive = true;
 
         SwingUtilities.invokeLater(() -> {

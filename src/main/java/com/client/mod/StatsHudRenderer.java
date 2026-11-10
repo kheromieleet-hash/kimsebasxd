@@ -91,15 +91,15 @@ public class StatsHudRenderer {
         MutableComponent speedComp = buildPair("Speed: ", formatRound1(speed));
 
         // Rise 6 Luxury Watermark Pill at top-left
-        String wmText = "✦ SCT CLIENT §7| §f" + ClientBuildInfo.getDisplayVersion() + " §7| §d" + fps + " FPS";
+        String wmText = "✦ SCT CLIENT §7| §f" + ClientBuildInfo.getDisplayVersion() + " §7| §c" + fps + " FPS";
         int wmW = mc.font.width(wmText) + 12;
         int wmH = 15;
-        graphics.fill(4, 4, 4 + wmW, 4 + wmH, 0xD80D0F1D);
-        graphics.fill(4, 4, 4 + wmW, 5, 0xFFC084FC); // top violet accent
-        graphics.fill(4, 4 + wmH - 1, 4 + wmW, 4 + wmH, 0x44F472B6);
-        graphics.fill(4, 4, 5, 4 + wmH, 0x88C084FC);
-        graphics.fill(4 + wmW - 1, 4, 4 + wmW, 4 + wmH, 0x44F472B6);
-        graphics.text(mc.font, Component.literal("§d§l✦ SCT CLIENT §7| §f" + ClientBuildInfo.getDisplayVersion() + " §7| §f" + fps + " FPS"), 9, 7, 0xFFFFFFFF, true);
+        graphics.fill(4, 4, 4 + wmW, 4 + wmH, 0xD8120B0E);
+        graphics.fill(4, 4, 4 + wmW, 5, JelloTheme.ACCENT); // top crimson accent
+        graphics.fill(4, 4 + wmH - 1, 4 + wmW, 4 + wmH, 0x44FF5252);
+        graphics.fill(4, 4, 5, 4 + wmH, 0x88E53935);
+        graphics.fill(4 + wmW - 1, 4, 4 + wmW, 4 + wmH, 0x44FF5252);
+        graphics.text(mc.font, Component.literal("§c§l✦ SCT CLIENT §7| §f" + ClientBuildInfo.getDisplayVersion() + " §7| §f" + fps + " FPS"), 9, 7, 0xFFFFFFFF, true);
 
         int x = 4;
         int y = 24;
