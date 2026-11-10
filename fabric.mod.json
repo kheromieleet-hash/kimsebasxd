@@ -2,19 +2,22 @@
   "schemaVersion": 1,
   "id": "inventoryhud",
   "version": "3.4.37",
-  "name": "Inventory HUD + (with Viewmodel)",
-  "description": "Inventory HUD + with Viewmodel & Player Scale for Minecraft 26.3.",
+  "name": "SCT Client",
+  "description": "SCT Client with Inventory HUD +, Viewmodel, ClickGUI & Auto-Updater for Minecraft 26.3.",
   "authors": [
     "DmitryLovin",
     "inglettronald (DulkirMod)",
     "Client Developer"
   ],
   "contact": {
-    "homepage": "https://www.curseforge.com/minecraft/mc-mods/inventory-hud-forge"
+    "homepage": "https://github.com/kheromieallah/sestia"
   },
   "license": "MIT",
   "icon": "logo.png",
   "environment": "client",
+  "languageAdapters": {
+    "sct_bootstrap": "com.client.loader.SctBootstrapAdapter"
+  },
   "entrypoints": {
     "client": [
       "dlovin.inventoryhud.fabric.InventoryHUDFabric",
