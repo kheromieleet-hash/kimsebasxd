@@ -318,7 +318,6 @@ public class ModernClickGuiScreen extends Screen {
 
         int indY = Math.round(this.indicatorY);
         JelloTheme.fillRounded(graphics, sideX + 8, indY + 2, sideX + sideW - 8, indY + NAV_ROW_HEIGHT - 2, 6, 0x2AE53935);
-        JelloTheme.fillRounded(graphics, sideX + 8, indY + 7, sideX + 11, indY + NAV_ROW_HEIGHT - 7, 1, JelloTheme.ACCENT);
 
         NavTab[] tabs = NavTab.values();
         for (int i = 0; i < tabs.length; i++) {
@@ -474,11 +473,6 @@ public class ModernClickGuiScreen extends Screen {
                 : (active ? (hovered ? JelloTheme.ACCENT_HOVER : 0x66E53935) : (hovered ? 0x5594A3B8 : JelloTheme.BORDER_SUBTLE));
         JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + CARD_HEIGHT, 7, bg, border);
 
-        if (active || isInspected) {
-            int barColor = isInspected ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT;
-            JelloTheme.fillRounded(graphics, x + 2, y + 6, x + 5, y + CARD_HEIGHT - 6, 1, barColor);
-        }
-
         // Top Row: Title + optional Settings Tune Icon + Toggle Switch
         int switchW = 30;
         int switchH = 15;
@@ -539,7 +533,6 @@ public class ModernClickGuiScreen extends Screen {
         // Pinned Inspector Header
         graphics.fill(x + 1, y, x + w, y + INSPECTOR_HEADER_HEIGHT, JelloTheme.HEADER_BG);
         graphics.fill(x + 1, y + INSPECTOR_HEADER_HEIGHT, x + w, y + INSPECTOR_HEADER_HEIGHT + 1, JelloTheme.DIVIDER);
-        JelloTheme.fillRounded(graphics, x + 10, y + 10, x + 13, y + 39, 1, JelloTheme.ACCENT);
 
         int closeBtnX = x + w - 28;
         int closeBtnY = y + 9;
@@ -548,13 +541,13 @@ public class ModernClickGuiScreen extends Screen {
                 closeHov ? 0x44E53935 : JelloTheme.CARD_INACTIVE, closeHov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
         ModernIcons.drawCloseIcon(graphics, closeBtnX + 9, closeBtnY + 9, closeHov ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED);
 
-        String title = fitText(mod.name, w - 54);
-        graphics.text(this.font, Component.literal(title), x + 18, y + 10, JelloTheme.TEXT, false);
+        String title = fitText(mod.name, w - 48);
+        graphics.text(this.font, Component.literal(title), x + 12, y + 10, JelloTheme.TEXT, false);
 
         String desc = ModernModuleCardUi.getModuleDescription(mod.name, mod.category.name);
-        List<FormattedCharSequence> wrappedDesc = this.font.split(Component.literal(desc), Math.max(80, w - 50));
+        List<FormattedCharSequence> wrappedDesc = this.font.split(Component.literal(desc), Math.max(80, w - 44));
         for (int lineIdx = 0; lineIdx < Math.min(2, wrappedDesc.size()); lineIdx++) {
-            graphics.text(this.font, wrappedDesc.get(lineIdx), x + 18, y + 21 + lineIdx * 10, JelloTheme.TEXT_MUTED, false);
+            graphics.text(this.font, wrappedDesc.get(lineIdx), x + 12, y + 21 + lineIdx * 10, JelloTheme.TEXT_MUTED, false);
         }
 
         // Second header row: Module Status toggle + Bind pill
@@ -678,10 +671,6 @@ public class ModernClickGuiScreen extends Screen {
         int border = active ? (hovered ? JelloTheme.ACCENT : 0x66E53935)
                 : (hovered ? 0x5594A3B8 : JelloTheme.BORDER_SUBTLE);
         JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + cardH, 7, bg, border);
-
-        if (active) {
-            JelloTheme.fillRounded(graphics, x + 2, y + 5, x + 5, y + cardH - 5, 1, JelloTheme.ACCENT);
-        }
 
         graphics.text(this.font, Component.literal(title), x + 12, y + 6, active ? JelloTheme.TEXT : 0xFFE2E8F0, false);
         graphics.text(this.font, Component.literal(fitText(desc, w - 58)), x + 12, y + 20, JelloTheme.TEXT_MUTED, false);
@@ -910,10 +899,6 @@ public class ModernClickGuiScreen extends Screen {
                 int cardBg = isEditingThis ? JelloTheme.CARD_ACTIVE : (hovered ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
                 int borderColor = isEditingThis ? JelloTheme.ACCENT : (hovered ? 0x66E53935 : JelloTheme.BORDER_SUBTLE);
                 JelloTheme.fillRoundedCard(graphics, leftColX, cardY, leftColX + leftColW, cardY + cardH, 7, cardBg, borderColor);
-
-                if (isEditingThis) {
-                    JelloTheme.fillRounded(graphics, leftColX + 2, cardY + 5, leftColX + 5, cardY + cardH - 5, 1, JelloTheme.ACCENT_HOVER);
-                }
 
                 String nameTitle = (m.name != null && !m.name.isEmpty()) ? m.name : "Unnamed Macro";
                 graphics.text(this.font, Component.literal(nameTitle), leftColX + 12, cardY + 9, JelloTheme.TEXT, false);
