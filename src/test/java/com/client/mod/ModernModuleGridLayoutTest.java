@@ -79,7 +79,6 @@ public class ModernModuleGridLayoutTest {
 
     private static void assertAlphabeticalFilteringAndSorting() {
         List<StubModule> unsorted = List.of(
-                new StubModule("Version Switcher", "exploit", "Exploit"),
                 new StubModule("Abort Breaking", "exploit", "Exploit"),
                 new StubModule("No Pitch Limit", "exploit", "Exploit"),
                 new StubModule("Safe Walk", "movement", "Movement"),
@@ -100,7 +99,7 @@ public class ModernModuleGridLayoutTest {
         assert allSorted.size() == unsorted.size();
         assert "Abort Breaking".equals(allSorted.get(0).name());
         assert "Auto Break".equals(allSorted.get(1).name());
-        assert "Version Switcher".equals(allSorted.get(allSorted.size() - 1).name());
+        assert "TrueSight".equals(allSorted.get(allSorted.size() - 1).name());
 
         List<StubModule> renderSorted = ModernModuleGridLayout.filterAndSortModules(
                 unsorted, StubModule::name, StubModule::catId, StubModule::catName, "render", "");
@@ -109,7 +108,7 @@ public class ModernModuleGridLayoutTest {
 
         List<StubModule> exploitSorted = ModernModuleGridLayout.filterAndSortModules(
                 unsorted, StubModule::name, StubModule::catId, StubModule::catName, "exploit", "");
-        assert List.of("Abort Breaking", "No Pitch Limit", "Version Switcher")
+        assert List.of("Abort Breaking", "No Pitch Limit")
                 .equals(exploitSorted.stream().map(StubModule::name).toList());
 
         List<StubModule> searchSorted = ModernModuleGridLayout.filterAndSortModules(

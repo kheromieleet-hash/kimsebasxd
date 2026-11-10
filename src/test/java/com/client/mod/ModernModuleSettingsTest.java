@@ -31,7 +31,6 @@ public class ModernModuleSettingsTest {
         int chunkReloads = 0;
         int invSettingsOpened = 0;
         int invMoveOpened = 0;
-        int versionSwitcherOpened = 0;
         final StubInventory inv = new StubInventory();
 
         @Override
@@ -44,7 +43,6 @@ public class ModernModuleSettingsTest {
 
         @Override public void openInventorySettings() { invSettingsOpened++; }
         @Override public void openInventoryMove() { invMoveOpened++; }
-        @Override public void openVersionSwitcher() { versionSwitcherOpened++; }
         @Override public ModernModuleSettings.InventoryBridge inventory() { return inv; }
     }
 
@@ -56,7 +54,7 @@ public class ModernModuleSettingsTest {
         testFastPlaceAndFastUseSettings();
         testDulkirSlidersAndReset();
         testAutoCrafterActionsAndChips();
-        testInventoryHudAndVersionSwitcherActions();
+        testInventoryHudActions();
         System.out.println("ALL ModernModuleSettingsTest ASSERTIONS PASSED!");
     }
 
@@ -66,7 +64,7 @@ public class ModernModuleSettingsTest {
         List<String> simpleModules = List.of(
                 "HUD Info", "TNT Timer", "Auto Sprint", "Safe Walk",
                 "TrueSight", "Item ESP", "No Pitch Limit", "Abort Breaking",
-                "GUI Style", "Unknown Module"
+                "GUI Style", "Version Switcher", "Unknown Module"
         );
         for (String name : simpleModules) {
             assert !ModernModuleSettings.hasSettings(name, cfg, actions)
@@ -84,7 +82,7 @@ public class ModernModuleSettingsTest {
                 "Dulkir", "Inventory HUD+", "Fullbright", "Keybinds HUD",
                 "Fast Place", "Auto Break", "FastBreak", "Inventory Tweaks",
                 "Auto Replenish", "Fast Use", "Auto Tool", "Auto Crafter",
-                "Better Chat", "Version Switcher"
+                "Better Chat"
         );
         for (String name : configurable) {
             List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(name, cfg, actions);
@@ -190,7 +188,7 @@ public class ModernModuleSettingsTest {
         assert firstChip.activeGetter().get() != before : "Expected chip toggle to flip state";
     }
 
-    private static void testInventoryHudAndVersionSwitcherActions() {
+    private static void testInventoryHudActions() {
         ModConfig cfg = new ModConfig();
         RecordingActions actions = new RecordingActions();
 
@@ -201,9 +199,5 @@ public class ModernModuleSettingsTest {
         ((ModernModuleSettings.ActionControl) invControls.get(7)).onClick().run();
         ((ModernModuleSettings.ActionControl) invControls.get(8)).onClick().run();
         assert actions.invSettingsOpened == 1 && actions.invMoveOpened == 1;
-
-        List<ModernModuleSettings.Control> vsControls = ModernModuleSettings.getControls("Version Switcher", cfg, actions);
-        ((ModernModuleSettings.ActionControl) vsControls.get(0)).onClick().run();
-        assert actions.versionSwitcherOpened == 1;
     }
 }

@@ -369,24 +369,6 @@ public class ClickGuiScreen extends Screen {
                 }
         ));
 
-        // 21. Version Switcher (LiquidBounce Protocol Switcher)
-        MODULES.add(new ModuleEntry(
-                "Version Switcher", Category.EXPLOIT,
-                () -> config.isCustomProtocol(),
-                val -> {
-                    if (val) {
-                        if (config.targetProtocol <= 0) {
-                            config.targetProtocol = 765;
-                            config.targetVersionName = "1.20.4";
-                        }
-                    } else {
-                        config.targetProtocol = -1;
-                        config.targetVersionName = "Auto";
-                    }
-                    config.save();
-                }
-        ));
-
         ModernModuleGridLayout.sortByNameInPlace(MODULES, m -> m.name);
     }
 
@@ -1157,10 +1139,6 @@ public class ClickGuiScreen extends Screen {
                 drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
                         "Abort Breaking: " + (config.abortBreaking ? "ON" : "OFF"), config.abortBreaking);
             }
-            case "Version Switcher" -> {
-                drawActionButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
-                        "Open Menu (" + config.getDisplayVersion() + ")");
-            }
             case "GUI Style" -> {
                 String styleName = (config.clickGuiStyle == 1) ? "Modern Dashboard" : "Classic Multi-Window";
                 drawActionButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW, "Style: " + styleName);
@@ -1183,7 +1161,7 @@ public class ClickGuiScreen extends Screen {
             case "Better Chat" -> 5;
             case "Keybinds HUD" -> 4;
             case "FastBreak" -> 3;
-            case "HUD Info", "TNT Timer", "Auto Sprint", "Safe Walk", "TrueSight", "Item ESP", "No Pitch Limit", "Abort Breaking", "Version Switcher", "GUI Style" -> 1;
+            case "HUD Info", "TNT Timer", "Auto Sprint", "Safe Walk", "TrueSight", "Item ESP", "No Pitch Limit", "Abort Breaking", "GUI Style" -> 1;
             default -> 0;
         };
         return specific + 1;
@@ -2219,15 +2197,6 @@ public class ClickGuiScreen extends Screen {
                     config.abortBreaking = !config.abortBreaking;
                     config.save();
                     playClickSound();
-                }
-            }
-            case "Version Switcher" -> {
-                if (specificRow == 0) {
-                    playClickSound();
-                    Minecraft mc = Minecraft.getInstance();
-                    if (mc != null) {
-                        mc.gui.setScreen(new VersionSwitcherScreen(mc.gui.screen()));
-                    }
                 }
             }
             case "GUI Style" -> {
