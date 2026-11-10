@@ -414,11 +414,11 @@ public class ClickGuiScreen extends Screen {
     }
 
     private static boolean isLeftClick(int button) {
-        return button == InputConstants.MOUSE_BUTTON_LEFT || button == 0;
+        return MouseButtonMapping.isLeftClick(button);
     }
 
     private static boolean isRightClick(int button) {
-        return button == InputConstants.MOUSE_BUTTON_RIGHT;
+        return MouseButtonMapping.isRightClick(button);
     }
 
     private static boolean isShiftDown() {
@@ -821,14 +821,7 @@ public class ClickGuiScreen extends Screen {
             return "None";
         }
         if (isMouse) {
-            return switch (keyCode) {
-                case 0 -> "Left Button";
-                case 1 -> "Right Button";
-                case 2 -> "Middle Button";
-                case 3 -> "Button 4";
-                case 4 -> "Button 5";
-                default -> "Button " + keyCode;
-            };
+            return MouseButtonMapping.getDisplayName(keyCode);
         }
         try {
             String s = InputConstants.getKey(new KeyEvent(keyCode, 0, 0)).getDisplayName().getString();
@@ -845,14 +838,7 @@ public class ClickGuiScreen extends Screen {
             return "None";
         }
         if (isMouse) {
-            return switch (keyCode) {
-                case 0 -> "M1";
-                case 1 -> "M2";
-                case 2 -> "M3";
-                case 3 -> "M4";
-                case 4 -> "M5";
-                default -> "M" + (keyCode + 1);
-            };
+            return MouseButtonMapping.getShortName(keyCode);
         }
         try {
             String s = InputConstants.getKey(new KeyEvent(keyCode, 0, 0)).getDisplayName().getString();
@@ -1302,9 +1288,9 @@ public class ClickGuiScreen extends Screen {
         int screenW = mc.getWindow().getGuiScaledWidth();
         int screenH = mc.getWindow().getGuiScaledHeight();
 
-        // If waiting for a module keybind, bind any mouse button pressed (or cancel on left click)
+        // If waiting for a module keybind, bind any extra mouse button pressed (or cancel on left/right click)
         if (listeningModuleBind != null) {
-            if (button != InputConstants.MOUSE_BUTTON_LEFT) {
+            if (MouseButtonMapping.isExtraMouseButton(button)) {
                 config.setModuleKey(listeningModuleBind, button, true);
                 listeningModuleBind = null;
                 playClickSound();
@@ -1778,8 +1764,8 @@ public class ClickGuiScreen extends Screen {
     }
 
     public static void handleInGameModuleMouse(int button) {
-        if (button < 2) {
-            return; // Ignore LMB (0) and RMB (1) in-game to avoid breaking attack / block interaction
+        if (!MouseButtonMapping.isExtraMouseButton(button)) {
+            return; // Ignore LMB (1) and RMB (3) in-game to avoid breaking attack / block interaction
         }
         ensureModulesInitialized();
         ModConfig config = ModConfig.getInstance();
