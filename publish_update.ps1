@@ -75,7 +75,9 @@ foreach ($oldTex in @(
     "assets\inventoryhud\textures\gui\custom_title_bg.*",
     "assets\inventoryhud\textures\gui\custom_title_hover.*",
     "assets\inventoryhud\textures\gui\vortex",
-    "assets\sestia"
+    "assets\sestia",
+    "assets\minecraft\font",
+    "assets\minecraft\textures\font"
 )) {
     $p = Join-Path $coreStage $oldTex
     if (Test-Path $p) { Remove-Item $p -Recurse -Force }

@@ -18,7 +18,7 @@ import java.util.Arrays;
 import java.util.Locale;
 
 public class StatsHudRenderer {
-    // Uses default font (which will be Cool Font) instead of hardcoded Comfortaa
+    // Uses Minecraft's default font
     private static final Style PRIMARY_STYLE = Style.EMPTY.withColor(0xFFFFFFFF);
     private static final Style SECONDARY_STYLE = Style.EMPTY.withColor(0xFFD8D8D8);
 
