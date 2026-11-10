@@ -1141,11 +1141,25 @@ public class ModernClickGuiScreen extends Screen {
         int mouseY = (int) event.y();
         int button = event.button();
 
-        if (this.listeningKeybindModule != null && button >= 2) {
+        if (this.listeningKeybindModule != null && MouseButtonMapping.isExtraMouseButton(button)) {
             ModConfig cfg = ModConfig.getInstance();
             cfg.setModuleKey(this.listeningKeybindModule, button, true);
             this.listeningKeybindModule = null;
             cfg.save();
+            playClickSound();
+            return true;
+        }
+
+        if (this.listeningMacroKey && MouseButtonMapping.isExtraMouseButton(button)) {
+            this.tempMacroKey = button;
+            this.tempMacroIsMouse = true;
+            this.listeningMacroKey = false;
+            if (this.editingMacroIndex >= 0 && this.editingMacroIndex < ModConfig.getInstance().macros.size()) {
+                ModConfig.MacroEntry m = ModConfig.getInstance().macros.get(this.editingMacroIndex);
+                m.keyCode = this.tempMacroKey;
+                m.isMouse = true;
+                ModConfig.getInstance().save();
+            }
             playClickSound();
             return true;
         }
@@ -1155,7 +1169,7 @@ public class ModernClickGuiScreen extends Screen {
         int searchH = 22;
         int searchBoxX = this.windowX + this.windowW - searchW - 44;
         int searchBoxY = this.windowY + (HEADER_HEIGHT - searchH) / 2;
-        if (!this.searchQuery.isEmpty() && isInside(mouseX, mouseY, searchBoxX + searchW - 18, searchBoxY, 18, searchH)) {
+        if (MouseButtonMapping.isLeftClick(button) && !this.searchQuery.isEmpty() && isInside(mouseX, mouseY, searchBoxX + searchW - 18, searchBoxY, 18, searchH)) {
             if (this.searchBox != null) {
                 this.searchBox.setValue("");
             }
@@ -1172,7 +1186,7 @@ public class ModernClickGuiScreen extends Screen {
         // Close [X] button in header
         int closeX = this.windowX + this.windowW - 30;
         int closeY = this.windowY + 12;
-        if (isInside(mouseX, mouseY, closeX, closeY, 20, 20)) {
+        if (MouseButtonMapping.isLeftClick(button) && isInside(mouseX, mouseY, closeX, closeY, 20, 20)) {
             playClickSound();
             onClose();
             return true;
@@ -1182,7 +1196,7 @@ public class ModernClickGuiScreen extends Screen {
         int sideX = this.windowX;
         int sideY = this.windowY + HEADER_HEIGHT + 1;
         int listTop = sideY + 10;
-        if (isInside(mouseX, mouseY, sideX, sideY, SIDEBAR_WIDTH, this.windowH - HEADER_HEIGHT - 2)) {
+        if (MouseButtonMapping.isLeftClick(button) && isInside(mouseX, mouseY, sideX, sideY, SIDEBAR_WIDTH, this.windowH - HEADER_HEIGHT - 2)) {
             int tabIndex = (mouseY - listTop) / NAV_ROW_HEIGHT;
             NavTab[] tabs = NavTab.values();
             if (mouseY >= listTop && tabIndex >= 0 && tabIndex < tabs.length) {
@@ -1239,7 +1253,7 @@ public class ModernClickGuiScreen extends Screen {
     private boolean handleModulesWorkspaceClick(int mouseX, int mouseY, int button, int contentX, int contentY, int contentW, int contentH) {
         // 1. Category chip filter bar
         if (mouseY < contentY + CHIP_BAR_HEIGHT) {
-            if (button == 0) {
+            if (MouseButtonMapping.isLeftClick(button)) {
                 List<FilterChip> chips = getFilterChips();
                 int curX = contentX + 12;
                 int chipY = contentY + 6;
@@ -1310,12 +1324,12 @@ public class ModernClickGuiScreen extends Screen {
                 int bindX = cx + colW - 10 - bindW;
                 int bindY = cy + 32;
                 if (isInside(mouseX, mouseY, bindX, bindY, bindW, 15)) {
-                    if (button == 1) {
+                    if (MouseButtonMapping.isRightClick(button)) {
                         cfg.setModuleKey(mod.name, -1, false);
                         this.listeningKeybindModule = null;
                         cfg.save();
                         playClickSound();
-                    } else if (button == 0) {
+                    } else if (MouseButtonMapping.isLeftClick(button)) {
                         this.listeningKeybindModule = isListening ? null : mod.name;
                         cfg.save();
                         playClickSound();
@@ -1328,19 +1342,19 @@ public class ModernClickGuiScreen extends Screen {
                     int switchX = cx + colW - 30 - 10;
                     int tuneX = switchX - 22;
                     int tuneY = cy + 9;
-                    if (isInside(mouseX, mouseY, tuneX, tuneY, 17, 15) && (button == 0 || button == 1)) {
+                    if (isInside(mouseX, mouseY, tuneX, tuneY, 17, 15) && (MouseButtonMapping.isLeftClick(button) || MouseButtonMapping.isRightClick(button))) {
                         toggleInspector(mod.name);
                         return true;
                     }
                 }
 
                 // Main Card Body / Toggle Switch: Left-click toggles ON/OFF, Right-click opens Settings (if configurable)
-                if (button == 0) {
+                if (MouseButtonMapping.isLeftClick(button)) {
                     mod.setter.accept(!mod.getter.get());
                     playClickSound();
                     return true;
                 }
-                if (button == 1) {
+                if (MouseButtonMapping.isRightClick(button)) {
                     if (hasSettings) {
                         toggleInspector(mod.name);
                     }
@@ -1363,7 +1377,7 @@ public class ModernClickGuiScreen extends Screen {
         // Close button [X]
         int closeBtnX = x + w - 28;
         int closeBtnY = y + 9;
-        if (isInside(mouseX, mouseY, closeBtnX, closeBtnY, 18, 18) && (button == 0 || button == 1)) {
+        if (isInside(mouseX, mouseY, closeBtnX, closeBtnY, 18, 18) && (MouseButtonMapping.isLeftClick(button) || MouseButtonMapping.isRightClick(button))) {
             closeInspector();
             playClickSound();
             return true;
@@ -1372,7 +1386,7 @@ public class ModernClickGuiScreen extends Screen {
         // Status & Bind row
         int rowY = y + 36;
         int pillW = (w - 28) / 2;
-        if (isInside(mouseX, mouseY, x + 10, rowY, pillW, 17) && button == 0) {
+        if (isInside(mouseX, mouseY, x + 10, rowY, pillW, 17) && MouseButtonMapping.isLeftClick(button)) {
             mod.setter.accept(!mod.getter.get());
             playClickSound();
             return true;
@@ -1381,12 +1395,12 @@ public class ModernClickGuiScreen extends Screen {
         int bindBtnX = x + 16 + pillW;
         if (isInside(mouseX, mouseY, bindBtnX, rowY, pillW, 17)) {
             boolean isListening = mod.name.equals(this.listeningKeybindModule);
-            if (button == 1) {
+            if (MouseButtonMapping.isRightClick(button)) {
                 cfg.setModuleKey(mod.name, -1, false);
                 this.listeningKeybindModule = null;
                 cfg.save();
                 playClickSound();
-            } else if (button == 0) {
+            } else if (MouseButtonMapping.isLeftClick(button)) {
                 this.listeningKeybindModule = isListening ? null : mod.name;
                 cfg.save();
                 playClickSound();
@@ -1396,7 +1410,7 @@ public class ModernClickGuiScreen extends Screen {
 
         // Scrollable controls body
         int bodyY = y + INSPECTOR_HEADER_HEIGHT + 1;
-        if (mouseY >= bodyY && button == 0) {
+        if (mouseY >= bodyY && MouseButtonMapping.isLeftClick(button)) {
             List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(mod.name, cfg, this.settingsActions);
             ModernModuleCardUi.handleControlsClick(
                     mouseX,
@@ -1419,7 +1433,7 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     private boolean handleEspSettingsClick(int mouseX, int mouseY, int button, int contentX, int contentY, int contentW) {
-        if (button != 0) return false;
+        if (!MouseButtonMapping.isLeftClick(button)) return false;
         ModConfig config = ModConfig.getInstance();
         int leftColW = Math.min(320, contentW / 2 - 10);
         int leftColX = contentX + 14;
@@ -1504,23 +1518,20 @@ public class ModernClickGuiScreen extends Screen {
                 int bindBtnY = formY + 12;
 
                 if (isInside(mouseX, mouseY, bindBtnX, bindBtnY, boxW, 22)) {
-                    if (button == 1) {
+                    if (MouseButtonMapping.isRightClick(button)) {
                         this.tempMacroKey = -1;
                         this.tempMacroIsMouse = false;
                         this.listeningMacroKey = false;
-                    } else {
-                        this.listeningMacroKey = true;
+                        playClickSound();
+                    } else if (MouseButtonMapping.isLeftClick(button)) {
+                        this.listeningMacroKey = !this.listeningMacroKey;
+                        playClickSound();
                     }
-                    playClickSound();
                     return true;
                 }
 
-                if (this.listeningMacroKey && button >= 2) {
-                    this.tempMacroKey = button;
-                    this.tempMacroIsMouse = true;
-                    this.listeningMacroKey = false;
-                    playClickSound();
-                    return true;
+                if (!MouseButtonMapping.isLeftClick(button)) {
+                    return false;
                 }
 
                 formY += 56;
@@ -1563,7 +1574,7 @@ public class ModernClickGuiScreen extends Screen {
             } else {
                 int addBtnX = rightColX + 12;
                 int addBtnY = innerY + 36;
-                if (isInside(mouseX, mouseY, addBtnX, addBtnY, rightColW - 24, 26)) {
+                if (MouseButtonMapping.isLeftClick(button) && isInside(mouseX, mouseY, addBtnX, addBtnY, rightColW - 24, 26)) {
                     this.editingMacroIndex = -2;
                     this.listeningMacroKey = false;
                     this.tempMacroKey = -1;
@@ -1595,7 +1606,7 @@ public class ModernClickGuiScreen extends Screen {
                 ModConfig.MacroEntry m = config.macros.get(i);
                 int delBtnX = leftColX + leftColW - 28;
                 int btnY = cardY + 14;
-                if (isInside(mouseX, mouseY, delBtnX, btnY, 22, 18)) {
+                if (MouseButtonMapping.isLeftClick(button) && isInside(mouseX, mouseY, delBtnX, btnY, 22, 18)) {
                     config.macros.remove(i);
                     if (this.editingMacroIndex == i) {
                         closeMacroEditor();
@@ -1608,7 +1619,7 @@ public class ModernClickGuiScreen extends Screen {
                 }
 
                 int editBtnX = leftColX + leftColW - 56;
-                if (isInside(mouseX, mouseY, editBtnX, btnY, 22, 18)) {
+                if (MouseButtonMapping.isLeftClick(button) && isInside(mouseX, mouseY, editBtnX, btnY, 22, 18)) {
                     loadMacroIntoEditor(i, m);
                     playClickSound();
                     return true;
@@ -1618,7 +1629,7 @@ public class ModernClickGuiScreen extends Screen {
                 int bindBadgeW = Math.max(48, this.font.width(bindText) + 14);
                 int bindBadgeX = leftColX + leftColW - 64 - bindBadgeW;
                 if (isInside(mouseX, mouseY, bindBadgeX, btnY, bindBadgeW, 18)) {
-                    if (button == 1) {
+                    if (MouseButtonMapping.isRightClick(button)) {
                         m.keyCode = -1;
                         m.isMouse = false;
                         if (this.editingMacroIndex == i) {
@@ -1627,17 +1638,21 @@ public class ModernClickGuiScreen extends Screen {
                             this.listeningMacroKey = false;
                         }
                         config.save();
-                    } else {
+                        playClickSound();
+                    } else if (MouseButtonMapping.isLeftClick(button)) {
                         loadMacroIntoEditor(i, m);
                         this.listeningMacroKey = true;
+                        playClickSound();
                     }
-                    playClickSound();
                     return true;
                 }
 
-                loadMacroIntoEditor(i, m);
-                playClickSound();
-                return true;
+                if (MouseButtonMapping.isLeftClick(button)) {
+                    loadMacroIntoEditor(i, m);
+                    playClickSound();
+                    return true;
+                }
+                return false;
             }
         }
 
@@ -1667,7 +1682,7 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     private boolean handleClientSettingsClick(int mouseX, int mouseY, int button, int contentX, int contentY, int contentW) {
-        if (button != 0) return false;
+        if (!MouseButtonMapping.isLeftClick(button)) return false;
         ModConfig config = ModConfig.getInstance();
         int topY = (int) (contentY + 12 - this.scrollAmount);
         int cardY = topY + 22;
