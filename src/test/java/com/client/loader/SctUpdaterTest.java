@@ -107,11 +107,11 @@ public class SctUpdaterTest {
                 try (OutputStream os = ex.getResponseBody()) { os.write(resp); }
             });
             server.createContext("/redirect", ex -> {
-                ex.getResponseHeaders().add("Location", "http://127.0.0.1:" + port + "/cdn/SCTClient-Core.jar");
+                ex.getResponseHeaders().add("Location", "http://127.0.0.1:" + port + "/cdn/sestia-core.jar");
                 ex.sendResponseHeaders(302, -1);
                 ex.close();
             });
-            server.createContext("/cdn/SCTClient-Core.jar", ex -> {
+            server.createContext("/cdn/sestia-core.jar", ex -> {
                 ex.sendResponseHeaders(200, newCoreBytes.length);
                 try (OutputStream os = ex.getResponseBody()) { os.write(newCoreBytes); }
             });
@@ -127,9 +127,9 @@ public class SctUpdaterTest {
             );
 
             Path resolved = updater.resolveAndEnsureCore();
-            assert resolved.getFileName().toString().equals("SCTClient-Core-1.0.2.jar") : "Unexpected filename: " + resolved;
+            assert resolved.getFileName().toString().equals("sestia-core-1.0.2.jar") : "Unexpected filename: " + resolved;
             assert Files.readString(resolved).equals("CORE-1.0.2-NEW-PAYLOAD") : "Updated payload mismatch";
-            assert !Files.exists(workDir.resolve("core").resolve("SCTClient-Core-1.0.0.jar")) : "Old cached core should be pruned";
+            assert !Files.exists(workDir.resolve("core").resolve("sestia-core-1.0.0.jar")) : "Old cached core should be pruned";
             assert Files.exists(workDir.resolve("pending-notice.json")) : "Expected pending-notice.json after update";
             String noticeJson = Files.readString(workDir.resolve("pending-notice.json"));
             assert noticeJson.contains("\"UPDATED\"") && noticeJson.contains("1.0.2") : "Invalid notice JSON: " + noticeJson;
@@ -228,7 +228,7 @@ public class SctUpdaterTest {
             );
             Path resolved = updater.resolveAndEnsureCore();
             assert Files.readString(resolved).equals("VALID-OLD-1.0.0") : "Must fall back to intact baseline on checksum mismatch";
-            assert !Files.exists(workDir.resolve("core").resolve("SCTClient-Core-1.0.3.jar")) : "Tampered file must not be kept";
+            assert !Files.exists(workDir.resolve("core").resolve("sestia-core-1.0.3.jar")) : "Tampered file must not be kept";
             assert Files.list(workDir.resolve("core")).noneMatch(p -> p.toString().endsWith(".part")) : "Leftover .part file must be removed";
         } finally {
             server.stop(0);

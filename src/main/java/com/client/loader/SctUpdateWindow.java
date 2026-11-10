@@ -258,7 +258,7 @@ public final class SctUpdateWindow implements SctUpdateListener {
         }
         this.badgeText = "LOADER";
         this.versionTag = "v" + latestVersion;
-        this.statusTitle = "New SCTClient.jar loader required";
+        this.statusTitle = "New sestia.jar loader required";
         this.statusSub = "Launching cached build — see in-game notice";
         this.pctText = "UPDATE";
         this.leftMeta = "Continuing safely with cached core";

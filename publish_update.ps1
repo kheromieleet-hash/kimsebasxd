@@ -75,7 +75,7 @@ foreach ($oldTex in @(
     "assets\inventoryhud\textures\gui\custom_title_bg.*",
     "assets\inventoryhud\textures\gui\custom_title_hover.*",
     "assets\inventoryhud\textures\gui\vortex",
-    "assets\sctclient"
+    "assets\sestia"
 )) {
     $p = Join-Path $coreStage $oldTex
     if (Test-Path $p) { Remove-Item $p -Recurse -Force }
@@ -136,12 +136,12 @@ Copy-Item (Join-Path $repoRoot "pack.mcmeta") (Join-Path $coreStage "pack.mcmeta
 $metaContent = "version=$Version`nversionCode=$VersionCode`n"
 [IO.File]::WriteAllText((Join-Path $coreStage "sct-core-meta.properties"), $metaContent, (New-Object System.Text.UTF8Encoding($false)))
 
-$coreJarOut = Join-Path $distDir "SCTClient-Core.jar"
+$coreJarOut = Join-Path $distDir "sestia-core.jar"
 if (Test-Path $coreJarOut) { Remove-Item $coreJarOut -Force }
 Push-Location $coreStage
 & $jarExe cf $coreJarOut *
 Pop-Location
-if ($LASTEXITCODE -ne 0) { throw "Failed to pack SCTClient-Core.jar" }
+if ($LASTEXITCODE -ne 0) { throw "Failed to pack sestia-core.jar" }
 
 $coreHash = (Get-FileHash -Path $coreJarOut -Algorithm SHA256).Hash.ToLowerInvariant()
 $coreSize = (Get-Item $coreJarOut).Length
@@ -151,7 +151,7 @@ $manifestObj = [ordered]@{
     versionCode   = $VersionCode
     version       = $Version
     changelog     = $Changelog
-    downloadUrl   = "https://github.com/$Repo/releases/latest/download/SCTClient-Core.jar"
+    downloadUrl   = "https://github.com/$Repo/releases/latest/download/sestia-core.jar"
     sha256        = $coreHash
     sizeBytes     = $coreSize
     minLoaderCode = 1
@@ -161,7 +161,7 @@ $manifestJson = $manifestObj | ConvertTo-Json -Depth 4
 $manifestOut = Join-Path $distDir "version.json"
 [IO.File]::WriteAllText($manifestOut, $manifestJson, (New-Object System.Text.UTF8Encoding($false)))
 
-# Stage Bootloader JAR (ONLY com/client/loader + fabric.mod.json + IAS JiJ + sctclient/fallback-core.jar)
+# Stage Bootloader JAR (ONLY com/client/loader + fabric.mod.json + IAS JiJ + sestia/fallback-core.jar)
 $loaderClassesDest = Join-Path $loaderStage "com\client\loader"
 New-Item -ItemType Directory -Path $loaderClassesDest -Force | Out-Null
 Copy-Item (Join-Path $classesDir "com\client\loader\*") $loaderClassesDest -Recurse -Force
@@ -177,31 +177,36 @@ $iasJarSrc = "$scratchDir\IAS-9.0.8+26.3-fabric.jar"
 if (-not (Test-Path $iasJarSrc)) { $iasJarSrc = Join-Path $repoRoot "META-INF\jars\IAS-9.0.8+26.3-fabric.jar" }
 Copy-Item $iasJarSrc (Join-Path $loaderJarsDir "IAS-9.0.8+26.3-fabric.jar") -Force
 
-$fallbackDir = Join-Path $loaderStage "sctclient"
+$fallbackDir = Join-Path $loaderStage "sestia"
 New-Item -ItemType Directory -Path $fallbackDir -Force | Out-Null
 Copy-Item $coreJarOut (Join-Path $fallbackDir "fallback-core.jar") -Force
 
-$loaderJarOut = Join-Path $distDir "SCTClient.jar"
+$loaderJarOut = Join-Path $distDir "sestia.jar"
 if (Test-Path $loaderJarOut) { Remove-Item $loaderJarOut -Force }
 Push-Location $loaderStage
 & $jarExe cf $loaderJarOut *
 Pop-Location
-if ($LASTEXITCODE -ne 0) { throw "Failed to pack SCTClient.jar" }
+if ($LASTEXITCODE -ne 0) { throw "Failed to pack sestia.jar" }
 
 # Deploy clean bootloader JAR locally (handle active Minecraft lock cleanly)
 $prismMods = "C:\Users\PC\AppData\Roaming\PrismLauncher\instances\26.3\minecraft\mods"
 if (Test-Path $prismMods) {
     try {
-        $legacyMod = Join-Path $prismMods "ClientMod-1.0.0.jar"
-        if (Test-Path $legacyMod) { Remove-Item $legacyMod -Force }
-        Copy-Item $loaderJarOut (Join-Path $prismMods "SCTClient.jar") -Force
-        Write-Host "Updated PrismLauncher mods/SCTClient.jar"
+        foreach ($oldJar in @("ClientMod-1.0.0.jar", "SCTClient.jar")) {
+            $oldPath = Join-Path $prismMods $oldJar
+            if (Test-Path $oldPath) { Remove-Item $oldPath -Force }
+        }
+        Copy-Item $loaderJarOut (Join-Path $prismMods "sestia.jar") -Force
+        Write-Host "Updated PrismLauncher mods/sestia.jar"
     } catch {
-        Write-Warning "Could not update PrismLauncher mods/ while Minecraft is running. Close Minecraft, delete ClientMod-1.0.0.jar, and copy dist\SCTClient.jar to $prismMods"
+        Write-Warning "Could not update PrismLauncher mods/ while Minecraft is running. Close Minecraft, delete ClientMod-1.0.0.jar / SCTClient.jar, and copy dist\sestia.jar to $prismMods"
     }
 }
-Copy-Item $loaderJarOut "C:\Users\PC\Desktop\SCTClient.jar" -Force
-Copy-Item $loaderJarOut "C:\Users\PC\Downloads\SCTClient.jar" -Force
+Copy-Item $loaderJarOut "C:\Users\PC\Desktop\sestia.jar" -Force
+Copy-Item $loaderJarOut "C:\Users\PC\Downloads\sestia.jar" -Force
+foreach ($oldCopy in @("C:\Users\PC\Desktop\SCTClient.jar", "C:\Users\PC\Downloads\SCTClient.jar", (Join-Path $distDir "SCTClient.jar"), (Join-Path $distDir "SCTClient-Core.jar"))) {
+    if (Test-Path $oldCopy) { Remove-Item $oldCopy -Force }
+}
 
 # Clean temporary staging directories (keep dist/)
 Remove-Item $buildTmp -Recurse -Force

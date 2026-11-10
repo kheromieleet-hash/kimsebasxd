@@ -122,7 +122,7 @@ public final class SctUpdater {
             Path safeCore = ensureBaselineIfMissing(localCore, localState);
             String url = (remote.loaderUrl != null && !remote.loaderUrl.isBlank()) ? remote.loaderUrl : this.releasesPageUrl;
             writeNotice("LOADER_OUTDATED", targetVer, localState != null ? localState.version : SctUpdateConfig.BASELINE_VERSION,
-                    "New SCTClient.jar loader required for v" + targetVer, url);
+                    "New sestia.jar loader required for v" + targetVer, url);
             this.listener.onLoaderOutdated(targetVer, url);
             this.listener.close();
             return safeCore;
@@ -339,7 +339,7 @@ public final class SctUpdater {
 
     private Path safeCorePath(String sanitizedVersion) throws IOException {
         String safeSeg = sanitizeVersionFileSegment(sanitizedVersion);
-        Path resolved = this.coreDir.resolve("SCTClient-Core-" + safeSeg + ".jar").normalize();
+        Path resolved = this.coreDir.resolve("sestia-core-" + safeSeg + ".jar").normalize();
         if (!resolved.startsWith(this.coreDir)) {
             throw new IOException("Refusing unsafe core path outside core directory");
         }
@@ -368,7 +368,7 @@ public final class SctUpdater {
         while (clean.contains("..")) {
             clean = clean.replace("..", ".");
         }
-        return clean.isEmpty() ? "SCTClient-Core.jar" : clean;
+        return clean.isEmpty() ? "sestia-core.jar" : clean;
     }
 
     private void cleanupLeftoverParts() {
@@ -385,7 +385,7 @@ public final class SctUpdater {
         if (!Files.isDirectory(this.coreDir)) return;
         Path normActive = activeJar.toAbsolutePath().normalize();
         try (var stream = Files.list(this.coreDir)) {
-            stream.filter(p -> p.getFileName().toString().startsWith("SCTClient-Core-") && p.getFileName().toString().endsWith(".jar"))
+            stream.filter(p -> p.getFileName().toString().startsWith("sestia-core-") && p.getFileName().toString().endsWith(".jar"))
                     .filter(p -> !p.toAbsolutePath().normalize().equals(normActive))
                     .forEach(p -> {
                         try { Files.deleteIfExists(p); } catch (IOException ignored) {}

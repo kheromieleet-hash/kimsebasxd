@@ -40,7 +40,7 @@ public final class UpdateNoticeManager {
         String workDirProp = System.getProperty("sct.work.dir");
         Path noticeFile = (workDirProp != null && !workDirProp.isBlank())
                 ? Path.of(workDirProp).resolve("pending-notice.json")
-                : Path.of("sctclient", "pending-notice.json");
+                : Path.of("sestia", "pending-notice.json");
 
         Notice loaded = consumePendingNotice(noticeFile);
         if (loaded != null) {
@@ -115,7 +115,7 @@ public final class UpdateNoticeManager {
         Font font = mc.font;
         String verText = notice.version != null ? notice.version : ClientBuildInfo.getVersion();
         String title = isOutdated
-                ? "⚠ New SCTClient.jar Loader Required"
+                ? "⚠ New sestia.jar Loader Required"
                 : "✦ SCT Client Updated to v" + verText;
         String subtitle = isOutdated
                 ? ("Needed for v" + verText + " • Running cached build")
@@ -172,7 +172,7 @@ public final class UpdateNoticeManager {
         String msg;
         if ("LOADER_OUTDATED".equalsIgnoreCase(notice.type)) {
             String url = notice.releaseUrl != null ? notice.releaseUrl : "https://github.com/kheromieallah/sestia/releases/latest";
-            msg = "§e§l⚠ [SCT Client] §fA newer §bSCTClient.jar §floader is required for §dv" + ver + "§f. Download latest from: §n" + url;
+            msg = "§e§l⚠ [SCT Client] §fA newer §bsestia.jar §floader is required for §dv" + ver + "§f. Download latest from: §n" + url;
         } else {
             String prev = (notice.previousVersion != null && !"initial".equals(notice.previousVersion))
                     ? (" §7(from v" + notice.previousVersion + ")") : "";

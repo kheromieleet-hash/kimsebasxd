@@ -42,7 +42,7 @@ public final class SctBootstrapAdapter implements LanguageAdapter {
                         workDir,
                         manifestUrl,
                         releasesUrl,
-                        () -> SctBootstrapAdapter.class.getResourceAsStream("/sctclient/fallback-core.jar"),
+                        () -> SctBootstrapAdapter.class.getResourceAsStream("/sestia/fallback-core.jar"),
                         listener
                 );
                 Path coreJar = updater.resolveAndEnsureCore();
@@ -79,11 +79,11 @@ public final class SctBootstrapAdapter implements LanguageAdapter {
         try {
             Path gameDir = FabricLoader.getInstance().getGameDir();
             if (gameDir != null) {
-                return gameDir.resolve("sctclient");
+                return gameDir.resolve("sestia");
             }
         } catch (Throwable ignored) {
         }
-        return Path.of("sctclient");
+        return Path.of("sestia");
     }
 
     @Override
