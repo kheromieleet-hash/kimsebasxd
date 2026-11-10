@@ -160,6 +160,7 @@ public final class ModernModuleSettings {
             case "Fullbright" -> buildFullbrightControls(cfg, actions);
             case "Keybinds HUD" -> buildKeybindsHudControls(cfg, actions);
             case "Fast Place" -> List.of(
+                    toggle("Auto Right Click", () -> cfg.fastPlaceAutoRightClick, v -> cfg.fastPlaceAutoRightClick = v, actions, false),
                     intSlider("fastPlaceDelay", "Fast Place Delay", 0, 4, "t",
                             () -> cfg.fastPlaceDelay, v -> cfg.fastPlaceDelay = v)
             );
@@ -170,7 +171,6 @@ public final class ModernModuleSettings {
             case "Inventory Tweaks" -> buildInventoryTweaksControls(cfg, actions);
             case "Auto Replenish" -> buildAutoReplenishControls(cfg, actions);
             case "Fast Use" -> List.of(
-                    toggle("Auto Right Click", () -> cfg.fastUseAutoRightClick, v -> cfg.fastUseAutoRightClick = v, actions, false),
                     intSlider("fastUseCooldown", "Cooldown", 0, 4, "t",
                             () -> cfg.fastUseCooldown, v -> cfg.fastUseCooldown = v)
             );

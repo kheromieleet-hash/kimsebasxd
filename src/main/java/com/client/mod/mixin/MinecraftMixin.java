@@ -115,14 +115,15 @@ public abstract class MinecraftMixin {
         }
         AutoToolHandler.tick();
         if (this.options != null) {
-            boolean shouldHold = cfg.fastUseEnabled && cfg.fastUseAutoRightClick
-                    && this.player != null && this.gui != null && this.gui.screen() == null;
-            if (shouldHold) {
+            if (shouldAutoRightClick(cfg)) {
                 this.options.keyUse.setDown(true);
                 this.wasAutoRightClicking = true;
             } else if (this.wasAutoRightClicking) {
                 this.wasAutoRightClicking = false;
-                this.options.keyUse.setDown(false);
+                boolean physicalRight = this.mouseHandler != null && this.mouseHandler.isRightPressed();
+                if (!physicalRight) {
+                    this.options.keyUse.setDown(false);
+                }
             }
 
             // Auto Break logic
@@ -167,10 +168,10 @@ public abstract class MinecraftMixin {
             if (this.rightClickDelay > target) {
                 this.rightClickDelay = target;
             }
-            if (cfg.fastUseAutoRightClick && this.options != null && this.player != null && (this.gui == null || this.gui.screen() == null)) {
-                this.options.keyUse.setDown(true);
-                this.wasAutoRightClicking = true;
-            }
+        }
+        if (shouldAutoRightClick(cfg)) {
+            this.options.keyUse.setDown(true);
+            this.wasAutoRightClicking = true;
         }
         if (cfg.fastPlace && this.player != null && (this.player.getMainHandItem().getItem() instanceof BlockItem || this.player.getOffhandItem().getItem() instanceof BlockItem)) {
             int target = Math.max(0, Math.min(4, cfg.fastPlaceDelay));
@@ -178,6 +179,16 @@ public abstract class MinecraftMixin {
                 this.rightClickDelay = target;
             }
         }
+    }
+
+    @Unique
+    private boolean shouldAutoRightClick(ModConfig cfg) {
+        return cfg.fastPlace
+                && cfg.fastPlaceAutoRightClick
+                && this.options != null
+                && this.player != null
+                && this.gui != null
+                && this.gui.screen() == null;
     }
 
     @Inject(method = "shouldEntityAppearGlowing", at = @At("HEAD"), cancellable = true)
