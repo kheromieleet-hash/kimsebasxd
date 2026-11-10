@@ -115,11 +115,11 @@ public final class UpdateNoticeManager {
         Font font = mc.font;
         String verText = notice.version != null ? notice.version : ClientBuildInfo.getVersion();
         String title = isOutdated
-                ? "⚠ New sestia.jar Loader Required"
-                : "✦ SCT Client Updated to v" + verText;
+                ? "[!] New sestia.jar Loader Required"
+                : "SCT Client Updated to v" + verText;
         String subtitle = isOutdated
-                ? ("Needed for v" + verText + " • Running cached build")
-                : (((notice.changelog != null && !notice.changelog.isBlank()) ? notice.changelog : "Latest build active") + " • Ready");
+                ? ("Needed for v" + verText + " | Running cached build")
+                : (((notice.changelog != null && !notice.changelog.isBlank()) ? notice.changelog : "Latest build active") + " | Ready");
         String pillLabel = isOutdated ? "ACTION" : "READY";
 
         int maxSubtitleW = 205;
@@ -131,8 +131,9 @@ public final class UpdateNoticeManager {
         }
 
         int pillW = font.width(pillLabel) + 12;
-        int contentW = Math.max(font.width(title), font.width(subtitle));
-        int boxW = Math.max(210, Math.min(310, contentW + pillW + 34));
+        int titleOffset = isOutdated ? 12 : 24;
+        int contentW = Math.max(font.width(title) + (isOutdated ? 0 : 12), font.width(subtitle));
+        int boxW = Math.max(210, Math.min(315, contentW + pillW + 34));
         int boxH = 38;
         int x = Math.round(graphics.guiWidth() - boxW - 10 + slideOffset);
         int y = 10;
@@ -147,7 +148,10 @@ public final class UpdateNoticeManager {
             JelloTheme.fillRoundedCard(graphics, x, y, x + boxW, y + boxH, 8, 0xEC140B0E, borderColor);
             JelloTheme.fillRounded(graphics, x + 3, y + 6, x + 6, y + boxH - 6, 2, accentColor);
 
-            JelloTheme.text(graphics, font, title, x + 12, y + 7, 0xFFFFFFFF);
+            if (!isOutdated) {
+                ModernIcons.drawBrandEmblem(graphics, x + 15, y + 11, JelloTheme.ACCENT, 0xFFFFCDD2);
+            }
+            JelloTheme.text(graphics, font, title, x + titleOffset, y + 7, 0xFFFFFFFF);
             JelloTheme.text(graphics, font, subtitle, x + 12, y + 21, JelloTheme.TEXT_DIM);
 
             int px1 = x + boxW - pillW - 8;
@@ -172,12 +176,12 @@ public final class UpdateNoticeManager {
         String msg;
         if ("LOADER_OUTDATED".equalsIgnoreCase(notice.type)) {
             String url = notice.releaseUrl != null ? notice.releaseUrl : "https://github.com/kheromieallah/sestia/releases/latest";
-            msg = "§e§l⚠ [SCT Client] §fA newer §bsestia.jar §floader is required for §cv" + ver + "§f. Download latest from: §n" + url;
+            msg = "§e§l[!] [SCT Client] §fA newer §bsestia.jar §floader is required for §cv" + ver + "§f. Download latest from: §n" + url;
         } else {
             String prev = (notice.previousVersion != null && !"initial".equals(notice.previousVersion))
                     ? (" §7(from v" + notice.previousVersion + ")") : "";
-            String log = (notice.changelog != null && !notice.changelog.isBlank()) ? (" §7— " + notice.changelog) : "";
-            msg = "§c§l✦ [SCT Client] §aUpdated to v" + ver + prev + log;
+            String log = (notice.changelog != null && !notice.changelog.isBlank()) ? (" §7- " + notice.changelog) : "";
+            msg = "§c§l[SCT Client] §aUpdated to v" + ver + prev + log;
         }
         client.gui.hud.getChat().addClientSystemMessage(Component.literal(msg));
     }

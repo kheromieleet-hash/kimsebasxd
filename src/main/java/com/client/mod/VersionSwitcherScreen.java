@@ -174,7 +174,7 @@ public class VersionSwitcherScreen extends Screen {
             }
 
             if (isActive) {
-                btn.setMessage(Component.literal("§a✔ Active"));
+                btn.setMessage(Component.literal("§a* Active"));
             } else {
                 btn.setMessage(Component.literal("§7Select"));
             }

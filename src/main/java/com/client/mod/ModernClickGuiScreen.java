@@ -11,6 +11,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -60,9 +61,11 @@ public class ModernClickGuiScreen extends Screen {
     private static final int HEADER_HEIGHT = 44;
     private static final int NAV_ROW_HEIGHT = 34;
     private static final int CHIP_BAR_HEIGHT = 30;
-    private static final int CARD_HEIGHT = 56;
+    private static final int CARD_HEIGHT = 50;
+    private static final int CARD_BIND_OFFSET_Y = 29;
     private static final int INSPECTOR_TARGET_WIDTH = 264;
-    private static final int INSPECTOR_HEADER_HEIGHT = 58;
+    private static final int INSPECTOR_HEADER_HEIGHT = 68;
+    private static final int INSPECTOR_PILL_ROW_OFFSET = 46;
 
     private final Screen parent;
 
@@ -480,31 +483,31 @@ public class ModernClickGuiScreen extends Screen {
         int switchW = 30;
         int switchH = 15;
         int switchX = x + w - switchW - 10;
-        int switchY = y + 9;
+        int switchY = y + 8;
         int titleMaxW = w - switchW - (hasSettings ? 48 : 26);
 
         String title = fitText(mod.name, titleMaxW);
-        graphics.text(this.font, Component.literal(title), x + 12, y + 11, active ? JelloTheme.TEXT : 0xFFE2E8F0, false);
+        graphics.text(this.font, Component.literal(title), x + 12, y + 10, active ? JelloTheme.TEXT : 0xFFE2E8F0, false);
 
         if (hasSettings) {
             int tuneX = switchX - 22;
-            int tuneY = y + 9;
+            int tuneY = y + 8;
             boolean tuneHov = isInside(mouseX, mouseY, tuneX, tuneY, 17, 15);
             int tuneBg = isInspected ? 0x44E53935 : (tuneHov ? 0x26FFFFFF : 0xFF1B1B25);
             int tuneBorder = isInspected ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE;
             JelloTheme.fillRoundedCard(graphics, tuneX, tuneY, tuneX + 17, tuneY + 15, 4, tuneBg, tuneBorder);
-            ModernIcons.drawTuneIcon(graphics, tuneX + 4, tuneY + 4,
+            ModernIcons.drawTuneIcon(graphics, tuneX + 4, tuneY + 3,
                     isInspected ? JelloTheme.ACCENT_HOVER : (tuneHov ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED));
         }
 
         renderSmoothSwitch(graphics, mouseX, mouseY, switchX, switchY, switchW, switchH, "mod:" + mod.name, active, dt);
 
-        // Bottom Row: Description (left) + Keybind Pill (bottom-right)
+        // Bottom Row: Keybind Pill only (descriptions are displayed inside Inspector Settings Drawer)
         boolean isListening = mod.name.equals(this.listeningKeybindModule);
         String bindTag = getBindPillText(cfg, mod.name, isListening);
         int bindW = this.font.width(bindTag) + 8;
         int bindX = x + w - 10 - bindW;
-        int bindY = y + 32;
+        int bindY = y + CARD_BIND_OFFSET_Y;
         int bindH = 15;
 
         boolean bindHovered = isInside(mouseX, mouseY, bindX, bindY, bindW, bindH);
@@ -513,10 +516,6 @@ public class ModernClickGuiScreen extends Screen {
         JelloTheme.fillRoundedCard(graphics, bindX, bindY, bindX + bindW, bindY + bindH, 4, bindBg, bindBorder);
         graphics.centeredText(this.font, Component.literal(bindTag), bindX + bindW / 2, bindY + 4,
                 isListening ? 0xFFFFDD55 : (cfg.getModuleKey(mod.name) >= 0 ? JelloTheme.TEXT_DIM : JelloTheme.TEXT_MUTED));
-
-        String desc = ModernModuleCardUi.getModuleDescription(mod.name, mod.category.name);
-        int maxDescW = Math.max(24, w - bindW - 28);
-        graphics.text(this.font, Component.literal(fitText(desc, maxDescW)), x + 12, y + 35, JelloTheme.TEXT_MUTED, false);
     }
 
     // ==========================================
@@ -540,7 +539,7 @@ public class ModernClickGuiScreen extends Screen {
         // Pinned Inspector Header
         graphics.fill(x + 1, y, x + w, y + INSPECTOR_HEADER_HEIGHT, JelloTheme.HEADER_BG);
         graphics.fill(x + 1, y + INSPECTOR_HEADER_HEIGHT, x + w, y + INSPECTOR_HEADER_HEIGHT + 1, JelloTheme.DIVIDER);
-        JelloTheme.fillRounded(graphics, x + 10, y + 10, x + 13, y + 26, 1, JelloTheme.ACCENT);
+        JelloTheme.fillRounded(graphics, x + 10, y + 10, x + 13, y + 39, 1, JelloTheme.ACCENT);
 
         int closeBtnX = x + w - 28;
         int closeBtnY = y + 9;
@@ -550,11 +549,16 @@ public class ModernClickGuiScreen extends Screen {
         ModernIcons.drawCloseIcon(graphics, closeBtnX + 9, closeBtnY + 9, closeHov ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED);
 
         String title = fitText(mod.name, w - 54);
-        graphics.text(this.font, Component.literal(title), x + 18, y + 11, JelloTheme.TEXT, false);
-        graphics.text(this.font, Component.literal(mod.category.name.toUpperCase(Locale.ROOT) + " SETTINGS"), x + 18, y + 22, JelloTheme.TEXT_MUTED, false);
+        graphics.text(this.font, Component.literal(title), x + 18, y + 10, JelloTheme.TEXT, false);
+
+        String desc = ModernModuleCardUi.getModuleDescription(mod.name, mod.category.name);
+        List<FormattedCharSequence> wrappedDesc = this.font.split(Component.literal(desc), Math.max(80, w - 50));
+        for (int lineIdx = 0; lineIdx < Math.min(2, wrappedDesc.size()); lineIdx++) {
+            graphics.text(this.font, wrappedDesc.get(lineIdx), x + 18, y + 21 + lineIdx * 10, JelloTheme.TEXT_MUTED, false);
+        }
 
         // Second header row: Module Status toggle + Bind pill
-        int rowY = y + 36;
+        int rowY = y + INSPECTOR_PILL_ROW_OFFSET;
         int pillW = (w - 28) / 2;
         boolean statHov = isInside(mouseX, mouseY, x + 10, rowY, pillW, 17);
         int statBg = active ? (statHov ? JelloTheme.CARD_ACTIVE_HOVER : JelloTheme.CARD_ACTIVE) : (statHov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
@@ -939,7 +943,7 @@ public class ModernClickGuiScreen extends Screen {
                 boolean editHovered = isInside(mouseX, mouseY, editBtnX, editBtnY, 22, 18);
                 JelloTheme.fillRoundedCard(graphics, editBtnX, editBtnY, editBtnX + 22, editBtnY + 18, 4,
                         editHovered ? 0x44E53935 : 0xFF1A1A24, editHovered ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
-                ModernIcons.drawTuneIcon(graphics, editBtnX + 7, editBtnY + 5, editHovered ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED);
+                ModernIcons.drawTuneIcon(graphics, editBtnX + 6, editBtnY + 4, editHovered ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED);
 
                 int delBtnX = leftColX + leftColW - 28;
                 boolean delHovered = isInside(mouseX, mouseY, delBtnX, editBtnY, 22, 18);
@@ -1322,7 +1326,7 @@ public class ModernClickGuiScreen extends Screen {
                 String bindTag = getBindPillText(cfg, mod.name, isListening);
                 int bindW = this.font.width(bindTag) + 8;
                 int bindX = cx + colW - 10 - bindW;
-                int bindY = cy + 32;
+                int bindY = cy + CARD_BIND_OFFSET_Y;
                 if (isInside(mouseX, mouseY, bindX, bindY, bindW, 15)) {
                     if (MouseButtonMapping.isRightClick(button)) {
                         cfg.setModuleKey(mod.name, -1, false);
@@ -1341,7 +1345,7 @@ public class ModernClickGuiScreen extends Screen {
                 if (hasSettings) {
                     int switchX = cx + colW - 30 - 10;
                     int tuneX = switchX - 22;
-                    int tuneY = cy + 9;
+                    int tuneY = cy + 8;
                     if (isInside(mouseX, mouseY, tuneX, tuneY, 17, 15) && (MouseButtonMapping.isLeftClick(button) || MouseButtonMapping.isRightClick(button))) {
                         toggleInspector(mod.name);
                         return true;
@@ -1384,7 +1388,7 @@ public class ModernClickGuiScreen extends Screen {
         }
 
         // Status & Bind row
-        int rowY = y + 36;
+        int rowY = y + INSPECTOR_PILL_ROW_OFFSET;
         int pillW = (w - 28) / 2;
         if (isInside(mouseX, mouseY, x + 10, rowY, pillW, 17) && MouseButtonMapping.isLeftClick(button)) {
             mod.setter.accept(!mod.getter.get());

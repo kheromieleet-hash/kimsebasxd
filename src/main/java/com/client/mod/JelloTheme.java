@@ -2,6 +2,7 @@ package com.client.mod;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 
@@ -69,62 +70,191 @@ public final class JelloTheme {
     }
 
     public static void fillRounded(GuiGraphicsExtractor graphics, int x1, int y1, int x2, int y2, int radius, int color) {
-        int c = fade(color);
-        int r = Math.min(radius, Math.min((x2 - x1) / 2, (y2 - y1) / 2));
-        if (r <= 0) {
-            graphics.fill(x1, y1, x2, y2, c);
-            return;
-        }
-        for (int dy = 0; dy < r; dy++) {
-            double d = r - dy - 0.5;
-            int inset = r - (int) Math.round(Math.sqrt(r * r - d * d));
-            graphics.fill(x1 + inset, y1 + dy, x2 - inset, y1 + dy + 1, c);
-            graphics.fill(x1 + inset, y2 - dy - 1, x2 - inset, y2 - dy, c);
-        }
-        graphics.fill(x1, y1 + r, x2, y2 - r, c);
+        fillRoundedSides(graphics, x1, y1, x2, y2, radius, color, true, true);
     }
 
     public static void fillRoundedTop(GuiGraphicsExtractor graphics, int x1, int y1, int x2, int y2, int radius, int color) {
-        int c = fade(color);
-        int r = Math.min(radius, Math.min((x2 - x1) / 2, (y2 - y1) / 2));
-        if (r <= 0) {
-            graphics.fill(x1, y1, x2, y2, c);
-            return;
-        }
-        for (int dy = 0; dy < r; dy++) {
-            double d = r - dy - 0.5;
-            int inset = r - (int) Math.round(Math.sqrt(r * r - d * d));
-            graphics.fill(x1 + inset, y1 + dy, x2 - inset, y1 + dy + 1, c);
-        }
-        graphics.fill(x1, y1 + r, x2, y2, c);
+        fillRoundedSides(graphics, x1, y1, x2, y2, radius, color, true, false);
     }
 
     public static void fillRoundedBottom(GuiGraphicsExtractor graphics, int x1, int y1, int x2, int y2, int radius, int color) {
+        fillRoundedSides(graphics, x1, y1, x2, y2, radius, color, false, true);
+    }
+
+    private static void fillRoundedSides(
+            GuiGraphicsExtractor graphics,
+            int x1,
+            int y1,
+            int x2,
+            int y2,
+            int radius,
+            int color,
+            boolean roundTop,
+            boolean roundBottom
+    ) {
         int c = fade(color);
+        if ((c >>> 24) == 0 || x2 <= x1 || y2 <= y1) {
+            return;
+        }
         int r = Math.min(radius, Math.min((x2 - x1) / 2, (y2 - y1) / 2));
-        if (r <= 0) {
+        if (r <= 0 || (!roundTop && !roundBottom)) {
             graphics.fill(x1, y1, x2, y2, c);
             return;
         }
-        graphics.fill(x1, y1, x2, y2 - r, c);
+
+        SmoothUiAtlas.AtlasLayout layout = SmoothUiAtlas.getOrUpload();
+        if (layout == null) {
+            fillRoundedFallback(graphics, x1, y1, x2, y2, r, c, roundTop, roundBottom);
+            return;
+        }
+
+        drawQuadCorners(graphics, layout.solid(r), layout.atlasScale, x1, y1, x2, y2, r, roundTop, roundBottom, c);
+
+        int topEnd = roundTop ? y1 + r : y1;
+        int botStart = roundBottom ? y2 - r : y2;
+        if (roundTop && x2 - r > x1 + r) {
+            graphics.fill(x1 + r, y1, x2 - r, y1 + r, c);
+        }
+        if (roundBottom && x2 - r > x1 + r) {
+            graphics.fill(x1 + r, y2 - r, x2 - r, y2, c);
+        }
+        if (botStart > topEnd) {
+            graphics.fill(x1, topEnd, x2, botStart, c);
+        }
+    }
+
+    private static void fillRoundedFallback(
+            GuiGraphicsExtractor graphics,
+            int x1,
+            int y1,
+            int x2,
+            int y2,
+            int r,
+            int c,
+            boolean roundTop,
+            boolean roundBottom
+    ) {
         for (int dy = 0; dy < r; dy++) {
             double d = r - dy - 0.5;
             int inset = r - (int) Math.round(Math.sqrt(r * r - d * d));
-            graphics.fill(x1 + inset, y2 - dy - 1, x2 - inset, y2 - dy, c);
+            if (roundTop) {
+                graphics.fill(x1 + inset, y1 + dy, x2 - inset, y1 + dy + 1, c);
+            }
+            if (roundBottom) {
+                graphics.fill(x1 + inset, y2 - dy - 1, x2 - inset, y2 - dy, c);
+            }
+        }
+        int midTop = roundTop ? y1 + r : y1;
+        int midBot = roundBottom ? y2 - r : y2;
+        if (midBot > midTop) {
+            graphics.fill(x1, midTop, x2, midBot, c);
         }
     }
 
     public static void fillRoundedCard(GuiGraphicsExtractor graphics, int x1, int y1, int x2, int y2, int radius, int bgColor, int borderColor) {
-        if ((borderColor >>> 24) != 0) {
-            fillRounded(graphics, x1, y1, x2, y2, radius, borderColor);
-            fillRounded(graphics, x1 + 1, y1 + 1, x2 - 1, y2 - 1, Math.max(0, radius - 1), bgColor);
-        } else {
+        if ((borderColor >>> 24) == 0 || x2 - x1 < 3 || y2 - y1 < 3) {
             fillRounded(graphics, x1, y1, x2, y2, radius, bgColor);
+            return;
+        }
+
+        int r = Math.min(radius, Math.min((x2 - x1) / 2, (y2 - y1) / 2));
+        SmoothUiAtlas.AtlasLayout layout = SmoothUiAtlas.getOrUpload();
+        if (layout == null) {
+            fillRounded(graphics, x1, y1, x2, y2, r, borderColor);
+            fillRounded(graphics, x1 + 1, y1 + 1, x2 - 1, y2 - 1, Math.max(0, r - 1), bgColor);
+            return;
+        }
+
+        // Opaque cards fill full outer curve so border ring blends seamlessly; translucent pills inset fill to keep border pure
+        if (((bgColor >>> 24) & 0xFF) >= 0xF0) {
+            fillRounded(graphics, x1, y1, x2, y2, r, bgColor);
+        } else {
+            fillRounded(graphics, x1 + 1, y1 + 1, x2 - 1, y2 - 1, Math.max(0, r - 1), bgColor);
+        }
+
+        drawRoundedBorder(graphics, layout, x1, y1, x2, y2, r, fade(borderColor));
+    }
+
+    private static void drawRoundedBorder(
+            GuiGraphicsExtractor graphics,
+            SmoothUiAtlas.AtlasLayout layout,
+            int x1,
+            int y1,
+            int x2,
+            int y2,
+            int r,
+            int c
+    ) {
+        if (r <= 0) {
+            graphics.fill(x1, y1, x2, y1 + 1, c);
+            graphics.fill(x1, y2 - 1, x2, y2, c);
+            graphics.fill(x1, y1 + 1, x1 + 1, y2 - 1, c);
+            graphics.fill(x2 - 1, y1 + 1, x2, y2 - 1, c);
+            return;
+        }
+
+        drawQuadCorners(graphics, layout.ring(r), layout.atlasScale, x1, y1, x2, y2, r, true, true, c);
+
+        if (x2 - r > x1 + r) {
+            graphics.fill(x1 + r, y1, x2 - r, y1 + 1, c);
+            graphics.fill(x1 + r, y2 - 1, x2 - r, y2, c);
+        }
+        if (y2 - r > y1 + r) {
+            graphics.fill(x1, y1 + r, x1 + 1, y2 - r, c);
+            graphics.fill(x2 - 1, y1 + r, x2, y2 - r, c);
+        }
+    }
+
+    private static void drawQuadCorners(
+            GuiGraphicsExtractor graphics,
+            SmoothUiAtlas.Region region,
+            int atlasScale,
+            int x1,
+            int y1,
+            int x2,
+            int y2,
+            int r,
+            boolean drawTop,
+            boolean drawBottom,
+            int c
+    ) {
+        int halfTex = region.w() / 2;
+        if (drawTop) {
+            graphics.blit(RenderPipelines.GUI_TEXTURED, SmoothUiAtlas.ATLAS_ID,
+                    x1, y1, region.u(), region.v(), r, r, halfTex, halfTex, SmoothUiAtlas.ATLAS_W, SmoothUiAtlas.ATLAS_H, c);
+            graphics.blit(RenderPipelines.GUI_TEXTURED, SmoothUiAtlas.ATLAS_ID,
+                    x2 - r, y1, region.u() + halfTex, region.v(), r, r, halfTex, halfTex, SmoothUiAtlas.ATLAS_W, SmoothUiAtlas.ATLAS_H, c);
+        }
+        if (drawBottom) {
+            graphics.blit(RenderPipelines.GUI_TEXTURED, SmoothUiAtlas.ATLAS_ID,
+                    x1, y2 - r, region.u(), region.v() + halfTex, r, r, halfTex, halfTex, SmoothUiAtlas.ATLAS_W, SmoothUiAtlas.ATLAS_H, c);
+            graphics.blit(RenderPipelines.GUI_TEXTURED, SmoothUiAtlas.ATLAS_ID,
+                    x2 - r, y2 - r, region.u() + halfTex, region.v() + halfTex, r, r, halfTex, halfTex, SmoothUiAtlas.ATLAS_W, SmoothUiAtlas.ATLAS_H, c);
         }
     }
 
     public static void fillCircle(GuiGraphicsExtractor graphics, int centerX, int centerY, int radius, int color) {
-        fillRounded(graphics, centerX - radius, centerY - radius, centerX + radius, centerY + radius, radius, color);
+        if (radius <= 0) {
+            return;
+        }
+        int c = fade(color);
+        if ((c >>> 24) == 0) {
+            return;
+        }
+        SmoothUiAtlas.AtlasLayout layout = SmoothUiAtlas.getOrUpload();
+        if (layout == null) {
+            fillRoundedFallback(graphics, centerX - radius, centerY - radius, centerX + radius, centerY + radius, radius, c, true, true);
+            return;
+        }
+        SmoothUiAtlas.Region region = layout.solid(radius);
+        int diam = radius * 2;
+        graphics.blit(RenderPipelines.GUI_TEXTURED, SmoothUiAtlas.ATLAS_ID,
+                centerX - radius, centerY - radius,
+                region.u(), region.v(),
+                diam, diam,
+                region.w(), region.h(),
+                SmoothUiAtlas.ATLAS_W, SmoothUiAtlas.ATLAS_H,
+                c);
     }
 
     public static void fillHorizontalGradient(GuiGraphicsExtractor graphics, int x1, int y1, int x2, int y2, int colorFrom, int colorTo) {

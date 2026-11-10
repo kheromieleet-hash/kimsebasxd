@@ -42,14 +42,14 @@ public class ClickGuiScreen extends Screen {
     private static final int SWITCH_H = 10;
 
     public enum Category {
-        COMBAT("combat", "Combat", "⚔", 220, 32, false),
-        FUN("fun", "Fun", "✦", 354, 32, false),
-        EXPLOIT("exploit", "Exploit", "💣", 20, 60, false),
-        WORLD("world", "World", "🌍", 154, 60, false),
-        RENDER("render", "Render", "👁", 288, 60, false),
-        PLAYER("player", "Player", "👤", 422, 60, false),
-        MOVEMENT("movement", "Movement", "🏃", 556, 60, false),
-        MISC("misc", "Misc", "⚙", 690, 60, false);
+        COMBAT("combat", "Combat", "[C]", 220, 32, false),
+        FUN("fun", "Fun", "[F]", 354, 32, false),
+        EXPLOIT("exploit", "Exploit", "[E]", 20, 60, false),
+        WORLD("world", "World", "[W]", 154, 60, false),
+        RENDER("render", "Render", "[R]", 288, 60, false),
+        PLAYER("player", "Player", "[P]", 422, 60, false),
+        MOVEMENT("movement", "Movement", "[M]", 556, 60, false),
+        MISC("misc", "Misc", "[*]", 690, 60, false);
 
         public final String id;
         public final String name;
@@ -595,9 +595,9 @@ public class ClickGuiScreen extends Screen {
         String headerTitle = cat.icon + " " + cat.name;
         JelloTheme.text(graphics, font, headerTitle, catX + 6, catY + 5, 0xFFFFFFFF);
 
-        // 6. Right expand / collapse indicator (+ or −)
+        // 6. Right expand / collapse indicator (+ or -)
         boolean plusHovered = headerHovered && mouseX >= catX + PANEL_WIDTH - 20;
-        String ind = expanded ? "−" : "+";
+        String ind = expanded ? "-" : "+";
         int indColor = plusHovered ? JelloTheme.ACCENT : 0xFFFFFFFF;
         JelloTheme.textCentered(graphics, font, ind, catX + PANEL_WIDTH - 10, catY + 5, indColor);
 
@@ -730,7 +730,7 @@ public class ClickGuiScreen extends Screen {
         JelloTheme.fillRounded(graphics, winX, winY, winX + MACRO_WIDTH, winY + bodyH, 5, JelloTheme.PANEL);
         JelloTheme.fillRounded(graphics, winX, winY, winX + MACRO_WIDTH, winY + HEADER_HEIGHT, 5, JelloTheme.HEADER);
         JelloTheme.textCentered(graphics, font, "Macros", winX + MACRO_WIDTH / 2, winY + 7, 0xFFFFFFFF);
-        JelloTheme.text(graphics, font, expanded ? "▼" : "▶", winX + MACRO_WIDTH - 16, winY + 7, JelloTheme.TEXT_DIM);
+        JelloTheme.text(graphics, font, expanded ? "v" : ">", winX + MACRO_WIDTH - 16, winY + 7, JelloTheme.TEXT_DIM);
 
         if (expanded) {
             int curY = winY + HEADER_HEIGHT + 2;
@@ -752,7 +752,7 @@ public class ClickGuiScreen extends Screen {
                 boolean hovDel = mouseX >= delX && mouseX <= delX + 16 && mouseY >= btnY && mouseY <= btnY + 16;
 
                 JelloTheme.fillRounded(graphics, editX, btnY, editX + 16, btnY + 16, 3, hovEdit ? 0x66E53935 : 0x30FFFFFF);
-                JelloTheme.textCentered(graphics, font, "✎", editX + 8, btnY + 4, 0xFFFFFFFF);
+                JelloTheme.textCentered(graphics, font, "E", editX + 8, btnY + 4, 0xFFFFFFFF);
 
                 JelloTheme.fillRounded(graphics, delX, btnY, delX + 16, btnY + 16, 3, hovDel ? 0x66FF4444 : 0x30FFFFFF);
                 JelloTheme.textCentered(graphics, font, "-", delX + 8, btnY + 4, 0xFFFF5555);

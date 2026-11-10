@@ -2,6 +2,7 @@ package com.client.mod.mixin;
 
 import com.client.mod.IChatComponentHelper;
 import com.client.mod.ModConfig;
+import com.client.mod.MouseButtonMapping;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -30,9 +31,8 @@ public abstract class ChatScreenMixin extends Screen {
             return;
         }
 
-        // Button 1 is Right-Click; Button 0 with Shift held is Shift+Left Click
-        boolean isRightClick = (event.button() == 1);
-        boolean isShiftLeftClick = (event.button() == 0 && event.hasShiftDown());
+        boolean isRightClick = MouseButtonMapping.isRightClick(event.button());
+        boolean isShiftLeftClick = MouseButtonMapping.isLeftClick(event.button()) && event.hasShiftDown();
 
         if (isRightClick || isShiftLeftClick) {
             if (this.minecraft != null && this.minecraft.gui != null && this.minecraft.gui.hud != null) {
@@ -42,7 +42,7 @@ public abstract class ChatScreenMixin extends Screen {
                     if (message != null && !message.trim().isEmpty()) {
                         this.minecraft.keyboardHandler.setClipboard(message);
                         this.minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.4F));
-                        this.minecraft.gui.hud.setOverlayMessage(Component.literal("§a✔ Chat message copied to clipboard!"), false);
+                        this.minecraft.gui.hud.setOverlayMessage(Component.literal("§a[Sestia] Chat message copied to clipboard!"), false);
                         cir.setReturnValue(true);
                     }
                 }
