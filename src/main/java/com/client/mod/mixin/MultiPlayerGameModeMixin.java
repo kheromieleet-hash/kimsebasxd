@@ -1,0 +1,71 @@
+package com.client.mod.mixin;
+
+import com.client.mod.AutoToolHandler;
+import com.client.mod.ModConfig;
+import net.minecraft.client.multiplayer.MultiPlayerGameMode;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+@Mixin(MultiPlayerGameMode.class)
+public abstract class MultiPlayerGameModeMixin {
+    @Shadow private int destroyDelay;
+    @Shadow private float destroyProgress;
+
+    @Inject(method = "startDestroyBlock", at = @At("HEAD"))
+    private void onStartDestroyBlock(BlockPos pos, Direction dir, CallbackInfoReturnable<Boolean> cir) {
+        AutoToolHandler.onStartMining(pos);
+        ModConfig config = ModConfig.getInstance();
+        if (config != null && config.fastBreak) {
+            // Vulcan Anti-Cheat bypass: 1 tick delay (50ms) to bypass Vulcan Delay check
+            // Vanilla mode: 0 tick delay
+            this.destroyDelay = (config.fastBreakMode == 1) ? 1 : 0;
+        }
+    }
+
+    @Inject(method = "continueDestroyBlock", at = @At("HEAD"))
+    private void onContinueDestroyBlock(BlockPos pos, Direction dir, CallbackInfoReturnable<Boolean> cir) {
+        AutoToolHandler.onStartMining(pos);
+        ModConfig config = ModConfig.getInstance();
+        if (config != null && config.fastBreak) {
+            if (config.fastBreakMode == 1) {
+                // Vulcan Mode:
+                // 1) Enforce safe delay (1 tick)
+                if (this.destroyDelay > 1) {
+                    this.destroyDelay = 1;
+                }
+                // 2) Vulcan Ping/Tolerance Buffer: Vulcan accepts block break at 0.78f progress
+                if (this.destroyProgress >= 0.78f) {
+                    this.destroyProgress = 1.0f;
+                } else {
+                    // Safe smooth boost within Vulcan's 15% tolerance window
+                    float safeSpeed = Math.min(config.fastBreakSpeed, 1.15f);
+                    if (safeSpeed > 1.0f) {
+                        this.destroyProgress += (safeSpeed - 1.0f) * 0.05f;
+                    } else {
+                        this.destroyProgress += 0.012f;
+                    }
+                }
+            } else {
+                // Vanilla mode: instant 0 delay and direct speed boost
+                this.destroyDelay = 0;
+                if (config.fastBreakSpeed > 1.0f) {
+                    this.destroyProgress += (config.fastBreakSpeed - 1.0f) * 0.05f;
+                }
+            }
+        }
+    }
+
+    @Inject(method = "stopDestroyBlock", at = @At("HEAD"))
+    private void onStopDestroyBlock(CallbackInfo ci) {
+        ModConfig config = ModConfig.getInstance();
+        if (config != null && config.fastBreak) {
+            this.destroyDelay = (config.fastBreakMode == 1) ? 1 : 0;
+        }
+    }
+}

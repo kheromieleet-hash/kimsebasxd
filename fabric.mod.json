@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "inventoryhud",
+  "version": "3.4.37",
+  "name": "Inventory HUD + (with Viewmodel)",
+  "description": "Inventory HUD + with Viewmodel & Player Scale for Minecraft 26.3.",
+  "authors": [
+    "DmitryLovin",
+    "inglettronald (DulkirMod)",
+    "Client Developer"
+  ],
+  "contact": {
+    "homepage": "https://www.curseforge.com/minecraft/mc-mods/inventory-hud-forge"
+  },
+  "license": "MIT",
+  "icon": "logo.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "dlovin.inventoryhud.fabric.InventoryHUDFabric",
+      "com.client.mod.ClientMod"
+    ],
+    "modmenu": [
+      "dlovin.inventoryhud.fabric.modmenu.ModMenuImpl"
+    ]
+  },
+  "mixins": [
+    "inventoryhud.mixins.json",
+    "customclient.mixins.json"
+  ],
+  "jars": [
+    {
+      "file": "META-INF/jars/IAS-9.0.8+26.3-fabric.jar"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}
