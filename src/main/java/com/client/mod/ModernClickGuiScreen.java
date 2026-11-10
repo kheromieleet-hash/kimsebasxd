@@ -39,7 +39,6 @@ public class ModernClickGuiScreen extends Screen {
     private static final int HEADER_HEIGHT = 44;
     private static final int NAV_ROW_HEIGHT = 34;
     private static final int CHIP_BAR_HEIGHT = 30;
-    private static final int CARD_HEIGHT = 36;
     private static final int INSPECTOR_TARGET_WIDTH = 264;
     private static final int INSPECTOR_HEADER_HEIGHT = 68;
     private static final int INSPECTOR_PILL_ROW_OFFSET = 46;
@@ -101,8 +100,8 @@ public class ModernClickGuiScreen extends Screen {
 
     @Override
     protected void init() {
-        this.windowW = Math.min(840, Math.max(520, (int) (this.width * 0.86f)));
-        this.windowH = Math.min(520, Math.max(320, (int) (this.height * 0.84f)));
+        this.windowW = Math.min(880, Math.max(520, (int) (this.width * 0.88f)));
+        this.windowH = Math.min(540, Math.max(320, (int) (this.height * 0.85f)));
         this.windowX = (this.width - this.windowW) / 2;
         this.windowY = (this.height - this.windowH) / 2;
 
@@ -406,41 +405,23 @@ public class ModernClickGuiScreen extends Screen {
             return;
         }
 
-        int cols = (gridW >= 400) ? 2 : 1;
-        int padX = 12;
-        int gapX = 8;
-        int gapY = 8;
-        int colW = (gridW - padX * 2 - (cols - 1) * gapX) / cols;
-        int startY = (int) (gridY + 10 - this.scrollAmount);
+        ModernModuleGridLayout.GridMetrics metrics = ModernModuleGridLayout.computeGridMetrics(gridW, modules.size());
+        int startY = (int) (gridY + metrics.padY() - this.scrollAmount);
 
         for (int i = 0; i < modules.size(); i++) {
-            int col = i % cols;
-            int row = i / cols;
-            int cx = gridX + padX + col * (colW + gapX);
-            int cy = startY + row * (CARD_HEIGHT + gapY);
+            int cx = metrics.cardX(gridX, i);
+            int cy = metrics.cardY(startY, i);
 
-            if (cy + CARD_HEIGHT >= gridY - 10 && cy <= gridY + gridH + 10) {
-                renderUniformModuleCard(graphics, mouseX, mouseY, cx, cy, colW, modules.get(i), dt);
+            if (cy + metrics.cardHeight() >= gridY - 10 && cy <= gridY + gridH + 10) {
+                renderUniformModuleCard(graphics, mouseX, mouseY, cx, cy, metrics.colWidth(), modules.get(i), dt);
             }
         }
 
-        int rows = (modules.size() + cols - 1) / cols;
-        this.contentTotalHeight = 20 + rows * CARD_HEIGHT + Math.max(0, rows - 1) * gapY;
+        this.contentTotalHeight = metrics.totalHeight();
     }
 
     private record CardControlsBounds(
-            int switchX,
-            int switchY,
-            int switchW,
-            int switchH,
-            int bindX,
-            int bindY,
-            int bindW,
-            int bindH,
-            int tuneX,
-            int tuneY,
-            int tuneW,
-            int tuneH,
+            ModernModuleGridLayout.CardControlLayout layout,
             String bindTag,
             boolean isListening,
             boolean hasSettings
@@ -451,32 +432,19 @@ public class ModernClickGuiScreen extends Screen {
         boolean hasSettings = ModernModuleSettings.hasSettings(mod.name, cfg, this.settingsActions);
         boolean isListening = mod.name.equals(this.listeningKeybindModule);
         String bindTag = getBindPillText(cfg, mod.name, isListening);
-        int controlY = y + 10;
-        int switchW = 30;
-        int switchH = 15;
-        int switchX = x + w - switchW - 10;
-
-        int bindW = this.font.width(bindTag) + 8;
-        int bindH = 15;
-        int bindX = switchX - bindW - 5;
-
-        int tuneW = 17;
-        int tuneH = 15;
-        int tuneX = bindX - tuneW - 5;
-        return new CardControlsBounds(
-                switchX, controlY, switchW, switchH,
-                bindX, controlY, bindW, bindH,
-                tuneX, controlY, tuneW, tuneH,
-                bindTag, isListening, hasSettings
-        );
+        ModernModuleGridLayout.CardControlLayout layout =
+                ModernModuleGridLayout.computeCardControlLayout(x, y, w, this.font.width(bindTag));
+        return new CardControlsBounds(layout, bindTag, isListening, hasSettings);
     }
 
     private void renderUniformModuleCard(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int x, int y, int w, ClickGuiScreen.ModuleEntry mod, float dt) {
         ModConfig cfg = ModConfig.getInstance();
         boolean active = mod.getter.get();
-        CardControlsBounds layout = computeCardControls(x, y, w, mod, cfg);
-        boolean isInspected = layout.hasSettings() && mod.name.equals(this.inspectedModule);
-        boolean hovered = isInside(mouseX, mouseY, x, y, w, CARD_HEIGHT);
+        CardControlsBounds controls = computeCardControls(x, y, w, mod, cfg);
+        ModernModuleGridLayout.CardControlLayout layout = controls.layout();
+        boolean isInspected = controls.hasSettings() && mod.name.equals(this.inspectedModule);
+        int cardH = ModernModuleGridLayout.CARD_HEIGHT;
+        boolean hovered = isInside(mouseX, mouseY, x, y, w, cardH);
 
         int bg = active
                 ? (hovered ? JelloTheme.CARD_ACTIVE_HOVER : JelloTheme.CARD_ACTIVE)
@@ -484,15 +452,17 @@ public class ModernClickGuiScreen extends Screen {
         int border = isInspected
                 ? JelloTheme.ACCENT
                 : (active ? (hovered ? JelloTheme.ACCENT_HOVER : 0x66E53935) : (hovered ? 0x5594A3B8 : JelloTheme.BORDER_SUBTLE));
-        JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + CARD_HEIGHT, 7, bg, border);
+        JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + cardH, ModernModuleGridLayout.CARD_CORNER_RADIUS, bg, border);
 
-        // Single-Row Layout: Title (left) ... [Tune] [Bind] [Toggle] (right)
-        int controlsLeft = layout.hasSettings() ? layout.tuneX() : layout.bindX();
-        int titleMaxW = Math.max(24, controlsLeft - (x + 12) - 6);
-        String title = fitText(mod.name, titleMaxW);
-        graphics.text(this.font, Component.literal(title), x + 12, y + 14, active ? JelloTheme.TEXT : 0xFFE2E8F0, false);
+        // Compact 2-Row Bento Tile: Full Title (top) + [Tune] [Bind] [Toggle] (bottom-right)
+        String title = fitText(mod.name, layout.titleMaxW());
+        graphics.text(this.font, Component.literal(title),
+                x + ModernModuleGridLayout.CARD_PAD_X,
+                y + ModernModuleGridLayout.TITLE_Y_OFFSET,
+                active ? JelloTheme.TEXT : 0xFFE2E8F0,
+                false);
 
-        if (layout.hasSettings()) {
+        if (controls.hasSettings()) {
             boolean tuneHov = isInside(mouseX, mouseY, layout.tuneX(), layout.tuneY(), layout.tuneW(), layout.tuneH());
             int tuneBg = isInspected ? 0x44E53935 : (tuneHov ? 0x26FFFFFF : 0xFF1B1B25);
             int tuneBorder = isInspected ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE;
@@ -502,11 +472,11 @@ public class ModernClickGuiScreen extends Screen {
         }
 
         boolean bindHovered = isInside(mouseX, mouseY, layout.bindX(), layout.bindY(), layout.bindW(), layout.bindH());
-        int bindBg = layout.isListening() ? 0x55E53935 : (bindHovered ? 0x33E53935 : 0xFF1A1A24);
-        int bindBorder = layout.isListening() ? JelloTheme.ACCENT_HOVER : (bindHovered ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+        int bindBg = controls.isListening() ? 0x55E53935 : (bindHovered ? 0x33E53935 : 0xFF1A1A24);
+        int bindBorder = controls.isListening() ? JelloTheme.ACCENT_HOVER : (bindHovered ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
         JelloTheme.fillRoundedCard(graphics, layout.bindX(), layout.bindY(), layout.bindX() + layout.bindW(), layout.bindY() + layout.bindH(), 4, bindBg, bindBorder);
-        graphics.centeredText(this.font, Component.literal(layout.bindTag()), layout.bindX() + layout.bindW() / 2, layout.bindY() + 4,
-                layout.isListening() ? 0xFFFFDD55 : (cfg.getModuleKey(mod.name) >= 0 ? JelloTheme.TEXT_DIM : JelloTheme.TEXT_MUTED));
+        graphics.centeredText(this.font, Component.literal(controls.bindTag()), layout.bindX() + layout.bindW() / 2, layout.bindY() + 4,
+                controls.isListening() ? 0xFFFFDD55 : (cfg.getModuleKey(mod.name) >= 0 ? JelloTheme.TEXT_DIM : JelloTheme.TEXT_MUTED));
 
         renderSmoothSwitch(graphics, mouseX, mouseY, layout.switchX(), layout.switchY(), layout.switchW(), layout.switchH(), "mod:" + mod.name, active, dt);
     }
@@ -1042,23 +1012,18 @@ public class ModernClickGuiScreen extends Screen {
         }
 
         List<ClickGuiScreen.ModuleEntry> modules = getVisibleModules();
-        int cols = (gridW >= 400) ? 2 : 1;
-        int padX = 12;
-        int gapX = 8;
-        int gapY = 8;
-        int colW = (gridW - padX * 2 - (cols - 1) * gapX) / cols;
-        int startY = (int) (bodyY + 10 - this.scrollAmount);
+        ModernModuleGridLayout.GridMetrics metrics = ModernModuleGridLayout.computeGridMetrics(gridW, modules.size());
+        int startY = (int) (bodyY + metrics.padY() - this.scrollAmount);
         ModConfig cfg = ModConfig.getInstance();
 
         for (int i = 0; i < modules.size(); i++) {
-            int col = i % cols;
-            int row = i / cols;
-            int cx = contentX + padX + col * (colW + gapX);
-            int cy = startY + row * (CARD_HEIGHT + gapY);
+            int cx = metrics.cardX(contentX, i);
+            int cy = metrics.cardY(startY, i);
 
-            if (isInside(mouseX, mouseY, cx, cy, colW, CARD_HEIGHT)) {
+            if (isInside(mouseX, mouseY, cx, cy, metrics.colWidth(), metrics.cardHeight())) {
                 ClickGuiScreen.ModuleEntry mod = modules.get(i);
-                CardControlsBounds layout = computeCardControls(cx, cy, colW, mod, cfg);
+                CardControlsBounds controls = computeCardControls(cx, cy, metrics.colWidth(), mod, cfg);
+                ModernModuleGridLayout.CardControlLayout layout = controls.layout();
 
                 // Keybind Pill (immediately left of toggle switch)
                 if (isInside(mouseX, mouseY, layout.bindX(), layout.bindY(), layout.bindW(), layout.bindH())) {
@@ -1068,7 +1033,7 @@ public class ModernClickGuiScreen extends Screen {
                         cfg.save();
                         playClickSound();
                     } else if (MouseButtonMapping.isLeftClick(button)) {
-                        this.listeningKeybindModule = layout.isListening() ? null : mod.name;
+                        this.listeningKeybindModule = controls.isListening() ? null : mod.name;
                         cfg.save();
                         playClickSound();
                     }
@@ -1076,7 +1041,7 @@ public class ModernClickGuiScreen extends Screen {
                 }
 
                 // Settings Tune Icon (immediately left of keybind pill, only on configurable modules)
-                if (layout.hasSettings()
+                if (controls.hasSettings()
                         && isInside(mouseX, mouseY, layout.tuneX(), layout.tuneY(), layout.tuneW(), layout.tuneH())
                         && (MouseButtonMapping.isLeftClick(button) || MouseButtonMapping.isRightClick(button))) {
                     toggleInspector(mod.name);
@@ -1090,7 +1055,7 @@ public class ModernClickGuiScreen extends Screen {
                     return true;
                 }
                 if (MouseButtonMapping.isRightClick(button)) {
-                    if (layout.hasSettings()) {
+                    if (controls.hasSettings()) {
                         toggleInspector(mod.name);
                     }
                     return true;
