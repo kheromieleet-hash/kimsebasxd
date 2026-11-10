@@ -81,6 +81,34 @@ public final class JelloTheme {
         fillRoundedSides(graphics, x1, y1, x2, y2, radius, color, false, true);
     }
 
+    /** Rounds only the bottom-left corner (useful for a docked sidebar flush against a vertical divider). */
+    public static void fillRoundedBottomLeft(GuiGraphicsExtractor graphics, int x1, int y1, int x2, int y2, int radius, int color) {
+        int c = fade(color);
+        if ((c >>> 24) == 0 || x2 <= x1 || y2 <= y1) {
+            return;
+        }
+        int r = Math.min(radius, Math.min((x2 - x1) / 2, (y2 - y1) / 2));
+        if (r <= 0) {
+            graphics.fill(x1, y1, x2, y2, c);
+            return;
+        }
+        SmoothUiAtlas.AtlasLayout layout = SmoothUiAtlas.getOrUpload();
+        if (layout == null) {
+            fillRoundedFallback(graphics, x1, y1, x2, y2, r, c, false, true);
+            return;
+        }
+        SmoothUiAtlas.Region region = layout.solid(r);
+        int halfTex = region.w() / 2;
+        graphics.blit(RenderPipelines.GUI_TEXTURED, SmoothUiAtlas.ATLAS_ID,
+                x1, y2 - r, region.u(), region.v() + halfTex, r, r, halfTex, halfTex, SmoothUiAtlas.ATLAS_W, SmoothUiAtlas.ATLAS_H, c);
+        if (y2 - r > y1) {
+            graphics.fill(x1, y1, x2, y2 - r, c);
+        }
+        if (x2 > x1 + r) {
+            graphics.fill(x1 + r, y2 - r, x2, y2, c);
+        }
+    }
+
     private static void fillRoundedSides(
             GuiGraphicsExtractor graphics,
             int x1,
