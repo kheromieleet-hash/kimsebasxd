@@ -63,16 +63,24 @@ public class ClientMod implements ClientModInitializer {
 
             if (openMenuNextTick) {
                 openMenuNextTick = false;
-                client.gui.setScreen(new ClickGuiScreen(null));
+                if (ModConfig.getInstance().clickGuiStyle == 1) {
+                    client.gui.setScreen(new ModernClickGuiScreen());
+                } else {
+                    client.gui.setScreen(new ClickGuiScreen(null));
+                }
             }
 
             if (client.getWindow() != null) {
                 boolean rShiftDown = InputConstants.isKeyDown(InputConstants.KEY_RSHIFT);
                 if (rShiftDown && !wasRightShiftDown) {
-                    if (client.gui.screen() instanceof ClickGuiScreen) {
+                    if (client.gui.screen() instanceof ModernClickGuiScreen || client.gui.screen() instanceof ClickGuiScreen) {
                         client.gui.setScreen(null);
                     } else if (client.gui.screen() == null && client.player != null) {
-                        client.gui.setScreen(new ClickGuiScreen(null));
+                        if (ModConfig.getInstance().clickGuiStyle == 1) {
+                            client.gui.setScreen(new ModernClickGuiScreen());
+                        } else {
+                            client.gui.setScreen(new ClickGuiScreen(null));
+                        }
                     }
                 }
                 wasRightShiftDown = rShiftDown;

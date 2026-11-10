@@ -310,6 +310,16 @@ public class ClickGuiScreen extends Screen {
                 }
         ));
 
+        // 16. GUI Style (Misc)
+        MODULES.add(new ModuleEntry(
+                "GUI Style", Category.MISC,
+                () -> config.clickGuiStyle == 1,
+                val -> {
+                    config.clickGuiStyle = val ? 1 : 0;
+                    config.save();
+                }
+        ));
+
         // 16. TrueSight (Render)
         MODULES.add(new ModuleEntry(
                 "TrueSight", Category.RENDER,
@@ -1164,6 +1174,10 @@ public class ClickGuiScreen extends Screen {
                 drawActionButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
                         "Open Menu (" + config.getDisplayVersion() + ")");
             }
+            case "GUI Style" -> {
+                String styleName = (config.clickGuiStyle == 1) ? "Modern Dashboard" : "Classic Multi-Window";
+                drawActionButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW, "Style: " + styleName);
+            }
         }
     }
 
@@ -1182,7 +1196,7 @@ public class ClickGuiScreen extends Screen {
             case "Better Chat" -> 5;
             case "Keybinds HUD" -> 4;
             case "FastBreak" -> 3;
-            case "HUD Info", "TNT Timer", "Auto Sprint", "Safe Walk", "TrueSight", "Item ESP", "No Pitch Limit", "Abort Breaking", "Version Switcher" -> 1;
+            case "HUD Info", "TNT Timer", "Auto Sprint", "Safe Walk", "TrueSight", "Item ESP", "No Pitch Limit", "Abort Breaking", "Version Switcher", "GUI Style" -> 1;
             default -> 0;
         };
         return specific + 1;
@@ -1795,7 +1809,9 @@ public class ClickGuiScreen extends Screen {
                     mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, next ? 1.0f : 0.8f));
                 }
                 if (mc.gui != null && mc.gui.hud != null) {
-                    String status = next ? "§aEnabled" : "§cDisabled";
+                    String status = "GUI Style".equals(mod.name)
+                            ? (next ? "§eModern Dashboard" : "§bClassic Multi-Window")
+                            : (next ? "§aEnabled" : "§cDisabled");
                     Component msg = Component.literal("§c[Client] §f" + mod.name + " §7» " + status);
                     mc.gui.hud.setOverlayMessage(msg, false);
                 }
@@ -2225,6 +2241,13 @@ public class ClickGuiScreen extends Screen {
                     if (mc != null) {
                         mc.gui.setScreen(new VersionSwitcherScreen(mc.gui.screen()));
                     }
+                }
+            }
+            case "GUI Style" -> {
+                if (specificRow == 0) {
+                    config.clickGuiStyle = (config.clickGuiStyle == 1) ? 0 : 1;
+                    config.save();
+                    playClickSound();
                 }
             }
         }
