@@ -11,15 +11,14 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 
 import java.util.*;
 
 /**
  * Sestia OLED Obsidian & Crimson Red ClickGUI Dashboard.
- * Master-detail layout: left-click toggles modules, right-click opens the
- * dedicated settings inspector drawer for configurable modules.
+ * Inline card-accordion layout: left-click toggles modules, right-click expands
+ * a row-anchored settings accordion directly beneath the module's row.
  */
 public class ModernClickGuiScreen extends Screen {
 
@@ -57,14 +56,13 @@ public class ModernClickGuiScreen extends Screen {
     private EditBox searchBox;
     private String searchQuery = "";
 
-    // Scroll & Inspector Drawer state
+    // Scroll & Inline Accordion state
     private double scrollAmount = 0.0;
     private int contentTotalHeight = 0;
-    private String inspectedModule = null;
-    private float inspectorAnim = 0.0f;
-    private int lastDrawerTargetHeight = 140;
-    private double inspectorScroll = 0.0;
-    private int inspectorTotalHeight = 0;
+    private String expandedModule = null;
+    private String renderedExpandedModule = null;
+    private float expandAnim = 0.0f;
+    private boolean ensureExpandedVisible = false;
 
     // Slider drag state
     private String draggingSliderKey = null;
@@ -104,9 +102,11 @@ public class ModernClickGuiScreen extends Screen {
         this.windowY = (this.height - this.windowH) / 2;
 
         this.scrollAmount = 0.0;
-        this.inspectorScroll = 0.0;
         this.draggingSliderKey = null;
         this.activeSlider = null;
+        if (this.expandedModule != null) {
+            this.ensureExpandedVisible = true;
+        }
 
         if (this.indicatorY < 0) {
             this.indicatorY = this.windowY + HEADER_HEIGHT + 10 + this.activeNav.ordinal() * NAV_ROW_HEIGHT;
@@ -128,6 +128,13 @@ public class ModernClickGuiScreen extends Screen {
             this.scrollAmount = 0.0;
             this.draggingSliderKey = null;
             this.activeSlider = null;
+            if (this.expandedModule != null) {
+                if (findModuleIndex(getVisibleModules(), this.expandedModule) < 0) {
+                    clearExpandedImmediate();
+                } else {
+                    this.ensureExpandedVisible = true;
+                }
+            }
         });
         this.addRenderableWidget(this.searchBox);
 
@@ -159,11 +166,16 @@ public class ModernClickGuiScreen extends Screen {
         float dt = this.lastFrameNanos == 0L ? 0.016f : Mth.clamp((now - this.lastFrameNanos) / 1.0e9f, 0.001f, 0.05f);
         this.lastFrameNanos = now;
 
-        boolean hasInspectorTarget = isInspectorOpen();
-        float targetAnim = hasInspectorTarget ? 1.0f : 0.0f;
-        this.inspectorAnim += (targetAnim - this.inspectorAnim) * Mth.clamp(dt * 18.0f, 0.08f, 1.0f);
-        if (Math.abs(targetAnim - this.inspectorAnim) < 0.005f) {
-            this.inspectorAnim = targetAnim;
+        if (this.expandedModule != null) {
+            this.renderedExpandedModule = this.expandedModule;
+        }
+        float targetAnim = this.expandedModule != null ? 1.0f : 0.0f;
+        this.expandAnim += (targetAnim - this.expandAnim) * Mth.clamp(dt * 18.0f, 0.08f, 1.0f);
+        if (Math.abs(targetAnim - this.expandAnim) < 0.005f) {
+            this.expandAnim = targetAnim;
+            if (targetAnim == 0.0f) {
+                this.renderedExpandedModule = null;
+            }
         }
 
         // Dim world backdrop
@@ -314,34 +326,91 @@ public class ModernClickGuiScreen extends Screen {
             graphics.text(this.font, Component.literal("Controls"), legX + 8, legY + 7, JelloTheme.TEXT_DIM, false);
             graphics.text(this.font, Component.literal("LMB  Toggle"), legX + 8, legY + 21, JelloTheme.TEXT_MUTED, false);
             graphics.text(this.font, Component.literal("RMB  Settings"), legX + 8, legY + 33, JelloTheme.TEXT_MUTED, false);
-            graphics.text(this.font, Component.literal("ESC  Close Drawer"), legX + 8, legY + 45, 0xFF64748B, false);
+            graphics.text(this.font, Component.literal("ESC  Collapse"), legX + 8, legY + 45, 0xFF64748B, false);
         }
     }
 
     // ==========================================
-    // MODULES WORKSPACE (CHIP FILTER + GRID + BOTTOM INSPECTOR DRAWER)
+    // MODULES WORKSPACE (CHIP FILTER + GRID + INLINE ACCORDION)
     // ==========================================
+    private record ResolvedAccordionPlan(
+            List<ClickGuiScreen.ModuleEntry> modules,
+            int startY,
+            ModernModuleGridLayout.GridPlan plan,
+            ClickGuiScreen.ModuleEntry expandedEntry,
+            List<ModernModuleSettings.Control> expandedControls
+    ) {
+    }
+
+    private ResolvedAccordionPlan resolveAccordionPlan(int contentX, int bodyY, int contentW) {
+        List<ClickGuiScreen.ModuleEntry> modules = getVisibleModules();
+        int expIdx = findModuleIndex(modules, this.renderedExpandedModule);
+        ClickGuiScreen.ModuleEntry expandedEntry = expIdx >= 0 ? modules.get(expIdx) : null;
+        List<ModernModuleSettings.Control> expandedControls = expandedEntry != null
+                ? ModernModuleSettings.getControls(expandedEntry.name, ModConfig.getInstance(), this.settingsActions)
+                : List.of();
+        int fullH = ModernModuleGridLayout.computeAccordionFullHeight(contentW, expandedControls);
+        int startY = (int) (bodyY + ModernModuleGridLayout.GRID_PAD_Y - this.scrollAmount);
+        ModernModuleGridLayout.GridPlan plan = ModernModuleGridLayout.computeGridPlan(
+                contentX, startY, contentW, modules.size(), expIdx, fullH, this.expandAnim
+        );
+        return new ResolvedAccordionPlan(modules, startY, plan, expandedEntry, expandedControls);
+    }
+
     private void renderModulesWorkspace(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, int contentH, float dt) {
         renderCategoryChipBar(graphics, mouseX, mouseY, contentX, contentY, contentW);
 
         int bodyY = contentY + CHIP_BAR_HEIGHT;
         int bodyH = contentH - CHIP_BAR_HEIGHT;
-        int drawerH = computeBottomDrawerHeight(contentW, bodyH);
-        int gridH = Math.max(0, bodyH - drawerH);
-
-        if (gridH > 16) {
-            List<ClickGuiScreen.ModuleEntry> modules = getVisibleModules();
-            graphics.enableScissor(contentX, bodyY, contentX + contentW, bodyY + gridH);
-            renderModuleCardsGrid(graphics, mouseX, mouseY, contentX, bodyY, contentW, gridH, modules, dt);
-            graphics.disableScissor();
-            this.scrollAmount = Mth.clamp(this.scrollAmount, 0.0, Math.max(0, this.contentTotalHeight - gridH));
-            renderScrollbarAt(graphics, contentX + contentW - 6, bodyY + 4, gridH - 8, this.contentTotalHeight, this.scrollAmount);
+        if (bodyH <= 16) {
+            return;
         }
 
-        int[] inspBounds = ModernInspectorLayout.computeBottomDrawerBounds(contentX, bodyY, contentW, bodyH, drawerH);
-        if (inspBounds != null) {
-            renderInspectorDrawer(graphics, mouseX, mouseY, inspBounds[0], inspBounds[1], inspBounds[2], inspBounds[3], dt);
+        ResolvedAccordionPlan resolved = resolveAccordionPlan(contentX, bodyY, contentW);
+        if (this.ensureExpandedVisible && resolved.expandedEntry() != null && this.expandedModule != null) {
+            if (resolved.expandedControls().isEmpty()) {
+                this.ensureExpandedVisible = false;
+            } else {
+                int expIdx = resolved.plan().expandedIndex();
+                if (expIdx >= 0) {
+                    int row = expIdx / resolved.plan().metrics().columns();
+                    int fullH = ModernModuleGridLayout.computeAccordionFullHeight(contentW, resolved.expandedControls());
+                    int desiredBottom = bodyY + ModernModuleGridLayout.GRID_PAD_Y
+                            + row * (ModernModuleGridLayout.CARD_HEIGHT + ModernModuleGridLayout.GRID_GAP_Y)
+                            + ModernModuleGridLayout.CARD_HEIGHT
+                            + ModernModuleGridLayout.ACCORDION_TOP_GAP
+                            + fullH + 8;
+                    int viewBottom = bodyY + bodyH;
+                    double screenBottom = desiredBottom - this.scrollAmount;
+                    if (screenBottom > viewBottom) {
+                        double targetScroll = desiredBottom - viewBottom;
+                        double maxCurrentScroll = Math.max(0, resolved.plan().totalHeight() - bodyH);
+                        double maxCardTopScroll = row * (ModernModuleGridLayout.CARD_HEIGHT + ModernModuleGridLayout.GRID_GAP_Y)
+                                + ModernModuleGridLayout.GRID_PAD_Y;
+                        double nextScroll = Math.min(Math.min(targetScroll, maxCurrentScroll), maxCardTopScroll);
+                        if (nextScroll > this.scrollAmount) {
+                            this.scrollAmount = nextScroll;
+                            resolved = resolveAccordionPlan(contentX, bodyY, contentW);
+                            screenBottom = desiredBottom - this.scrollAmount;
+                        }
+                    }
+                    if (this.expandAnim >= 0.995f || (this.expandAnim >= 0.85f && screenBottom <= viewBottom)) {
+                        this.ensureExpandedVisible = false;
+                    }
+                }
+            }
         }
+
+        graphics.enableScissor(contentX, bodyY, contentX + contentW, bodyY + bodyH);
+        renderModuleCardsGrid(graphics, mouseX, mouseY, contentX, bodyY, contentW, bodyH, resolved, dt);
+        if (resolved.plan().accordion() != null && resolved.expandedEntry() != null) {
+            renderInlineAccordion(graphics, mouseX, mouseY, resolved.plan(), resolved.expandedEntry(), resolved.expandedControls(), dt);
+        }
+        graphics.disableScissor();
+
+        this.contentTotalHeight = resolved.plan().totalHeight();
+        this.scrollAmount = Mth.clamp(this.scrollAmount, 0.0, Math.max(0, this.contentTotalHeight - bodyH));
+        renderScrollbarAt(graphics, contentX + contentW - 6, bodyY + 4, bodyH - 8, this.contentTotalHeight, this.scrollAmount);
     }
 
     private void renderCategoryChipBar(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW) {
@@ -377,31 +446,30 @@ public class ModernClickGuiScreen extends Screen {
             int gridY,
             int gridW,
             int gridH,
-            List<ClickGuiScreen.ModuleEntry> modules,
+            ResolvedAccordionPlan resolved,
             float dt
     ) {
+        List<ClickGuiScreen.ModuleEntry> modules = resolved.modules();
         if (modules.isEmpty()) {
             int emptyY = gridY + 24;
             JelloTheme.fillRoundedCard(graphics, gridX + 12, emptyY, gridX + gridW - 12, emptyY + 54, 7, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
             String msg = this.searchQuery.isEmpty() ? "No modules in this category" : ("No modules matched '" + this.searchQuery + "'");
             graphics.centeredText(this.font, Component.literal(msg), gridX + gridW / 2, emptyY + 22, JelloTheme.TEXT_MUTED);
-            this.contentTotalHeight = 100;
             return;
         }
 
-        ModernModuleGridLayout.GridMetrics metrics = ModernModuleGridLayout.computeGridMetrics(gridW, modules.size());
-        int startY = (int) (gridY + metrics.padY() - this.scrollAmount);
+        ModernModuleGridLayout.GridPlan plan = resolved.plan();
+        int colW = plan.metrics().colWidth();
+        int cardH = plan.metrics().cardHeight();
 
         for (int i = 0; i < modules.size(); i++) {
-            int cx = metrics.cardX(gridX, i);
-            int cy = metrics.cardY(startY, i);
+            int cx = plan.cardX(gridX, i);
+            int cy = plan.cardY(resolved.startY(), i);
 
-            if (cy + metrics.cardHeight() >= gridY - 10 && cy <= gridY + gridH + 10) {
-                renderUniformModuleCard(graphics, mouseX, mouseY, cx, cy, metrics.colWidth(), modules.get(i), dt);
+            if (cy + cardH >= gridY - 10 && cy <= gridY + gridH + 10) {
+                renderUniformModuleCard(graphics, mouseX, mouseY, cx, cy, colW, modules.get(i), dt);
             }
         }
-
-        this.contentTotalHeight = metrics.totalHeight();
     }
 
     private record CardControlsBounds(
@@ -426,14 +494,14 @@ public class ModernClickGuiScreen extends Screen {
         boolean active = mod.getter.get();
         CardControlsBounds controls = computeCardControls(x, y, w, mod, cfg);
         ModernModuleGridLayout.CardControlLayout layout = controls.layout();
-        boolean isInspected = controls.hasSettings() && mod.name.equals(this.inspectedModule);
+        boolean isExpanded = controls.hasSettings() && mod.name.equals(this.expandedModule);
         int cardH = ModernModuleGridLayout.CARD_HEIGHT;
         boolean hovered = isInside(mouseX, mouseY, x, y, w, cardH);
 
         int bg = active
                 ? (hovered ? JelloTheme.CARD_ACTIVE_HOVER : JelloTheme.CARD_ACTIVE)
                 : (hovered ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
-        int border = isInspected
+        int border = isExpanded
                 ? JelloTheme.ACCENT
                 : (active ? (hovered ? JelloTheme.ACCENT_HOVER : 0x66E53935) : (hovered ? 0x5594A3B8 : JelloTheme.BORDER_SUBTLE));
         JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + cardH, ModernModuleGridLayout.CARD_CORNER_RADIUS, bg, border);
@@ -448,11 +516,11 @@ public class ModernClickGuiScreen extends Screen {
 
         if (controls.hasSettings()) {
             boolean tuneHov = isInside(mouseX, mouseY, layout.tuneX(), layout.tuneY(), layout.tuneW(), layout.tuneH());
-            int tuneBg = isInspected ? 0x44E53935 : (tuneHov ? 0x26FFFFFF : 0xFF1B1B25);
-            int tuneBorder = isInspected ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE;
+            int tuneBg = isExpanded ? 0x44E53935 : (tuneHov ? 0x26FFFFFF : 0xFF1B1B25);
+            int tuneBorder = isExpanded ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE;
             JelloTheme.fillRoundedCard(graphics, layout.tuneX(), layout.tuneY(), layout.tuneX() + layout.tuneW(), layout.tuneY() + layout.tuneH(), 4, tuneBg, tuneBorder);
             ModernIcons.drawTuneIcon(graphics, layout.tuneX() + 4, layout.tuneY() + 3,
-                    isInspected ? JelloTheme.ACCENT_HOVER : (tuneHov ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED));
+                    isExpanded ? JelloTheme.ACCENT_HOVER : (tuneHov ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED));
         }
 
         boolean bindHovered = isInside(mouseX, mouseY, layout.bindX(), layout.bindY(), layout.bindW(), layout.bindH());
@@ -466,87 +534,73 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     // ==========================================
-    // BOTTOM INSPECTOR DRAWER (RIGHT-CLICK SETTINGS)
+    // INLINE ROW-ANCHORED ACCORDION (SETTINGS)
     // ==========================================
-    private void renderInspectorDrawer(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int x, int y, int w, int h, float dt) {
-        graphics.enableScissor(x, y, x + w, y + h);
-        JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + h, 7, JelloTheme.CONTAINER_BG, JelloTheme.BORDER_SUBTLE);
-
-        ClickGuiScreen.ModuleEntry mod = getInspectedEntry();
-        if (mod == null) {
-            graphics.disableScissor();
+    private void renderInlineAccordion(
+            GuiGraphicsExtractor graphics,
+            int mouseX,
+            int mouseY,
+            ModernModuleGridLayout.GridPlan plan,
+            ClickGuiScreen.ModuleEntry mod,
+            List<ModernModuleSettings.Control> controls,
+            float dt
+    ) {
+        ModernModuleGridLayout.AccordionBounds acc = plan.accordion();
+        if (acc == null || mod == null) {
             return;
         }
 
-        ModConfig cfg = ModConfig.getInstance();
-        List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(mod.name, cfg, this.settingsActions);
-        boolean active = mod.getter.get();
-        ModernInspectorLayout.HeaderLayout hdr = ModernInspectorLayout.computeHeaderLayout(x, y, w);
+        // Subtle crimson bridge connector linking the active module card to its row accordion
+        int bridgeX1 = acc.anchorCenterX() - 12;
+        int bridgeX2 = acc.anchorCenterX() + 12;
+        int bridgeY1 = acc.y() - ModernModuleGridLayout.ACCORDION_TOP_GAP;
+        int bridgeY2 = acc.y() + 1;
+        graphics.fill(bridgeX1, bridgeY1, bridgeX2, bridgeY2, 0x44E53935);
+        graphics.fill(acc.anchorCenterX() - 6, bridgeY1, acc.anchorCenterX() + 6, bridgeY2, 0x88E53935);
+        graphics.fill(acc.anchorCenterX() - 1, bridgeY1, acc.anchorCenterX() + 1, bridgeY2, JelloTheme.ACCENT);
 
-        // Pinned Inspector Header
-        JelloTheme.fillRoundedTop(graphics, x + 1, y + 1, x + w - 1, y + hdr.headerHeight(), 6, JelloTheme.HEADER_BG);
-        graphics.fill(x + 1, y + hdr.headerHeight(), x + w - 1, y + hdr.headerHeight() + 1, JelloTheme.DIVIDER);
+        graphics.enableScissor(acc.x(), acc.y(), acc.x() + acc.w(), acc.y() + acc.visibleHeight());
 
-        boolean closeHov = isInside(mouseX, mouseY, hdr.closeX(), hdr.closeY(), hdr.closeW(), hdr.closeH());
-        JelloTheme.fillRoundedCard(graphics, hdr.closeX(), hdr.closeY(), hdr.closeX() + hdr.closeW(), hdr.closeY() + hdr.closeH(), 4,
-                closeHov ? 0x44E53935 : JelloTheme.CARD_INACTIVE, closeHov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
-        ModernIcons.drawCloseIcon(graphics, hdr.closeX() + 9, hdr.closeY() + 9, closeHov ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED);
+        JelloTheme.fillRoundedCard(graphics, acc.x(), acc.y(), acc.x() + acc.w(), acc.y() + acc.fullHeight(),
+                7, JelloTheme.CONTAINER_BG, 0x88E53935);
 
-        String desc = ModernModuleCardUi.getModuleDescription(mod.name, mod.category.name);
-        if (hdr.wide()) {
-            graphics.text(this.font, Component.literal(fitText(mod.name, hdr.textMaxW())), x + 12, y + 7, JelloTheme.TEXT, false);
-            graphics.text(this.font, Component.literal(fitText(desc, hdr.textMaxW())), x + 12, y + 22, JelloTheme.TEXT_MUTED, false);
-        } else {
-            graphics.text(this.font, Component.literal(fitText(mod.name, w - 48)), x + 12, y + 10, JelloTheme.TEXT, false);
-            List<FormattedCharSequence> wrappedDesc = this.font.split(Component.literal(desc), hdr.textMaxW());
-            for (int lineIdx = 0; lineIdx < Math.min(2, wrappedDesc.size()); lineIdx++) {
-                graphics.text(this.font, wrappedDesc.get(lineIdx), x + 12, y + 21 + lineIdx * 10, JelloTheme.TEXT_MUTED, false);
-            }
+        int headerBottom = acc.y() + ModernModuleGridLayout.ACCORDION_HEADER_HEIGHT;
+        JelloTheme.fillRoundedTop(graphics, acc.x() + 1, acc.y() + 1, acc.x() + acc.w() - 1,
+                headerBottom, 6, JelloTheme.HEADER_BG);
+        graphics.fill(acc.x() + 1, headerBottom, acc.x() + acc.w() - 1, headerBottom + 1, JelloTheme.DIVIDER);
+
+        JelloTheme.fillCircle(graphics, acc.x() + 12, acc.y() + 11, 2, JelloTheme.ACCENT);
+        String desc = fitText(ModernModuleCardUi.getModuleDescription(mod.name, mod.category.name), acc.w() - 44);
+        graphics.text(this.font, Component.literal(desc), acc.x() + 19, acc.y() + 7, JelloTheme.TEXT_MUTED, false);
+
+        int[] closeBtn = plan.closeButtonBounds();
+        if (closeBtn != null) {
+            int bx = closeBtn[0];
+            int by = closeBtn[1];
+            int bw = closeBtn[2];
+            int bh = closeBtn[3];
+            boolean closeHov = isInside(mouseX, mouseY, bx, by, bw, bh);
+            JelloTheme.fillRoundedCard(graphics, bx, by, bx + bw, by + bh, 4,
+                    closeHov ? 0x44E53935 : JelloTheme.CARD_INACTIVE,
+                    closeHov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+            ModernIcons.drawCloseIcon(graphics, bx + 7, by + 7,
+                    closeHov ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED);
         }
 
-        // Status & Keybind pills
-        boolean statHov = isInside(mouseX, mouseY, hdr.statX(), hdr.statY(), hdr.statW(), hdr.statH());
-        int statBg = active ? (statHov ? JelloTheme.CARD_ACTIVE_HOVER : JelloTheme.CARD_ACTIVE) : (statHov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
-        JelloTheme.fillRoundedCard(graphics, hdr.statX(), hdr.statY(), hdr.statX() + hdr.statW(), hdr.statY() + hdr.statH(), 4, statBg, active ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
-        graphics.centeredText(this.font, Component.literal(active ? "Enabled" : "Disabled"),
-                hdr.statX() + hdr.statW() / 2, hdr.statY() + (hdr.statH() - 8) / 2,
-                active ? JelloTheme.TEXT_DIM : JelloTheme.TEXT_MUTED);
-
-        boolean isListening = mod.name.equals(this.listeningKeybindModule);
-        String bindText = isListening ? "Press key..." : ("Bind: " + ClickGuiScreen.getShortBindName(cfg.getModuleKey(mod.name), cfg.isModuleKeyMouse(mod.name)));
-        boolean bindHov = isInside(mouseX, mouseY, hdr.bindX(), hdr.bindY(), hdr.bindW(), hdr.bindH());
-        JelloTheme.fillRoundedCard(graphics, hdr.bindX(), hdr.bindY(), hdr.bindX() + hdr.bindW(), hdr.bindY() + hdr.bindH(), 4,
-                isListening ? 0x44E53935 : (bindHov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE),
-                isListening ? JelloTheme.ACCENT_HOVER : JelloTheme.BORDER_SUBTLE);
-        graphics.centeredText(this.font, Component.literal(fitText(bindText, hdr.bindW() - 8)),
-                hdr.bindX() + hdr.bindW() / 2, hdr.bindY() + (hdr.bindH() - 8) / 2,
-                isListening ? 0xFFFFDD55 : JelloTheme.TEXT);
-
-        // Scrollable controls body
-        int bodyY = y + hdr.headerHeight() + 1;
-        int bodyH = h - hdr.headerHeight() - 2;
-        int innerW = Math.max(80, w - 24);
-        this.inspectorTotalHeight = ModernInspectorLayout.computeControlsFlow(0, 0, innerW, controls).totalHeight() + 8;
-        double maxScroll = Math.max(0, this.inspectorTotalHeight - bodyH);
-        this.inspectorScroll = Mth.clamp(this.inspectorScroll, 0.0, maxScroll);
-
-        graphics.enableScissor(x + 1, bodyY, x + w - 1, y + h - 3);
         ModernModuleCardUi.renderControls(
                 graphics,
                 this.font,
                 mouseX,
                 mouseY,
-                x + 12,
-                bodyY + 2 - (int) this.inspectorScroll,
-                innerW,
+                acc.x() + 12,
+                headerBottom,
+                acc.controlsWidth(),
                 mod.name,
                 controls,
                 (sx, sy, sw, sh, skey, pct) -> renderInteractiveSlider(graphics, mouseX, mouseY, sx, sy, sw, sh, skey, pct),
                 (tx, ty, tw, th, tkey, tactive) -> renderSmoothSwitch(graphics, mouseX, mouseY, tx, ty, tw, th, tkey, tactive, dt)
         );
-        graphics.disableScissor();
 
-        renderScrollbarAt(graphics, x + w - 6, bodyY + 4, bodyH - 8, this.inspectorTotalHeight, this.inspectorScroll);
         graphics.disableScissor();
     }
 
@@ -906,8 +960,7 @@ public class ModernClickGuiScreen extends Screen {
                 this.activeNav = tabs[tabIndex];
                 this.scrollAmount = 0.0;
                 this.listeningKeybindModule = null;
-                this.draggingSliderKey = null;
-                this.activeSlider = null;
+                clearExpandedImmediate();
                 if (!this.searchQuery.isEmpty() && this.searchBox != null) {
                     this.searchBox.setValue("");
                     this.searchQuery = "";
@@ -967,6 +1020,13 @@ public class ModernClickGuiScreen extends Screen {
                             this.searchBox.setValue("");
                             this.searchQuery = "";
                         }
+                        if (this.expandedModule != null) {
+                            if (findModuleIndex(getVisibleModules(), this.expandedModule) < 0) {
+                                clearExpandedImmediate();
+                            } else {
+                                this.ensureExpandedVisible = true;
+                            }
+                        }
                         playClickSound();
                         return true;
                     }
@@ -978,35 +1038,65 @@ public class ModernClickGuiScreen extends Screen {
 
         int bodyY = contentY + CHIP_BAR_HEIGHT;
         int bodyH = contentH - CHIP_BAR_HEIGHT;
-        int drawerH = computeBottomDrawerHeight(contentW, bodyH);
-        int gridH = Math.max(0, bodyH - drawerH);
-        int[] inspBounds = isInspectorOpen()
-                ? ModernInspectorLayout.computeBottomDrawerBounds(contentX, bodyY, contentW, bodyH, drawerH)
-                : null;
-
-        // 2. Bottom Inspector Drawer interaction (isolated from grid above)
-        if (inspBounds != null && isInside(mouseX, mouseY, inspBounds[0], inspBounds[1], inspBounds[2], inspBounds[3])) {
-            return handleInspectorClick(mouseX, mouseY, button, inspBounds[0], inspBounds[1], inspBounds[2]);
-        }
-
-        // 3. Module Grid interaction
-        int gridW = contentW;
-        if (!isInside(mouseX, mouseY, contentX, bodyY, gridW, gridH)) {
+        if (!isInside(mouseX, mouseY, contentX, bodyY, contentW, bodyH)) {
             return false;
         }
 
-        List<ClickGuiScreen.ModuleEntry> modules = getVisibleModules();
-        ModernModuleGridLayout.GridMetrics metrics = ModernModuleGridLayout.computeGridMetrics(gridW, modules.size());
-        int startY = (int) (bodyY + metrics.padY() - this.scrollAmount);
+        ResolvedAccordionPlan resolved = resolveAccordionPlan(contentX, bodyY, contentW);
+        ModernModuleGridLayout.GridPlan plan = resolved.plan();
+        ModernModuleGridLayout.AccordionBounds acc = plan.accordion();
+
+        // 2. Inline Accordion interaction (isolated from cards)
+        if (acc != null && resolved.expandedEntry() != null
+                && isInside(mouseX, mouseY, acc.x(), acc.y(), acc.w(), acc.visibleHeight())) {
+            int[] closeBtn = plan.closeButtonBounds();
+            if (closeBtn != null && isInside(mouseX, mouseY, closeBtn[0], closeBtn[1], closeBtn[2], closeBtn[3])
+                    && (MouseButtonMapping.isLeftClick(button) || MouseButtonMapping.isRightClick(button))) {
+                closeExpandedModule();
+                playClickSound();
+                return true;
+            }
+            if (MouseButtonMapping.isRightClick(button)) {
+                closeExpandedModule();
+                playClickSound();
+                return true;
+            }
+            if (this.expandedModule != null
+                    && MouseButtonMapping.isLeftClick(button)
+                    && mouseY >= acc.y() + ModernModuleGridLayout.ACCORDION_HEADER_HEIGHT) {
+                ModernModuleCardUi.handleControlsClick(
+                        mouseX,
+                        mouseY,
+                        acc.x() + 12,
+                        acc.y() + ModernModuleGridLayout.ACCORDION_HEADER_HEIGHT,
+                        acc.controlsWidth(),
+                        resolved.expandedControls(),
+                        (slider, startX, width, initialPct) -> {
+                            this.draggingSliderKey = slider.key();
+                            this.activeSlider = slider;
+                            this.draggingSliderStartX = startX;
+                            this.draggingSliderWidth = width;
+                            slider.pctSetter().accept(initialPct);
+                        },
+                        this::playClickSound
+                );
+            }
+            return true;
+        }
+
+        // 3. Module Grid interaction
+        List<ClickGuiScreen.ModuleEntry> modules = resolved.modules();
+        int colW = plan.metrics().colWidth();
+        int cardH = plan.metrics().cardHeight();
         ModConfig cfg = ModConfig.getInstance();
 
         for (int i = 0; i < modules.size(); i++) {
-            int cx = metrics.cardX(contentX, i);
-            int cy = metrics.cardY(startY, i);
+            int cx = plan.cardX(contentX, i);
+            int cy = plan.cardY(resolved.startY(), i);
 
-            if (isInside(mouseX, mouseY, cx, cy, metrics.colWidth(), metrics.cardHeight())) {
+            if (isInside(mouseX, mouseY, cx, cy, colW, cardH)) {
                 ClickGuiScreen.ModuleEntry mod = modules.get(i);
-                CardControlsBounds controls = computeCardControls(cx, cy, metrics.colWidth(), mod, cfg);
+                CardControlsBounds controls = computeCardControls(cx, cy, colW, mod, cfg);
                 ModernModuleGridLayout.CardControlLayout layout = controls.layout();
 
                 // Keybind Pill (immediately left of toggle switch)
@@ -1028,11 +1118,11 @@ public class ModernClickGuiScreen extends Screen {
                 if (controls.hasSettings()
                         && isInside(mouseX, mouseY, layout.tuneX(), layout.tuneY(), layout.tuneW(), layout.tuneH())
                         && (MouseButtonMapping.isLeftClick(button) || MouseButtonMapping.isRightClick(button))) {
-                    toggleInspector(mod.name);
+                    toggleExpandedModule(mod.name);
                     return true;
                 }
 
-                // Main Card Body / Toggle Switch: Left-click toggles ON/OFF, Right-click opens Settings (if configurable)
+                // Main Card Body / Toggle Switch: Left-click toggles ON/OFF, Right-click expands Settings (if configurable)
                 if (MouseButtonMapping.isLeftClick(button)) {
                     mod.setter.accept(!mod.getter.get());
                     playClickSound();
@@ -1040,7 +1130,7 @@ public class ModernClickGuiScreen extends Screen {
                 }
                 if (MouseButtonMapping.isRightClick(button)) {
                     if (controls.hasSettings()) {
-                        toggleInspector(mod.name);
+                        toggleExpandedModule(mod.name);
                     }
                     return true;
                 }
@@ -1049,69 +1139,6 @@ public class ModernClickGuiScreen extends Screen {
         }
 
         return false;
-    }
-
-    private boolean handleInspectorClick(int mouseX, int mouseY, int button, int x, int y, int w) {
-        ClickGuiScreen.ModuleEntry mod = getInspectedEntry();
-        if (mod == null) {
-            return true;
-        }
-        ModConfig cfg = ModConfig.getInstance();
-        ModernInspectorLayout.HeaderLayout hdr = ModernInspectorLayout.computeHeaderLayout(x, y, w);
-
-        // Close button [X]
-        if (isInside(mouseX, mouseY, hdr.closeX(), hdr.closeY(), hdr.closeW(), hdr.closeH())
-                && (MouseButtonMapping.isLeftClick(button) || MouseButtonMapping.isRightClick(button))) {
-            closeInspector();
-            playClickSound();
-            return true;
-        }
-
-        // Status pill
-        if (isInside(mouseX, mouseY, hdr.statX(), hdr.statY(), hdr.statW(), hdr.statH()) && MouseButtonMapping.isLeftClick(button)) {
-            mod.setter.accept(!mod.getter.get());
-            playClickSound();
-            return true;
-        }
-
-        // Bind pill
-        if (isInside(mouseX, mouseY, hdr.bindX(), hdr.bindY(), hdr.bindW(), hdr.bindH())) {
-            boolean isListening = mod.name.equals(this.listeningKeybindModule);
-            if (MouseButtonMapping.isRightClick(button)) {
-                cfg.setModuleKey(mod.name, -1, false);
-                this.listeningKeybindModule = null;
-                cfg.save();
-                playClickSound();
-            } else if (MouseButtonMapping.isLeftClick(button)) {
-                this.listeningKeybindModule = isListening ? null : mod.name;
-                cfg.save();
-                playClickSound();
-            }
-            return true;
-        }
-
-        // Scrollable controls body
-        int bodyY = y + hdr.headerHeight() + 1;
-        if (mouseY >= bodyY && MouseButtonMapping.isLeftClick(button)) {
-            List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(mod.name, cfg, this.settingsActions);
-            ModernModuleCardUi.handleControlsClick(
-                    mouseX,
-                    mouseY,
-                    x + 12,
-                    bodyY + 2 - (int) this.inspectorScroll,
-                    Math.max(80, w - 24),
-                    controls,
-                    (slider, startX, width, initialPct) -> {
-                        this.draggingSliderKey = slider.key();
-                        this.activeSlider = slider;
-                        this.draggingSliderStartX = startX;
-                        this.draggingSliderWidth = width;
-                        slider.pctSetter().accept(initialPct);
-                    },
-                    this::playClickSound
-            );
-        }
-        return true;
     }
 
     private boolean handleMacrosClick(int mouseX, int mouseY, int button, int contentX, int contentY, int contentW, int contentH) {
@@ -1356,26 +1383,14 @@ public class ModernClickGuiScreen extends Screen {
         int contentH = this.windowH - HEADER_HEIGHT - 2;
 
         boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
-        int drawerH = 0;
-        if (showingModules) {
-            int bodyY = contentY + CHIP_BAR_HEIGHT;
-            int bodyH = contentH - CHIP_BAR_HEIGHT;
-            drawerH = computeBottomDrawerHeight(contentW, bodyH);
-            if (isInspectorOpen()) {
-                int[] inspBounds = ModernInspectorLayout.computeBottomDrawerBounds(contentX, bodyY, contentW, bodyH, drawerH);
-                if (inspBounds != null && isInside((int) mouseX, (int) mouseY, inspBounds[0], inspBounds[1], inspBounds[2], inspBounds[3])) {
-                    int hdrH = ModernInspectorLayout.computeHeaderHeight(inspBounds[2]);
-                    int maxInsp = Math.max(0, this.inspectorTotalHeight - (inspBounds[3] - hdrH - 2));
-                    this.inspectorScroll = Mth.clamp(this.inspectorScroll - scrollY * 24.0, 0.0, maxInsp);
-                    return true;
-                }
-            }
-        }
-
-        int viewH = showingModules ? Math.max(0, contentH - CHIP_BAR_HEIGHT - drawerH) : contentH;
-        int maxScroll = Math.max(0, this.contentTotalHeight - viewH);
+        int viewH = showingModules ? Math.max(0, contentH - CHIP_BAR_HEIGHT) : contentH;
+        int totalH = showingModules
+                ? resolveAccordionPlan(contentX, contentY + CHIP_BAR_HEIGHT, contentW).plan().totalHeight()
+                : this.contentTotalHeight;
+        int maxScroll = Math.max(0, totalH - viewH);
         if (maxScroll > 0) {
             this.scrollAmount = Mth.clamp(this.scrollAmount - scrollY * 26.0, 0.0, maxScroll);
+            this.ensureExpandedVisible = false;
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
@@ -1425,8 +1440,8 @@ public class ModernClickGuiScreen extends Screen {
                 closeMacroEditor();
                 return true;
             }
-            if (isInspectorOpen() && (!this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES)) {
-                closeInspector();
+            if (isExpandedOpen() && (!this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES)) {
+                closeExpandedModule();
                 return true;
             }
             onClose();
@@ -1449,45 +1464,52 @@ public class ModernClickGuiScreen extends Screen {
         }
     }
 
-    private boolean isInspectorOpen() {
-        return this.inspectedModule != null && getInspectedEntry() != null;
+    private boolean isExpandedOpen() {
+        return this.expandedModule != null && findModuleIndex(getVisibleModules(), this.expandedModule) >= 0;
     }
 
-    private ClickGuiScreen.ModuleEntry getInspectedEntry() {
-        if (this.inspectedModule == null) return null;
-        return ClickGuiScreen.getModuleByName(this.inspectedModule);
+    private static int findModuleIndex(List<ClickGuiScreen.ModuleEntry> modules, String modName) {
+        if (modName == null || modules == null) {
+            return -1;
+        }
+        for (int i = 0; i < modules.size(); i++) {
+            if (modName.equals(modules.get(i).name)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
-    private void toggleInspector(String modName) {
-        if (modName != null && modName.equals(this.inspectedModule)) {
-            closeInspector();
+    private void toggleExpandedModule(String modName) {
+        if (modName != null && modName.equals(this.expandedModule)) {
+            closeExpandedModule();
         } else {
-            this.inspectedModule = modName;
-            this.inspectorScroll = 0.0;
+            if (modName != null && !modName.equals(this.renderedExpandedModule)) {
+                this.expandAnim = 0.0f;
+            }
+            this.expandedModule = modName;
+            this.renderedExpandedModule = modName;
             this.draggingSliderKey = null;
             this.activeSlider = null;
+            this.ensureExpandedVisible = true;
         }
         playClickSound();
     }
 
-    private void closeInspector() {
-        this.inspectedModule = null;
-        this.inspectorScroll = 0.0;
+    private void closeExpandedModule() {
+        this.expandedModule = null;
+        this.ensureExpandedVisible = false;
         this.draggingSliderKey = null;
         this.activeSlider = null;
     }
 
-    private int computeBottomDrawerHeight(int contentW, int bodyH) {
-        if (this.inspectorAnim <= 0.005f) {
-            return 0;
-        }
-        ClickGuiScreen.ModuleEntry mod = getInspectedEntry();
-        if (mod != null) {
-            List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(
-                    mod.name, ModConfig.getInstance(), this.settingsActions);
-            this.lastDrawerTargetHeight = ModernInspectorLayout.computeTargetDrawerSlotHeight(contentW, bodyH, controls);
-        }
-        return Math.round(this.lastDrawerTargetHeight * this.inspectorAnim);
+    private void clearExpandedImmediate() {
+        this.expandedModule = null;
+        this.renderedExpandedModule = null;
+        this.expandAnim = 0.0f;
+        this.ensureExpandedVisible = false;
+        this.draggingSliderKey = null;
+        this.activeSlider = null;
     }
 
     private record FilterChip(String id, String label, int count) {}
