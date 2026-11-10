@@ -9,6 +9,7 @@ import net.fabricmc.loader.impl.launch.FabricLauncherBase;
 
 import java.lang.reflect.Constructor;
 import java.nio.file.Path;
+import java.util.Locale;
 
 /**
  * Fabric LanguageAdapter initialized during FabricLoaderImpl.setupLanguageAdapters(),
@@ -34,14 +35,15 @@ public final class SctBootstrapAdapter implements LanguageAdapter {
             Path workDir = resolveWorkDir();
             String manifestUrl = SctUpdateConfig.resolveManifestUrl(workDir);
             String releasesUrl = SctUpdateConfig.resolveReleasesPageUrl(workDir);
+            SctUpdateListener listener = createListenerSafely();
 
-            try (SctUpdateWindow window = new SctUpdateWindow()) {
+            try (listener) {
                 SctUpdater updater = new SctUpdater(
                         workDir,
                         manifestUrl,
                         releasesUrl,
-                        () -> SctBootstrapAdapter.class.getResourceAsStream("/assets/sctclient/fallback-core.jar"),
-                        window
+                        () -> SctBootstrapAdapter.class.getResourceAsStream("/sctclient/fallback-core.jar"),
+                        listener
                 );
                 Path coreJar = updater.resolveAndEnsureCore();
                 if (coreJar != null) {
@@ -58,6 +60,18 @@ public final class SctBootstrapAdapter implements LanguageAdapter {
             } finally {
                 bootstrapped = true;
             }
+        }
+    }
+
+    private static SctUpdateListener createListenerSafely() {
+        try {
+            String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+            if (os.contains("mac")) {
+                return SctUpdateListener.NO_OP;
+            }
+            return new SctUpdateWindow();
+        } catch (Throwable ignored) {
+            return SctUpdateListener.NO_OP;
         }
     }
 

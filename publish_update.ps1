@@ -8,7 +8,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$repoRoot = "C:\Users\PC\Desktop\client"
+$repoRoot = $PSScriptRoot
 $javac = "C:\Users\PC\AppData\Roaming\PrismLauncher\java\java-runtime-epsilon\bin\javac.exe"
 $jarExe = "C:\Users\PC\AppData\Roaming\PrismLauncher\java\java-runtime-epsilon\bin\jar.exe"
 $scratchDir = "C:\Users\PC\.gemini\antigravity\brain\57534eac-943f-403b-bc3c-8bec60cca594\scratch"
@@ -161,7 +161,7 @@ $manifestJson = $manifestObj | ConvertTo-Json -Depth 4
 $manifestOut = Join-Path $distDir "version.json"
 [IO.File]::WriteAllText($manifestOut, $manifestJson, (New-Object System.Text.UTF8Encoding($false)))
 
-# Stage Bootloader JAR (ONLY com/client/loader + fabric.mod.json + IAS JiJ + fallback-core.jar)
+# Stage Bootloader JAR (ONLY com/client/loader + fabric.mod.json + IAS JiJ + sctclient/fallback-core.jar)
 $loaderClassesDest = Join-Path $loaderStage "com\client\loader"
 New-Item -ItemType Directory -Path $loaderClassesDest -Force | Out-Null
 Copy-Item (Join-Path $classesDir "com\client\loader\*") $loaderClassesDest -Recurse -Force
@@ -177,7 +177,7 @@ $iasJarSrc = "$scratchDir\IAS-9.0.8+26.3-fabric.jar"
 if (-not (Test-Path $iasJarSrc)) { $iasJarSrc = Join-Path $repoRoot "META-INF\jars\IAS-9.0.8+26.3-fabric.jar" }
 Copy-Item $iasJarSrc (Join-Path $loaderJarsDir "IAS-9.0.8+26.3-fabric.jar") -Force
 
-$fallbackDir = Join-Path $loaderStage "assets\sctclient"
+$fallbackDir = Join-Path $loaderStage "sctclient"
 New-Item -ItemType Directory -Path $fallbackDir -Force | Out-Null
 Copy-Item $coreJarOut (Join-Path $fallbackDir "fallback-core.jar") -Force
 
@@ -242,6 +242,12 @@ if ($Upload) {
         $uploadBase = $rel.upload_url -replace '\{\?name,label\}$', ''
         foreach ($assetPath in @($coreJarOut, $manifestOut, $loaderJarOut)) {
             $name = [IO.Path]::GetFileName($assetPath)
+            if ($rel.assets) {
+                $existing = $rel.assets | Where-Object { $_.name -eq $name }
+                foreach ($oldAsset in $existing) {
+                    Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/assets/$($oldAsset.id)" -Headers $headers -Method Delete | Out-Null
+                }
+            }
             $contentType = if ($name.EndsWith(".json")) { "application/json" } else { "application/java-archive" }
             $bytes = [IO.File]::ReadAllBytes($assetPath)
             Invoke-RestMethod -Uri "$uploadBase`?name=$name" -Headers $headers -Method Post -Body $bytes -ContentType $contentType | Out-Null

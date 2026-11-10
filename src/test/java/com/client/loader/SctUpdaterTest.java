@@ -58,6 +58,8 @@ public class SctUpdaterTest {
         testHttpRedirectDownloadAndSha256AndNotice();
         testCacheHitSkipsDownload();
         testCorruptSha256PreservesCache();
+        testEmptySha256Rejected();
+        testNonLocalHttpRejected();
         testMinLoaderCodeTooHighWritesOutdatedNotice();
         testMaliciousVersionStringSanitized();
         System.out.println("ALL SctUpdaterTest ASSERTIONS PASSED!");
@@ -228,6 +230,81 @@ public class SctUpdaterTest {
             assert Files.readString(resolved).equals("VALID-OLD-1.0.0") : "Must fall back to intact baseline on checksum mismatch";
             assert !Files.exists(workDir.resolve("core").resolve("SCTClient-Core-1.0.3.jar")) : "Tampered file must not be kept";
             assert Files.list(workDir.resolve("core")).noneMatch(p -> p.toString().endsWith(".part")) : "Leftover .part file must be removed";
+        } finally {
+            server.stop(0);
+            deleteRecursive(workDir);
+        }
+    }
+
+    private static void testEmptySha256Rejected() throws Exception {
+        Path workDir = Files.createTempDirectory("sct-test-emptysha-");
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        try {
+            byte[] baseline = "VALID-OLD-1.0.0".getBytes(StandardCharsets.UTF_8);
+            AtomicInteger downloads = new AtomicInteger(0);
+            int port = server.getAddress().getPort();
+
+            String manifest = String.format(
+                    "{\"versionCode\":3,\"version\":\"1.0.3\",\"changelog\":\"Empty sha\",\"downloadUrl\":\"http://127.0.0.1:%d/core.jar\",\"sha256\":\"\",\"minLoaderCode\":1}",
+                    port
+            );
+
+            server.createContext("/version.json", ex -> {
+                byte[] resp = manifest.getBytes(StandardCharsets.UTF_8);
+                ex.sendResponseHeaders(200, resp.length);
+                try (OutputStream os = ex.getResponseBody()) { os.write(resp); }
+            });
+            server.createContext("/core.jar", ex -> {
+                downloads.incrementAndGet();
+                ex.sendResponseHeaders(200, 0);
+                ex.close();
+            });
+            server.start();
+
+            SctUpdater updater = new SctUpdater(
+                    workDir, "http://127.0.0.1:" + port + "/version.json",
+                    "https://github.com/kheromieallah/sestia/releases/latest",
+                    () -> new ByteArrayInputStream(baseline),
+                    new RecordingListener()
+            );
+            Path resolved = updater.resolveAndEnsureCore();
+            assert downloads.get() == 0 : "Must refuse download when manifest lacks SHA-256";
+            assert Files.readString(resolved).equals("VALID-OLD-1.0.0");
+        } finally {
+            server.stop(0);
+            deleteRecursive(workDir);
+        }
+    }
+
+    private static void testNonLocalHttpRejected() throws Exception {
+        Path workDir = Files.createTempDirectory("sct-test-nohttps-");
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        try {
+            byte[] baseline = "VALID-OLD-1.0.0".getBytes(StandardCharsets.UTF_8);
+            String sha = sha256Hex("REMOTE".getBytes(StandardCharsets.UTF_8));
+            int port = server.getAddress().getPort();
+
+            String manifest = String.format(
+                    "{\"versionCode\":4,\"version\":\"1.0.4\",\"changelog\":\"Cleartext\",\"downloadUrl\":\"http://example.com/core.jar\",\"sha256\":\"%s\",\"minLoaderCode\":1}",
+                    sha
+            );
+            server.createContext("/version.json", ex -> {
+                byte[] resp = manifest.getBytes(StandardCharsets.UTF_8);
+                ex.sendResponseHeaders(200, resp.length);
+                try (OutputStream os = ex.getResponseBody()) { os.write(resp); }
+            });
+            server.start();
+
+            RecordingListener listener = new RecordingListener();
+            SctUpdater updater = new SctUpdater(
+                    workDir, "http://127.0.0.1:" + port + "/version.json",
+                    "https://github.com/kheromieallah/sestia/releases/latest",
+                    () -> new ByteArrayInputStream(baseline),
+                    listener
+            );
+            Path resolved = updater.resolveAndEnsureCore();
+            assert Files.readString(resolved).equals("VALID-OLD-1.0.0") : "Cleartext non-localhost downloadUrl must fail cleanly to baseline";
+            assert listener.events.stream().anyMatch(e -> e.startsWith("offline:"));
         } finally {
             server.stop(0);
             deleteRecursive(workDir);

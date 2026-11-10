@@ -1,5 +1,6 @@
 package com.client.mod.mixin;
 
+import net.fabricmc.fabric.impl.resource.pack.FabricPack;
 import net.fabricmc.fabric.impl.resource.pack.ModResourcePackCreator;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.FilePackResources;
@@ -7,7 +8,6 @@ import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
-import net.minecraft.server.packs.repository.PackSource;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -21,14 +21,23 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * Mounts the active SCTClient-Core JAR as a top-priority built-in client resource pack
- * so asset updates (textures, fonts, languages) apply in the same launch as code updates.
+ * Mounts the active SCTClient-Core JAR using Fabric's hidden mod resource pack model
+ * so asset updates (textures, fonts, languages) apply cleanly without cluttering UI
+ * or blocking user-installed texture packs.
  */
 @Mixin(value = ModResourcePackCreator.class, remap = false)
 public class CoreAssetsPackMixin {
     @Shadow
     @Final
     private PackType type;
+
+    @Shadow
+    @Final
+    private PackSelectionConfig activationInfo;
+
+    @Shadow
+    @Final
+    private boolean forKnownPacksManager;
 
     @Inject(method = "loadPacks", at = @At("TAIL"))
     private void sct$mountCoreAssetsPack(Consumer<Pack> consumer, CallbackInfo ci) {
@@ -45,18 +54,20 @@ public class CoreAssetsPackMixin {
         }
         PackLocationInfo info = new PackLocationInfo(
                 "sctclient-core",
-                Component.literal("SCT Client Core Assets"),
-                PackSource.BUILT_IN,
+                Component.literal("SCT Client Core"),
+                ModResourcePackCreator.RESOURCE_PACK_SOURCE,
                 Optional.empty()
         );
-        PackSelectionConfig selection = new PackSelectionConfig(true, Pack.Position.TOP, true);
         Pack pack = Pack.readMetaAndCreate(
                 info,
                 new FilePackResources.FileResourcesSupplier(corePath),
-                PackType.CLIENT_RESOURCES,
-                selection
+                this.type,
+                this.activationInfo
         );
         if (pack != null) {
+            if (!this.forKnownPacksManager) {
+                ((FabricPack) pack).fabric$setParentsPredicate(ModResourcePackCreator.BASE_PARENT);
+            }
             consumer.accept(pack);
         }
     }

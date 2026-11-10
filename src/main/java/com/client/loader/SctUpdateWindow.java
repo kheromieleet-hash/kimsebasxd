@@ -223,6 +223,9 @@ public final class SctUpdateWindow implements SctUpdateListener {
         if (updated) {
             ensureVisible();
             sleepQuietly(550);
+        } else if (this.shown) {
+            triggerRepaint();
+            sleepQuietly(250);
         }
     }
 

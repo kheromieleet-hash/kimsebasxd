@@ -89,8 +89,8 @@ public final class UpdateNoticeManager {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
-        if (mc == null || mc.font == null) {
-            return;
+        if (mc == null || mc.font == null || mc.gui == null || mc.gui.overlay() != null) {
+            return; // Wait until splash LoadingOverlay finishes before starting/showing toast
         }
 
         long now = System.currentTimeMillis();

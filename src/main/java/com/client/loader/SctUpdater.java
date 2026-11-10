@@ -128,10 +128,19 @@ public final class SctUpdater {
             return safeCore;
         }
 
+        if (!isValidSha256Hex(remote.sha256)) {
+            Path safeCore = ensureBaselineIfMissing(localCore, localState);
+            LocalState finalState = readLocalState();
+            String ver = finalState != null && finalState.version != null ? finalState.version : SctUpdateConfig.BASELINE_VERSION;
+            this.listener.onOffline(ver, "Manifest missing valid SHA-256 digest");
+            this.listener.close();
+            return safeCore;
+        }
+
         boolean sameVersionAndValid = localCore != null
                 && localState != null
                 && localState.versionCode >= remote.versionCode
-                && (remote.sha256 == null || remote.sha256.isBlank() || remote.sha256.equalsIgnoreCase(localState.sha256));
+                && remote.sha256.trim().equalsIgnoreCase(localState.sha256);
 
         if (sameVersionAndValid) {
             this.listener.onReady(localState.version != null ? localState.version : targetVer, false);
@@ -150,7 +159,7 @@ public final class SctUpdater {
             newState.versionCode = remote.versionCode;
             newState.version = targetVer;
             newState.coreFile = targetJar.getFileName().toString();
-            newState.sha256 = remote.sha256 != null ? remote.sha256.toLowerCase(Locale.ROOT) : computeSha256(targetJar);
+            newState.sha256 = remote.sha256.trim().toLowerCase(Locale.ROOT);
             writeLocalState(newState);
 
             pruneOldCoreJars(targetJar);
@@ -171,7 +180,8 @@ public final class SctUpdater {
     }
 
     private RemoteManifest fetchManifest() throws IOException, InterruptedException {
-        HttpRequest req = HttpRequest.newBuilder(URI.create(this.manifestUrl))
+        URI manifestUri = validateTransportUrl(this.manifestUrl);
+        HttpRequest req = HttpRequest.newBuilder(manifestUri)
                 .timeout(MANIFEST_TIMEOUT)
                 .header("User-Agent", "SCTClient-Bootloader/" + SctUpdateConfig.LOADER_CODE)
                 .header("Accept", "application/json")
@@ -190,8 +200,13 @@ public final class SctUpdater {
 
     private void downloadAndVerify(RemoteManifest remote, String fromVer, String toVer, Path partJar, Path targetJar)
             throws IOException, InterruptedException {
+        if (!isValidSha256Hex(remote.sha256)) {
+            throw new IOException("Refusing unverified download without valid 64-hex SHA-256");
+        }
+        URI downloadUri = validateTransportUrl(remote.downloadUrl);
+
         Files.deleteIfExists(partJar);
-        HttpRequest req = HttpRequest.newBuilder(URI.create(remote.downloadUrl))
+        HttpRequest req = HttpRequest.newBuilder(downloadUri)
                 .timeout(DOWNLOAD_TIMEOUT)
                 .header("User-Agent", "SCTClient-Bootloader/" + SctUpdateConfig.LOADER_CODE)
                 .GET()
@@ -232,12 +247,45 @@ public final class SctUpdater {
         }
 
         String actualHash = HexFormat.of().formatHex(digest.digest());
-        if (remote.sha256 != null && !remote.sha256.isBlank() && !actualHash.equalsIgnoreCase(remote.sha256.trim())) {
+        if (!actualHash.equalsIgnoreCase(remote.sha256.trim())) {
             Files.deleteIfExists(partJar);
             throw new IOException("SHA-256 verification failed");
         }
 
         Files.move(partJar, targetJar, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    public static boolean isValidSha256Hex(String sha256) {
+        if (sha256 == null) return false;
+        String trimmed = sha256.trim();
+        if (trimmed.length() != 64) return false;
+        for (int i = 0; i < 64; i++) {
+            char c = trimmed.charAt(i);
+            boolean hex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+            if (!hex) return false;
+        }
+        return true;
+    }
+
+    public static URI validateTransportUrl(String rawUrl) throws IOException {
+        if (rawUrl == null || rawUrl.isBlank()) {
+            throw new IOException("Empty URL");
+        }
+        URI uri;
+        try {
+            uri = URI.create(rawUrl.trim());
+        } catch (IllegalArgumentException ex) {
+            throw new IOException("Malformed URL: " + rawUrl, ex);
+        }
+        String scheme = uri.getScheme() != null ? uri.getScheme().toLowerCase(Locale.ROOT) : "";
+        String host = uri.getHost() != null ? uri.getHost().toLowerCase(Locale.ROOT) : "";
+        if ("https".equals(scheme)) {
+            return uri;
+        }
+        if ("http".equals(scheme) && ("127.0.0.1".equals(host) || "localhost".equals(host) || "[::1]".equals(host))) {
+            return uri;
+        }
+        throw new IOException("Insecure non-HTTPS URL rejected: " + rawUrl);
     }
 
     private Path ensureBaselineIfMissing(Path localCore, LocalState localState) throws IOException {
@@ -276,11 +324,12 @@ public final class SctUpdater {
             return null;
         }
         try {
-            if (state.sha256 != null && !state.sha256.isBlank()) {
-                String actual = computeSha256(candidate);
-                if (!actual.equalsIgnoreCase(state.sha256)) {
-                    return null;
-                }
+            if (!isValidSha256Hex(state.sha256)) {
+                return null;
+            }
+            String actual = computeSha256(candidate);
+            if (!actual.equalsIgnoreCase(state.sha256.trim())) {
+                return null;
             }
             return candidate;
         } catch (IOException ignored) {
