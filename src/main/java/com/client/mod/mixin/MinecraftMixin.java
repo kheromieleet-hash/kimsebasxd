@@ -66,6 +66,23 @@ public abstract class MinecraftMixin {
     @Unique
     private boolean wasAutoBreaking = false;
 
+    @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
+    private void onStartUseItemGhostHand(CallbackInfo ci) {
+        if (!com.client.mod.ModConfig.getInstance().ghostHand) {
+            return;
+        }
+        if (this.gameMode == null || this.player == null || this.level == null) {
+            return;
+        }
+        if (this.gameMode.isDestroying() || this.player.isHandsBusy()) {
+            return;
+        }
+        if (com.client.mod.GhostHandHandler.tryInteractThroughBlocks(this.player, this.level, this.gameMode, this.hitResult)) {
+            this.rightClickDelay = 4;
+            ci.cancel();
+        }
+    }
+
     // Exact Meteor Client injection point inside startUseItem()
     @Inject(
             method = "startUseItem",

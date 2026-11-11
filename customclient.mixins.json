@@ -38,7 +38,9 @@
     "LivingEntityRendererMixin",
     "EntityMixin",
     "ConnectionMixin",
-    "CoreAssetsPackMixin"
+    "CoreAssetsPackMixin",
+    "LocalPlayerMixin",
+    "ClientPlayPacketListenerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -369,6 +369,116 @@ public class ClickGuiScreen extends Screen {
                 }
         ));
 
+        // 21. Anti Hunger (Exploit)
+        MODULES.add(new ModuleEntry(
+                "Anti Hunger", Category.EXPLOIT,
+                () -> config.antiHunger,
+                val -> {
+                    config.antiHunger = val;
+                    config.save();
+                }
+        ));
+
+        // 22. Anti Levitation (Exploit)
+        MODULES.add(new ModuleEntry(
+                "Anti Levitation", Category.EXPLOIT,
+                () -> config.antiLevitation,
+                val -> {
+                    config.antiLevitation = val;
+                    config.save();
+                }
+        ));
+
+        // 23. Backtrack (Exploit)
+        MODULES.add(new ModuleEntry(
+                "Backtrack", Category.EXPLOIT,
+                () -> config.backtrack,
+                val -> {
+                    config.backtrack = val;
+                    config.save();
+                }
+        ));
+
+        // 24. Disabler (Exploit)
+        MODULES.add(new ModuleEntry(
+                "Disabler", Category.EXPLOIT,
+                () -> config.disabler,
+                val -> {
+                    config.disabler = val;
+                    config.save();
+                }
+        ));
+
+        // 25. Exploit Guard (Exploit)
+        MODULES.add(new ModuleEntry(
+                "Exploit Guard", Category.EXPLOIT,
+                () -> config.exploitGuard,
+                val -> {
+                    config.exploitGuard = val;
+                    config.save();
+                }
+        ));
+
+        // 26. Ghost Hand (Exploit)
+        MODULES.add(new ModuleEntry(
+                "Ghost Hand", Category.EXPLOIT,
+                () -> config.ghostHand,
+                val -> {
+                    config.ghostHand = val;
+                    config.save();
+                }
+        ));
+
+        // 27. No Mining Trace (Exploit)
+        MODULES.add(new ModuleEntry(
+                "No Mining Trace", Category.EXPLOIT,
+                () -> config.noMiningTrace,
+                val -> {
+                    config.noMiningTrace = val;
+                    config.save();
+                }
+        ));
+
+        // 28. No Slowdown (Exploit)
+        MODULES.add(new ModuleEntry(
+                "No Slowdown", Category.EXPLOIT,
+                () -> config.noSlowdown,
+                val -> {
+                    config.noSlowdown = val;
+                    config.save();
+                }
+        ));
+
+        // 29. Ping Spoof (Exploit)
+        MODULES.add(new ModuleEntry(
+                "Ping Spoof", Category.EXPLOIT,
+                () -> config.pingSpoof,
+                val -> {
+                    config.pingSpoof = val;
+                    config.save();
+                }
+        ));
+
+        // 30. Portal GUI (Exploit)
+        MODULES.add(new ModuleEntry(
+                "Portal GUI", Category.EXPLOIT,
+                () -> config.portalGui,
+                val -> {
+                    config.portalGui = val;
+                    config.save();
+                }
+        ));
+
+        // 31. Resource Pack Spoof (Exploit)
+        MODULES.add(new ModuleEntry(
+                "Resource Pack Spoof", Category.EXPLOIT,
+                () -> config.resourcePackSpoof,
+                val -> {
+                    config.resourcePackSpoof = val;
+                    config.save();
+                }
+        ));
+
         ModernModuleGridLayout.sortByNameInPlace(MODULES, m -> m.name);
     }
 
@@ -1139,6 +1249,65 @@ public class ClickGuiScreen extends Screen {
                 drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
                         "Abort Breaking: " + (config.abortBreaking ? "ON" : "OFF"), config.abortBreaking);
             }
+            case "Anti Hunger" -> drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                    "Anti Hunger: " + (config.antiHunger ? "ON" : "OFF"), config.antiHunger);
+            case "Anti Levitation" -> drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                    "Anti Levitation: " + (config.antiLevitation ? "ON" : "OFF"), config.antiLevitation);
+            case "Backtrack" -> {
+                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                        "Backtrack: " + (config.backtrack ? "ON" : "OFF"), config.backtrack);
+                rowY += 22;
+                drawSlider(graphics, font, innerX, rowY, innerW,
+                        "Max Delay: " + config.backtrackDelay + "ms",
+                        (config.backtrackDelay - 40) / 260.0f);
+            }
+            case "Disabler" -> {
+                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                        "Disabler: " + (config.disabler ? "ON" : "OFF"), config.disabler);
+                rowY += 22;
+                String disablerName = config.disablerMode == 1 ? "§bGrim" : "§aVulcan";
+                drawActionButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW, "Mode: " + disablerName);
+            }
+            case "Exploit Guard" -> {
+                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                        "Exploit Guard: " + (config.exploitGuard ? "ON" : "OFF"), config.exploitGuard);
+                rowY += 22;
+                drawSlider(graphics, font, innerX, rowY, innerW,
+                        "Max Particles: " + config.exploitGuardMaxParticles,
+                        (config.exploitGuardMaxParticles - 100) / 1900.0f);
+            }
+            case "Ghost Hand" -> drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                    "Ghost Hand: " + (config.ghostHand ? "ON" : "OFF"), config.ghostHand);
+            case "No Mining Trace" -> {
+                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                        "No Mining Trace: " + (config.noMiningTrace ? "ON" : "OFF"), config.noMiningTrace);
+                rowY += 22;
+                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                        "Tools Only: " + (config.noMiningTraceToolsOnly ? "ON" : "OFF"), config.noMiningTraceToolsOnly);
+            }
+            case "No Slowdown" -> {
+                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                        "No Slowdown: " + (config.noSlowdown ? "ON" : "OFF"), config.noSlowdown);
+                rowY += 22;
+                String slowMode = switch (config.noSlowdownMode) {
+                    case 1 -> "§aVulcan";
+                    case 2 -> "§bGrim";
+                    default -> "§eVanilla";
+                };
+                drawActionButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW, "Mode: " + slowMode);
+            }
+            case "Ping Spoof" -> {
+                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                        "Ping Spoof: " + (config.pingSpoof ? "ON" : "OFF"), config.pingSpoof);
+                rowY += 22;
+                drawSlider(graphics, font, innerX, rowY, innerW,
+                        "Delay: " + config.pingSpoofDelay + "ms",
+                        (config.pingSpoofDelay - 50) / 950.0f);
+            }
+            case "Portal GUI" -> drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                    "Portal GUI: " + (config.portalGui ? "ON" : "OFF"), config.portalGui);
+            case "Resource Pack Spoof" -> drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                    "Pack Spoof: " + (config.resourcePackSpoof ? "ON" : "OFF"), config.resourcePackSpoof);
             case "GUI Style" -> {
                 String styleName = (config.clickGuiStyle == 1) ? "Modern Dashboard" : "Classic Multi-Window";
                 drawActionButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW, "Style: " + styleName);
@@ -1161,7 +1330,10 @@ public class ClickGuiScreen extends Screen {
             case "Better Chat" -> 5;
             case "Keybinds HUD" -> 4;
             case "FastBreak" -> 3;
-            case "HUD Info", "TNT Timer", "Auto Sprint", "Safe Walk", "TrueSight", "Item ESP", "No Pitch Limit", "Abort Breaking", "GUI Style" -> 1;
+            case "Backtrack", "Disabler", "Exploit Guard", "No Mining Trace", "No Slowdown", "Ping Spoof" -> 2;
+            case "HUD Info", "TNT Timer", "Auto Sprint", "Safe Walk", "TrueSight", "Item ESP",
+                 "No Pitch Limit", "Abort Breaking", "Anti Hunger", "Anti Levitation",
+                 "Ghost Hand", "Portal GUI", "Resource Pack Spoof", "GUI Style" -> 1;
             default -> 0;
         };
         return specific + 1;
@@ -2196,6 +2368,101 @@ public class ClickGuiScreen extends Screen {
                     playClickSound();
                 }
             }
+            case "Anti Hunger" -> {
+                if (specificRow == 0) {
+                    config.antiHunger = !config.antiHunger;
+                    config.save();
+                    playClickSound();
+                }
+            }
+            case "Anti Levitation" -> {
+                if (specificRow == 0) {
+                    config.antiLevitation = !config.antiLevitation;
+                    config.save();
+                    playClickSound();
+                }
+            }
+            case "Backtrack" -> {
+                if (specificRow == 0) {
+                    config.backtrack = !config.backtrack;
+                    config.save();
+                    playClickSound();
+                } else if (specificRow == 1) {
+                    startSliderDrag(mouseX, innerX, innerW, "backtrackDelay");
+                }
+            }
+            case "Disabler" -> {
+                if (specificRow == 0) {
+                    config.disabler = !config.disabler;
+                    config.save();
+                    playClickSound();
+                } else if (specificRow == 1) {
+                    config.disablerMode = (config.disablerMode + 1) % 2;
+                    config.save();
+                    playClickSound();
+                }
+            }
+            case "Exploit Guard" -> {
+                if (specificRow == 0) {
+                    config.exploitGuard = !config.exploitGuard;
+                    config.save();
+                    playClickSound();
+                } else if (specificRow == 1) {
+                    startSliderDrag(mouseX, innerX, innerW, "exploitGuardMaxParticles");
+                }
+            }
+            case "Ghost Hand" -> {
+                if (specificRow == 0) {
+                    config.ghostHand = !config.ghostHand;
+                    config.save();
+                    playClickSound();
+                }
+            }
+            case "No Mining Trace" -> {
+                if (specificRow == 0) {
+                    config.noMiningTrace = !config.noMiningTrace;
+                    config.save();
+                    playClickSound();
+                } else if (specificRow == 1) {
+                    config.noMiningTraceToolsOnly = !config.noMiningTraceToolsOnly;
+                    config.save();
+                    playClickSound();
+                }
+            }
+            case "No Slowdown" -> {
+                if (specificRow == 0) {
+                    config.noSlowdown = !config.noSlowdown;
+                    config.save();
+                    playClickSound();
+                } else if (specificRow == 1) {
+                    config.noSlowdownMode = (config.noSlowdownMode + 1) % 3;
+                    config.save();
+                    playClickSound();
+                }
+            }
+            case "Ping Spoof" -> {
+                if (specificRow == 0) {
+                    config.pingSpoof = !config.pingSpoof;
+                    config.save();
+                    playClickSound();
+                } else if (specificRow == 1) {
+                    startSliderDrag(mouseX, innerX, innerW, "pingSpoofDelay");
+                }
+            }
+            case "Portal GUI" -> {
+                if (specificRow == 0) {
+                    config.portalGui = !config.portalGui;
+                    config.save();
+                    playClickSound();
+                }
+            }
+            case "Resource Pack Spoof" -> {
+                if (specificRow == 0) {
+                    config.resourcePackSpoof = !config.resourcePackSpoof;
+                    config.save();
+                    playClickSound();
+                }
+            }
             case "GUI Style" -> {
                 if (specificRow == 0) {
                     config.clickGuiStyle = (config.clickGuiStyle == 1) ? 0 : 1;
@@ -2256,6 +2523,9 @@ public class ClickGuiScreen extends Screen {
                     config.fastBreakSpeed = Math.round((0.5f + pct * 4.5f) * 10.0f) / 10.0f;
                 }
             }
+            case "pingSpoofDelay" -> config.pingSpoofDelay = Math.max(50, Math.min(1000, Math.round(50 + pct * 950.0f)));
+            case "exploitGuardMaxParticles" -> config.exploitGuardMaxParticles = Math.max(100, Math.min(2000, Math.round(100 + pct * 1900.0f)));
+            case "backtrackDelay" -> config.backtrackDelay = Math.max(40, Math.min(300, Math.round(40 + pct * 260.0f)));
         }
     }
 

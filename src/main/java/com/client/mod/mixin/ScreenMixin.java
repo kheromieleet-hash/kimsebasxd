@@ -16,6 +16,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Screen.class)
 public abstract class ScreenMixin {
+
+    @org.spongepowered.asm.mixin.injection.Inject(method = "isAllowedInPortal", at = @org.spongepowered.asm.mixin.injection.At("HEAD"), cancellable = true)
+    private void onIsAllowedInPortal(org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> cir) {
+        if (com.client.mod.ModConfig.getInstance().portalGui
+                && net.minecraft.client.Minecraft.getInstance().player != null) {
+            cir.setReturnValue(true);
+        }
+    }
     @Shadow
     protected Minecraft minecraft;
 
