@@ -1,0 +1,474 @@
+================================================================================
+METEOR CLIENT & LIQUIDBOUNCE NEXTGEN - TUM MODULLER REHBERI
+Kaynak: Resmi GitHub Depolari (Meteor Client master / LiquidBounce nextgen)
+Toplam: Meteor Client (169 modul) + LiquidBounce Nextgen (234 modul) = 403 modul
+================================================================================
+
+################################################################################
+BOLUM 1: METEOR CLIENT (169 Modul)
+################################################################################
+
+--------------------------------------------------------------------------------
+[Meteor - Combat] (29 Modul)
+--------------------------------------------------------------------------------
+1. AnchorAura (anchor-aura): Varliklara hasar vermek icin Respawn Anchor'lari otomatik yerlestirir ve patlatir.
+2. AntiAnvil (anti-anvil): Kafanin ustune orsen (Anvil) dusmesini onlemek icin araya otomatik blok koyar.
+3. AntiBed (anti-bed): Ustune yatak konmasini engellemek icin altina ip (string) yerlestirir.
+4. ArrowDodge (arrow-dodge): Sana dogru gelen oklardan kacmaya calisir.
+5. AttributeSwap (attribute-swap): Saldirdigin anda belirtilen hotbar slotuna gecis yapar.
+6. AutoAnvil (auto-anvil): Diger oyuncularin kasklarini kirmak icin kafalarinin ustune otomatik orsen birakir.
+7. AutoArmor (auto-armor): Envanterindeki en iyi zirhi otomatik olarak giyer.
+8. AutoCity (auto-city): Rakibin ayaklarinin yanindaki koruma bloklarini otomatik kazar (cityleme).
+9. AutoEXP (auto-exp): PvP sirasinda zirh ve aletlerini XP sisesiyle otomatik tamir eder.
+10. AutoLog (auto-log): Can veya belirli kosullar saglandiginda sunucudan otomatik cikis yapar.
+11. AutoTotem (auto-totem): Offhand eline otomatik olarak Totem yerlestirir.
+12. AutoTrap (auto-trap): Rakipleri hareket edememeleri icin blok kutusunun icine hapseder.
+13. AutoWeapon (auto-weapon): Hotbar'daki en yuksek hasarli silahi otomatik secer.
+14. AutoWeb (auto-web): Diger oyuncularin ustune otomatik orumcek agi yerlestirir.
+15. BedAura (bed-aura): Nether ve End boyutlarinda yataklari otomatik koyup patlatir.
+16. BowAimbot (bow-aimbot): Yay kullanirken hedefe otomatik nisan alir.
+17. BowSpam (bow-spam): Yay ve arbaleti art arda hizli atesler.
+18. Burrow (burrow): Bulundugun blogun icine gomulerek kendini korumaya calisir.
+19. Criticals (criticals): Hedefe her vurusunda kritik hasar cikaracak sekilde saldiri yapar.
+20. CrystalAura (crystal-aura): End Crystal'lari otomatik olarak yerlestirir ve patlatir.
+21. Hitboxes (hitboxes): Varliklarin vurus alanini (hitbox) genisletir.
+22. HoleFiller (hole-filler): Yakindaki PvP cukurlarini (hole) secilen bloklarla otomatik doldurur.
+23. KillAura (kill-aura): Etrafindaki belirlenen varliklara otomatik saldirir.
+24. Offhand (offhand): Sol elinde (offhand) belirlenen esyalari otomatik tutmani saglar.
+25. Quiver (quiver): Kendine efektli oklar firlatir (Hiz/Guc vb.).
+26. SelfAnvil (self-anvil): Baska oyuncularin cukuruna girmesini engellemek icin uzerine orsen koyar.
+27. SelfTrap (self-trap): Basinin uzerini bloklarla kapatir.
+28. SelfWeb (self-web): Kendi bulundugun bloga otomatik orumcek agi koyar.
+29. Surround (surround): Yuksek kristal hasarini onlemek icin etrafini bloklarla cevirir.
+
+--------------------------------------------------------------------------------
+[Meteor - Player] (31 Modul)
+--------------------------------------------------------------------------------
+30. AirPlace (air-place): Nisangahin baktigi bosluga (destek blogu olmadan) blok koyar.
+31. AntiAFK (anti-afk): AFK sayilip sunucudan atilmamak icin cesitli mikro eylemler yapar.
+32. AntiHunger (anti-hunger): Aclik tuketimini (tamamen kaldirmaz ama) belirgin sekilde azaltir.
+33. AutoEat (auto-eat): Aclik dustugunde envanterdeki yemegi otomatik yer.
+34. AutoClicker (auto-clicker): Otomatik sol/sag tiklama yapar.
+35. AutoFish (auto-fish): Senin yerine otomatik balik tutar.
+36. AutoGap (auto-gap): Can azaldiginda Altin Elma veya Buyulu Altin Elma'yi otomatik yer.
+37. AutoMend (auto-mend): Offhand'deki Tamirli (Mending) esya dolunca hasarli diger esyayla degistirir.
+38. AutoReplenish (auto-replenish): Hotbar, ana el veya offhand'de biten esyalari envanterden otomatik yeniler.
+39. AutoRespawn (auto-respawn): Oldukten sonra ekrani beklemeden otomatik yeniden dogar.
+40. AutoTool (auto-tool): Blok kirarken/etkilesimde en verimli alete otomatik gecer.
+41. BreakDelay (break-delay): Blok kirma islemleri arasindaki bekleme suresini degistirir.
+42. ChestSwap (chest-swap): Gogusluk (Chestplate) ile Elytra arasinda tek tusla gecis yapar.
+43. EXPThrower (exp-thrower): Hotbar'dan otomatik olarak XP sisesi firlatir.
+44. FakePlayer (fake-player): Modulleri test etmek icin yalnizca istemci tarafinda sahte bir oyuncu olusturur.
+45. FastUse (fast-use): Esyalari cok yuksek hizda kullanmani saglar.
+46. GhostHand (ghost-hand): Duvar ve bloklarin arkasindaki sandik/kaplari acar.
+47. InstantRebreak (instant-rebreak): Ayni konumdaki blogu tekrar beklemeden anlik olarak yeniden kirar.
+48. LiquidInteract (liquid-interact): Su ve lav gibi sivilarla dogrudan blok koyma etkilesimine girmeni saglar.
+49. MiddleClickExtra (middle-click-extra): Orta fare tusuna basinca pearl atma/arkadas ekleme gibi eylemler yapar.
+50. Multitask (multitask): Esya kullanirken (yemek/iksir) ayni anda saldirabilmeni ve blok kirabilmeni saglar.
+51. NameProtect (name-protect): Oyuncu isimlerini ve skinlerini istemci tarafinda gizler.
+52. NoInteract (no-interact): Secili blok veya varlik turleriyle yanlislikla etkilesimi engeller.
+53. NoMiningTrace (no-mining-trace): Ondeki varliklarin icinden gecip arkadaki blogu kazmani saglar.
+54. NoRotate (no-rotate): Sunucunun istemciye gonderdigi zorla bakis acisi donuslerini engeller.
+55. NoStatusEffects (no-status-effects): Secilen durum/iksir efektlerinin etkisini istemcide engeller.
+56. Portals (portals): Nether portali icindeyken arayuzleri (GUI) normal sekilde kullanabilmeni saglar.
+57. PotionSaver (potion-saver): Hareketsiz dururken iksir surelerinin azalmasini durdurur (bazi sunucular).
+58. Reach (reach): Blok ve varlik etkilesim menzilini uzatir.
+59. Rotation (rotation): Yatay/dikey (yaw/pitch) bakis acisini belirli bir yone kilitler.
+60. SpeedMine (speed-mine): Bloklari normalden daha hizli kirmani saglar.
+
+--------------------------------------------------------------------------------
+[Meteor - Movement] (31 Modul)
+--------------------------------------------------------------------------------
+61. AirJump (air-jump): Havadayken ziplamani saglar.
+62. Anchor (anchor): Bir cukurun uzerine geldiginde hareketi durdurup cukurun icine dusmeni kolaylastirir.
+63. AntiVoid (anti-void): Void bosluguna dusmeni engellemeye calisir.
+64. AutoJump (auto-jump): Otomatik olarak ziplar.
+65. AutoWalk (auto-walk): Ileri dogru otomatik yurur.
+66. AutoWasp (auto-wasp): Hedefe duz cizgi boyunca otomatik ucar/takip eder (engel asmaz).
+67. Blink (blink): Hareket paketlerini gecici askiya alip biraktiginda isinlanmis gibi konum gunceller.
+68. ClickTP (click-tp): Baktigin/tikladigin bloga kisa mesafe isinlanmani saglar.
+69. ElytraBoost (elytra-boost): Havai fisek kullaniyormus gibi Elytra'ya hiz destegi verir.
+70. ElytraFly (elytra-fly): Elytra ucusunda tam kontrol ve cesitli ucus modlari saglar.
+71. EntityControl (entity-control): Eyer olmadan binekleri kontrol etmeni saglar (bazi eski/gevsek sunucular).
+72. FastClimb (fast-climb): Merdiven ve sarmasiklara daha hizli tirmanir.
+73. Flight (flight): Havada serbest ucus modu saglar (No Fall ile onerilir).
+74. GUIMove (gui-move): Envanter veya sandik ekrani acikken hareket edebilmeni saglar.
+75. HighJump (high-jump): Normalden daha yuksege ziplamani saglar.
+76. Jesus (jesus): Su ve lav gibi sivilarin ve toz karin ustunde yurumeni saglar.
+77. LongJump (long-jump): Normalden cok daha ileri ziplamani saglar.
+78. NoFall (no-fall): Dusme hasari almamayi dener (onGround manipule ederek).
+79. NoSlow (no-slow): Yavaslatan esyalar kullanirken normal hizda hareket etmeni saglar.
+80. Parkour (parkour): Blok kenarina geldiginde dusmeden otomatik ziplar.
+81. ReverseStep (reverse-step): Bloklardan asagi normalden cok daha hizli inmeni saglar.
+82. SafeWalk (safe-walk): Blok kenarlarindan asagi dusmeni (egiliyormus gibi) engeller.
+83. Scaffold (scaffold): Yururken altina otomatik olarak blok koyar.
+84. Slippy (slippy): Bloklarin temel surtunme/kayganlik katsayisini degistirir.
+85. Sneak (Sneak): Senin yerine otomatik olarak egilir (Vanilla/Packet).
+86. Speed (speed): Yerde yururken hareket hizini artirir.
+87. Spider (spider): Orumcek gibi duz duvarlara tirmanmani saglar.
+88. Sprint (sprint): Otomatik olarak kosar (sprint).
+89. Step (step): Ziplamadan tam blok basamaklarin ustune aninda cikmani saglar.
+90. TridentBoost (trident-boost): Girdap (Riptide) buyulu Trident firlatirken ekstra itis gucu verir.
+91. Velocity (velocity): Dis kuvvetlerden gelen geri itme (knockback) ve itilmeyi azaltir veya sifirlar.
+
+--------------------------------------------------------------------------------
+[Meteor - Render] (38 Modul)
+--------------------------------------------------------------------------------
+92. BetterTab (better-tab): Tab oyuncu listesine ekstra bilgi ve boyut iyilestirmeleri ekler.
+93. BetterTooltips (better-tooltips): Esyalarin uzerine gelince shulker icerigi/harita/dayaniklilik ipuclari gosterir.
+94. BlockESP (block-esp): Secilen belirli bloklari duvarlarin arkasindan vurgular.
+95. BlockSelection (block-selection): Baktigin blogun secim cercevesinin rengini/kalinligini ozellestirir.
+96. Blur (blur): GUI menuleri acikken arka plani bulaniklastirir.
+97. BossStack (boss-stack): Ekrandaki birden fazla boss barini birlestirerek sade tutar.
+98. Breadcrumbs (breadcrumbs): Yurudugun yol boyunca arkanda kalici bir iz cizer.
+99. BreakIndicators (break-indicators): Diger oyuncularin ve senin kirdigin bloklarin kirilma yuzdesini gosterir.
+100. CameraTweaks (camera-tweaks): Ucuncu sahis (F5) kamera mesafesini ve duvar gecisini (Camera Clip) ozellestirir.
+101. Chams (chams): Varliklarin duvar arkasi veya renkli render seklini degistirir.
+102. CityESP (city-esp): Baska bir oyuncunun ayaklarinin cevresinde kirilabilecek koruma bloklarini gosterir.
+103. EntityOwner (entity-owner): Baktigin evcil hayvan veya atin sahibinin adini gosterir.
+104. ESP (esp): Oyuncu, mob ve varliklari duvarlarin arkasindan kutu/parlama olarak cizer.
+105. Freecam (freecam): Karakterini yerinde birakip serbest kamerayla etrafi ve magaralari gezmeni saglar.
+106. FreeLook (free-look): Ucuncu sahis kamerasinda karakteri dondurmeden etrafa bakmani saglar.
+107. Fullbright (fullbright): Dunyadaki karanligi tamamen kaldirip her yeri aydinlatir.
+108. HandView (hand-view): Elindeki esyalarin ve ellerinin birinci sahistaki konum/boyutunu degistirir.
+109. HoleESP (hole-esp): Patlama hasarinin dusuk oldugu guvenli PvP cukurlarini isaretler.
+110. ItemPhysics (item-physics): Yerdeki dusmus esyalara yerde yatma fizigi ekler.
+111. ItemHighlight (item-highlight): GUI icinde secili/onemli esyalari renkli vurgular.
+112. LightOverlay (light-overlay): Karanlikta mob dogabilen bloklari zeminde isaretler.
+113. LogoutSpots (logout-spots): Baska bir oyuncunun oyundan ciktigi son konuma hayalet kutu cizer.
+114. Marker (marker): Buyuk insa projeleri icin dunyada geometrik sekiller/sinirlar cizer.
+115. Nametags (nametags): Oyuncularin, esyalarin ve moblarin ustunde ozellestirilmis detayli isimlik gosterir.
+116. NoRender (no-render): Ates, partikul, iksir efekti veya totem animasyonu gibi rahatsiz edici efektleri kapatir.
+117. PopChams (pop-chams): Bir oyuncu Totem patlattiginda o noktada hayalet model gosterir.
+118. StorageESP (storage-esp): Sandik, varil, shulker, ocak gibi tum depolama bloklarini uzaktan gosterir.
+119. TimeChanger (time-changer): Istemcide gunun saatini (gunduz/gece) ozellestirmeni saglar.
+120. Tracers (tracers): Secilen varliklara ekran merkezinden yon cizgisi ceker.
+121. Trail (trail): Karakterinin arkasinda ozellestirilebilir partikul/cizgi izi birakir.
+122. Trajectories (trajectories): Atilabilir esyalarin (ok, pearl, iksir vb.) ucus yorungesini cizer.
+123. TunnelESP (tunnel-esp): Yeraltindaki 1x2 ve 2x2 tunelleri uzaktan vurgular.
+124. VoidESP (void-esp): Bedrock katmaninda void'e acilan delikleri isaretler.
+125. WallHack (wall-hack): Bloklari yari seffaf yaparak arkalarini gormeni saglar.
+126. Waypoints (waypoints): Dunyada koordinat/isim isaretcileri (Waypoint) olusturmani saglar.
+127. WeatherChanger (weather-changer): Istemcide hava durumunu (acik/yagmur/firtina) degistirmeni saglar.
+128. Xray (xray): Yalnizca secilen madenleri/bloklari renderlayip digerlerini gizler.
+129. Zoom (zoom): Gorusunu yakinlastirir.
+
+--------------------------------------------------------------------------------
+[Meteor - World] (24 Modul)
+--------------------------------------------------------------------------------
+130. Ambience (ambience): Gokyuzu, su, cim ve sis renklerini ozellestirmeni saglar.
+131. AutoBreed (auto-breed): Yakindaki secili hayvanlari otomatik ciftlestirir.
+132. AutoBrewer (auto-brewer): Sandik ve iksir tezgahini kullanarak secili iksiri otomatik uretir.
+133. AutoMount (auto-mount): Yakindaki bineklere/teknelere otomatik biner.
+134. AutoNametag (auto-nametag): Isim etiketsiz yakindaki varliklara otomatik isim etiketi basar.
+135. AutoShearer (auto-shearer): Yakindaki koyunlarin yununu otomatik kirkar.
+136. AutoSign (auto-sign): Ilk yazdigin tabelanin metnini sonraki tum tabelalara otomatik yazar.
+137. AutoSmelter (auto-smelter): Envanterindeki esyalari ocakta otomatik eritir.
+138. BuildHeight (build-height): Dunyanin maksimum insa yukseklik sinirindaki bloklara ust yuzden etkilesim verir.
+139. Collisions (collisions): Secili bloklar veya sinir bolgeleri icin carpisma kutusu (katilik) ekler.
+140. EChestFarmer (echest-farmer): Obsidian kasmak icin otomatik Ender Chest koyup kirar.
+141. EndermanLook (enderman-look): Enderman'lere bakmani engeller ya da hepsine bakarak kizdirir.
+142. Flamethrower (flamethrower): Yakinindaki yenilebilir/canli moblari yakarak pismis et dusurur.
+143. HighwayBuilder (highway-builder): Nether'da otomatik olarak duz otoyol/kopru insa eder (Baritone gerekir).
+144. LiquidFiller (liquid-filler): Menzil icindeki su ve lav kaynak bloklarinin icine otomatik blok doldurur.
+145. NoGhostBlocks (no-ghost-blocks): Blok kirarken veya koyarken olusan hayalet (ghost) bloklari engeller.
+146. Nuker (nuker): Etrafindaki menzilde bulunan bloklari topluca kirar.
+147. PacketMine (packet-mine): Kirma animasyonu gostermeden dogrudan paketlerle blok kazar.
+148. StashFinder (stash-finder): Yuklenen chunklarda sandik/base yogunlugu arar ve koordinatlari kaydeder.
+149. SpawnProofer (spawn-proofer): Karanlik dogum noktalarina otomatik mesale/yarim blok koyar.
+150. Timer (timer): Oyundaki tick hizini (tum hareket/aksiyon temposunu) hizlandirir veya yavaslatir.
+151. VeinMiner (vein-miner): Ayni turdeki bitisik tum cevher/blok damarini otomatik kazar.
+152. Excavator (excavator): Secilen 3D alandaki tum bloklari topluca kazar.
+153. InfinityMiner (infinity-miner): Alet dayanikliligi dusunce tamir bloklari kazarak sonsuza kadar maden yapar.
+
+--------------------------------------------------------------------------------
+[Meteor - Misc] (16 Modul)
+--------------------------------------------------------------------------------
+154. AntiPacketKick (anti-packet-kick): Buyuk paket veya protokol hatasi sebebiyle sunucudan atilmayi onlemeye calisir.
+155. AutoReconnect (auto-reconnect): Sunucudan baglanti kesildiginde otomatik olarak yeniden baglanir.
+156. BetterBeacons (better-beacons): Fener (Beacon) seviyesinden bagimsiz tum efektleri secmene calisir.
+157. BetterChat (better-chat): Sohbet gecmisi, zaman damgasi, sonsuz sohbet ve kopyalama gibi iyilestirmeler ekler.
+158. BookBot (book-bot): Kitap ve tuy kaleme otomatik metin/dosya icerigi yazar.
+159. DiscordPresence (discord-presence): Discord durumunuzda (RPC) Meteor Client bilgisini gosterir.
+160. InventoryTweaks (inventory-tweaks): Envanter duzenleme, otomatik birakma ve hizli tasima araclari saglar.
+161. MessageAura (message-aura): Render mesafene giren oyunculara otomatik belirlenen mesaji yollar.
+162. Notebot (notebot): Muzik dosyalarindan Nota Bloklari ile otomatik sarki calar.
+163. Notifier (notifier): Yakina oyuncu gelmesi, totem patlamasi veya gorsel olaylari bildirir.
+164. PacketCanceller (packet-canceller): Secili gelen veya giden ag paketlerini iptal etmeni saglar.
+165. PacketLogger (packet-logger): Secili ag paketlerini incelemek icin konsola/sohbete loglar.
+166. ServerSpoof (server-spoof): Client markasini, kaynak paketi yanitini ve plugin kanallarini taklit eder (spoof).
+167. SoundBlocker (sound-blocker): Secilen rahatsiz edici oyun seslerini susturur.
+168. Spam (spam): Sohbete belirli araliklarla mesaj spamlar.
+169. Swarm (swarm): Tek ana kontrol noktasindan birden fazla Meteor Client ornegini yonetir.
+
+
+################################################################################
+BOLUM 2: LIQUIDBOUNCE NEXTGEN (234 Modul)
+################################################################################
+
+--------------------------------------------------------------------------------
+[LiquidBounce - COMBAT] (25 Modul)
+--------------------------------------------------------------------------------
+1. Aimbot: Yakındaki hedeflere otomatik olarak nişan alır.
+2. AutoArmor: Envanterinizdeki en iyi zırhı otomatik olarak giyer.
+3. AutoBow: Yayla ilgili birçok eylemi (nişan alma, ateş etme gibi) otomatikleştirir.
+4. AutoClicker: Saldırı tuşuna basılı tutarken otomatik olarak tıklar.
+5. AutoLeave: Sağlığınız belirli bir seviyenin altına düştüğünde sunucudan otomatik olarak çıkar.
+6. AutoRod: Savaşta otomatik olarak olta kullanır.
+7. AutoShoot: Hedeflere otomatik olarak yumurta ve kartopu atar veya QuakeCraft’ta ateş eder.
+8. AutoWeapon: Hızlı erişim çubuğunuzdaki en iyi silahı otomatik olarak seçer.
+9. Backtrack: Hedeflerin gecikmesini sağlar, böylece onlara daha etkili saldırabilirsiniz.
+10. Criticals: Bir varlığa her saldırdığınızda otomatik olarak kritik hasar verir.
+11. CrystalAura: End kristallerini otomatik olarak yerleştirir ve yok eder.
+12. ElytraTarget: Elytra ile hedefi takip eder.
+13. FakeLag: Paketleri geri tutar ve düşmanın size vurmasını engeller.
+14. Hitbox: Hedeflerin vuruş kutusunu büyütür.
+15. KeepSprint: Saldırırken bile koşmanızı sürdürür.
+16. KillAura: Etrafınızdaki düşmanlara otomatik olarak saldırır.
+17. MaceKill: Topuz kullanırken anında öldürme sağlar.
+18. NoMissCooldown: 1.8 vuruş bekleme süresini devre dışı bırakır veya kaçırılan saldırıları tamamen iptal eder.
+19. SpearKill: Şarj edilmiş mızrak kullanarak düşmanlara otomatik olarak saldırır.
+20. SuperKnockback: Diğer varlıklara verilen geri tepmeyi artırır.
+21. SwordBlock: ViaVersion kullanan sunucularda 1.8 kılıç bloklamasını etkinleştirir.
+22. TickBase: Düşmana erken vuruşlar için tikleri tamponlar.
+23. TpAura: Etrafınızdaki düşmanlara otomatik olarak teleport olur ve saldırır.
+24. TriggerBot: Saldırı tuşunu basılı tutmadan nişangahınızdaki düşmana saldırır.
+25. Velocity: Aldığınız hız miktarını değiştirir.
+
+--------------------------------------------------------------------------------
+[LiquidBounce - EXPLOIT] (25 Modul)
+--------------------------------------------------------------------------------
+26. AbortBreaking: Blok kırmayı ilerlemenizi kaybetmeden iptal etmenizi sağlar.
+27. AntiHunger: Aç kalmanızı engeller.
+28. AntiReducedDebugInfo: Genişletilmiş hata ayıklama bilgilerini görmenizi sağlar.
+29. Clip: Blokların içinden geçmenizi sağlar.
+30. Damage: Kendinize belirtilen miktarda hasar verir.
+31. Disabler: Sunucunun hile karşıtı sistemini devre dışı bırakmaya çalışır.
+32. Dupe: Envanterinizdeki eşyaları istismarlar kullanarak otomatik olarak çoğaltmaya çalışır.
+33. ExtendedFirework: Havai fişek roketinin itiş gücünü uzatır.
+34. GhostHand: Seçili bloklarla duvarların içinden etkileşime girmenizi sağlar.
+35. Kick: Kendinizi sunucudan atar.
+36. MoreCarry: Üretim yuvalarında ek eşya saklamanızı sağlar (sadece çok oyunculu modda çalışır).
+37. MultiActions: Aynı anda birden fazla şey yapmanızı sağlar.
+38. NameCollector: Sunucudaki tüm oyuncuların isimlerini toplar.
+39. NoPitchLimit: Kafanızı normal sınırların ötesinde döndürmenizi sağlar.
+40. OldRegen: Minecraft 1.8 mekaniklerini istismar ederek daha hızlı yenilenme sağlar ve ateş, zehir gibi olumsuz durumları kaldırır.
+41. Phase: Hile karşıtını istismar ederek blokların içinden geçmenizi sağlar.
+42. PingSpoof: Pinginizi belirtilen bir değere sahteleştirir.
+43. Plugins: Sunucuda yüklü tüm eklentileri listelemeye çalışır.
+44. PortalMenu: Portal içindeyken menüleri açmanızı sağlar.
+45. ResetVL: Hatalı hile karşıtlarda ihlal kayıtlarını sıfırlar.
+46. ServerCrasher: Bilinen hataları istismar ederek sunucuyu çökertmeye çalışır.
+47. SleepWalker: Uyurken yürümenizi sağlar ve vuruş kutunuzun boyutunu küçültür.
+48. TeleportReach: Baktığınız şeye teleport ederek ulaşır: orta tık oraya teleport eder, sol tık vurur veya kırar, sağ tık kullanır veya yerleştirir, ardından sizi geri getirir.
+49. VehicleOneHit: Herhangi bir aracı tek vuruşta kırmanızı sağlar.
+50. YggdrasilSignatureFix: Authlib Yggdrasil imza kontrolünü devre dışı bırakır; bazı sunucularda eksik skin sorununu düzeltebilir.
+
+--------------------------------------------------------------------------------
+[LiquidBounce - MOVEMENT] (38 Modul)
+--------------------------------------------------------------------------------
+51. AirJump: Havada zıplamanızı sağlar.
+52. Anchor: Sizi kristal PvP için güvenli deliklere çeker.
+53. AntiBounce: Bloklardan zıplamanızı engeller.
+54. AntiLevitation: Yükselme ve yavaş düşme efektlerinin sizi etkilemesini engeller.
+55. AutoDodge: Ok gibi mermilerden otomatik olarak kaçar.
+56. AvoidHazards: Sizi olumsuz etkileyebilecek bloklara yürümenizi engeller.
+57. BlockBounce: Zıplayan bloklarda daha yükseğe zıplamanızı sağlar.
+58. BlockWalk: Tam olmayan blokların üzerinde yürümenizi sağlar.
+59. ElytraFly: Elytra’yı kontrol etmeyi kolaylaştırır.
+60. ElytraRecast: Zıplama tuşuna basılı tutarken elytra’yı yeniden fırlatır.
+61. EntityControl: Binilebilir varlıkları eyersiz kontrol etmenizi sağlar.
+62. Fly: Hayatta kalma modunda uçmanızı sağlar.
+63. Freeze: Mevcut pozisyonunuzda sunucuya fark ettirmeden donmanızı sağlar.
+64. HighJump: Daha yükseğe zıplamanızı sağlar.
+65. InventoryMove: Envanter açıkken yürümenizi sağlar.
+66. LiquidWalk: Su üzerinde yürümenizi sağlar.
+67. LongJump: Daha uzağa zıplamanızı sağlar.
+68. NoClip: Blokların içinden geçmenizi sağlar (önce başınıza kum bloğu düşürün).
+69. NoJumpDelay: Zıplamalar arasındaki gecikmeyi kaldırır.
+70. NoPose: Düşük sürüm sunucular için varlık poz değişikliklerini engeller.
+71. NoPush: Diğer oyuncuların sizi itmesini engeller.
+72. NoSlow: Bloklar ve eşya kullanımı nedeniyle oluşan yavaşlama efektlerini iptal eder.
+73. NoWeb: Örümcek ağlarının neden olduğu yavaşlamayı devre dışı bırakır.
+74. Parkour: Blok kenarında zıplar ve atlayışlarını tamamlamana yardım eder.
+75. ReverseStep: Bloklardan daha hızlı inmenizi sağlar.
+76. SafeWalk: Düşmenizi engeller (eğilmiş gibi).
+77. SnapTap: Son basılan hareket tuşuna öncelik verir.
+78. Sneak: Sürekli otomatik olarak eğilmenizi sağlar.
+79. Speed: Daha hızlı koşmanızı sağlar.
+80. Spider: Örümcek adam gibi duvarlara tırmanmanızı sağlar.
+81. Sprint: Otomatik olarak koşmanızı sağlar.
+82. Step: Bloklara daha hızlı çıkmanızı sağlar.
+83. Strafe: Havadayken yanlara kaymanızı sağlar.
+84. TargetStrafe: KillAura’nın hedef aldığı düşmanların etrafında otomatik olarak yanlara kayar.
+85. TerrainSpeed: Belirli yüzeylerde daha hızlı hareket etmenizi sağlar.
+86. TridentBoost: Mızrağın riptide atılışını güçlendirir ve karada kullanılmasına izin verir.
+87. VehicleBoost: Araçtan ayrıldığınızda sizi hızlandırır.
+88. VehicleControl: Bir varlığa binerken (tekne veya at gibi) uçmanızı ve hızlanmanızı sağlar.
+
+--------------------------------------------------------------------------------
+[LiquidBounce - PLAYER] (30 Modul)
+--------------------------------------------------------------------------------
+89. AntiAFK: AFK olduğunuz için atılmanızı önler.
+90. AntiExploit: Sunucunun istemci tarafındaki hataları istismar etmesini önler.
+91. AntiVoid: Boşluğa düşmenizi engeller.
+92. AutoBreak: Baktığınız bloğu otomatik olarak kırar.
+93. AutoBuff: Çeşitli eşyalarla kendinizi otomatik olarak güçlendirir.
+94. AutoCrafter: Tarif Kitabı'nı kullanarak eşyaları otomatik olarak üretir.
+95. AutoDeposit: Yapılandırılan eşyaları oyuncu envanterinden otomatik olarak kaplara yatırır.
+96. AutoFish: Olta kullanırken balıkları otomatik olarak yakalar.
+97. AutoQueue: Sunucularda mini oyun sıralarına otomatik olarak girer.
+98. AutoRespawn: Öldükten sonra sizi otomatik olarak yeniden diriltir.
+99. AutoShop: BedWars mağazasında belirli eşyaları otomatik olarak satın alır.
+100. AutoWalk: Otomatik olarak yürümenizi sağlar: dümdüz, engellerin etrafından baktığınız yönde, bir hedefe (.goto ile de ayarlanır) veya bir oyuncunun peşinden (.follow ile de ayarlanır).
+101. AutoWindCharge: Zıplama tuşuna basılıyken rüzgar yükleriyle sizi otomatik olarak hızlandırır.
+102. Blink: Diğer oyunculara teleport olmuş gibi görünmenizi sağlar.
+103. ChestCleaner: Sandıktan istenmeyen eşyaları otomatik olarak atar.
+104. ChestStealer: Bir sandıktaki tüm eşyaları otomatik olarak çalar.
+105. Eagle: Bir bloğun kenarında otomatik olarak eğilir.
+106. FastExp: Zırhınızı otomatik olarak tamir eder.
+107. FastUse: Eşyaları daha hızlı kullanmanızı sağlar.
+108. InventoryCleaner: Envanterinizi otomatik olarak düzenler ve gereksiz eşyaları atar.
+109. NoBlockInteract: Bloklarla etkileşime girmenizi engeller.
+110. NoEntityInteract: Varlıklarla etkileşime girmenizi engeller.
+111. NoFall: Düşme hasarı almanızı engeller.
+112. NoRotateSet: Sunucunun kafanızı döndürmesini engeller.
+113. NoSlotSet: Sunucunun zorunlu slot değişikliklerini engeller.
+114. Offhand: Yan elinizi yönetir.
+115. PotionSpoof: Aslında iksire sahip olmadan iksir etkilerine sahip olmanızı sağlar.
+116. Reach: Daha uzağa ulaşmanızı sağlar.
+117. Replenish: Hızlı erişim çubuğunuzdaki eşya sayısı belirli bir seviyenin altına düştüğünde envanterinizden otomatik olarak doldurur.
+118. SmartEat: Açlık seviyeniz düştüğünde otomatik olarak yemek yer.
+
+--------------------------------------------------------------------------------
+[LiquidBounce - RENDER] (57 Modul)
+--------------------------------------------------------------------------------
+119. AntiBlind: Görüşünüzü engelleyebilecek sinir bozucu ekran efektlerinden sizi korur.
+120. Aspect: Yatay esnemeyi ayarlar.
+121. AutoF5: Envanter veya sandık açıldığında otomatik olarak F5 modunu açar.
+122. BedPlates: Yatağın etrafındaki blokları görmenizi sağlar.
+123. BetterInventory: Envanterle ilgili ek görsel özellikler sağlar.
+124. BlockESP: Seçili blokları duvarların içinden görmenizi sağlar.
+125. BlockOutline: Minecraft’ın blokları vurgulama şeklini değiştirir.
+126. Breadcrumbs: Arkanızda bir iz bırakır.
+127. CameraClip: Üçüncü şahıs modunda kameranın duvarlardan geçmesini sağlar.
+128. Chams: Oyuncuları duvarların içinden gösterir.
+129. ClickGui: Modülleri açıp kapatmak ve ayar yapmak için kolay bir menü gösterir.
+130. CombineMobs: Sıkışmış varlıkları birleştirir.
+131. Crosshair: Nişangahınızın stilini değiştirir.
+132. CrystalView: Kristal modellerinin davranışını ayarlar.
+133. CustomAmbience: Dünya atmosferini değiştirmenizi sağlar.
+134. DamageParticles: Varlıkların sağlık değişikliklerini gösterir.
+135. Debug: Sadece geliştiriciler için ilgi çekici.
+136. ESP: Tüm hedefleri öne çıkarır ve duvarlardan görmenizi sağlar.
+137. FreeCam: Kameranızı bedeninizden çıkarmanızı sağlar.
+138. FreeLook: Kamerayı karakterinizin etrafında özgürce hareket ettirmenizi sağlar.
+139. FullBright: Dünyayı daha aydınlık bir yer yapar.
+140. Hats: Oyuncunun başının üstünde bir şapka görüntüler.
+141. HitFX: Bir hedefe vurduğunuzda özel bir efekt tetiklenir.
+142. HoleESP: Kristal PvP için güvenli noktaları tespit eder ve gösterir.
+143. Hud: Oyun içinde çeşitli kullanışlı araçlarla bir kaplama gösterir.
+144. ItemChams: Elinizdeki eşyalara görsel efektler uygular.
+145. ItemESP: Yere düşen eşyaları duvarların içinden görmenizi sağlar.
+146. ItemTags: Yere düşen eşyalar için simgeler ve miktar etiketleri gösterir.
+147. JumpEffect: Zıpladığınızda ayaklarınızın altında bir efekt gösterir.
+148. LogoffSpot: Diğer oyuncuların nereden çıkış yaptığını görmenizi sağlar.
+149. MobOwners: Evcil bir varlığın veya merminin hangi oyuncuya ait olduğunu görmenizi sağlar.
+150. MurderMystery: Katilin kim olduğunu söyler.
+151. Nametags: Oyuncu isim etiketlerinin görünürlüğünü artırır ve ek bilgi gösterir.
+152. NewChunks: Büyük olasılıkla yeni oluşturulmuş chunk'ları vurgular.
+153. NoBob: Görüş sallanma efektini devre dışı bırakır.
+154. NoFov: Hareket sırasında görüş açısının değişmesini engeller.
+155. NoHurtCam: Yaralandığınızda kamera efektini devre dışı bırakır.
+156. NoSwing: El sallama animasyonunu devre dışı bırakır.
+157. Particles: Bir varlığa saldırdığınızda parçacıklar gösterir.
+158. PotionFX: Oyuncuların, fırlatılan ve kalıcı iksirlerin etrafında görsel aura efektleri oluşturur.
+159. ProphuntESP: Prophunt’ta nesneleri görmenizi sağlar.
+160. ProtectionZones: Koruma bloklarıyla korunan alanları görmenizi sağlar ve en uygun yerleştirme noktalarını önerir.
+161. QuickPerspectiveSwap: Oyunun bakış açısını hızlıca değiştirmenizi sağlar.
+162. Radar: Arayüzde çizilen varlıkların yönünü gösterir.
+163. SilentHotbar: Sessizce seçilen eşyaların elinizde gösterilmesini engeller.
+164. SkinChanger: Oyuncunun gerçek skin'ini istemci tarafında gizler (videolar için kullanışlıdır).
+165. SmoothCamera: Kameranızın daha akıcı hareket etmesini sağlar.
+166. StorageESP: Eşya içerebilen tüm blokları öne çıkarır ve duvarlardan görmenizi sağlar.
+167. TNTTimer: Aktif TNT’leri öne çıkarır.
+168. TotemEffect: Oyuncular totem kullandığında bir efekt oluşturur.
+169. Tracers: Belirli bir yarıçap içindeki hedeflere bir çizgi çizer.
+170. Trajectories: Mermilerin nereye düşeceğini görmenizi sağlar.
+171. TrueSight: Görünmez nesneleri ve varlıkları görmenizi sağlar.
+172. VoidESP: Etrafınızdaki boşluk olabilecek tüm konumları öne çıkarır.
+173. Wings: Oyuncunun arkasında kanatlar oluşturur.
+174. XRay: Sadece seçili blokları gösterir.
+175. Zoom: Dünyanızdaki her şeyi daha küçük veya büyük görmenizi sağlar.
+
+--------------------------------------------------------------------------------
+[LiquidBounce - WORLD] (25 Modul)
+--------------------------------------------------------------------------------
+176. AirPlace: Havada blok yerleştirmenizi sağlar.
+177. AutoBuild: Belirli yapıları otomatik olarak inşa eder.
+178. AutoDisable: Bazı modülleri otomatik olarak kapatır.
+179. AutoFarm: Ekinleri otomatik olarak toplar.
+180. AutoTool: Bir bloğu kazmak için envanterinizdeki en iyi aleti otomatik olarak seçer.
+181. AutoTrap: Hedefleri otomatik olarak ateşe verir veya örümcek ağlarıyla tuzağa düşürür.
+182. BedDefender: BedWars’ta yatağınızı savunmak için otomatik olarak blok yerleştirir.
+183. BlockIn: Kendinizi kaplamak için bloklar inşa eder.
+184. BlockTrap: Düşmanları bloklarla tuzağa düşürür.
+185. Extinguish: Yandığınızda kendinizi otomatik olarak söndürür.
+186. FastBreak: Blokları daha hızlı kırmanızı sağlar.
+187. FastPlace: Blokları daha hızlı yerleştirmenizi sağlar.
+188. Fucker: Etrafınızdaki seçili blokları yok eder veya onlarla etkileşime girer.
+189. HoleFiller: Kristal PvP için güvenli noktaları otomatik olarak doldurur.
+190. LiquidFiller: Yakınınızdaki sıvı kaynak bloklarının içine bloklar yerleştirir.
+191. LiquidPlace: Sıvıların üzerine blok yerleştirmenizi sağlar.
+192. NoInterpolation: Konum güncellemelerinin daha anlık görünmesi için varlık enterpolasyon adımlarını azaltır.
+193. NoSlowBreak: Olumsuz durumlarda kırma hızını otomatik olarak ayarlar.
+194. Nuker: Etrafınızdaki tüm blokları otomatik olarak yok eder. Dikkatli olun!
+195. PacketMine: Bloklara bir kez tıklayarak kazmanızı sağlar.
+196. ProjectilePuncher: Etrafınızdaki gelen mermileri geri vurur.
+197. Scaffold: Ayaklarınızın altına otomatik olarak blok yerleştirir ve boşluklardan geçmenizi sağlar.
+198. StrongholdFinder: Ender Gözü atışlarını izler ve en güçlü kale chunk adayını tahmin eder.
+199. Surround: Patlama hasarından koruyan delikler inşa eder.
+200. Timer: Oyunun çalışma hızını değiştirir.
+
+--------------------------------------------------------------------------------
+[LiquidBounce - MISC] (27 Modul)
+--------------------------------------------------------------------------------
+201. AntiBot: Hile karşıtı sistemlerin oluşturduğu botları tespit eder ve onlara saldırmanızı engeller.
+202. AntiCheatDetect: Sunucunun anti-cheat'ini algılar ve sizi bilgilendirir.
+203. AntiStaff: Sunucu görevlileri sizi izlediğinde sizi uyarır.
+204. AutoAccount: Çatlamış sunucularda otomatik olarak kimliğinizi doğrular.
+205. AutoChatGame: OpenAI kullanarak sohbet oyunlarını oynar.
+206. AutoConfig: Oynadığınız sunucuya uygun yapılandırmayı otomatik olarak uygular.
+207. AutoPearl: Bir düşmanın inci yoluna nişan alır ve inci atar.
+208. BetterChat: Oyun içi sohbeti iyileştirir.
+209. BetterTab: Sekme listesine çeşitli iyileştirmeler yapar.
+210. BookBot: Kitaplara otomatik olarak yazar.
+211. DebugRecorder: Sadece geliştiriciler için ilgi çekici.
+212. EasyPearl: İnciyi baktığınız yere fırlatır.
+213. ElytraSwap: Göğüs zırhını elytra ile hızlıca değiştirmenizi sağlar ve tam tersini yapar.
+214. FlagCheck: Sizi işaretler hakkında uyarır.
+215. GUICloser: Başlığı belirtilen desenlerle eşleşen arayüzleri kapatır.
+216. InventoryTracker: Diğer oyuncuların envanterlerini takip eder.
+217. ItemScroller: SHIFT ve sol fare tuşuna basılıyken envanterdeki eşyaları hızlıca taşır.
+218. Macros: Özel tuş atamaları kullanarak sohbet mesajları veya eşya eylemleri gerçekleştirmenizi sağlar.
+219. MiddleClickAction: Orta tıklama ile eylemler yapmanızı sağlar.
+220. NameProtect: Oyuncunun gerçek kullanıcı adını istemci tarafında gizler (videolar için kullanışlı).
+221. Notifier: Her türlü olay hakkında sizi bilgilendirir.
+222. PacketLogger: Tüm paketleri ve alanlarını yazdırır.
+223. ReportHelper: Sizin için otomatik olarak bir şikayet başlatır ve onaylar.
+224. Spammer: Sohbete belirtilen mesajları spam yapar.
+225. TargetLock: Sadece belirli bir düşmana saldırmanızı sağlar.
+226. Teams: KillAura’nın takım arkadaşlarınıza saldırmasını engeller.
+227. TextFieldProtect: Belirli desenlerle eşleştiğinde metin alanı bileşeninin çizilen metnini gizler.
+
+--------------------------------------------------------------------------------
+[LiquidBounce - FUN] (7 Modul)
+--------------------------------------------------------------------------------
+228. DankBobbing: Görüş sallanma efektini artırır.
+229. Derp: Diğer oyunculara deli gibi göründüğünüzü hissettirir.
+230. HandDerp: Ana el ile yan el arasında sürekli geçiş yapar.
+231. Notebot: NBS (Note Block Song) dosyasından nota bloğu şarkılarını otomatik olarak çalar.
+232. SkinDerp: Cildinizin farklı katmanlarını açıp kapatır.
+233. Twerk: Otomatik olarak eğilip kalkar.
+234. Vomit: Envanterinizden eşyaları kusar.
+
