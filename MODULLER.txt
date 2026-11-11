@@ -1,7 +1,7 @@
 ================================================================================
 SESTIA CLIENT - TUM MODULLER VE OZELLIKLER REHBERI
-Surum: v1.0.22 (VersionCode: 23) | Minecraft: 26.3 Fabric
-Toplam Kayitli Modul: 37 (+ 4 Yerlesik Sistem Ozelligi)
+Surum: v1.0.23 (VersionCode: 24) | Minecraft: 26.3 Fabric
+Toplam Kayitli Modul: 38 (+ 4 Yerlesik Sistem Ozelligi)
 ================================================================================
 
 --------------------------------------------------------------------------------
@@ -225,7 +225,7 @@ Toplam Kayitli Modul: 37 (+ 4 Yerlesik Sistem Ozelligi)
 
 
 --------------------------------------------------------------------------------
-[6] MISC KATEGORISI (2 Modul)
+[6] MISC KATEGORISI (3 Modul)
 --------------------------------------------------------------------------------
 
 36. Better Chat
@@ -235,7 +235,22 @@ Toplam Kayitli Modul: 37 (+ 4 Yerlesik Sistem Ozelligi)
     Timestamps (Istanbul saati <HH:mm:ss>), Compact Chat (tekrar eden
     mesajlari (2), (3) seklinde birlestirir).
 
-37. GUI Style
+37. Client Chat
+    Ne ise yarar: LiquidBounce'daki LiquidChat benzeri, Cloudflare Workers +
+    Durable Objects WebSocket uzerinden sunucular arasi global ve ozel (.c msg)
+    client sohbeti saglar. Girdigin Minecraft sunucusuna mesaj gitmez.
+    Komutlar (.c oneki ile):
+    - .c <mesaj> : Bulundugun odaya mesaj gonderir
+    - .c msg <nick> <mesaj> : Ozel mesaj (DM) gonderir
+    - .c list : Odadaki cevrimici kullanicilari listeler
+    - .c url <wss://...> : Cloudflare Worker adresini ayarlar/baglanir
+    - .c room <oda> : Oda degistirir (varsayilan: global)
+    - .c key <sifre|off> : Opsiyonel oda erisim anahtari (CHAT_ACCESS_KEY)
+    - .c mute <nick> / .c unmute <nick> : Kullaniciyi susturur/acar
+    - .c status / .c help : Baglanti durumunu ve yardimi gosterir
+    Ayarlar: Allow DMs (ozel mesajlari kabul et), Reconnect, Chat Help (.c).
+
+38. GUI Style
     Ne ise yarar: Client menusunun gorunumunu Modern Dashboard (4 sutunlu tek
     panel) ve Classic Multi-Window (suruklenebilir pencereler) arasinda degistirir.
 

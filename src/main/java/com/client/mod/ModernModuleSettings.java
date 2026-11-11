@@ -178,6 +178,11 @@ public final class ModernModuleSettings {
             );
             case "Auto Crafter" -> buildAutoCrafterControls(cfg, actions);
             case "Better Chat" -> buildBetterChatControls(cfg, actions);
+            case "Client Chat" -> List.of(
+                    toggle("Allow DMs", () -> cfg.clientChatAllowDms, v -> cfg.clientChatAllowDms = v, actions, false),
+                    new ActionControl(() -> "Reconnect", SestiaChatClient::reconnect),
+                    new ActionControl(() -> "Chat Help (.c)", SestiaChatClient::printHelpInChat)
+            );
             case "Backtrack" -> List.of(
                     intSlider("backtrackDelay", "Max Delay", 40, 300, "ms",
                             () -> cfg.backtrackDelay, v -> cfg.backtrackDelay = v)

@@ -1,0 +1,13 @@
+{
+  "name": "sestia-client-chat",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Workers + SQLite Durable Object WebSocket relay for Sestia Client Chat",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
