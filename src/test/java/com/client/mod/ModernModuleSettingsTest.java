@@ -55,6 +55,7 @@ public class ModernModuleSettingsTest {
         testDulkirSlidersAndReset();
         testAutoCrafterActionsAndChips();
         testInventoryHudActions();
+        testToggleNotificationFormatAndConfig();
         System.out.println("ALL ModernModuleSettingsTest ASSERTIONS PASSED!");
     }
 
@@ -199,5 +200,24 @@ public class ModernModuleSettingsTest {
         ((ModernModuleSettings.ActionControl) invControls.get(7)).onClick().run();
         ((ModernModuleSettings.ActionControl) invControls.get(8)).onClick().run();
         assert actions.invSettingsOpened == 1 && actions.invMoveOpened == 1;
+    }
+
+    private static void testToggleNotificationFormatAndConfig() {
+        ModConfig cfg = new ModConfig();
+        assert cfg.toggleNotifications : "Toggle notifications should be enabled by default";
+        cfg.toggleNotifications = false;
+        ModConfig copy = cfg.copy();
+        assert !copy.toggleNotifications : "ModConfig.copy must preserve toggleNotifications=false";
+
+        String enabledMsg = ModConfig.formatToggleNotification("Fast Use", true);
+        assert enabledMsg.startsWith("§c[Sestia] §fFast Use") && !enabledMsg.contains("[Client]")
+                : "Expected [Sestia] prefix, got: " + enabledMsg;
+        assert enabledMsg.endsWith("§aEnabled");
+
+        String disabledMsg = ModConfig.formatToggleNotification("Fast Use", false);
+        assert disabledMsg.startsWith("§c[Sestia] §fFast Use") && disabledMsg.endsWith("§cDisabled");
+
+        String styleMsg = ModConfig.formatToggleNotification("GUI Style", true);
+        assert styleMsg.startsWith("§c[Sestia] §fGUI Style") && styleMsg.endsWith("§eModern Dashboard");
     }
 }

@@ -1773,11 +1773,8 @@ public class ClickGuiScreen extends Screen {
                 if (mc.getSoundManager() != null) {
                     mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, next ? 1.0f : 0.8f));
                 }
-                if (mc.gui != null && mc.gui.hud != null) {
-                    String status = "GUI Style".equals(mod.name)
-                            ? (next ? "§eModern Dashboard" : "§bClassic Multi-Window")
-                            : (next ? "§aEnabled" : "§cDisabled");
-                    Component msg = Component.literal("§c[Client] §f" + mod.name + " §7» " + status);
+                if (ModConfig.getInstance().toggleNotifications && mc.gui != null && mc.gui.hud != null) {
+                    Component msg = Component.literal(ModConfig.formatToggleNotification(mod.name, next));
                     mc.gui.hud.setOverlayMessage(msg, false);
                 }
             }

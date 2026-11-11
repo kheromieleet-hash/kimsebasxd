@@ -146,6 +146,7 @@ public class ModConfig {
 
     // ClickGUI Style: 0 = Classic Multi-Window, 1 = Modern Single-Panel
     public int clickGuiStyle = 1;
+    public boolean toggleNotifications = true;
 
     public boolean fastBreak = false;
     public int fastBreakMode = 1; // 0 = Vanilla (0 Delay), 1 = Vulcan (Anti-Cheat Bypass)
@@ -300,6 +301,14 @@ public class ModConfig {
         }
     }
 
+    /** Formats the in-game hotbar overlay notification shown when toggling a module via keybind. */
+    public static String formatToggleNotification(String modName, boolean enabled) {
+        String status = "GUI Style".equals(modName)
+                ? (enabled ? "§eModern Dashboard" : "§bClassic Multi-Window")
+                : (enabled ? "§aEnabled" : "§cDisabled");
+        return "§c[Sestia] §f" + modName + " §7» " + status;
+    }
+
     public ModConfig copy() {
         ModConfig c = new ModConfig();
         c.copyFrom(this);
@@ -376,6 +385,7 @@ public class ModConfig {
         this.trueSight = other.trueSight;
         this.itemEsp = other.itemEsp;
         this.clickGuiStyle = other.clickGuiStyle;
+        this.toggleNotifications = other.toggleNotifications;
         this.fastBreak = other.fastBreak;
         this.fastBreakMode = other.fastBreakMode;
         this.fastBreakSpeed = other.fastBreakSpeed;
