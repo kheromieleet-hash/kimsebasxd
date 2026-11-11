@@ -2,6 +2,7 @@ package com.client.mod.mixin;
 
 import com.client.mod.ExploitPacketRules;
 import com.client.mod.ModConfig;
+import com.client.mod.PacketMineHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientCommonPacketListenerImpl;
 import net.minecraft.network.Connection;
@@ -82,6 +83,7 @@ public abstract class ClientPacketListenerMixin {
     @Inject(method = "onDisconnect", at = @At("HEAD"))
     private void onDisconnectReset(DisconnectionDetails details, CallbackInfo ci) {
         this.customclient$commandTracker.reset();
+        PacketMineHandler.clear();
     }
     @Inject(method = "send(Lnet/minecraft/network/protocol/Packet;)V", at = @At("HEAD"), cancellable = true)
     private void onSendPacket(Packet<?> packet, CallbackInfo ci) {
@@ -95,9 +97,10 @@ public abstract class ClientPacketListenerMixin {
             }
         }
 
-        // AbortBreaking: Cancel sending ABORT_DESTROY_BLOCK to keep/freeze break damage on server
+        // AbortBreaking / PacketMine: suppress ABORT_DESTROY_BLOCK so server retains break progress
         if (packet instanceof ServerboundPlayerActionPacket actionPacket) {
-            if (config.abortBreaking && actionPacket.getAction() == ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK) {
+            if (actionPacket.getAction() == ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK
+                    && (config.abortBreaking || PacketMineHandler.shouldSuppressAbort(actionPacket.getPos()))) {
                 ci.cancel();
                 return;
             }

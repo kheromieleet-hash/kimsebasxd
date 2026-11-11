@@ -2,6 +2,7 @@ package com.client.mod.mixin;
 
 import com.client.mod.ExploitPacketRules;
 import com.client.mod.ModConfig;
+import com.client.mod.PacketMineHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -178,6 +179,7 @@ public abstract class ClientPlayPacketListenerMixin {
     @Inject(method = "clearLevel", at = @At("HEAD"))
     private void onClearLevel(CallbackInfo ci) {
         this.customclient$backtrackQueue.clear();
+        PacketMineHandler.clear();
     }
 
     @Unique

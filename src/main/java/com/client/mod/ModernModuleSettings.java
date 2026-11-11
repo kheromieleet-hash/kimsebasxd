@@ -213,6 +213,12 @@ public final class ModernModuleSettings {
                     intSlider("pingSpoofDelay", "Delay", 50, 1000, "ms",
                             () -> cfg.pingSpoofDelay, v -> cfg.pingSpoofDelay = v)
             );
+            case "Packet Mine" -> List.of(
+                    toggle("Instant Rebreak", () -> cfg.packetMineRebreak, v -> cfg.packetMineRebreak = v, actions, false),
+                    intSlider("packetMineDelay", "Delay", 0, 5, "t",
+                            () -> cfg.packetMineDelay, v -> cfg.packetMineDelay = v),
+                    toggle("Render Box", () -> cfg.packetMineRender, v -> cfg.packetMineRender = v, actions, false)
+            );
             default -> List.of();
         };
     }

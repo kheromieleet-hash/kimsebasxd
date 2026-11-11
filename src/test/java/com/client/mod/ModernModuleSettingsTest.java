@@ -87,7 +87,7 @@ public class ModernModuleSettingsTest {
                 "Fast Place", "Auto Break", "FastBreak", "Inventory Tweaks",
                 "Auto Replenish", "Fast Use", "Auto Tool", "Auto Crafter",
                 "Better Chat", "Backtrack", "Disabler", "Exploit Guard",
-                "No Mining Trace", "No Slowdown", "Ping Spoof"
+                "No Mining Trace", "No Slowdown", "Packet Mine", "Ping Spoof"
         );
         for (String name : configurable) {
             List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(name, cfg, actions);
@@ -273,5 +273,21 @@ public class ModernModuleSettingsTest {
         assert "Grim".equals(disablerMode.valueLabel().get()) && cfg.disablerMode == 1;
         disablerMode.onCycle().run();
         assert "Vulcan".equals(disablerMode.valueLabel().get()) && cfg.disablerMode == 0;
+
+        List<ModernModuleSettings.Control> pmControls = ModernModuleSettings.getControls("Packet Mine", cfg, actions);
+        assert pmControls.size() == 3;
+        ModernModuleSettings.ToggleControl rebreak = (ModernModuleSettings.ToggleControl) pmControls.get(0);
+        assert cfg.packetMineRebreak;
+        rebreak.setter().accept(false);
+        assert !cfg.packetMineRebreak;
+        ModernModuleSettings.SliderControl pmDelay = (ModernModuleSettings.SliderControl) pmControls.get(1);
+        pmDelay.pctSetter().accept(1.0f);
+        assert cfg.packetMineDelay == 5;
+        pmDelay.pctSetter().accept(0.0f);
+        assert cfg.packetMineDelay == 0;
+        ModernModuleSettings.ToggleControl renderBox = (ModernModuleSettings.ToggleControl) pmControls.get(2);
+        assert cfg.packetMineRender;
+        renderBox.setter().accept(false);
+        assert !cfg.packetMineRender;
     }
 }

@@ -430,6 +430,7 @@ final class ModernModuleCardUi {
             case "No Mining Trace" -> "Mine blocks directly through entities & mobs";
             case "No Slowdown" -> "Keep full speed while eating, bowing & blocking";
             case "Ping Spoof" -> "Delay keep-alive & pong packets cleanly";
+            case "Packet Mine" -> "Mine blocks with packets & instant rebreak";
             case "Portal GUI" -> "Keep chat & screens open inside Nether portals";
             case "Resource Pack Spoof" -> "Accept server packs without downloading them";
             case "Inventory Tweaks" -> "One-click sort & smart inventory handling";

@@ -86,7 +86,7 @@ public class ModernInspectorLayoutTest {
             }
         }
 
-        for (String oddMod : List.of("Keybinds HUD", "Better Chat", "Inventory Tweaks", "Inventory HUD+")) {
+        for (String oddMod : List.of("Keybinds HUD", "Better Chat", "Inventory Tweaks", "Inventory HUD+", "Packet Mine")) {
             List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(oddMod, cfg, actions);
             assert (controls.size() & 1) == 1 : "Expected odd control count for " + oddMod;
 
@@ -188,7 +188,7 @@ public class ModernInspectorLayoutTest {
                 "Fast Place", "Auto Break", "FastBreak", "Inventory Tweaks",
                 "Auto Replenish", "Fast Use", "Auto Tool", "Auto Crafter",
                 "Better Chat", "Backtrack", "Disabler", "Exploit Guard",
-                "No Mining Trace", "No Slowdown", "Ping Spoof"
+                "No Mining Trace", "No Slowdown", "Packet Mine", "Ping Spoof"
         );
         for (String modName : configurableModules) {
             List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(modName, cfg, actions);

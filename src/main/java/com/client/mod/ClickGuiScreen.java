@@ -479,6 +479,19 @@ public class ClickGuiScreen extends Screen {
                 }
         ));
 
+        // 32. Packet Mine (Exploit)
+        MODULES.add(new ModuleEntry(
+                "Packet Mine", Category.EXPLOIT,
+                () -> config.packetMine,
+                val -> {
+                    config.packetMine = val;
+                    if (!val) {
+                        PacketMineHandler.clear();
+                    }
+                    config.save();
+                }
+        ));
+
         ModernModuleGridLayout.sortByNameInPlace(MODULES, m -> m.name);
     }
 
@@ -1304,6 +1317,20 @@ public class ClickGuiScreen extends Screen {
                         "Delay: " + config.pingSpoofDelay + "ms",
                         (config.pingSpoofDelay - 50) / 950.0f);
             }
+            case "Packet Mine" -> {
+                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                        "Packet Mine: " + (config.packetMine ? "ON" : "OFF"), config.packetMine);
+                rowY += 22;
+                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                        "Instant Rebreak: " + (config.packetMineRebreak ? "ON" : "OFF"), config.packetMineRebreak);
+                rowY += 22;
+                drawSlider(graphics, font, innerX, rowY, innerW,
+                        "Delay: " + config.packetMineDelay + "t",
+                        config.packetMineDelay / 5.0f);
+                rowY += 22;
+                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                        "Render Box: " + (config.packetMineRender ? "ON" : "OFF"), config.packetMineRender);
+            }
             case "Portal GUI" -> drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
                     "Portal GUI: " + (config.portalGui ? "ON" : "OFF"), config.portalGui);
             case "Resource Pack Spoof" -> drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
@@ -1321,7 +1348,7 @@ public class ClickGuiScreen extends Screen {
             case "Inventory HUD+" -> 9;
             case "Inventory Tweaks" -> 7;
             case "Auto Replenish" -> 6;
-            case "Fullbright" -> 4;
+            case "Fullbright", "Packet Mine" -> 4;
             case "Fast Use" -> 1;
             case "Fast Place" -> 2;
             case "Auto Tool" -> 1;
@@ -2449,6 +2476,26 @@ public class ClickGuiScreen extends Screen {
                     startSliderDrag(mouseX, innerX, innerW, "pingSpoofDelay");
                 }
             }
+            case "Packet Mine" -> {
+                if (specificRow == 0) {
+                    config.packetMine = !config.packetMine;
+                    if (!config.packetMine) {
+                        PacketMineHandler.clear();
+                    }
+                    config.save();
+                    playClickSound();
+                } else if (specificRow == 1) {
+                    config.packetMineRebreak = !config.packetMineRebreak;
+                    config.save();
+                    playClickSound();
+                } else if (specificRow == 2) {
+                    startSliderDrag(mouseX, innerX, innerW, "packetMineDelay");
+                } else if (specificRow == 3) {
+                    config.packetMineRender = !config.packetMineRender;
+                    config.save();
+                    playClickSound();
+                }
+            }
             case "Portal GUI" -> {
                 if (specificRow == 0) {
                     config.portalGui = !config.portalGui;
@@ -2526,6 +2573,7 @@ public class ClickGuiScreen extends Screen {
             case "pingSpoofDelay" -> config.pingSpoofDelay = Math.max(50, Math.min(1000, Math.round(50 + pct * 950.0f)));
             case "exploitGuardMaxParticles" -> config.exploitGuardMaxParticles = Math.max(100, Math.min(2000, Math.round(100 + pct * 1900.0f)));
             case "backtrackDelay" -> config.backtrackDelay = Math.max(40, Math.min(300, Math.round(40 + pct * 260.0f)));
+            case "packetMineDelay" -> config.packetMineDelay = Math.max(0, Math.min(5, Math.round(pct * 5.0f)));
         }
     }
 

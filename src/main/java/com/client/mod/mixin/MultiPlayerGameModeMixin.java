@@ -2,9 +2,13 @@ package com.client.mod.mixin;
 
 import com.client.mod.AutoToolHandler;
 import com.client.mod.ModConfig;
+import com.client.mod.PacketMineHandler;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
+import net.minecraft.client.multiplayer.prediction.PredictiveAction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -13,18 +17,47 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MultiPlayerGameMode.class)
-public abstract class MultiPlayerGameModeMixin {
+public abstract class MultiPlayerGameModeMixin implements PacketMineHandler.StopPacketSender {
     @Shadow private int destroyDelay;
     @Shadow private float destroyProgress;
+    @Shadow private boolean isDestroying;
 
-    @Inject(method = "startDestroyBlock", at = @At("HEAD"))
+    @Shadow
+    private void startPrediction(ClientLevel level, PredictiveAction action) {
+    }
+
+    @Override
+    public void customclient$sendStopAndBreak(ClientLevel level, BlockPos pos, Direction dir) {
+        this.startPrediction(level, sequence -> {
+            ((MultiPlayerGameMode) (Object) this).destroyBlock(pos);
+            return new ServerboundPlayerActionPacket(
+                    ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK,
+                    pos,
+                    dir,
+                    sequence
+            );
+        });
+    }
+
+    @Inject(method = "startDestroyBlock", at = @At("HEAD"), cancellable = true)
     private void onStartDestroyBlock(BlockPos pos, Direction dir, CallbackInfoReturnable<Boolean> cir) {
         AutoToolHandler.onStartMining(pos);
+        if (PacketMineHandler.onStartDestroyAttempt((MultiPlayerGameMode) (Object) this, pos, dir)) {
+            cir.setReturnValue(true);
+            return;
+        }
         ModConfig config = ModConfig.getInstance();
         if (config != null && config.fastBreak) {
             // Vulcan Anti-Cheat bypass: 1 tick delay (50ms) to bypass Vulcan Delay check
             // Vanilla mode: 0 tick delay
             this.destroyDelay = (config.fastBreakMode == 1) ? 1 : 0;
+        }
+    }
+
+    @Inject(method = "startDestroyBlock", at = @At("RETURN"))
+    private void onStartDestroyBlockReturn(BlockPos pos, Direction dir, CallbackInfoReturnable<Boolean> cir) {
+        if (cir.getReturnValueZ()) {
+            PacketMineHandler.onAfterStartDestroy(pos, dir, this.destroyProgress);
         }
     }
 
@@ -67,5 +100,15 @@ public abstract class MultiPlayerGameModeMixin {
         if (config != null && config.fastBreak) {
             this.destroyDelay = (config.fastBreakMode == 1) ? 1 : 0;
         }
+    }
+
+    @Inject(method = "continueDestroyBlock", at = @At("RETURN"))
+    private void onContinueDestroyBlockReturn(BlockPos pos, Direction dir, CallbackInfoReturnable<Boolean> cir) {
+        PacketMineHandler.syncContinueProgress(pos, this.destroyProgress);
+    }
+
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void onTickPacketMine(CallbackInfo ci) {
+        PacketMineHandler.tick((MultiPlayerGameMode) (Object) this, this.isDestroying, this.destroyProgress);
     }
 }
