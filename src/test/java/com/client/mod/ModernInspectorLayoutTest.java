@@ -188,7 +188,8 @@ public class ModernInspectorLayoutTest {
                 "Fast Place", "Auto Break", "FastBreak", "Inventory Tweaks",
                 "Auto Replenish", "Fast Use", "Auto Tool", "Auto Crafter",
                 "Better Chat", "Backtrack", "Disabler", "Exploit Guard",
-                "No Mining Trace", "No Slowdown", "Packet Mine", "Ping Spoof"
+                "No Mining Trace", "No Slowdown", "Packet Mine", "Ping Spoof",
+                "Chunk Borders", "Light Overlay", "Trajectories"
         );
         for (String modName : configurableModules) {
             List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(modName, cfg, actions);

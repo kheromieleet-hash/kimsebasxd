@@ -87,7 +87,8 @@ public class ModernModuleSettingsTest {
                 "Fast Place", "Auto Break", "FastBreak", "Inventory Tweaks",
                 "Auto Replenish", "Fast Use", "Auto Tool", "Auto Crafter",
                 "Better Chat", "Backtrack", "Disabler", "Exploit Guard",
-                "No Mining Trace", "No Slowdown", "Packet Mine", "Ping Spoof"
+                "No Mining Trace", "No Slowdown", "Packet Mine", "Ping Spoof",
+                "Chunk Borders", "Light Overlay", "Trajectories"
         );
         for (String name : configurable) {
             List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(name, cfg, actions);
@@ -289,5 +290,29 @@ public class ModernModuleSettingsTest {
         assert cfg.packetMineRender;
         renderBox.setter().accept(false);
         assert !cfg.packetMineRender;
+
+        // Chunk Borders, Light Overlay, Trajectories
+        ModernModuleSettings.ToggleControl subGrid =
+                (ModernModuleSettings.ToggleControl) ModernModuleSettings.getControls("Chunk Borders", cfg, actions).get(0);
+        assert !cfg.chunkBordersSubGrid;
+        subGrid.setter().accept(true);
+        assert cfg.chunkBordersSubGrid;
+
+        List<ModernModuleSettings.Control> lightControls = ModernModuleSettings.getControls("Light Overlay", cfg, actions);
+        assert lightControls.size() == 2;
+        ModernModuleSettings.SliderControl lightRange = (ModernModuleSettings.SliderControl) lightControls.get(0);
+        lightRange.pctSetter().accept(1.0f);
+        assert cfg.lightOverlayRange == 24;
+        lightRange.pctSetter().accept(0.0f);
+        assert cfg.lightOverlayRange == 8;
+        ModernModuleSettings.ToggleControl onlyAlways = (ModernModuleSettings.ToggleControl) lightControls.get(1);
+        onlyAlways.setter().accept(true);
+        assert cfg.lightOverlayOnlyAlways;
+
+        List<ModernModuleSettings.Control> trajControls = ModernModuleSettings.getControls("Trajectories", cfg, actions);
+        assert trajControls.size() == 2;
+        ((ModernModuleSettings.ToggleControl) trajControls.get(0)).setter().accept(false);
+        ((ModernModuleSettings.ToggleControl) trajControls.get(1)).setter().accept(false);
+        assert !cfg.trajectoriesShowPassive && !cfg.trajectoriesBoxOutline;
     }
 }
