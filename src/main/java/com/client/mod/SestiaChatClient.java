@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Manages the Cloudflare Workers WebSocket session and .c command routing for Sestia Client Chat.
+ * Manages the single global Cloudflare Workers WebSocket session and .c command routing for Sestia Client Chat.
  */
 public final class SestiaChatClient {
 
@@ -43,8 +43,8 @@ public final class SestiaChatClient {
     private static volatile WebSocket activeSocket = null;
     private static volatile boolean loggedIn = false;
     private static volatile boolean connecting = false;
-    private static volatile String activeRoom = "global";
     private static volatile String activeNick = "Player";
+    private static volatile int lastOnlineCount = 0;
     private static ScheduledFuture<?> pendingReconnect = null;
     private static int reconnectAttempts = 0;
 
@@ -57,13 +57,28 @@ public final class SestiaChatClient {
             disconnect(false);
             return;
         }
-        String url = SestiaChatProtocol.normalizeWebSocketUrl(cfg.clientChatUrl);
+        String url = SestiaChatProtocol.resolveEffectiveUrl(cfg.clientChatUrl);
         if (url.isEmpty()) {
             disconnect(false);
-            postChat("§8[§cSestiaChat§8] §7Cloudflare Worker adresi ayarli degil. Ayarlamak icin: §f.c url wss://...");
             return;
         }
         connectAsync(0);
+    }
+
+    public static void onEnteredWorld() {
+        ModConfig cfg = ModConfig.getInstance();
+        if (!cfg.clientChatEnabled) {
+            return;
+        }
+        String url = SestiaChatProtocol.resolveEffectiveUrl(cfg.clientChatUrl);
+        if (url.isEmpty()) {
+            return;
+        }
+        if (loggedIn && activeSocket != null) {
+            postChat("§8[§cSestiaChat§8] §aGlobal sohbet aktif §8(§7Cevrimici: §f" + Math.max(1, lastOnlineCount) + " §8| §f.c <mesaj>§8)");
+        } else if (!connecting) {
+            connectAsync(0);
+        }
     }
 
     public static void reconnect() {
@@ -72,8 +87,8 @@ public final class SestiaChatClient {
             postChat("§8[§cSestiaChat§8] §cClient Chat kapali. Once modulu acin.");
             return;
         }
-        if (SestiaChatProtocol.normalizeWebSocketUrl(cfg.clientChatUrl).isEmpty()) {
-            postChat("§8[§cSestiaChat§8] §7Once Worker adresini ayarlayin: §f.c url wss://...");
+        if (SestiaChatProtocol.resolveEffectiveUrl(cfg.clientChatUrl).isEmpty()) {
+            postChat("§8[§cSestiaChat§8] §7Worker URL ayarli degil: §f.c url wss://...");
             return;
         }
         reconnectAttempts = 0;
@@ -95,33 +110,22 @@ public final class SestiaChatClient {
             case HELP -> printHelpInChat();
             case STATUS -> printStatusInChat(cfg);
             case URL -> {
-                String normalized = SestiaChatProtocol.normalizeWebSocketUrl(cmd.arg1());
+                String rawArg = cmd.arg1().trim();
+                if (rawArg.equalsIgnoreCase("default") || rawArg.equalsIgnoreCase("reset")) {
+                    cfg.clientChatUrl = "";
+                    cfg.save();
+                    postChat("§8[§cSestiaChat§8] §aVarsayilan sunucu adresine donuldu.");
+                    reconnect();
+                    return true;
+                }
+                String normalized = SestiaChatProtocol.normalizeWebSocketUrl(rawArg);
                 if (normalized.isEmpty()) {
                     postChat("§8[§cSestiaChat§8] §cGecersiz URL. Ornek: §f.c url wss://sestia-client-chat.ornek.workers.dev");
                     return true;
                 }
                 cfg.clientChatUrl = normalized;
                 cfg.save();
-                postChat("§8[§cSestiaChat§8] §aSunucu kaydedildi: §f" + normalized);
-                reconnect();
-            }
-            case ROOM -> {
-                String room = SestiaChatProtocol.normalizeRoom(cmd.arg1());
-                cfg.clientChatRoom = room;
-                cfg.save();
-                postChat("§8[§cSestiaChat§8] §aOda degistirildi: §f" + room);
-                reconnect();
-            }
-            case KEY -> {
-                String keyVal = cmd.arg1().trim();
-                if (keyVal.equalsIgnoreCase("off") || keyVal.equalsIgnoreCase("none") || keyVal.equalsIgnoreCase("clear")) {
-                    cfg.clientChatKey = "";
-                    postChat("§8[§cSestiaChat§8] §7Oda sifresi temizlendi.");
-                } else {
-                    cfg.clientChatKey = keyVal;
-                    postChat("§8[§cSestiaChat§8] §aErisim anahtari kaydedildi.");
-                }
-                cfg.save();
+                postChat("§8[§cSestiaChat§8] §aOzel sunucu kaydedildi: §f" + normalized);
                 reconnect();
             }
             case MUTE -> {
@@ -176,31 +180,30 @@ public final class SestiaChatClient {
 
     public static void printHelpInChat() {
         postChat("§8[§cSestiaChat§8] §fKomutlar:");
-        postChat("  §e.c <mesaj> §7- Odaya mesaj gonder");
+        postChat("  §e.c <mesaj> §7- Global sohbete mesaj gonder");
         postChat("  §e.c msg <isim> <mesaj> §7- Ozel mesaj (DM)");
-        postChat("  §e.c list §7- Cevrimici kullanicilari goster");
-        postChat("  §e.c url <wss://...> §7- Cloudflare Worker adresi ayarla");
-        postChat("  §e.c room <oda> §7| §e.c key <sifre|off>");
+        postChat("  §e.c list §7- Cevrimici Sestia kullanicilarini goster");
         postChat("  §e.c mute/unmute <isim> §7| §e.c status");
     }
 
     private static void printStatusInChat(ModConfig cfg) {
-        String stateLabel = loggedIn ? "§aBagli (" + activeRoom + ")" : (connecting ? "§eBaglaniyor..." : "§cBagli Degil");
-        String urlDisplay = (cfg.clientChatUrl == null || cfg.clientChatUrl.isBlank()) ? "Ayarlanmadi" : cfg.clientChatUrl;
+        String stateLabel = loggedIn ? "§aBagli (" + Math.max(1, lastOnlineCount) + " cevrimici)" : (connecting ? "§eBaglaniyor..." : "§cBagli Degil");
+        String effectiveUrl = SestiaChatProtocol.resolveEffectiveUrl(cfg.clientChatUrl);
+        String urlDisplay = effectiveUrl.isEmpty() ? "Ayarlanmadi" : effectiveUrl;
         postChat("§8[§cSestiaChat§8] §7Durum: " + stateLabel + " §8| §7Nick: §f" + activeNick);
         postChat("§8[§cSestiaChat§8] §7URL: §f" + urlDisplay);
     }
 
     private static boolean ensureConnected() {
         ModConfig cfg = ModConfig.getInstance();
-        if (SestiaChatProtocol.normalizeWebSocketUrl(cfg.clientChatUrl).isEmpty()) {
-            postChat("§8[§cSestiaChat§8] §cOnce Worker URL ayarlayin: §f.c url wss://...");
+        if (SestiaChatProtocol.resolveEffectiveUrl(cfg.clientChatUrl).isEmpty()) {
+            postChat("§8[§cSestiaChat§8] §cSunucu URL ayarli degil: §f.c url wss://...");
             return false;
         }
         if (activeSocket != null && loggedIn) {
             return true;
         }
-        postChat("§8[§cSestiaChat§8] §7Sunucuya baglaniyor, biraz sonra tekrar deneyin...");
+        postChat("§8[§cSestiaChat§8] §7Global sohbete baglaniyor, biraz sonra tekrar deneyin...");
         if (!connecting) {
             connectAsync(0);
         }
@@ -216,14 +219,14 @@ public final class SestiaChatClient {
             closeSocketOnly();
             final int gen = GENERATION.incrementAndGet();
             ModConfig cfg = ModConfig.getInstance();
-            String baseUrl = SestiaChatProtocol.normalizeWebSocketUrl(cfg.clientChatUrl);
+            String baseUrl = SestiaChatProtocol.resolveEffectiveUrl(cfg.clientChatUrl);
             if (!cfg.clientChatEnabled || baseUrl.isEmpty()) {
                 return;
             }
             connecting = true;
             loggedIn = false;
 
-            Runnable connectTask = () -> openWebSocket(gen, baseUrl, cfg.clientChatRoom, cfg.clientChatKey);
+            Runnable connectTask = () -> openWebSocket(gen, baseUrl);
             if (delayMs <= 0) {
                 HTTP_EXECUTOR.execute(connectTask);
             } else {
@@ -232,22 +235,18 @@ public final class SestiaChatClient {
         }
     }
 
-    private static void openWebSocket(int gen, String baseUrl, String room, String accessKey) {
+    private static void openWebSocket(int gen, String baseUrl) {
         if (gen != GENERATION.get() || !ModConfig.getInstance().clientChatEnabled) {
             connecting = false;
             return;
         }
         String nick = resolvePlayerNick();
-        String roomNorm = SestiaChatProtocol.normalizeRoom(room);
-        String connectUrl = SestiaChatProtocol.buildConnectUri(baseUrl, roomNorm, nick);
+        String connectUrl = SestiaChatProtocol.buildConnectUri(baseUrl, nick);
 
         WebSocket.Builder builder = HTTP_CLIENT.newWebSocketBuilder()
                 .connectTimeout(Duration.ofSeconds(10));
-        if (accessKey != null && !accessKey.isBlank()) {
-            builder.header("x-sestia-key", accessKey.trim());
-        }
 
-        builder.buildAsync(URI.create(connectUrl), new ChatListener(gen, nick, roomNorm))
+        builder.buildAsync(URI.create(connectUrl), new ChatListener(gen, nick))
                 .whenComplete((ws, err) -> {
                     if (err != null) {
                         if (gen == GENERATION.get()) {
@@ -264,7 +263,7 @@ public final class SestiaChatClient {
                         return;
                     }
                     activeSocket = ws;
-                    ws.sendText(SestiaChatProtocol.buildHelloJson(nick, roomNorm), true);
+                    ws.sendText(SestiaChatProtocol.buildHelloJson(nick), true);
                 });
     }
 
@@ -342,8 +341,8 @@ public final class SestiaChatClient {
                 loggedIn = true;
                 reconnectAttempts = 0;
                 activeNick = ev.from();
-                activeRoom = ev.room();
-                postChat("§8[§cSestiaChat§8] §aBaglandi! Oda: §f" + activeRoom + " §8(§7Cevrimici: §f" + ev.onlineCount() + "§8)");
+                lastOnlineCount = ev.onlineCount();
+                postChat("§8[§cSestiaChat§8] §aGlobal sohbete baglandi! §8(§7Cevrimici: §f" + lastOnlineCount + "§8)");
             }
             case CHAT -> {
                 if (!SestiaChatProtocol.isMuted(ev.from(), cfg.clientChatMuted)) {
@@ -361,8 +360,9 @@ public final class SestiaChatClient {
                 }
             }
             case LIST -> {
+                lastOnlineCount = ev.users().size();
                 String names = ev.users().isEmpty() ? "(kimse yok)" : String.join(", ", ev.users());
-                postChat("§8[§cSestiaChat§8] §7Oda §f" + ev.room() + " §8(§f" + ev.users().size() + "§8): §7" + names);
+                postChat("§8[§cSestiaChat§8] §7Cevrimici (§f" + lastOnlineCount + "§7): §f" + names);
             }
             case SYSTEM -> postChat("§8[§cSestiaChat§8] §7" + ev.text());
             case ERROR -> postChat("§8[§cSestiaChat§8] §c" + ev.text());
@@ -396,10 +396,9 @@ public final class SestiaChatClient {
         private final int generation;
         private final StringBuilder buffer = new StringBuilder();
 
-        ChatListener(int generation, String nick, String room) {
+        ChatListener(int generation, String nick) {
             this.generation = generation;
             activeNick = nick;
-            activeRoom = room;
         }
 
         @Override

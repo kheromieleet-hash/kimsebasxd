@@ -15,12 +15,13 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Pure-Java command parser, sanitization, mute-list helpers, and JSON protocol for Sestia Client Chat.
+ * Pure-Java command parser, URL resolver, sanitization, mute-list helpers, and JSON protocol for Sestia Client Chat.
  */
 public final class SestiaChatProtocol {
 
+    // Deployed Cloudflare Workers + SQLite Durable Object global chat endpoint.
+    public static final String DEFAULT_CHAT_URL = "wss://sestia-client-chat.sestiachat.workers.dev";
     public static final int MAX_MESSAGE_LENGTH = 220;
-    public static final int MAX_ROOM_LENGTH = 32;
 
     private SestiaChatProtocol() {
     }
@@ -31,8 +32,6 @@ public final class SestiaChatProtocol {
         DM,
         LIST,
         URL,
-        ROOM,
-        KEY,
         MUTE,
         UNMUTE,
         STATUS,
@@ -59,7 +58,6 @@ public final class SestiaChatProtocol {
             EventType type,
             String from,
             String to,
-            String room,
             String text,
             int onlineCount,
             List<String> users) {
@@ -108,12 +106,6 @@ public final class SestiaChatProtocol {
             case "url" -> {
                 return new ParsedCommand(CommandKind.URL, rest, "");
             }
-            case "room" -> {
-                return new ParsedCommand(CommandKind.ROOM, rest, "");
-            }
-            case "key" -> {
-                return new ParsedCommand(CommandKind.KEY, rest, "");
-            }
             case "mute" -> {
                 return new ParsedCommand(CommandKind.MUTE, rest, "");
             }
@@ -139,6 +131,18 @@ public final class SestiaChatProtocol {
                 return new ParsedCommand(CommandKind.CHAT, body, "");
             }
         }
+    }
+
+    public static String resolveEffectiveUrl(String configuredUrl) {
+        return resolveEffectiveUrl(configuredUrl, DEFAULT_CHAT_URL);
+    }
+
+    static String resolveEffectiveUrl(String configuredUrl, String fallbackDefaultUrl) {
+        String custom = normalizeWebSocketUrl(configuredUrl);
+        if (!custom.isEmpty()) {
+            return custom;
+        }
+        return normalizeWebSocketUrl(fallbackDefaultUrl);
     }
 
     /**
@@ -179,26 +183,9 @@ public final class SestiaChatProtocol {
         }
     }
 
-    public static String buildConnectUri(String normalizedBaseUrl, String room, String nick) {
+    public static String buildConnectUri(String normalizedBaseUrl, String nick) {
         String sep = normalizedBaseUrl.contains("?") ? "&" : "?";
-        return normalizedBaseUrl
-                + sep + "room=" + URLEncoder.encode(normalizeRoom(room), StandardCharsets.UTF_8)
-                + "&nick=" + URLEncoder.encode(sanitizeNick(nick), StandardCharsets.UTF_8);
-    }
-
-    public static String normalizeRoom(String rawRoom) {
-        if (rawRoom == null) {
-            return "global";
-        }
-        StringBuilder sb = new StringBuilder();
-        String lower = rawRoom.trim().toLowerCase(Locale.ROOT);
-        for (int i = 0; i < lower.length() && sb.length() < MAX_ROOM_LENGTH; i++) {
-            char c = lower.charAt(i);
-            if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-') {
-                sb.append(c);
-            }
-        }
-        return sb.isEmpty() ? "global" : sb.toString();
+        return normalizedBaseUrl + sep + "nick=" + URLEncoder.encode(sanitizeNick(nick), StandardCharsets.UTF_8);
     }
 
     public static String sanitizeNick(String rawNick) {
@@ -234,11 +221,10 @@ public final class SestiaChatProtocol {
         return cleaned.length() > MAX_MESSAGE_LENGTH ? cleaned.substring(0, MAX_MESSAGE_LENGTH) : cleaned;
     }
 
-    public static String buildHelloJson(String nick, String room) {
+    public static String buildHelloJson(String nick) {
         JsonObject obj = new JsonObject();
         obj.addProperty("type", "hello");
         obj.addProperty("nick", sanitizeNick(nick));
-        obj.addProperty("room", normalizeRoom(room));
         return obj.toString();
     }
 
@@ -265,7 +251,7 @@ public final class SestiaChatProtocol {
 
     public static ServerEvent parseServerEvent(String json) {
         if (json == null || json.isBlank()) {
-            return new ServerEvent(EventType.UNKNOWN, "", "", "", "", 0, List.of());
+            return new ServerEvent(EventType.UNKNOWN, "", "", "", 0, List.of());
         }
         try {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
@@ -284,7 +270,6 @@ public final class SestiaChatProtocol {
                 from = sanitizeNick(getString(obj, "nick"));
             }
             String to = sanitizeNick(getString(obj, "to"));
-            String room = normalizeRoom(getString(obj, "room"));
             String text = sanitizeText(getString(obj, "text"));
             int online = obj.has("online") && obj.get("online").isJsonPrimitive()
                     ? obj.get("online").getAsInt()
@@ -298,9 +283,9 @@ public final class SestiaChatProtocol {
                     }
                 }
             }
-            return new ServerEvent(type, from, to, room, text, online, users);
+            return new ServerEvent(type, from, to, text, online, users);
         } catch (Exception e) {
-            return new ServerEvent(EventType.UNKNOWN, "", "", "", "", 0, List.of());
+            return new ServerEvent(EventType.UNKNOWN, "", "", "", 0, List.of());
         }
     }
 

@@ -6,7 +6,7 @@ import com.google.gson.JsonParser;
 import java.util.List;
 
 /**
- * Pure-Java verification for SestiaChatProtocol command parsing, URL/nick/room
+ * Pure-Java verification for SestiaChatProtocol command parsing, URL resolver,
  * sanitization, mute list manipulation, JSON serialization, and reconnect backoff.
  */
 public class SestiaChatProtocolTest {
@@ -15,7 +15,7 @@ public class SestiaChatProtocolTest {
         testCommandDetectionAndPassThrough();
         testCommandParsingVariants();
         testUrlNormalizationAndConnectUri();
-        testRoomNickAndTextSanitization();
+        testNickAndTextSanitization();
         testJsonRoundTrip();
         testMuteListOperations();
         testBackoffBounds();
@@ -42,14 +42,6 @@ public class SestiaChatProtocolTest {
         SestiaChatProtocol.ParsedCommand urlCmd = SestiaChatProtocol.parseOutgoingCommand(".c url https://chat.example.workers.dev");
         assert urlCmd.kind() == SestiaChatProtocol.CommandKind.URL;
         assert "https://chat.example.workers.dev".equals(urlCmd.arg1());
-
-        SestiaChatProtocol.ParsedCommand roomCmd = SestiaChatProtocol.parseOutgoingCommand(".c room Turkiye-1");
-        assert roomCmd.kind() == SestiaChatProtocol.CommandKind.ROOM;
-        assert "Turkiye-1".equals(roomCmd.arg1());
-
-        SestiaChatProtocol.ParsedCommand keyCmd = SestiaChatProtocol.parseOutgoingCommand(".c key gizli123");
-        assert keyCmd.kind() == SestiaChatProtocol.CommandKind.KEY;
-        assert "gizli123".equals(keyCmd.arg1());
 
         SestiaChatProtocol.ParsedCommand muteCmd = SestiaChatProtocol.parseOutgoingCommand(".c mute Griefer_01");
         assert muteCmd.kind() == SestiaChatProtocol.CommandKind.MUTE;
@@ -81,16 +73,19 @@ public class SestiaChatProtocolTest {
         assert "".equals(SestiaChatProtocol.normalizeWebSocketUrl(""));
         assert "".equals(SestiaChatProtocol.normalizeWebSocketUrl(null));
 
-        String uri = SestiaChatProtocol.buildConnectUri("wss://sestia.example.workers.dev", "PvP Room", "§cSteve_1");
-        assert uri.equals("wss://sestia.example.workers.dev?room=pvproom&nick=Steve_1")
+        assert "wss://sestia-client-chat.sestiachat.workers.dev".equals(SestiaChatProtocol.DEFAULT_CHAT_URL);
+        assert "wss://sestia-client-chat.sestiachat.workers.dev".equals(SestiaChatProtocol.resolveEffectiveUrl(""));
+        assert "wss://default.workers.dev".equals(
+                SestiaChatProtocol.resolveEffectiveUrl("", "https://default.workers.dev/"));
+        assert "wss://custom.workers.dev".equals(
+                SestiaChatProtocol.resolveEffectiveUrl("wss://custom.workers.dev", "https://default.workers.dev/"));
+
+        String uri = SestiaChatProtocol.buildConnectUri("wss://sestia.example.workers.dev", "§cSteve_1");
+        assert uri.equals("wss://sestia.example.workers.dev?nick=Steve_1")
                 : "Unexpected connect URI: " + uri;
     }
 
-    private static void testRoomNickAndTextSanitization() {
-        assert "global".equals(SestiaChatProtocol.normalizeRoom(null));
-        assert "global".equals(SestiaChatProtocol.normalizeRoom("!!!"));
-        assert "tr_lobby-1".equals(SestiaChatProtocol.normalizeRoom("  TR_Lobby-1!  "));
-
+    private static void testNickAndTextSanitization() {
         assert "Steve_123".equals(SestiaChatProtocol.sanitizeNick("§a§lSteve_123!"));
         assert "Player".equals(SestiaChatProtocol.sanitizeNick("§c!"));
 
@@ -103,10 +98,9 @@ public class SestiaChatProtocolTest {
 
     private static void testJsonRoundTrip() {
         JsonObject hello = JsonParser.parseString(
-                SestiaChatProtocol.buildHelloJson("§bMehmet_TR", "Arena#1")).getAsJsonObject();
+                SestiaChatProtocol.buildHelloJson("§bMehmet_TR")).getAsJsonObject();
         assert "hello".equals(hello.get("type").getAsString());
         assert "Mehmet_TR".equals(hello.get("nick").getAsString());
-        assert "arena1".equals(hello.get("room").getAsString());
 
         JsonObject chat = JsonParser.parseString(SestiaChatProtocol.buildChatJson("§cSa §rBeyler")).getAsJsonObject();
         assert "chat".equals(chat.get("type").getAsString());
@@ -118,12 +112,12 @@ public class SestiaChatProtocolTest {
         assert "Geliyor musun?".equals(dm.get("text").getAsString());
 
         SestiaChatProtocol.ServerEvent welcome = SestiaChatProtocol.parseServerEvent(
-                "{\"type\":\"welcome\",\"nick\":\"Mehmet\",\"room\":\"global\",\"online\":4}");
+                "{\"type\":\"welcome\",\"nick\":\"Mehmet\",\"online\":4}");
         assert welcome.type() == SestiaChatProtocol.EventType.WELCOME;
-        assert "Mehmet".equals(welcome.from()) && "global".equals(welcome.room()) && welcome.onlineCount() == 4;
+        assert "Mehmet".equals(welcome.from()) && welcome.onlineCount() == 4;
 
         SestiaChatProtocol.ServerEvent list = SestiaChatProtocol.parseServerEvent(
-                "{\"type\":\"list\",\"room\":\"global\",\"users\":[\"Mehmet\",\"§cAli\"]}");
+                "{\"type\":\"list\",\"users\":[\"Mehmet\",\"§cAli\"]}");
         assert list.type() == SestiaChatProtocol.EventType.LIST;
         assert List.of("Mehmet", "Ali").equals(list.users());
 

@@ -1,3 +1,5 @@
 dist/
 build_tmp/
 staging/
+node_modules/
+.wrangler/

@@ -1,17 +1,10 @@
 import { DurableObject } from "cloudflare:workers";
 
-const MAX_CONNECTIONS_PER_ROOM = 100;
+const GLOBAL_ROOM_KEY = "sestia-global";
+const MAX_CONNECTIONS = 250;
 const MAX_PAYLOAD_BYTES = 2048;
 const MAX_TEXT_LENGTH = 220;
 const RATE_LIMIT_MS = 600;
-
-function normalizeRoom(raw) {
-  const cleaned = String(raw || "global")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]/g, "");
-  return (cleaned || "global").slice(0, 32);
-}
 
 function sanitizeNick(raw, fallback = "Player") {
   const cleaned = String(raw || "")
@@ -49,16 +42,7 @@ export default {
       return new Response("Expected WebSocket upgrade", { status: 426 });
     }
 
-    const requiredKey = typeof env.CHAT_ACCESS_KEY === "string" ? env.CHAT_ACCESS_KEY.trim() : "";
-    if (requiredKey.length > 0) {
-      const providedKey = (request.headers.get("x-sestia-key") || url.searchParams.get("key") || "").trim();
-      if (providedKey !== requiredKey) {
-        return new Response("Invalid Sestia access key", { status: 401 });
-      }
-    }
-
-    const room = normalizeRoom(url.searchParams.get("room"));
-    const id = env.CHAT_ROOM.idFromName(room);
+    const id = env.CHAT_ROOM.idFromName(GLOBAL_ROOM_KEY);
     const stub = env.CHAT_ROOM.get(id);
     return stub.fetch(request);
   },
@@ -71,12 +55,11 @@ export class ChatRoom extends DurableObject {
     }
 
     const activeSockets = this.ctx.getWebSockets();
-    if (activeSockets.length >= MAX_CONNECTIONS_PER_ROOM) {
-      return new Response("Chat room is full", { status: 503 });
+    if (activeSockets.length >= MAX_CONNECTIONS) {
+      return new Response("Global chat is full", { status: 503 });
     }
 
     const url = new URL(request.url);
-    const room = normalizeRoom(url.searchParams.get("room"));
     const nick = sanitizeNick(url.searchParams.get("nick"));
 
     const pair = new WebSocketPair();
@@ -85,7 +68,6 @@ export class ChatRoom extends DurableObject {
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment({
       nick,
-      room,
       lastMsgAt: 0,
       joinedAt: Date.now(),
     });
@@ -116,7 +98,6 @@ export class ChatRoom extends DurableObject {
 
     const state = ws.deserializeAttachment() || {
       nick: "Player",
-      room: "global",
       lastMsgAt: 0,
       joinedAt: Date.now(),
     };
@@ -124,10 +105,8 @@ export class ChatRoom extends DurableObject {
     switch (packet.type) {
       case "hello": {
         const nextNick = sanitizeNick(packet.nick, state.nick);
-        const nextRoom = normalizeRoom(packet.room || state.room);
         const firstHello = !state.greeted;
         state.nick = nextNick;
-        state.room = nextRoom;
         state.greeted = true;
         ws.serializeAttachment(state);
 
@@ -135,7 +114,6 @@ export class ChatRoom extends DurableObject {
         sendJson(ws, {
           type: "welcome",
           nick: state.nick,
-          room: state.room,
           online: sockets.length,
         });
 
@@ -168,7 +146,6 @@ export class ChatRoom extends DurableObject {
         const out = {
           type: "chat",
           from: state.nick,
-          room: state.room,
           text,
           ts: now,
         };
@@ -202,7 +179,7 @@ export class ChatRoom extends DurableObject {
           }
         }
         if (matches.length === 0) {
-          sendJson(ws, { type: "error", text: `${targetNick} odada cevrimici degil.` });
+          sendJson(ws, { type: "error", text: `${targetNick} su an cevrimici degil.` });
           return;
         }
 
@@ -238,7 +215,6 @@ export class ChatRoom extends DurableObject {
         users.sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
         sendJson(ws, {
           type: "list",
-          room: state.room,
           users,
         });
         break;
