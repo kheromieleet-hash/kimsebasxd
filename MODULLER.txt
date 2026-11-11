@@ -1,0 +1,253 @@
+================================================================================
+SESTIA CLIENT - TUM MODULLER VE OZELLIKLER REHBERI
+Surum: v1.0.22 (VersionCode: 23) | Minecraft: 26.3 Fabric
+Toplam Kayitli Modul: 37 (+ 4 Yerlesik Sistem Ozelligi)
+================================================================================
+
+--------------------------------------------------------------------------------
+[1] EXPLOIT KATEGORISI (14 Modul)
+--------------------------------------------------------------------------------
+
+1. Abort Breaking
+   Ne ise yarar: Blok kirmayi biraktiginda sunucuya giden ABORT_DESTROY_BLOCK
+   paketini iptal eder; kiris ilerlemesi sunucu tarafinda sifirlanmaz.
+   Ayarlar: Ek ayar yok (Ac/Kapa).
+
+2. Anti Hunger
+   Ne ise yarar: Karada kosarken giden START_SPRINTING / STOP_SPRINTING
+   komutlarini ve Input.sprint bayragini filtreleyerek aclik tuketimini
+   azaltir. Suda yuzmeyi bozmaz.
+   Ayarlar: Ek ayar yok (Ac/Kapa).
+
+3. Anti Levitation
+   Ne ise yarar: Yerel oyuncuda Levitation (Shulker ucurma) efektini istemcide
+   yok sayar. Yukari suzulmeyi durdurur ve Elytra kullanimini acik tutar.
+   Ayarlar: Ek ayar yok (Ac/Kapa).
+   Not: Grim/Vulcan gibi katı hareket anti-cheatlerinde dikey fark yakalanabilir.
+
+4. Backtrack
+   Ne ise yarar: 16 blok icindeki diger oyuncularin gelen hareket/teleport
+   paketlerini kisa sure bekletir; hareket eden hedeflere daha rahat vurus
+   penceresi saglar. Baglanti kesilince veya kapatilinca kuyruk aninda bosalir.
+   Ayarlar: Max Delay (40 - 300 ms, varsayilan: 120 ms).
+
+5. Disabler
+   Ne ise yarar: Diger moduller acikken olusabilecek ardisik ayni sprint
+   komutu spamini tekillestirir ve esya kullanirken Input.sprint durumunu
+   hizalayarak BadPackets uyarılarini azaltir.
+   Ayarlar: Mode (Vulcan / Grim, varsayilan: Vulcan).
+
+6. Exploit Guard
+   Ne ise yarar: Crash/lag amacli asiri partikul, NaN/Infinity veya ekstrem
+   patlama/knockback paketlerini ve supheli (http/https disi veya >2048
+   uzunlukta) resource pack URL'lerini dusurur.
+   Ayarlar: Max Particles (100 - 2000, varsayilan: 500).
+
+7. Ghost Hand
+   Ne ise yarar: Duvar, cam veya blok arkasindaki sandik, varil, shulker,
+   ocak ve ender sandiklari bakis hizasi boyunca tarayip sag tikla acar.
+   Dogrudan sandiga bakiyorsan vanilya davranisini bozmaz.
+   Ayarlar: Ek ayar yok (Ac/Kapa).
+
+8. No Mining Trace
+   Ne ise yarar: Nisangahin onunde oyuncu, koylu veya mob varken arkasindaki
+   blogu dogrudan hedefleyip kirmayi saglar.
+   Ayarlar: Tools Only (Varsayilan: Acik - yalnizca kazma/balta/kurek vb.
+   alet tutarken calisir, kilicla saldiriyi etkilemez).
+
+9. No Pitch Limit
+   Ne ise yarar: Kamera yukari/asagi dikey bakis sinirini (-90 / +90 derece)
+   kaldirir.
+   Ayarlar: Ek ayar yok (Ac/Kapa).
+
+10. No Slowdown
+    Ne ise yarar: Yemek yerken, iksir icerken, yay cekerken veya kalkan
+    tutarken yavaslamayi kaldirip tam yurume hizini korur (1.0x).
+    Ayarlar: Mode (Vanilla / Vulcan / Grim, varsayilan: Vanilla).
+      - Vanilla: Tam hiz + kosmaya (sprint) izin verir.
+      - Vulcan : Tam yurume hizi verir ama esya yerken sprint'i engeller.
+      - Grim   : Sprint'i engeller ve bos diger elle sirali paket hizalar.
+
+11. Packet Mine
+    Ne ise yarar: Bir bloga tek tikla vurunca ABORT paketini bastirip arka
+    planda kirmaya devam eder ve hazir olunca STOP_DESTROY_BLOCK ile kirar.
+    Ayarlar:
+      - Instant Rebreak (Acik): Ayni koordinata yeni blok konuldugunda bastan
+        START yollamadan aninda STOP paketiyle tekrar kirar.
+      - Delay (0 - 5t, varsayilan: 1t): Tekrar kirislar arasi tick beklemesi.
+      - Render Box (Acik): Kirilan blokta kirmizi, hazir blokta yesil kutu cizer.
+    Not: Vanilla ve Survival SMP icindir (Grim/Vulcan yakalayabilir).
+
+12. Ping Spoof
+    Ne ise yarar: Giden KeepAlive ve Pong paketlerini FIFO kuyrugunda geciktirip
+    sunucudaki gorunen pingini yuksek gosterir. Kapatildiginda bekleyen paketler
+    aninda gonderilir.
+    Ayarlar: Delay (50 - 1000 ms, varsayilan: 150 ms).
+
+13. Portal GUI
+    Ne ise yarar: Nether portali icindeyken sohbet, envanter veya sandik
+    ekranlarinin zorla kapatilmasini engeller.
+    Ayarlar: Ek ayar yok (Ac/Kapa).
+
+14. Resource Pack Spoof
+    Ne ise yarar: Sunucunun gonderdigi kaynak paketini indirmeden veya onay
+    penceresi acmadan kabul edilip yuklenmis gibi paket yaniti verir.
+    Ayarlar: Ek ayar yok (Ac/Kapa).
+
+
+--------------------------------------------------------------------------------
+[2] RENDER KATEGORISI (11 Modul)
+--------------------------------------------------------------------------------
+
+15. Chunk Borders
+    Ne ise yarar: F3 tusuna basmadan bulundugun 16x16 chunk sinirlarini ve Y
+    yukseklik halkalarini 3D cizgilerle gosterir.
+    Ayarlar: Sub-Grid (2x2 alt bolme izgarasini goster/gizle).
+
+16. Dulkir
+    Ne ise yarar: Birinci sahis el, tutulan esya ve karakter gorunumunu
+    ozellestirir (boyut, X/Y/Z konum, sallama hizi ve animasyon iyilestirmeleri).
+    Ayarlar: Item Scale, Player Scale, Pos X/Y/Z, Swing Duration,
+    Cancel Re-Equip, Rotationless Drink, AirWalker, Reset Defaults.
+
+17. Fullbright
+    Ne ise yarar: Karanlik magara ve mekanlari aydinlatir.
+    Ayarlar: Mode (Natural / Gamma / Ultra), Brightness (20% - 100%),
+    3D Shading, No Dark Corners.
+
+18. HUD Info
+    Ne ise yarar: Ekranda canli FPS, TPS, Ping, Hiz, Yon ve Overworld/Nether
+    koordinat bilgilerini gosterir.
+    Ayarlar: Ek ayar yok (Ac/Kapa).
+
+19. Inventory HUD+
+    Ne ise yarar: Oyun ekraninda canli envanter, zirh dayanakliligi ve iksir
+    etki surelerini gosterir.
+    Ayarlar: Inventory/Armor/Potions HUD, Mini/Vertical Mode, Inv Scale,
+    Bg Opacity, Open Settings, Move HUD.
+
+20. Item ESP
+    Ne ise yarar: Yerdeki dusmus esyalara uzaktan gorunen parlama (glow) ekler.
+    Ayarlar: Ek ayar yok (Ac/Kapa).
+
+21. Keybinds HUD
+    Ne ise yarar: Acik modulleri ve atanmis tus kisayollarini ekranda tablo
+    olarak gosterir.
+    Ayarlar: Only Active, Auto-Hide, Reset Position.
+
+22. Light Overlay
+    Ne ise yarar: Etrafindaki yurunebilir karanlik bloklari tarar; Kirmizi X
+    her zaman mob dogabilen (Block=0, Sky=0), Sari X sadece gece/firtinada
+    mob dogabilen (Block=0, Sky>0) bloklari isaretler.
+    Ayarlar: Range (8 - 24 blok, varsayilan: 16), Only Always (sadece kirmizi).
+
+23. TNT Timer
+    Ne ise yarar: Ateslenmis TNT, TNT Minecart ve Creeper uzerinde patlamaya
+    kalan tam sure/tick sayacini gosterir.
+    Ayarlar: Ek ayar yok (Ac/Kapa).
+
+24. Trajectories
+    Ne ise yarar: Yay (sarj gucune gore), dolu Crossbow (ok/fisek), Trident,
+    Ender Pearl, Splash/Lingering iksir ve kartopu/yumurta/XP sisesi atis
+    egrisini ve varis blok/varlik kutusunu onceden cizer.
+    Ayarlar: Show Passive (Kartopu/Yumurta/XP), Box Outline (Varis kutusu).
+
+25. TrueSight
+    Ne ise yarar: Gorunmez iksirli oyunculari, moblari ve varliklari gorunur yapar.
+    Ayarlar: Ek ayar yok (Ac/Kapa).
+
+
+--------------------------------------------------------------------------------
+[3] WORLD KATEGORISI (3 Modul)
+--------------------------------------------------------------------------------
+
+26. Auto Break
+    Ne ise yarar: Baktigin bloga otomatik sol tik basili tutarak madenciliği
+    otomatiklestirir.
+    Ayarlar: Only With Tool (Yalnizca dogru alet eldeyken kir).
+
+27. Fast Place
+    Ne ise yarar: Blok koyma gecikmesini (rightClickDelay) azaltir veya
+    kapatir.
+    Ayarlar: Auto Right Click (Otomatik sag tik), Fast Place Delay (0 - 4t).
+
+28. FastBreak
+    Ne ise yarar: Blok kirma gecikmesini azaltir ve kirma hizini artirir.
+    Ayarlar: Mode (Vulcan / Vanilla, varsayilan: Vulcan), Break Speed
+    (Vulcan'da max guvenli 1.15x, Vanilla'da 0.5x - 5.0x).
+
+
+--------------------------------------------------------------------------------
+[4] PLAYER KATEGORISI (5 Modul)
+--------------------------------------------------------------------------------
+
+29. Auto Crafter
+    Ne ise yarar: Crafting ekrani acilinca secili bloklari (Demir, Altin,
+    Elmas, Zumrut, Kiziltas, Lapis, Komur, Bakir, Netherite vb.) otomatik craftlar.
+    Ayarlar: Delay (0 - 5t), Close When Done, Select/Deselect All ve hedef
+    chip secimleri.
+
+30. Auto Replenish
+    Ne ise yarar: Elindeki veya offhand'deki esya azalinca envanterden
+    otomatik olarak hotbar slotunu doldurur.
+    Ayarlar: Min Count (1 - 63), Tick Delay (0 - 10t), Offhand, Unstackable,
+    Same Enchants, Search Hotbar.
+
+31. Auto Tool
+    Ne ise yarar: Bir bloga vurmaya basladiginda hotbar'daki en hizli dogru
+    alete otomatik gecer.
+    Ayarlar: Swap Back (Kirma bitince onceki slota geri don).
+
+32. Fast Use
+    Ne ise yarar: Yemek, iksir, yay veya esya kullanim bekleme gecikmesini
+    azaltir.
+    Ayarlar: Cooldown (0 - 4t).
+
+33. Inventory Tweaks
+    Ne ise yarar: Envanter ve sandik duzenleme kolayliklari saglar.
+    Ayarlar: Mouse Drag Move, Auto Sorting, Sorting Delay (0 - 10t),
+    Protect Hotbar, Xcarry (2x2 craft slotlarinda esya tasima),
+    Skip In Creative, Shulker Preview.
+
+
+--------------------------------------------------------------------------------
+[5] MOVEMENT KATEGORISI (2 Modul)
+--------------------------------------------------------------------------------
+
+34. Auto Sprint
+    Ne ise yarar: Ileri hareket ettigin surece otomatik olarak kosar (sprint).
+    Ayarlar: Ek ayar yok (Ac/Kapa).
+
+35. Safe Walk
+    Ne ise yarar: Shift'e basmadan blok kenarlarindan asagi dusmeni engeller
+    (kopru kurarken dusmeyi onler).
+    Ayarlar: Ek ayar yok (Ac/Kapa).
+
+
+--------------------------------------------------------------------------------
+[6] MISC KATEGORISI (2 Modul)
+--------------------------------------------------------------------------------
+
+36. Better Chat
+    Ne ise yarar: Sohbeti gelistirir.
+    Ayarlar: Infinite History (16.384 satira kadar gecmis), Anti Clear
+    (sunucu temizleme bosluklarini gizler), Click to Copy (tikla kopyala),
+    Timestamps (Istanbul saati <HH:mm:ss>), Compact Chat (tekrar eden
+    mesajlari (2), (3) seklinde birlestirir).
+
+37. GUI Style
+    Ne ise yarar: Client menusunun gorunumunu Modern Dashboard (4 sutunlu tek
+    panel) ve Classic Multi-Window (suruklenebilir pencereler) arasinda degistirir.
+
+
+--------------------------------------------------------------------------------
+[7] YERLESIK SISTEM OZELLIKLERI (Menu disi / Tus / Ekran Ozellikleri)
+--------------------------------------------------------------------------------
+
+- Zoom (Varsayilan tus: C): Basili tutunca optifine tarzi yakinlastirma (4.0x).
+- Low Fire: Ekrandaki yanma/ates efektini asagi indirerek gorusu acar.
+- Version Switcher (Multiplayer ekraninda): Baglanilan sunucuya farkli
+  Minecraft protokol surumu gondererek surum degistirmeyi saglar.
+- Sohbet Makrolari & Toggle Bildirimi: Tek tusla sohbet komutu/mesaji
+  gonderme ve modulleri tusla acip kapatinca hotbar uzeri "[Sestia]" bildirimi.
+================================================================================
