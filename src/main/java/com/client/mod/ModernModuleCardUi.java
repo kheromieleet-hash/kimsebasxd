@@ -421,6 +421,7 @@ final class ModernModuleCardUi {
             case "Auto Sprint" -> "Keep sprinting automatically when moving";
             case "Safe Walk" -> "Prevent falling off block edges like sneaking";
             case "Better Chat" -> "Infinite chat history, anti-clear & copy";
+            case "Client Chat" -> "Cross-server global & DM chat via Cloudflare (.c)";
             case "GUI Style" -> "Switch between Modern Dashboard and Classic Windows";
             case "No Pitch Limit" -> "Unlock vertical camera pitch limits";
             case "Abort Breaking" -> "Prevent block-break reset glitches";

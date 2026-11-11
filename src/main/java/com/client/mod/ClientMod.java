@@ -20,6 +20,7 @@ public class ClientMod implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         ModConfig.getInstance().load();
+        SestiaChatClient.onConfigChanged();
         UpdateNoticeManager.loadOnStartup();
         CustomTitleMenu.configureIasPosition();
 

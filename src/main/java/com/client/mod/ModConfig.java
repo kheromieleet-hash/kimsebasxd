@@ -92,6 +92,14 @@ public class ModConfig {
     public boolean chatAntiClear = true;     // Prevents server-side clear chat wipes & blank lines
     public boolean chatClickCopy = true;     // Right-click or Shift+Left click to copy message to clipboard
 
+    // Cloudflare Client Chat
+    public boolean clientChatEnabled = false;
+    public String clientChatUrl = "";
+    public String clientChatRoom = "global";
+    public String clientChatKey = "";
+    public boolean clientChatAllowDms = true;
+    public String clientChatMuted = "";
+
     // Native Inventory Tweaks
     public boolean invTweaksEnabled = true;
     public boolean invMouseDrag = true;
@@ -449,6 +457,12 @@ public class ModConfig {
         this.trajectories = other.trajectories;
         this.trajectoriesShowPassive = other.trajectoriesShowPassive;
         this.trajectoriesBoxOutline = other.trajectoriesBoxOutline;
+        this.clientChatEnabled = other.clientChatEnabled;
+        this.clientChatUrl = SestiaChatProtocol.normalizeWebSocketUrl(other.clientChatUrl);
+        this.clientChatRoom = SestiaChatProtocol.normalizeRoom(other.clientChatRoom);
+        this.clientChatKey = other.clientChatKey != null ? other.clientChatKey.trim() : "";
+        this.clientChatAllowDms = other.clientChatAllowDms;
+        this.clientChatMuted = other.clientChatMuted != null ? other.clientChatMuted : "";
         this.targetProtocol = other.targetProtocol;
         this.targetVersionName = other.targetVersionName != null ? other.targetVersionName : "Auto";
         this.autoBreakEnabled = other.autoBreakEnabled;
@@ -531,6 +545,10 @@ public class ModConfig {
                     if (this.lightOverlayRange < 8 || this.lightOverlayRange > 24) this.lightOverlayRange = 16;
                     if (this.clickGuiStyle < 0 || this.clickGuiStyle > 1) this.clickGuiStyle = 1;
                     if (this.targetVersionName == null) this.targetVersionName = "Auto";
+                    this.clientChatUrl = SestiaChatProtocol.normalizeWebSocketUrl(this.clientChatUrl);
+                    this.clientChatRoom = SestiaChatProtocol.normalizeRoom(this.clientChatRoom);
+                    if (this.clientChatKey == null) this.clientChatKey = "";
+                    if (this.clientChatMuted == null) this.clientChatMuted = "";
                     if (this.categoryX == null) this.categoryX = new HashMap<>();
                     if (this.categoryY == null) this.categoryY = new HashMap<>();
                     if (this.categoryExpanded == null) this.categoryExpanded = new HashMap<>();

@@ -1,0 +1,380 @@
+package com.client.mod;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+
+/**
+ * Pure-Java command parser, sanitization, mute-list helpers, and JSON protocol for Sestia Client Chat.
+ */
+public final class SestiaChatProtocol {
+
+    public static final int MAX_MESSAGE_LENGTH = 220;
+    public static final int MAX_ROOM_LENGTH = 32;
+
+    private SestiaChatProtocol() {
+    }
+
+    public enum CommandKind {
+        NONE,
+        CHAT,
+        DM,
+        LIST,
+        URL,
+        ROOM,
+        KEY,
+        MUTE,
+        UNMUTE,
+        STATUS,
+        HELP
+    }
+
+    public record ParsedCommand(CommandKind kind, String arg1, String arg2) {
+        public static ParsedCommand none() {
+            return new ParsedCommand(CommandKind.NONE, "", "");
+        }
+    }
+
+    public enum EventType {
+        WELCOME,
+        CHAT,
+        DM,
+        LIST,
+        SYSTEM,
+        ERROR,
+        UNKNOWN
+    }
+
+    public record ServerEvent(
+            EventType type,
+            String from,
+            String to,
+            String room,
+            String text,
+            int onlineCount,
+            List<String> users) {
+    }
+
+    public static boolean isClientChatCommand(String rawInput) {
+        if (rawInput == null) {
+            return false;
+        }
+        String trimmed = rawInput.trim();
+        if (trimmed.equalsIgnoreCase(".c")) {
+            return true;
+        }
+        return trimmed.length() >= 3
+                && trimmed.substring(0, 2).equalsIgnoreCase(".c")
+                && Character.isWhitespace(trimmed.charAt(2));
+    }
+
+    public static ParsedCommand parseOutgoingCommand(String rawInput) {
+        if (!isClientChatCommand(rawInput)) {
+            return ParsedCommand.none();
+        }
+        String trimmed = rawInput.trim();
+        if (trimmed.length() <= 2) {
+            return new ParsedCommand(CommandKind.HELP, "", "");
+        }
+        String body = trimmed.substring(2).trim();
+        if (body.isEmpty()) {
+            return new ParsedCommand(CommandKind.HELP, "", "");
+        }
+
+        int firstSpace = findWhitespaceIndex(body);
+        String sub = (firstSpace < 0 ? body : body.substring(0, firstSpace)).toLowerCase(Locale.ROOT);
+        String rest = firstSpace < 0 ? "" : body.substring(firstSpace + 1).trim();
+
+        switch (sub) {
+            case "help", "?" -> {
+                return new ParsedCommand(CommandKind.HELP, "", "");
+            }
+            case "status" -> {
+                return new ParsedCommand(CommandKind.STATUS, "", "");
+            }
+            case "list" -> {
+                return new ParsedCommand(CommandKind.LIST, "", "");
+            }
+            case "url" -> {
+                return new ParsedCommand(CommandKind.URL, rest, "");
+            }
+            case "room" -> {
+                return new ParsedCommand(CommandKind.ROOM, rest, "");
+            }
+            case "key" -> {
+                return new ParsedCommand(CommandKind.KEY, rest, "");
+            }
+            case "mute" -> {
+                return new ParsedCommand(CommandKind.MUTE, rest, "");
+            }
+            case "unmute" -> {
+                return new ParsedCommand(CommandKind.UNMUTE, rest, "");
+            }
+            case "msg", "dm", "w" -> {
+                if (rest.isEmpty()) {
+                    return new ParsedCommand(CommandKind.HELP, "", "");
+                }
+                int targetSpace = findWhitespaceIndex(rest);
+                if (targetSpace < 0) {
+                    return new ParsedCommand(CommandKind.HELP, "", "");
+                }
+                String target = rest.substring(0, targetSpace).trim();
+                String msgText = rest.substring(targetSpace + 1).trim();
+                if (target.isEmpty() || msgText.isEmpty()) {
+                    return new ParsedCommand(CommandKind.HELP, "", "");
+                }
+                return new ParsedCommand(CommandKind.DM, target, msgText);
+            }
+            default -> {
+                return new ParsedCommand(CommandKind.CHAT, body, "");
+            }
+        }
+    }
+
+    /**
+     * Converts https/http URLs to wss/ws and validates host formatting. Returns "" if invalid.
+     */
+    public static String normalizeWebSocketUrl(String rawUrl) {
+        if (rawUrl == null) {
+            return "";
+        }
+        String trimmed = rawUrl.trim();
+        if (trimmed.isEmpty()) {
+            return "";
+        }
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("https://")) {
+            trimmed = "wss://" + trimmed.substring(8);
+        } else if (lower.startsWith("http://")) {
+            trimmed = "ws://" + trimmed.substring(7);
+        } else if (!lower.startsWith("wss://") && !lower.startsWith("ws://")) {
+            if (!trimmed.contains("://")) {
+                trimmed = "wss://" + trimmed;
+            } else {
+                return "";
+            }
+        }
+        while (trimmed.endsWith("/") && trimmed.length() > 6) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        try {
+            URI uri = URI.create(trimmed);
+            String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
+            if ((!"wss".equals(scheme) && !"ws".equals(scheme)) || uri.getHost() == null || uri.getHost().isBlank()) {
+                return "";
+            }
+            return trimmed;
+        } catch (IllegalArgumentException e) {
+            return "";
+        }
+    }
+
+    public static String buildConnectUri(String normalizedBaseUrl, String room, String nick) {
+        String sep = normalizedBaseUrl.contains("?") ? "&" : "?";
+        return normalizedBaseUrl
+                + sep + "room=" + URLEncoder.encode(normalizeRoom(room), StandardCharsets.UTF_8)
+                + "&nick=" + URLEncoder.encode(sanitizeNick(nick), StandardCharsets.UTF_8);
+    }
+
+    public static String normalizeRoom(String rawRoom) {
+        if (rawRoom == null) {
+            return "global";
+        }
+        StringBuilder sb = new StringBuilder();
+        String lower = rawRoom.trim().toLowerCase(Locale.ROOT);
+        for (int i = 0; i < lower.length() && sb.length() < MAX_ROOM_LENGTH; i++) {
+            char c = lower.charAt(i);
+            if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-') {
+                sb.append(c);
+            }
+        }
+        return sb.isEmpty() ? "global" : sb.toString();
+    }
+
+    public static String sanitizeNick(String rawNick) {
+        if (rawNick == null) {
+            return "Player";
+        }
+        String stripped = stripSectionCodes(rawNick);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < stripped.length() && sb.length() < 20; i++) {
+            char c = stripped.charAt(i);
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
+                sb.append(c);
+            }
+        }
+        return sb.length() >= 2 ? sb.toString() : "Player";
+    }
+
+    public static String sanitizeText(String rawText) {
+        if (rawText == null) {
+            return "";
+        }
+        String stripped = stripSectionCodes(rawText);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < stripped.length(); i++) {
+            char c = stripped.charAt(i);
+            if (c == '\r' || c == '\n' || c == '\t' || c < 0x20 || c == 0x7F) {
+                sb.append(' ');
+            } else {
+                sb.append(c);
+            }
+        }
+        String cleaned = sb.toString().trim();
+        return cleaned.length() > MAX_MESSAGE_LENGTH ? cleaned.substring(0, MAX_MESSAGE_LENGTH) : cleaned;
+    }
+
+    public static String buildHelloJson(String nick, String room) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("type", "hello");
+        obj.addProperty("nick", sanitizeNick(nick));
+        obj.addProperty("room", normalizeRoom(room));
+        return obj.toString();
+    }
+
+    public static String buildChatJson(String text) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("type", "chat");
+        obj.addProperty("text", sanitizeText(text));
+        return obj.toString();
+    }
+
+    public static String buildDmJson(String target, String text) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("type", "dm");
+        obj.addProperty("to", sanitizeNick(target));
+        obj.addProperty("text", sanitizeText(text));
+        return obj.toString();
+    }
+
+    public static String buildListJson() {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("type", "list");
+        return obj.toString();
+    }
+
+    public static ServerEvent parseServerEvent(String json) {
+        if (json == null || json.isBlank()) {
+            return new ServerEvent(EventType.UNKNOWN, "", "", "", "", 0, List.of());
+        }
+        try {
+            JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
+            String typeStr = getString(obj, "type").toLowerCase(Locale.ROOT);
+            EventType type = switch (typeStr) {
+                case "welcome" -> EventType.WELCOME;
+                case "chat" -> EventType.CHAT;
+                case "dm" -> EventType.DM;
+                case "list" -> EventType.LIST;
+                case "system" -> EventType.SYSTEM;
+                case "error" -> EventType.ERROR;
+                default -> EventType.UNKNOWN;
+            };
+            String from = sanitizeNick(getString(obj, "from"));
+            if (type == EventType.WELCOME) {
+                from = sanitizeNick(getString(obj, "nick"));
+            }
+            String to = sanitizeNick(getString(obj, "to"));
+            String room = normalizeRoom(getString(obj, "room"));
+            String text = sanitizeText(getString(obj, "text"));
+            int online = obj.has("online") && obj.get("online").isJsonPrimitive()
+                    ? obj.get("online").getAsInt()
+                    : 0;
+            List<String> users = new ArrayList<>();
+            if (obj.has("users") && obj.get("users").isJsonArray()) {
+                JsonArray arr = obj.getAsJsonArray("users");
+                for (JsonElement el : arr) {
+                    if (el.isJsonPrimitive()) {
+                        users.add(sanitizeNick(el.getAsString()));
+                    }
+                }
+            }
+            return new ServerEvent(type, from, to, room, text, online, users);
+        } catch (Exception e) {
+            return new ServerEvent(EventType.UNKNOWN, "", "", "", "", 0, List.of());
+        }
+    }
+
+    public static boolean isMuted(String sender, String mutedCsv) {
+        if (sender == null || sender.isBlank() || mutedCsv == null || mutedCsv.isBlank()) {
+            return false;
+        }
+        String cleanSender = sanitizeNick(sender).toLowerCase(Locale.ROOT);
+        for (String part : mutedCsv.split(",")) {
+            if (part.trim().equalsIgnoreCase(cleanSender)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static String addMute(String user, String mutedCsv) {
+        Set<String> set = parseMuteSet(mutedCsv);
+        String clean = sanitizeNick(user);
+        if (!clean.isEmpty()) {
+            set.add(clean.toLowerCase(Locale.ROOT));
+        }
+        return String.join(",", set);
+    }
+
+    public static String removeMute(String user, String mutedCsv) {
+        Set<String> set = parseMuteSet(mutedCsv);
+        set.remove(sanitizeNick(user).toLowerCase(Locale.ROOT));
+        return String.join(",", set);
+    }
+
+    public static long computeBackoffMs(int attempt) {
+        int clamped = Math.max(0, Math.min(5, attempt));
+        return Math.min(30_000L, 1_000L << clamped);
+    }
+
+    private static Set<String> parseMuteSet(String mutedCsv) {
+        Set<String> set = new LinkedHashSet<>();
+        if (mutedCsv != null && !mutedCsv.isBlank()) {
+            for (String part : mutedCsv.split(",")) {
+                String clean = part.trim().toLowerCase(Locale.ROOT);
+                if (!clean.isEmpty()) {
+                    set.add(clean);
+                }
+            }
+        }
+        return set;
+    }
+
+    private static String stripSectionCodes(String s) {
+        StringBuilder out = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '§') {
+                if (i + 1 < s.length()) {
+                    i++;
+                }
+                continue;
+            }
+            out.append(c);
+        }
+        return out.toString();
+    }
+
+    private static String getString(JsonObject obj, String key) {
+        return obj.has(key) && obj.get(key).isJsonPrimitive() ? obj.get(key).getAsString() : "";
+    }
+
+    private static int findWhitespaceIndex(String s) {
+        for (int i = 0; i < s.length(); i++) {
+            if (Character.isWhitespace(s.charAt(i))) {
+                return i;
+            }
+        }
+        return -1;
+    }
+}

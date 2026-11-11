@@ -314,5 +314,14 @@ public class ModernModuleSettingsTest {
         ((ModernModuleSettings.ToggleControl) trajControls.get(0)).setter().accept(false);
         ((ModernModuleSettings.ToggleControl) trajControls.get(1)).setter().accept(false);
         assert !cfg.trajectoriesShowPassive && !cfg.trajectoriesBoxOutline;
+
+        List<ModernModuleSettings.Control> chatControls = ModernModuleSettings.getControls("Client Chat", cfg, actions);
+        assert chatControls.size() == 3;
+        ModernModuleSettings.ToggleControl allowDms = (ModernModuleSettings.ToggleControl) chatControls.get(0);
+        assert cfg.clientChatAllowDms && allowDms.getter().get();
+        allowDms.setter().accept(false);
+        assert !cfg.clientChatAllowDms;
+        assert chatControls.get(1) instanceof ModernModuleSettings.ActionControl;
+        assert chatControls.get(2) instanceof ModernModuleSettings.ActionControl;
     }
 }
