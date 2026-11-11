@@ -802,6 +802,36 @@ public class ModernClickGuiScreen extends Screen {
     // ==========================================
     // CLIENT SETTINGS VIEW
     // ==========================================
+    private record ClientSettingItem(
+            String title,
+            String desc,
+            java.util.function.BooleanSupplier getter,
+            Runnable onToggle
+    ) {}
+
+    private List<ClientSettingItem> getClientSettingItems(ModConfig config) {
+        return List.of(
+                new ClientSettingItem("Modern Dashboard GUI", "Switch between Modern ClickGUI and Classic Floating Windows",
+                        () -> config.clickGuiStyle == 1,
+                        () -> config.clickGuiStyle = (config.clickGuiStyle == 1) ? 0 : 1),
+                new ClientSettingItem("Glass Background Blur", "Enable blurred backdrop behind ClickGUI screens",
+                        () -> config.jelloBlur,
+                        () -> config.jelloBlur = !config.jelloBlur),
+                new ClientSettingItem("Keybinds HUD Table", "Render active draggable keybinds overlay on screen",
+                        () -> config.keybindsHudEnabled,
+                        () -> config.keybindsHudEnabled = !config.keybindsHudEnabled),
+                new ClientSettingItem("Toggle Notifications", "Show [Sestia] overlay alert when toggling modules via keybind",
+                        () -> config.toggleNotifications,
+                        () -> config.toggleNotifications = !config.toggleNotifications),
+                new ClientSettingItem("Infinite Chat History", "Remove chat line limits and preserve all messages",
+                        () -> config.chatInfinite,
+                        () -> config.chatInfinite = !config.chatInfinite),
+                new ClientSettingItem("Anti Chat Clear", "Prevent servers from clearing your chat buffer",
+                        () -> config.chatAntiClear,
+                        () -> config.chatAntiClear = !config.chatAntiClear)
+        );
+    }
+
     private void renderClientSettingsView(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, int contentH, float dt) {
         int topY = (int) (contentY + 12 - this.scrollAmount);
         ModernIcons.drawSlidersIcon(graphics, contentX + 14, topY - 1, JelloTheme.ACCENT);
@@ -812,11 +842,10 @@ public class ModernClickGuiScreen extends Screen {
         int cardY = topY + 22;
         int colW = contentW - 28;
 
-        cardY = renderSettingsToggleCard(graphics, mouseX, mouseY, contentX + 14, cardY, colW, "Modern Dashboard GUI", "Switch between Modern ClickGUI and Classic Floating Windows", config.clickGuiStyle == 1, dt);
-        cardY = renderSettingsToggleCard(graphics, mouseX, mouseY, contentX + 14, cardY, colW, "Glass Background Blur", "Enable blurred backdrop behind ClickGUI screens", config.jelloBlur, dt);
-        cardY = renderSettingsToggleCard(graphics, mouseX, mouseY, contentX + 14, cardY, colW, "Keybinds HUD Table", "Render active draggable keybinds overlay on screen", config.keybindsHudEnabled, dt);
-        cardY = renderSettingsToggleCard(graphics, mouseX, mouseY, contentX + 14, cardY, colW, "Infinite Chat History", "Remove chat line limits and preserve all messages", config.chatInfinite, dt);
-        cardY = renderSettingsToggleCard(graphics, mouseX, mouseY, contentX + 14, cardY, colW, "Anti Chat Clear", "Prevent servers from clearing your chat buffer", config.chatAntiClear, dt);
+        for (ClientSettingItem item : getClientSettingItems(config)) {
+            cardY = renderSettingsToggleCard(graphics, mouseX, mouseY, contentX + 14, cardY, colW,
+                    item.title(), item.desc(), item.getter().getAsBoolean(), dt);
+        }
 
         this.contentTotalHeight = cardY - contentY + (int) this.scrollAmount + 20;
     }
@@ -1315,15 +1344,9 @@ public class ModernClickGuiScreen extends Screen {
         int cardH = 38;
         int colW = contentW - 28;
 
-        for (int i = 0; i < 5; i++) {
+        for (ClientSettingItem item : getClientSettingItems(config)) {
             if (isInside(mouseX, mouseY, contentX + 14, cardY, colW, cardH)) {
-                switch (i) {
-                    case 0 -> config.clickGuiStyle = (config.clickGuiStyle == 1) ? 0 : 1;
-                    case 1 -> config.jelloBlur = !config.jelloBlur;
-                    case 2 -> config.keybindsHudEnabled = !config.keybindsHudEnabled;
-                    case 3 -> config.chatInfinite = !config.chatInfinite;
-                    case 4 -> config.chatAntiClear = !config.chatAntiClear;
-                }
+                item.onToggle().run();
                 config.save();
                 playClickSound();
                 return true;
