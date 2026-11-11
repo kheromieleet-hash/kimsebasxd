@@ -170,6 +170,10 @@ public class ModConfig {
     public boolean antiLevitation = false;
     public boolean disabler = false;
     public int disablerMode = 0; // 0 = Vulcan, 1 = Grim
+    public boolean packetMine = false;
+    public boolean packetMineRebreak = true;
+    public int packetMineDelay = 1;
+    public boolean packetMineRender = true;
 
     // Protocol & Version Switcher (LiquidBounce style)
     public int targetProtocol = -1; // -1 = Auto / Default (26.3 Native, Protocol 777)
@@ -425,6 +429,10 @@ public class ModConfig {
         this.antiLevitation = other.antiLevitation;
         this.disabler = other.disabler;
         this.disablerMode = Math.max(0, Math.min(1, other.disablerMode));
+        this.packetMine = other.packetMine;
+        this.packetMineRebreak = other.packetMineRebreak;
+        this.packetMineDelay = Math.max(0, Math.min(5, other.packetMineDelay));
+        this.packetMineRender = other.packetMineRender;
         this.targetProtocol = other.targetProtocol;
         this.targetVersionName = other.targetVersionName != null ? other.targetVersionName : "Auto";
         this.autoBreakEnabled = other.autoBreakEnabled;
@@ -503,6 +511,7 @@ public class ModConfig {
                     if (this.exploitGuardMaxParticles < 100 || this.exploitGuardMaxParticles > 2000) this.exploitGuardMaxParticles = 500;
                     if (this.backtrackDelay < 40 || this.backtrackDelay > 300) this.backtrackDelay = 120;
                     if (this.disablerMode < 0 || this.disablerMode > 1) this.disablerMode = 0;
+                    if (this.packetMineDelay < 0 || this.packetMineDelay > 5) this.packetMineDelay = 1;
                     if (this.clickGuiStyle < 0 || this.clickGuiStyle > 1) this.clickGuiStyle = 1;
                     if (this.targetVersionName == null) this.targetVersionName = "Auto";
                     if (this.categoryX == null) this.categoryX = new HashMap<>();

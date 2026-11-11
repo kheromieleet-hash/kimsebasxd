@@ -40,7 +40,8 @@
     "ConnectionMixin",
     "CoreAssetsPackMixin",
     "LocalPlayerMixin",
-    "ClientPlayPacketListenerMixin"
+    "ClientPlayPacketListenerMixin",
+    "LevelRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
