@@ -409,6 +409,9 @@ final class ModernModuleCardUi {
             case "Keybinds HUD" -> "Active toggles & bound keys overlay";
             case "TrueSight" -> "See invisible entities & players";
             case "Item ESP" -> "Glowing box around dropped items";
+            case "Chunk Borders" -> "Show 16x16 chunk boundaries without F3";
+            case "Light Overlay" -> "Highlight dark spawnable blocks (Red=Always, Yellow=Night)";
+            case "Trajectories" -> "Predict arrow, pearl, potion & trident arc";
             case "FastBreak" -> "Break blocks faster with Vulcan or Vanilla mode";
             case "Fast Place" -> "Remove placing delay for rapid building";
             case "Fast Use" -> "Rapid consumption of food & potions";

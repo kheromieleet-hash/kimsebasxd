@@ -219,6 +219,18 @@ public final class ModernModuleSettings {
                             () -> cfg.packetMineDelay, v -> cfg.packetMineDelay = v),
                     toggle("Render Box", () -> cfg.packetMineRender, v -> cfg.packetMineRender = v, actions, false)
             );
+            case "Chunk Borders" -> List.of(
+                    toggle("Sub-Grid", () -> cfg.chunkBordersSubGrid, v -> cfg.chunkBordersSubGrid = v, actions, false)
+            );
+            case "Light Overlay" -> List.of(
+                    intSlider("lightOverlayRange", "Range", 8, 24, "",
+                            () -> cfg.lightOverlayRange, v -> cfg.lightOverlayRange = v),
+                    toggle("Only Always", () -> cfg.lightOverlayOnlyAlways, v -> cfg.lightOverlayOnlyAlways = v, actions, false)
+            );
+            case "Trajectories" -> List.of(
+                    toggle("Show Passive", () -> cfg.trajectoriesShowPassive, v -> cfg.trajectoriesShowPassive = v, actions, false),
+                    toggle("Box Outline", () -> cfg.trajectoriesBoxOutline, v -> cfg.trajectoriesBoxOutline = v, actions, false)
+            );
             default -> List.of();
         };
     }

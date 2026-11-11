@@ -174,6 +174,14 @@ public class ModConfig {
     public boolean packetMineRebreak = true;
     public int packetMineDelay = 1;
     public boolean packetMineRender = true;
+    public boolean chunkBorders = false;
+    public boolean chunkBordersSubGrid = false;
+    public boolean lightOverlay = false;
+    public int lightOverlayRange = 16;
+    public boolean lightOverlayOnlyAlways = false;
+    public boolean trajectories = false;
+    public boolean trajectoriesShowPassive = true;
+    public boolean trajectoriesBoxOutline = true;
 
     // Protocol & Version Switcher (LiquidBounce style)
     public int targetProtocol = -1; // -1 = Auto / Default (26.3 Native, Protocol 777)
@@ -433,6 +441,14 @@ public class ModConfig {
         this.packetMineRebreak = other.packetMineRebreak;
         this.packetMineDelay = Math.max(0, Math.min(5, other.packetMineDelay));
         this.packetMineRender = other.packetMineRender;
+        this.chunkBorders = other.chunkBorders;
+        this.chunkBordersSubGrid = other.chunkBordersSubGrid;
+        this.lightOverlay = other.lightOverlay;
+        this.lightOverlayRange = Math.max(8, Math.min(24, other.lightOverlayRange));
+        this.lightOverlayOnlyAlways = other.lightOverlayOnlyAlways;
+        this.trajectories = other.trajectories;
+        this.trajectoriesShowPassive = other.trajectoriesShowPassive;
+        this.trajectoriesBoxOutline = other.trajectoriesBoxOutline;
         this.targetProtocol = other.targetProtocol;
         this.targetVersionName = other.targetVersionName != null ? other.targetVersionName : "Auto";
         this.autoBreakEnabled = other.autoBreakEnabled;
@@ -512,6 +528,7 @@ public class ModConfig {
                     if (this.backtrackDelay < 40 || this.backtrackDelay > 300) this.backtrackDelay = 120;
                     if (this.disablerMode < 0 || this.disablerMode > 1) this.disablerMode = 0;
                     if (this.packetMineDelay < 0 || this.packetMineDelay > 5) this.packetMineDelay = 1;
+                    if (this.lightOverlayRange < 8 || this.lightOverlayRange > 24) this.lightOverlayRange = 16;
                     if (this.clickGuiStyle < 0 || this.clickGuiStyle > 1) this.clickGuiStyle = 1;
                     if (this.targetVersionName == null) this.targetVersionName = "Auto";
                     if (this.categoryX == null) this.categoryX = new HashMap<>();

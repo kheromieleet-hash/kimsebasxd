@@ -492,6 +492,39 @@ public class ClickGuiScreen extends Screen {
                 }
         ));
 
+        // 33. Chunk Borders (Render)
+        MODULES.add(new ModuleEntry(
+                "Chunk Borders", Category.RENDER,
+                () -> config.chunkBorders,
+                val -> {
+                    config.chunkBorders = val;
+                    config.save();
+                }
+        ));
+
+        // 34. Light Overlay (Render)
+        MODULES.add(new ModuleEntry(
+                "Light Overlay", Category.RENDER,
+                () -> config.lightOverlay,
+                val -> {
+                    config.lightOverlay = val;
+                    if (!val) {
+                        WorldRenderToolsHandler.clearLightCache();
+                    }
+                    config.save();
+                }
+        ));
+
+        // 35. Trajectories (Render)
+        MODULES.add(new ModuleEntry(
+                "Trajectories", Category.RENDER,
+                () -> config.trajectories,
+                val -> {
+                    config.trajectories = val;
+                    config.save();
+                }
+        ));
+
         ModernModuleGridLayout.sortByNameInPlace(MODULES, m -> m.name);
     }
 
@@ -1335,6 +1368,34 @@ public class ClickGuiScreen extends Screen {
                     "Portal GUI: " + (config.portalGui ? "ON" : "OFF"), config.portalGui);
             case "Resource Pack Spoof" -> drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
                     "Pack Spoof: " + (config.resourcePackSpoof ? "ON" : "OFF"), config.resourcePackSpoof);
+            case "Chunk Borders" -> {
+                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                        "Chunk Borders: " + (config.chunkBorders ? "ON" : "OFF"), config.chunkBorders);
+                rowY += 22;
+                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                        "Sub-Grid: " + (config.chunkBordersSubGrid ? "ON" : "OFF"), config.chunkBordersSubGrid);
+            }
+            case "Light Overlay" -> {
+                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                        "Light Overlay: " + (config.lightOverlay ? "ON" : "OFF"), config.lightOverlay);
+                rowY += 22;
+                drawSlider(graphics, font, innerX, rowY, innerW,
+                        "Range: " + config.lightOverlayRange,
+                        (config.lightOverlayRange - 8) / 16.0f);
+                rowY += 22;
+                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                        "Only Always: " + (config.lightOverlayOnlyAlways ? "ON" : "OFF"), config.lightOverlayOnlyAlways);
+            }
+            case "Trajectories" -> {
+                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                        "Trajectories: " + (config.trajectories ? "ON" : "OFF"), config.trajectories);
+                rowY += 22;
+                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                        "Show Passive: " + (config.trajectoriesShowPassive ? "ON" : "OFF"), config.trajectoriesShowPassive);
+                rowY += 22;
+                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
+                        "Box Outline: " + (config.trajectoriesBoxOutline ? "ON" : "OFF"), config.trajectoriesBoxOutline);
+            }
             case "GUI Style" -> {
                 String styleName = (config.clickGuiStyle == 1) ? "Modern Dashboard" : "Classic Multi-Window";
                 drawActionButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW, "Style: " + styleName);
@@ -1350,13 +1411,13 @@ public class ClickGuiScreen extends Screen {
             case "Auto Replenish" -> 6;
             case "Fullbright", "Packet Mine" -> 4;
             case "Fast Use" -> 1;
-            case "Fast Place" -> 2;
+            case "Fast Place", "Chunk Borders" -> 2;
             case "Auto Tool" -> 1;
             case "Auto Crafter" -> 3 + (AutoCrafterHandler.TARGETS.size() + 1) / 2;
             case "Auto Break" -> 1;
             case "Better Chat" -> 5;
             case "Keybinds HUD" -> 4;
-            case "FastBreak" -> 3;
+            case "FastBreak", "Light Overlay", "Trajectories" -> 3;
             case "Backtrack", "Disabler", "Exploit Guard", "No Mining Trace", "No Slowdown", "Ping Spoof" -> 2;
             case "HUD Info", "TNT Timer", "Auto Sprint", "Safe Walk", "TrueSight", "Item ESP",
                  "No Pitch Limit", "Abort Breaking", "Anti Hunger", "Anti Levitation",
@@ -2510,6 +2571,48 @@ public class ClickGuiScreen extends Screen {
                     playClickSound();
                 }
             }
+            case "Chunk Borders" -> {
+                if (specificRow == 0) {
+                    config.chunkBorders = !config.chunkBorders;
+                    config.save();
+                    playClickSound();
+                } else if (specificRow == 1) {
+                    config.chunkBordersSubGrid = !config.chunkBordersSubGrid;
+                    config.save();
+                    playClickSound();
+                }
+            }
+            case "Light Overlay" -> {
+                if (specificRow == 0) {
+                    config.lightOverlay = !config.lightOverlay;
+                    if (!config.lightOverlay) {
+                        WorldRenderToolsHandler.clearLightCache();
+                    }
+                    config.save();
+                    playClickSound();
+                } else if (specificRow == 1) {
+                    startSliderDrag(mouseX, innerX, innerW, "lightOverlayRange");
+                } else if (specificRow == 2) {
+                    config.lightOverlayOnlyAlways = !config.lightOverlayOnlyAlways;
+                    config.save();
+                    playClickSound();
+                }
+            }
+            case "Trajectories" -> {
+                if (specificRow == 0) {
+                    config.trajectories = !config.trajectories;
+                    config.save();
+                    playClickSound();
+                } else if (specificRow == 1) {
+                    config.trajectoriesShowPassive = !config.trajectoriesShowPassive;
+                    config.save();
+                    playClickSound();
+                } else if (specificRow == 2) {
+                    config.trajectoriesBoxOutline = !config.trajectoriesBoxOutline;
+                    config.save();
+                    playClickSound();
+                }
+            }
             case "GUI Style" -> {
                 if (specificRow == 0) {
                     config.clickGuiStyle = (config.clickGuiStyle == 1) ? 0 : 1;
@@ -2574,6 +2677,7 @@ public class ClickGuiScreen extends Screen {
             case "exploitGuardMaxParticles" -> config.exploitGuardMaxParticles = Math.max(100, Math.min(2000, Math.round(100 + pct * 1900.0f)));
             case "backtrackDelay" -> config.backtrackDelay = Math.max(40, Math.min(300, Math.round(40 + pct * 260.0f)));
             case "packetMineDelay" -> config.packetMineDelay = Math.max(0, Math.min(5, Math.round(pct * 5.0f)));
+            case "lightOverlayRange" -> config.lightOverlayRange = Math.max(8, Math.min(24, Math.round(8 + pct * 16.0f)));
         }
     }
 

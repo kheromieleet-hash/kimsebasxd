@@ -3,6 +3,7 @@ package com.client.mod.mixin;
 import com.client.mod.ExploitPacketRules;
 import com.client.mod.ModConfig;
 import com.client.mod.PacketMineHandler;
+import com.client.mod.WorldRenderToolsHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -180,6 +181,7 @@ public abstract class ClientPlayPacketListenerMixin {
     private void onClearLevel(CallbackInfo ci) {
         this.customclient$backtrackQueue.clear();
         PacketMineHandler.clear();
+        WorldRenderToolsHandler.clearLightCache();
     }
 
     @Unique

@@ -3,6 +3,7 @@ package com.client.mod.mixin;
 import com.client.mod.ExploitPacketRules;
 import com.client.mod.ModConfig;
 import com.client.mod.PacketMineHandler;
+import com.client.mod.WorldRenderToolsHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientCommonPacketListenerImpl;
 import net.minecraft.network.Connection;
@@ -84,6 +85,7 @@ public abstract class ClientPacketListenerMixin {
     private void onDisconnectReset(DisconnectionDetails details, CallbackInfo ci) {
         this.customclient$commandTracker.reset();
         PacketMineHandler.clear();
+        WorldRenderToolsHandler.clearLightCache();
     }
     @Inject(method = "send(Lnet/minecraft/network/protocol/Packet;)V", at = @At("HEAD"), cancellable = true)
     private void onSendPacket(Packet<?> packet, CallbackInfo ci) {
