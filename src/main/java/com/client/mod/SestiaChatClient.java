@@ -355,9 +355,9 @@ public final class SestiaChatClient {
                     return;
                 }
                 if (ev.from().equalsIgnoreCase(activeNick)) {
-                    postChat("§8[§dSestiaDM §7-> §f" + ev.to() + "§8] §r" + ev.text());
+                    postChat(SestiaChatProtocol.formatDmMessage(ev.from(), ev.to(), true, ev.text()));
                 } else if (!SestiaChatProtocol.isMuted(ev.from(), cfg.clientChatMuted)) {
-                    postChat("§8[§dSestiaDM §f" + ev.from() + " §7-> You§8] §r" + ev.text());
+                    postChat(SestiaChatProtocol.formatDmMessage(ev.from(), ev.to(), false, ev.text()));
                 }
             }
             case LIST -> {

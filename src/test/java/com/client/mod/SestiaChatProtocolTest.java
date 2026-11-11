@@ -17,6 +17,7 @@ public class SestiaChatProtocolTest {
         testUrlNormalizationAndConnectUri();
         testNickAndTextSanitization();
         testJsonRoundTrip();
+        testDmFormatting();
         testMuteListOperations();
         testBackoffBounds();
         System.out.println("ALL SestiaChatProtocolTest ASSERTIONS PASSED!");
@@ -142,5 +143,13 @@ public class SestiaChatProtocolTest {
         assert SestiaChatProtocol.computeBackoffMs(4) == 16000L;
         assert SestiaChatProtocol.computeBackoffMs(10) == 30000L;
         assert SestiaChatProtocol.computeBackoffMs(-3) == 1000L;
+    }
+
+    private static void testDmFormatting() {
+        String incoming = SestiaChatProtocol.formatDmMessage("Pannoid", "SelfUser", false, "selam");
+        assert "§8[§cPannoid §7-> §cme§8] §rselam".equals(incoming) : "Unexpected incoming DM: " + incoming;
+
+        String outgoing = SestiaChatProtocol.formatDmMessage("SelfUser", "Pannoid", true, "yanlis oldu");
+        assert "§8[§cme §7-> §cPannoid§8] §ryanlis oldu".equals(outgoing) : "Unexpected outgoing DM: " + outgoing;
     }
 }

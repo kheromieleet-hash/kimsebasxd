@@ -322,6 +322,14 @@ public final class SestiaChatProtocol {
         return Math.min(30_000L, 1_000L << clamped);
     }
 
+    public static String formatDmMessage(String from, String to, boolean outgoing, String text) {
+        String safeText = sanitizeText(text);
+        if (outgoing) {
+            return "§8[§cme §7-> §c" + sanitizeNick(to) + "§8] §r" + safeText;
+        }
+        return "§8[§c" + sanitizeNick(from) + " §7-> §cme§8] §r" + safeText;
+    }
+
     private static Set<String> parseMuteSet(String mutedCsv) {
         Set<String> set = new LinkedHashSet<>();
         if (mutedCsv != null && !mutedCsv.isBlank()) {
