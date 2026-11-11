@@ -1,6 +1,6 @@
 ================================================================================
 SESTIA CLIENT - TUM MODULLER VE OZELLIKLER REHBERI
-Surum: v1.0.24 (VersionCode: 25) | Minecraft: 26.3 Fabric
+Surum: v1.0.25 (VersionCode: 26) | Minecraft: 26.3 Fabric
 Toplam Kayitli Modul: 38 (+ 4 Yerlesik Sistem Ozelligi)
 ================================================================================
 
@@ -242,10 +242,10 @@ Toplam Kayitli Modul: 38 (+ 4 Yerlesik Sistem Ozelligi)
     giren herkes otomatik baglanir; mesajlar Minecraft sunucusuna gitmez.
     Komutlar (.c oneki ile):
     - .c <mesaj> : Ortak global sohbete mesaj gonderir
-    - .c msg <nick> <mesaj> : Ozel mesaj (DM) gonderir
+    - .c msg|dm|w <nick> <mesaj> : Ozel mesaj (DM) gonderir
     - .c list : Cevrimici Sestia kullanicilarini listeler
     - .c mute <nick> / .c unmute <nick> : Kullaniciyi susturur/acar
-    - .c status / .c help : Baglanti durumunu ve yardimi gosterir
+    - .c status / .c help / .c ? : Baglanti durumunu ve komut listesini gosterir
     - .c url <wss://...|default> : Istege bagli ozel sunucu adresi ayarlar
     Ayarlar: Client Chat (Varsayilan ACIK), Allow DMs, Reconnect, Chat Help (.c).
 

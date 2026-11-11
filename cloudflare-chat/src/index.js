@@ -80,7 +80,7 @@ export class ChatRoom extends DurableObject {
 
   async webSocketMessage(ws, raw) {
     if (typeof raw !== "string" || raw.length > MAX_PAYLOAD_BYTES) {
-      sendJson(ws, { type: "error", text: "Mesaj boyutu siniri asildi." });
+      sendJson(ws, { type: "error", text: "Message exceeds size limit." });
       return;
     }
 
@@ -88,7 +88,7 @@ export class ChatRoom extends DurableObject {
     try {
       packet = JSON.parse(raw);
     } catch {
-      sendJson(ws, { type: "error", text: "Gecersiz JSON paketi." });
+      sendJson(ws, { type: "error", text: "Invalid JSON packet." });
       return;
     }
 
@@ -122,7 +122,7 @@ export class ChatRoom extends DurableObject {
             if (client !== ws) {
               sendJson(client, {
                 type: "system",
-                text: `${state.nick} sohbete katildi.`,
+                text: `${state.nick} joined global chat.`,
               });
             }
           }
@@ -133,7 +133,7 @@ export class ChatRoom extends DurableObject {
       case "chat": {
         const now = Date.now();
         if (now - (state.lastMsgAt || 0) < RATE_LIMIT_MS) {
-          sendJson(ws, { type: "error", text: "Cok hizli yaziyorsun, biraz yavasla." });
+          sendJson(ws, { type: "error", text: "You are typing too fast, slow down." });
           return;
         }
         const text = sanitizeText(packet.text);
@@ -158,7 +158,7 @@ export class ChatRoom extends DurableObject {
       case "dm": {
         const now = Date.now();
         if (now - (state.lastMsgAt || 0) < RATE_LIMIT_MS) {
-          sendJson(ws, { type: "error", text: "Cok hizli yaziyorsun." });
+          sendJson(ws, { type: "error", text: "You are sending messages too fast." });
           return;
         }
         const targetNick = sanitizeNick(packet.to, "");
@@ -167,7 +167,7 @@ export class ChatRoom extends DurableObject {
           return;
         }
         if (targetNick.toLowerCase() === state.nick.toLowerCase()) {
-          sendJson(ws, { type: "error", text: "Kendine ozel mesaj gonderemezsin." });
+          sendJson(ws, { type: "error", text: "You cannot send a DM to yourself." });
           return;
         }
 
@@ -179,7 +179,7 @@ export class ChatRoom extends DurableObject {
           }
         }
         if (matches.length === 0) {
-          sendJson(ws, { type: "error", text: `${targetNick} su an cevrimici degil.` });
+          sendJson(ws, { type: "error", text: `${targetNick} is not online right now.` });
           return;
         }
 
