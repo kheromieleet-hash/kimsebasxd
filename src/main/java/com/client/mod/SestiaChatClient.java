@@ -7,6 +7,9 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.time.Duration;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -16,9 +19,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Manages the single global Cloudflare Workers WebSocket session and .c command routing for Sestia Client Chat.
+ * Manages the single global Cloudflare Workers WebSocket session, 25s keepalive heartbeat,
+ * transient reconnect queuing, and .c command routing for Sestia Client Chat.
  */
 public final class SestiaChatClient {
+
+    private static final long HEARTBEAT_INTERVAL_SEC = 25L;
+    private static final long HEARTBEAT_TIMEOUT_MS = 65_000L;
+    private static final int MAX_PENDING_OUTBOX = 3;
 
     private static final ExecutorService HTTP_EXECUTOR = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r, "SestiaChat-HTTP");
@@ -34,19 +42,33 @@ public final class SestiaChatClient {
 
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .executor(HTTP_EXECUTOR)
-            .connectTimeout(Duration.ofSeconds(10))
+            .connectTimeout(Duration.ofSeconds(5))
             .build();
 
     private static final Object LOCK = new Object();
+    private static final Object SEND_LOCK = new Object();
     private static final AtomicInteger GENERATION = new AtomicInteger(0);
+    private static final Deque<String> PENDING_OUTBOX = new ArrayDeque<>();
+
+    private static CompletableFuture<Void> sendChain = CompletableFuture.completedFuture(null);
 
     private static volatile WebSocket activeSocket = null;
     private static volatile boolean loggedIn = false;
     private static volatile boolean connecting = false;
     private static volatile String activeNick = "Player";
     private static volatile int lastOnlineCount = 0;
+    private static volatile long lastActivityAt = 0L;
     private static ScheduledFuture<?> pendingReconnect = null;
     private static int reconnectAttempts = 0;
+
+    static {
+        SCHEDULER.scheduleAtFixedRate(
+                SestiaChatClient::sendHeartbeatSafely,
+                HEARTBEAT_INTERVAL_SEC,
+                HEARTBEAT_INTERVAL_SEC,
+                TimeUnit.SECONDS
+        );
+    }
 
     private SestiaChatClient() {
     }
@@ -146,29 +168,18 @@ public final class SestiaChatClient {
                 cfg.save();
                 postChat("§8[§cSestiaChat§8] §aUnmuted: §f" + SestiaChatProtocol.sanitizeNick(cmd.arg1()));
             }
-            case LIST -> {
-                if (!ensureConnected()) {
-                    return true;
-                }
-                sendRaw(SestiaChatProtocol.buildListJson());
-            }
+            case LIST -> sendOrQueue(SestiaChatProtocol.buildListJson());
             case DM -> {
                 if (!cfg.clientChatAllowDms) {
                     postChat("§8[§cSestiaChat§8] §cDMs are disabled in settings (Allow DMs).");
                     return true;
                 }
-                if (!ensureConnected()) {
-                    return true;
-                }
-                sendRaw(SestiaChatProtocol.buildDmJson(cmd.arg1(), cmd.arg2()));
+                sendOrQueue(SestiaChatProtocol.buildDmJson(cmd.arg1(), cmd.arg2()));
             }
             case CHAT -> {
-                if (!ensureConnected()) {
-                    return true;
-                }
                 String clean = SestiaChatProtocol.sanitizeText(cmd.arg1());
                 if (!clean.isEmpty()) {
-                    sendRaw(SestiaChatProtocol.buildChatJson(clean));
+                    sendOrQueue(SestiaChatProtocol.buildChatJson(clean));
                 }
             }
             case NONE -> {
@@ -195,20 +206,68 @@ public final class SestiaChatClient {
         postChat("§8[§cSestiaChat§8] §7URL: §f" + urlDisplay);
     }
 
-    private static boolean ensureConnected() {
+    private static void sendOrQueue(String json) {
         ModConfig cfg = ModConfig.getInstance();
         if (SestiaChatProtocol.resolveEffectiveUrl(cfg.clientChatUrl).isEmpty()) {
             postChat("§8[§cSestiaChat§8] §cServer URL is not set: §f.c url wss://...");
-            return false;
+            return;
         }
-        if (activeSocket != null && loggedIn) {
-            return true;
+        WebSocket ws = activeSocket;
+        if (ws != null && loggedIn) {
+            sendTextSerialized(ws, json, GENERATION.get(), true);
+            return;
         }
-        postChat("§8[§cSestiaChat§8] §7Connecting to global chat, please try again shortly...");
+        queuePending(json);
+        postChat("§8[§cSestiaChat§8] §7Reconnecting, your message will send shortly...");
         if (!connecting) {
             connectAsync(0);
         }
-        return false;
+    }
+
+    private static void queuePending(String json) {
+        synchronized (PENDING_OUTBOX) {
+            while (PENDING_OUTBOX.size() >= MAX_PENDING_OUTBOX) {
+                PENDING_OUTBOX.pollFirst();
+            }
+            PENDING_OUTBOX.addLast(json);
+        }
+    }
+
+    private static void flushPendingOutbox() {
+        WebSocket ws = activeSocket;
+        if (ws == null || !loggedIn) {
+            return;
+        }
+        final int gen = GENERATION.get();
+        synchronized (PENDING_OUTBOX) {
+            while (!PENDING_OUTBOX.isEmpty()) {
+                String next = PENDING_OUTBOX.pollFirst();
+                sendTextSerialized(ws, next, gen, true);
+            }
+        }
+    }
+
+    private static void sendTextSerialized(WebSocket ws, String payload, int gen, boolean requeueOnError) {
+        synchronized (SEND_LOCK) {
+            sendChain = sendChain.thenCompose(ignored -> {
+                if (ws != activeSocket || gen != GENERATION.get()) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                return ws.sendText(payload, true).whenComplete((unused, err) -> {
+                    if (err != null) {
+                        if (requeueOnError) {
+                            queuePending(payload);
+                        }
+                        if (gen == GENERATION.get()) {
+                            loggedIn = false;
+                            connecting = false;
+                            ws.abort();
+                            scheduleReconnect(gen, extractShortError(err));
+                        }
+                    }
+                }).handle((unused, err) -> null);
+            });
+        }
     }
 
     private static void connectAsync(long delayMs) {
@@ -217,7 +276,7 @@ public final class SestiaChatClient {
                 pendingReconnect.cancel(false);
                 pendingReconnect = null;
             }
-            closeSocketOnly();
+            closeSocketOnly(true);
             final int gen = GENERATION.incrementAndGet();
             ModConfig cfg = ModConfig.getInstance();
             String baseUrl = SestiaChatProtocol.resolveEffectiveUrl(cfg.clientChatUrl);
@@ -245,7 +304,7 @@ public final class SestiaChatClient {
         String connectUrl = SestiaChatProtocol.buildConnectUri(baseUrl, nick);
 
         WebSocket.Builder builder = HTTP_CLIENT.newWebSocketBuilder()
-                .connectTimeout(Duration.ofSeconds(10));
+                .connectTimeout(Duration.ofSeconds(5));
 
         builder.buildAsync(URI.create(connectUrl), new ChatListener(gen, nick))
                 .whenComplete((ws, err) -> {
@@ -264,8 +323,33 @@ public final class SestiaChatClient {
                         return;
                     }
                     activeSocket = ws;
-                    ws.sendText(SestiaChatProtocol.buildHelloJson(nick), true);
+                    lastActivityAt = System.currentTimeMillis();
+                    sendTextSerialized(ws, SestiaChatProtocol.buildHelloJson(nick), gen, false);
                 });
+    }
+
+    private static void sendHeartbeatSafely() {
+        try {
+            ModConfig cfg = ModConfig.getInstance();
+            if (!cfg.clientChatEnabled || !loggedIn) {
+                return;
+            }
+            WebSocket ws = activeSocket;
+            int gen = GENERATION.get();
+            if (ws == null) {
+                return;
+            }
+            long now = System.currentTimeMillis();
+            if (lastActivityAt > 0 && now - lastActivityAt > HEARTBEAT_TIMEOUT_MS) {
+                loggedIn = false;
+                connecting = false;
+                ws.abort();
+                scheduleReconnect(gen, "Heartbeat timeout");
+                return;
+            }
+            sendTextSerialized(ws, "ping", gen, false);
+        } catch (Throwable ignored) {
+        }
     }
 
     private static void scheduleReconnect(int gen, String reason) {
@@ -295,29 +379,30 @@ public final class SestiaChatClient {
             connecting = false;
             loggedIn = false;
             reconnectAttempts = 0;
-            closeSocketOnly();
+            lastActivityAt = 0L;
+            synchronized (PENDING_OUTBOX) {
+                PENDING_OUTBOX.clear();
+            }
+            closeSocketOnly(false);
         }
         if (announce) {
             postChat("§8[§cSestiaChat§8] §7Connection closed.");
         }
     }
 
-    private static void closeSocketOnly() {
+    private static void closeSocketOnly(boolean forceAbort) {
         WebSocket old = activeSocket;
         activeSocket = null;
         if (old != null) {
+            if (forceAbort) {
+                old.abort();
+                return;
+            }
             try {
                 old.sendClose(WebSocket.NORMAL_CLOSURE, "closing");
             } catch (Exception ignored) {
                 old.abort();
             }
-        }
-    }
-
-    private static void sendRaw(String json) {
-        WebSocket ws = activeSocket;
-        if (ws != null) {
-            ws.sendText(json, true);
         }
     }
 
@@ -343,7 +428,9 @@ public final class SestiaChatClient {
                 reconnectAttempts = 0;
                 activeNick = ev.from();
                 lastOnlineCount = ev.onlineCount();
+                lastActivityAt = System.currentTimeMillis();
                 postChat("§8[§cSestiaChat§8] §aConnected to global chat! §8(§7Online: §f" + lastOnlineCount + "§8)");
+                flushPendingOutbox();
             }
             case CHAT -> {
                 if (!SestiaChatProtocol.isMuted(ev.from(), cfg.clientChatMuted)) {
@@ -404,6 +491,7 @@ public final class SestiaChatClient {
 
         @Override
         public void onOpen(WebSocket webSocket) {
+            lastActivityAt = System.currentTimeMillis();
             webSocket.request(1);
         }
 
@@ -413,7 +501,10 @@ public final class SestiaChatClient {
             if (last) {
                 String full = buffer.toString();
                 buffer.setLength(0);
-                handleIncomingJson(generation, full);
+                lastActivityAt = System.currentTimeMillis();
+                if (!SestiaChatProtocol.isHeartbeatFrame(full)) {
+                    handleIncomingJson(generation, full);
+                }
             }
             webSocket.request(1);
             return null;

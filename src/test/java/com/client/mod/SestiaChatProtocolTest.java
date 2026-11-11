@@ -151,5 +151,8 @@ public class SestiaChatProtocolTest {
 
         String outgoing = SestiaChatProtocol.formatDmMessage("SelfUser", "Pannoid", true, "yanlis oldu");
         assert "§8[§cme §7-> §cPannoid§8] §ryanlis oldu".equals(outgoing) : "Unexpected outgoing DM: " + outgoing;
+
+        assert SestiaChatProtocol.isHeartbeatFrame("ping") && SestiaChatProtocol.isHeartbeatFrame("pong");
+        assert !SestiaChatProtocol.isHeartbeatFrame("{\"type\":\"chat\"}");
     }
 }

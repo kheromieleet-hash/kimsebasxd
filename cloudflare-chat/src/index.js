@@ -49,6 +49,13 @@ export default {
 };
 
 export class ChatRoom extends DurableObject {
+  constructor(ctx, env) {
+    super(ctx, env);
+    this.ctx.setWebSocketAutoResponse(
+      new WebSocketRequestResponsePair("ping", "pong")
+    );
+  }
+
   async fetch(request) {
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
       return new Response("Expected WebSocket upgrade", { status: 426 });
@@ -79,6 +86,13 @@ export class ChatRoom extends DurableObject {
   }
 
   async webSocketMessage(ws, raw) {
+    if (raw === "ping") {
+      try { ws.send("pong"); } catch {}
+      return;
+    }
+    if (raw === "pong") {
+      return;
+    }
     if (typeof raw !== "string" || raw.length > MAX_PAYLOAD_BYTES) {
       sendJson(ws, { type: "error", text: "Message exceeds size limit." });
       return;
