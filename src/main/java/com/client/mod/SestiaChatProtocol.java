@@ -322,6 +322,10 @@ public final class SestiaChatProtocol {
         return Math.min(30_000L, 1_000L << clamped);
     }
 
+    public static boolean isHeartbeatFrame(String payload) {
+        return "ping".equals(payload) || "pong".equals(payload);
+    }
+
     public static String formatDmMessage(String from, String to, boolean outgoing, String text) {
         String safeText = sanitizeText(text);
         if (outgoing) {
