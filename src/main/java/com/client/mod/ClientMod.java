@@ -16,6 +16,7 @@ public class ClientMod implements ClientModInitializer {
     private static boolean openMenuNextTick = false;
     private static boolean wasRightShiftDown = false;
     private static boolean wasAutoSprinting = false;
+    private static boolean wasInWorld = false;
 
     @Override
     public void onInitializeClient() {
@@ -50,6 +51,13 @@ public class ClientMod implements ClientModInitializer {
             ZoomHandler.update();
             AutoReplenishHandler.tick(client);
             UpdateNoticeManager.onClientTick(client);
+            boolean inWorld = client.player != null;
+            if (inWorld && !wasInWorld) {
+                wasInWorld = true;
+                SestiaChatClient.onEnteredWorld();
+            } else if (!inWorld && wasInWorld) {
+                wasInWorld = false;
+            }
 
             ModConfig cfg = ModConfig.getInstance();
             if (cfg.autoSprint) {
