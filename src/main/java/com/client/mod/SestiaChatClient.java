@@ -75,7 +75,7 @@ public final class SestiaChatClient {
             return;
         }
         if (loggedIn && activeSocket != null) {
-            postChat("§8[§cSestiaChat§8] §aGlobal sohbet aktif §8(§7Cevrimici: §f" + Math.max(1, lastOnlineCount) + " §8| §f.c <mesaj>§8)");
+            postChat("§8[§cSestiaChat§8] §aGlobal chat active §8(§7Online: §f" + Math.max(1, lastOnlineCount) + " §8| §f.c <message>§8)");
         } else if (!connecting) {
             connectAsync(0);
         }
@@ -84,11 +84,11 @@ public final class SestiaChatClient {
     public static void reconnect() {
         ModConfig cfg = ModConfig.getInstance();
         if (!cfg.clientChatEnabled) {
-            postChat("§8[§cSestiaChat§8] §cClient Chat kapali. Once modulu acin.");
+            postChat("§8[§cSestiaChat§8] §cClient Chat is disabled. Enable the module first.");
             return;
         }
         if (SestiaChatProtocol.resolveEffectiveUrl(cfg.clientChatUrl).isEmpty()) {
-            postChat("§8[§cSestiaChat§8] §7Worker URL ayarli degil: §f.c url wss://...");
+            postChat("§8[§cSestiaChat§8] §7Worker URL is not configured: §f.c url wss://...");
             return;
         }
         reconnectAttempts = 0;
@@ -114,37 +114,37 @@ public final class SestiaChatClient {
                 if (rawArg.equalsIgnoreCase("default") || rawArg.equalsIgnoreCase("reset")) {
                     cfg.clientChatUrl = "";
                     cfg.save();
-                    postChat("§8[§cSestiaChat§8] §aVarsayilan sunucu adresine donuldu.");
+                    postChat("§8[§cSestiaChat§8] §aReverted to the default chat server URL.");
                     reconnect();
                     return true;
                 }
                 String normalized = SestiaChatProtocol.normalizeWebSocketUrl(rawArg);
                 if (normalized.isEmpty()) {
-                    postChat("§8[§cSestiaChat§8] §cGecersiz URL. Ornek: §f.c url wss://sestia-client-chat.ornek.workers.dev");
+                    postChat("§8[§cSestiaChat§8] §cInvalid URL. Example: §f.c url wss://sestia-client-chat.example.workers.dev");
                     return true;
                 }
                 cfg.clientChatUrl = normalized;
                 cfg.save();
-                postChat("§8[§cSestiaChat§8] §aOzel sunucu kaydedildi: §f" + normalized);
+                postChat("§8[§cSestiaChat§8] §aCustom chat server saved: §f" + normalized);
                 reconnect();
             }
             case MUTE -> {
                 if (cmd.arg1().isBlank()) {
-                    postChat("§8[§cSestiaChat§8] §7Kullanim: §f.c mute <kullanici>");
+                    postChat("§8[§cSestiaChat§8] §7Usage: §f.c mute <player>");
                     return true;
                 }
                 cfg.clientChatMuted = SestiaChatProtocol.addMute(cmd.arg1(), cfg.clientChatMuted);
                 cfg.save();
-                postChat("§8[§cSestiaChat§8] §eSusturuldu: §f" + SestiaChatProtocol.sanitizeNick(cmd.arg1()));
+                postChat("§8[§cSestiaChat§8] §eMuted: §f" + SestiaChatProtocol.sanitizeNick(cmd.arg1()));
             }
             case UNMUTE -> {
                 if (cmd.arg1().isBlank()) {
-                    postChat("§8[§cSestiaChat§8] §7Kullanim: §f.c unmute <kullanici>");
+                    postChat("§8[§cSestiaChat§8] §7Usage: §f.c unmute <player>");
                     return true;
                 }
                 cfg.clientChatMuted = SestiaChatProtocol.removeMute(cmd.arg1(), cfg.clientChatMuted);
                 cfg.save();
-                postChat("§8[§cSestiaChat§8] §aSusturma kaldirildi: §f" + SestiaChatProtocol.sanitizeNick(cmd.arg1()));
+                postChat("§8[§cSestiaChat§8] §aUnmuted: §f" + SestiaChatProtocol.sanitizeNick(cmd.arg1()));
             }
             case LIST -> {
                 if (!ensureConnected()) {
@@ -154,7 +154,7 @@ public final class SestiaChatClient {
             }
             case DM -> {
                 if (!cfg.clientChatAllowDms) {
-                    postChat("§8[§cSestiaChat§8] §cDM ayarlardan kapali (Allow DMs).");
+                    postChat("§8[§cSestiaChat§8] §cDMs are disabled in settings (Allow DMs).");
                     return true;
                 }
                 if (!ensureConnected()) {
@@ -179,31 +179,32 @@ public final class SestiaChatClient {
     }
 
     public static void printHelpInChat() {
-        postChat("§8[§cSestiaChat§8] §fKomutlar:");
-        postChat("  §e.c <mesaj> §7- Global sohbete mesaj gonder");
-        postChat("  §e.c msg <isim> <mesaj> §7- Ozel mesaj (DM)");
-        postChat("  §e.c list §7- Cevrimici Sestia kullanicilarini goster");
-        postChat("  §e.c mute/unmute <isim> §7| §e.c status");
+        postChat("§8[§cSestiaChat§8] §fCommands:");
+        postChat("  §e.c <message> §7- Send a message to global chat");
+        postChat("  §e.c msg <player> <message> §7- Send a private message (DM)");
+        postChat("  §e.c list §7- Show online Sestia users");
+        postChat("  §e.c mute/unmute <player> §7| §e.c status");
+        postChat("  §e.c url <wss://...|default> §7- Set custom/default server");
     }
 
     private static void printStatusInChat(ModConfig cfg) {
-        String stateLabel = loggedIn ? "§aBagli (" + Math.max(1, lastOnlineCount) + " cevrimici)" : (connecting ? "§eBaglaniyor..." : "§cBagli Degil");
+        String stateLabel = loggedIn ? "§aConnected (" + Math.max(1, lastOnlineCount) + " online)" : (connecting ? "§eConnecting..." : "§cDisconnected");
         String effectiveUrl = SestiaChatProtocol.resolveEffectiveUrl(cfg.clientChatUrl);
-        String urlDisplay = effectiveUrl.isEmpty() ? "Ayarlanmadi" : effectiveUrl;
-        postChat("§8[§cSestiaChat§8] §7Durum: " + stateLabel + " §8| §7Nick: §f" + activeNick);
+        String urlDisplay = effectiveUrl.isEmpty() ? "Not set" : effectiveUrl;
+        postChat("§8[§cSestiaChat§8] §7Status: " + stateLabel + " §8| §7Nick: §f" + activeNick);
         postChat("§8[§cSestiaChat§8] §7URL: §f" + urlDisplay);
     }
 
     private static boolean ensureConnected() {
         ModConfig cfg = ModConfig.getInstance();
         if (SestiaChatProtocol.resolveEffectiveUrl(cfg.clientChatUrl).isEmpty()) {
-            postChat("§8[§cSestiaChat§8] §cSunucu URL ayarli degil: §f.c url wss://...");
+            postChat("§8[§cSestiaChat§8] §cServer URL is not set: §f.c url wss://...");
             return false;
         }
         if (activeSocket != null && loggedIn) {
             return true;
         }
-        postChat("§8[§cSestiaChat§8] §7Global sohbete baglaniyor, biraz sonra tekrar deneyin...");
+        postChat("§8[§cSestiaChat§8] §7Connecting to global chat, please try again shortly...");
         if (!connecting) {
             connectAsync(0);
         }
@@ -273,7 +274,7 @@ public final class SestiaChatClient {
                 return;
             }
             if (reconnectAttempts == 0 && reason != null && !reason.isBlank()) {
-                postChat("§8[§cSestiaChat§8] §cBaglanti kesildi (" + reason + "), yeniden deneniyor...");
+                postChat("§8[§cSestiaChat§8] §cDisconnected (" + reason + "), reconnecting...");
             }
             long waitMs = SestiaChatProtocol.computeBackoffMs(reconnectAttempts);
             reconnectAttempts++;
@@ -297,7 +298,7 @@ public final class SestiaChatClient {
             closeSocketOnly();
         }
         if (announce) {
-            postChat("§8[§cSestiaChat§8] §7Baglanti kapatildi.");
+            postChat("§8[§cSestiaChat§8] §7Connection closed.");
         }
     }
 
@@ -342,7 +343,7 @@ public final class SestiaChatClient {
                 reconnectAttempts = 0;
                 activeNick = ev.from();
                 lastOnlineCount = ev.onlineCount();
-                postChat("§8[§cSestiaChat§8] §aGlobal sohbete baglandi! §8(§7Cevrimici: §f" + lastOnlineCount + "§8)");
+                postChat("§8[§cSestiaChat§8] §aConnected to global chat! §8(§7Online: §f" + lastOnlineCount + "§8)");
             }
             case CHAT -> {
                 if (!SestiaChatProtocol.isMuted(ev.from(), cfg.clientChatMuted)) {
@@ -356,13 +357,13 @@ public final class SestiaChatClient {
                 if (ev.from().equalsIgnoreCase(activeNick)) {
                     postChat("§8[§dSestiaDM §7-> §f" + ev.to() + "§8] §r" + ev.text());
                 } else if (!SestiaChatProtocol.isMuted(ev.from(), cfg.clientChatMuted)) {
-                    postChat("§8[§dSestiaDM §f" + ev.from() + " §7-> Sana§8] §r" + ev.text());
+                    postChat("§8[§dSestiaDM §f" + ev.from() + " §7-> You§8] §r" + ev.text());
                 }
             }
             case LIST -> {
                 lastOnlineCount = ev.users().size();
-                String names = ev.users().isEmpty() ? "(kimse yok)" : String.join(", ", ev.users());
-                postChat("§8[§cSestiaChat§8] §7Cevrimici (§f" + lastOnlineCount + "§7): §f" + names);
+                String names = ev.users().isEmpty() ? "(none)" : String.join(", ", ev.users());
+                postChat("§8[§cSestiaChat§8] §7Online (§f" + lastOnlineCount + "§7): §f" + names);
             }
             case SYSTEM -> postChat("§8[§cSestiaChat§8] §7" + ev.text());
             case ERROR -> postChat("§8[§cSestiaChat§8] §c" + ev.text());
