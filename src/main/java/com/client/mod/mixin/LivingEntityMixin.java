@@ -11,6 +11,26 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(LivingEntity.class)
 public class LivingEntityMixin {
+    @Inject(method = "hasEffect", at = @At("HEAD"), cancellable = true)
+    private void onHasEffect(net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> effect,
+                             org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> cir) {
+        if ((Object) this == net.minecraft.client.Minecraft.getInstance().player
+                && com.client.mod.ModConfig.getInstance().antiLevitation
+                && net.minecraft.world.effect.MobEffects.LEVITATION.equals(effect)) {
+            cir.setReturnValue(false);
+        }
+    }
+
+    @Inject(method = "getEffect", at = @At("HEAD"), cancellable = true)
+    private void onGetEffect(net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> effect,
+                             org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<net.minecraft.world.effect.MobEffectInstance> cir) {
+        if ((Object) this == net.minecraft.client.Minecraft.getInstance().player
+                && com.client.mod.ModConfig.getInstance().antiLevitation
+                && net.minecraft.world.effect.MobEffects.LEVITATION.equals(effect)) {
+            cir.setReturnValue(null);
+        }
+    }
+
     @Inject(method = "getModifiedSwingDuration", at = @At("HEAD"), cancellable = true)
     private void onGetModifiedSwingDuration(SwingAnimation swingAnimation, CallbackInfoReturnable<Integer> cir) {
         ModConfig config = ModConfig.getInstance();

@@ -421,6 +421,17 @@ final class ModernModuleCardUi {
             case "GUI Style" -> "Switch between Modern Dashboard and Classic Windows";
             case "No Pitch Limit" -> "Unlock vertical camera pitch limits";
             case "Abort Breaking" -> "Prevent block-break reset glitches";
+            case "Anti Hunger" -> "Filter sprint packets to reduce hunger drain";
+            case "Anti Levitation" -> "Ignore shulker levitation float effect";
+            case "Backtrack" -> "Briefly hold opponent move packets for hits";
+            case "Disabler" -> "Vulcan & Grim packet alignment rules";
+            case "Exploit Guard" -> "Drop abusive particle, knockback & URL packets";
+            case "Ghost Hand" -> "Open chests & containers through solid walls";
+            case "No Mining Trace" -> "Mine blocks directly through entities & mobs";
+            case "No Slowdown" -> "Keep full speed while eating, bowing & blocking";
+            case "Ping Spoof" -> "Delay keep-alive & pong packets cleanly";
+            case "Portal GUI" -> "Keep chat & screens open inside Nether portals";
+            case "Resource Pack Spoof" -> "Accept server packs without downloading them";
             case "Inventory Tweaks" -> "One-click sort & smart inventory handling";
             case "Auto Replenish" -> "Refill hotbar slots from inventory";
             default -> fallbackCategory.toUpperCase(java.util.Locale.ROOT) + " MODULE";

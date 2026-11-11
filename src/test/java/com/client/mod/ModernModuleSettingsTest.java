@@ -56,6 +56,7 @@ public class ModernModuleSettingsTest {
         testAutoCrafterActionsAndChips();
         testInventoryHudActions();
         testToggleNotificationFormatAndConfig();
+        testNewExploitModulesControls();
         System.out.println("ALL ModernModuleSettingsTest ASSERTIONS PASSED!");
     }
 
@@ -65,6 +66,8 @@ public class ModernModuleSettingsTest {
         List<String> simpleModules = List.of(
                 "HUD Info", "TNT Timer", "Auto Sprint", "Safe Walk",
                 "TrueSight", "Item ESP", "No Pitch Limit", "Abort Breaking",
+                "Anti Hunger", "Anti Levitation", "Ghost Hand",
+                "Portal GUI", "Resource Pack Spoof",
                 "GUI Style", "Version Switcher", "Unknown Module"
         );
         for (String name : simpleModules) {
@@ -83,7 +86,8 @@ public class ModernModuleSettingsTest {
                 "Dulkir", "Inventory HUD+", "Fullbright", "Keybinds HUD",
                 "Fast Place", "Auto Break", "FastBreak", "Inventory Tweaks",
                 "Auto Replenish", "Fast Use", "Auto Tool", "Auto Crafter",
-                "Better Chat"
+                "Better Chat", "Backtrack", "Disabler", "Exploit Guard",
+                "No Mining Trace", "No Slowdown", "Ping Spoof"
         );
         for (String name : configurable) {
             List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(name, cfg, actions);
@@ -219,5 +223,55 @@ public class ModernModuleSettingsTest {
 
         String styleMsg = ModConfig.formatToggleNotification("GUI Style", true);
         assert styleMsg.startsWith("§c[Sestia] §fGUI Style") && styleMsg.endsWith("§eModern Dashboard");
+    }
+
+    private static void testNewExploitModulesControls() {
+        ModConfig cfg = new ModConfig();
+        RecordingActions actions = new RecordingActions();
+
+        ModernModuleSettings.SliderControl pingDelay =
+                (ModernModuleSettings.SliderControl) ModernModuleSettings.getControls("Ping Spoof", cfg, actions).get(0);
+        pingDelay.pctSetter().accept(1.0f);
+        assert cfg.pingSpoofDelay == 1000;
+        pingDelay.pctSetter().accept(0.0f);
+        assert cfg.pingSpoofDelay == 50;
+
+        ModernModuleSettings.CycleControl noSlowMode =
+                (ModernModuleSettings.CycleControl) ModernModuleSettings.getControls("No Slowdown", cfg, actions).get(0);
+        assert "Vanilla".equals(noSlowMode.valueLabel().get());
+        noSlowMode.onCycle().run();
+        assert "Vulcan".equals(noSlowMode.valueLabel().get()) && cfg.noSlowdownMode == 1;
+        noSlowMode.onCycle().run();
+        assert "Grim".equals(noSlowMode.valueLabel().get()) && cfg.noSlowdownMode == 2;
+        noSlowMode.onCycle().run();
+        assert "Vanilla".equals(noSlowMode.valueLabel().get()) && cfg.noSlowdownMode == 0;
+
+        ModernModuleSettings.ToggleControl toolsOnly =
+                (ModernModuleSettings.ToggleControl) ModernModuleSettings.getControls("No Mining Trace", cfg, actions).get(0);
+        assert cfg.noMiningTraceToolsOnly;
+        toolsOnly.setter().accept(false);
+        assert !cfg.noMiningTraceToolsOnly;
+
+        ModernModuleSettings.SliderControl backtrackDelay =
+                (ModernModuleSettings.SliderControl) ModernModuleSettings.getControls("Backtrack", cfg, actions).get(0);
+        backtrackDelay.pctSetter().accept(1.0f);
+        assert cfg.backtrackDelay == 300;
+        backtrackDelay.pctSetter().accept(0.0f);
+        assert cfg.backtrackDelay == 40;
+
+        ModernModuleSettings.SliderControl maxParticles =
+                (ModernModuleSettings.SliderControl) ModernModuleSettings.getControls("Exploit Guard", cfg, actions).get(0);
+        maxParticles.pctSetter().accept(1.0f);
+        assert cfg.exploitGuardMaxParticles == 2000;
+        maxParticles.pctSetter().accept(0.0f);
+        assert cfg.exploitGuardMaxParticles == 100;
+
+        ModernModuleSettings.CycleControl disablerMode =
+                (ModernModuleSettings.CycleControl) ModernModuleSettings.getControls("Disabler", cfg, actions).get(0);
+        assert "Vulcan".equals(disablerMode.valueLabel().get());
+        disablerMode.onCycle().run();
+        assert "Grim".equals(disablerMode.valueLabel().get()) && cfg.disablerMode == 1;
+        disablerMode.onCycle().run();
+        assert "Vulcan".equals(disablerMode.valueLabel().get()) && cfg.disablerMode == 0;
     }
 }

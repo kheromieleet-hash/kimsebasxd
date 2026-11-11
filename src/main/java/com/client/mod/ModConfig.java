@@ -153,6 +153,23 @@ public class ModConfig {
     public float fastBreakSpeed = 1.15f;
     public boolean noPitchLimit = false;
     public boolean abortBreaking = false;
+    public boolean portalGui = false;
+    public boolean resourcePackSpoof = false;
+    public boolean noMiningTrace = false;
+    public boolean noMiningTraceToolsOnly = true;
+    public boolean antiHunger = false;
+    public boolean pingSpoof = false;
+    public int pingSpoofDelay = 150;
+    public boolean noSlowdown = false;
+    public int noSlowdownMode = 0; // 0 = Vanilla, 1 = Vulcan, 2 = Grim
+    public boolean ghostHand = false;
+    public boolean exploitGuard = false;
+    public int exploitGuardMaxParticles = 500;
+    public boolean backtrack = false;
+    public int backtrackDelay = 120;
+    public boolean antiLevitation = false;
+    public boolean disabler = false;
+    public int disablerMode = 0; // 0 = Vulcan, 1 = Grim
 
     // Protocol & Version Switcher (LiquidBounce style)
     public int targetProtocol = -1; // -1 = Auto / Default (26.3 Native, Protocol 777)
@@ -391,6 +408,23 @@ public class ModConfig {
         this.fastBreakSpeed = other.fastBreakSpeed;
         this.noPitchLimit = other.noPitchLimit;
         this.abortBreaking = other.abortBreaking;
+        this.portalGui = other.portalGui;
+        this.resourcePackSpoof = other.resourcePackSpoof;
+        this.noMiningTrace = other.noMiningTrace;
+        this.noMiningTraceToolsOnly = other.noMiningTraceToolsOnly;
+        this.antiHunger = other.antiHunger;
+        this.pingSpoof = other.pingSpoof;
+        this.pingSpoofDelay = Math.max(50, Math.min(1000, other.pingSpoofDelay));
+        this.noSlowdown = other.noSlowdown;
+        this.noSlowdownMode = Math.max(0, Math.min(2, other.noSlowdownMode));
+        this.ghostHand = other.ghostHand;
+        this.exploitGuard = other.exploitGuard;
+        this.exploitGuardMaxParticles = Math.max(100, Math.min(2000, other.exploitGuardMaxParticles));
+        this.backtrack = other.backtrack;
+        this.backtrackDelay = Math.max(40, Math.min(300, other.backtrackDelay));
+        this.antiLevitation = other.antiLevitation;
+        this.disabler = other.disabler;
+        this.disablerMode = Math.max(0, Math.min(1, other.disablerMode));
         this.targetProtocol = other.targetProtocol;
         this.targetVersionName = other.targetVersionName != null ? other.targetVersionName : "Auto";
         this.autoBreakEnabled = other.autoBreakEnabled;
@@ -464,6 +498,11 @@ public class ModConfig {
                     }
                     if (this.fastBreakSpeed < 0.5f || this.fastBreakSpeed > 5.0f) this.fastBreakSpeed = 1.15f;
                     if (this.fastBreakMode < 0 || this.fastBreakMode > 1) this.fastBreakMode = 1;
+                    if (this.pingSpoofDelay < 50 || this.pingSpoofDelay > 1000) this.pingSpoofDelay = 150;
+                    if (this.noSlowdownMode < 0 || this.noSlowdownMode > 2) this.noSlowdownMode = 0;
+                    if (this.exploitGuardMaxParticles < 100 || this.exploitGuardMaxParticles > 2000) this.exploitGuardMaxParticles = 500;
+                    if (this.backtrackDelay < 40 || this.backtrackDelay > 300) this.backtrackDelay = 120;
+                    if (this.disablerMode < 0 || this.disablerMode > 1) this.disablerMode = 0;
                     if (this.clickGuiStyle < 0 || this.clickGuiStyle > 1) this.clickGuiStyle = 1;
                     if (this.targetVersionName == null) this.targetVersionName = "Auto";
                     if (this.categoryX == null) this.categoryX = new HashMap<>();

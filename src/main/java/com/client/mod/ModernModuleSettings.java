@@ -178,6 +178,41 @@ public final class ModernModuleSettings {
             );
             case "Auto Crafter" -> buildAutoCrafterControls(cfg, actions);
             case "Better Chat" -> buildBetterChatControls(cfg, actions);
+            case "Backtrack" -> List.of(
+                    intSlider("backtrackDelay", "Max Delay", 40, 300, "ms",
+                            () -> cfg.backtrackDelay, v -> cfg.backtrackDelay = v)
+            );
+            case "Disabler" -> List.of(
+                    new CycleControl("Mode",
+                            () -> cfg.disablerMode == 1 ? "Grim" : "Vulcan",
+                            () -> {
+                                cfg.disablerMode = (cfg.disablerMode + 1) % 2;
+                                actions.persist(false);
+                            })
+            );
+            case "Exploit Guard" -> List.of(
+                    intSlider("exploitGuardMaxParticles", "Max Particles", 100, 2000, "",
+                            () -> cfg.exploitGuardMaxParticles, v -> cfg.exploitGuardMaxParticles = v)
+            );
+            case "No Mining Trace" -> List.of(
+                    toggle("Tools Only", () -> cfg.noMiningTraceToolsOnly, v -> cfg.noMiningTraceToolsOnly = v, actions, false)
+            );
+            case "No Slowdown" -> List.of(
+                    new CycleControl("Mode",
+                            () -> switch (cfg.noSlowdownMode) {
+                                case 1 -> "Vulcan";
+                                case 2 -> "Grim";
+                                default -> "Vanilla";
+                            },
+                            () -> {
+                                cfg.noSlowdownMode = (cfg.noSlowdownMode + 1) % 3;
+                                actions.persist(false);
+                            })
+            );
+            case "Ping Spoof" -> List.of(
+                    intSlider("pingSpoofDelay", "Delay", 50, 1000, "ms",
+                            () -> cfg.pingSpoofDelay, v -> cfg.pingSpoofDelay = v)
+            );
             default -> List.of();
         };
     }
