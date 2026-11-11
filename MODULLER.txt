@@ -1,6 +1,6 @@
 ================================================================================
 SESTIA CLIENT - TUM MODULLER VE OZELLIKLER REHBERI
-Surum: v1.0.25 (VersionCode: 26) | Minecraft: 26.3 Fabric
+Surum: v1.0.26 (VersionCode: 27) | Minecraft: 26.3 Fabric
 Toplam Kayitli Modul: 38 (+ 4 Yerlesik Sistem Ozelligi)
 ================================================================================
 
