@@ -438,7 +438,7 @@ public class ModernClickGuiScreen extends Screen {
 
         for (FilterChip chip : chips) {
             String text = chip.label + " " + chip.count;
-            int chipW = this.font.width(text) + 14;
+            int chipW = Math.max(28, this.font.width(text) + 18);
             if (curX + chipW > contentX + contentW - 8) {
                 break;
             }
@@ -447,7 +447,9 @@ public class ModernClickGuiScreen extends Screen {
             int bg = active ? JelloTheme.ACCENT : (hovered ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
             int border = active ? JelloTheme.ACCENT_HOVER : (hovered ? 0x5594A3B8 : JelloTheme.BORDER_SUBTLE);
             JelloTheme.fillRoundedCard(graphics, curX, chipY, curX + chipW, chipY + chipH, 4, bg, border);
-            graphics.centeredText(this.font, Component.literal(text), curX + chipW / 2, chipY + 5,
+            // Keep the label inside the pill even with wider glyphs/fonts.
+            String chipText = fitText(text, chipW - 12);
+            graphics.centeredText(this.font, Component.literal(chipText), curX + chipW / 2, chipY + 5,
                     active ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED);
             curX += chipW + 5;
         }
@@ -503,7 +505,7 @@ public class ModernClickGuiScreen extends Screen {
         boolean isListening = mod.name.equals(this.listeningKeybindModule);
         String bindTag = getBindPillText(cfg, mod.name, isListening);
         ModernModuleGridLayout.CardControlLayout layout =
-                ModernModuleGridLayout.computeCardControlLayout(x, y, w, this.font.width(bindTag));
+                ModernModuleGridLayout.computeCardControlLayout(x, y, w, this.font.width(bindTag), hasSettings);
         return new CardControlsBounds(layout, bindTag, isListening, hasSettings);
     }
 
@@ -1030,7 +1032,7 @@ public class ModernClickGuiScreen extends Screen {
                 int chipY = contentY + 6;
                 int chipH = 18;
                 for (FilterChip chip : chips) {
-                    int chipW = this.font.width(chip.label + " " + chip.count) + 14;
+                    int chipW = Math.max(28, this.font.width(chip.label + " " + chip.count) + 18);
                     if (curX + chipW > contentX + contentW - 8) break;
                     if (isInside(mouseX, mouseY, curX, chipY, chipW, chipH)) {
                         this.selectedCategoryId = chip.id;

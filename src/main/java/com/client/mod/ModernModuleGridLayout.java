@@ -208,11 +208,25 @@ final class ModernModuleGridLayout {
     }
 
     static CardControlLayout computeCardControlLayout(int cardX, int cardY, int cardW, int bindTextWidth) {
+        return computeCardControlLayout(cardX, cardY, cardW, bindTextWidth, true);
+    }
+
+    /**
+     * Computes the bottom control row. When a module has no settings, the bind
+     * pill consumes the tune-icon slot so it remains flush with the switch.
+     */
+    static CardControlLayout computeCardControlLayout(
+            int cardX,
+            int cardY,
+            int cardW,
+            int bindTextWidth,
+            boolean hasSettings
+    ) {
         int controlY = cardY + CONTROL_Y_OFFSET;
         int switchX = cardX + cardW - SWITCH_WIDTH - CARD_PAD_X;
         int bindW = bindTextWidth + 8;
         int bindX = switchX - bindW - CONTROL_GAP;
-        int tuneX = bindX - TUNE_WIDTH - CONTROL_GAP;
+        int tuneX = hasSettings ? bindX - TUNE_WIDTH - CONTROL_GAP : bindX;
         int titleMaxW = Math.max(24, cardW - CARD_PAD_X * 2);
         return new CardControlLayout(
                 switchX, controlY, SWITCH_WIDTH, CONTROL_HEIGHT,
