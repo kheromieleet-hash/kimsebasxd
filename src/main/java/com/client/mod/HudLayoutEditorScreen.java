@@ -1,5 +1,6 @@
 package com.client.mod;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -7,7 +8,6 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 
@@ -29,7 +29,6 @@ public class HudLayoutEditorScreen extends Screen {
     private HudTarget dragging = HudTarget.NONE;
     private int dragOffsetX = 0;
     private int dragOffsetY = 0;
-    private boolean wasLeftMouseDown = true;
 
     public HudLayoutEditorScreen(Screen parent) {
         super(Component.literal("HUD Layout Editor"));
@@ -50,22 +49,6 @@ public class HudLayoutEditorScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
         ModConfig config = ModConfig.getInstance();
-        Minecraft mc = Minecraft.getInstance();
-        long winHandle = (mc != null && mc.getWindow() != null) ? mc.getWindow().handle() : 0L;
-        boolean leftDown = winHandle != 0L
-                && GLFW.glfwGetMouseButton(winHandle, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
-
-        if (leftDown && !this.wasLeftMouseDown && this.dragging == HudTarget.NONE) {
-            this.wasLeftMouseDown = true;
-            if (handlePressAt(mouseX, mouseY)) {
-                return;
-            }
-        } else if (!leftDown && this.dragging != HudTarget.NONE) {
-            this.dragging = HudTarget.NONE;
-            config.save();
-        }
-        this.wasLeftMouseDown = leftDown;
-
         if (this.dragging != HudTarget.NONE) {
             updateDraggedPosition(config, mouseX, mouseY);
         }
@@ -143,7 +126,6 @@ public class HudLayoutEditorScreen extends Screen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean wasHandled) {
         if (MouseButtonMapping.isLeftClick(event.button()) || event.button() == 0) {
-            this.wasLeftMouseDown = true;
             if (handlePressAt((int) event.x(), (int) event.y())) {
                 return true;
             }
@@ -239,7 +221,7 @@ public class HudLayoutEditorScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+        if (event.key() == InputConstants.KEY_ESCAPE) {
             onClose();
             return true;
         }
