@@ -248,8 +248,7 @@ public final class ModernModuleSettings {
                 toggle("Vertical Mode", inv::isVert, inv::setVert, actions, false),
                 floatSlider("invHudScale", "Inv Scale", 0.50f, 2.00f, 20.0f, "%.2fx",
                         () -> cfg.invHudScale, v -> cfg.invHudScale = v),
-                intSlider("invBgAlpha", "Bg Opacity", 0, 100, "%", inv::getBgAlpha, inv::setBgAlpha),
-                new ActionControl(() -> "Move HUD...", actions::openInventoryMove)
+                intSlider("invBgAlpha", "Bg Opacity", 0, 100, "%", inv::getBgAlpha, inv::setBgAlpha)
         );
     }
 

@@ -1010,11 +1010,10 @@ public class ModernClickGuiScreen extends Screen {
                 posDesc,
                 config.hudInfoEnabled, false, true, "Reset");
 
-        boolean hasInvBridge = this.settingsActions.inventory() != null;
         drawHudResetCard(graphics, mouseX, mouseY, innerX, listY + (cardH + cardGap) * 3, innerW, cardH,
                 "Inventory HUD+",
-                "Inventory, Potions & Armor overlays",
-                config.inventoryHudEnabled, true, hasInvBridge, "Move HUD...");
+                "Inventory, Potions & Armor overlays (edit in HUD Editor)",
+                config.inventoryHudEnabled, true, false, "");
     }
 
     private void drawHudResetCard(
@@ -1102,11 +1101,10 @@ public class ModernClickGuiScreen extends Screen {
                 () -> { config.posHudX = -1; config.posHudY = -1; config.save(); })) {
             return true;
         }
-        // Card 3: Inventory HUD+ (Toggle + Move HUD...)
-        boolean hasInvBridge = this.settingsActions.inventory() != null;
-        return handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap) * 3, innerW, cardH, true, hasInvBridge, "Move HUD...",
+        // Card 3: Inventory HUD+ (Toggle only; positions edited in Open HUD Editor)
+        return handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap) * 3, innerW, cardH, true, false, "",
                 () -> { config.inventoryHudEnabled = !config.inventoryHudEnabled; config.save(); },
-                () -> this.settingsActions.openInventoryMove());
+                null);
     }
 
     private boolean handleHudCardClick(

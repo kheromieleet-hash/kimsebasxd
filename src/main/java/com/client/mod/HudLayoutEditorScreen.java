@@ -1,6 +1,10 @@
 package com.client.mod;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import dlovin.inventoryhud.InventoryHUDCommon;
+import dlovin.inventoryhud.gui.InventoryGui;
+import dlovin.inventoryhud.platform.ConfigAccess;
+import dlovin.inventoryhud.utils.WidgetAligns;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -12,9 +16,9 @@ import net.minecraft.util.Mth;
 import java.util.List;
 
 /**
- * Full-screen drag-and-drop HUD layout editor modeled after the Inventory HUD+
- * grid editor, allowing Keybinds HUD, Stats HUD (FPS/TPS/Ping/Speed), and
- * Position HUD (Direction/Nether/Pos) to be positioned anywhere on screen.
+ * Unified full-screen drag-and-drop HUD layout editor for Keybinds HUD,
+ * Telemetry HUD (FPS/TPS/Ping/Speed), Position HUD (Direction/Nether/Pos),
+ * and Inventory HUD+ overlays (Inventory, Potions, Armor).
  */
 public class HudLayoutEditorScreen extends Screen {
 
@@ -22,7 +26,10 @@ public class HudLayoutEditorScreen extends Screen {
         NONE,
         KEYBINDS,
         STATS,
-        POSITION
+        POSITION,
+        INVENTORY,
+        POTIONS,
+        ARMOR
     }
 
     private final Screen parent;
@@ -43,6 +50,7 @@ public class HudLayoutEditorScreen extends Screen {
     @Override
     public void onClose() {
         ModConfig.getInstance().save();
+        saveInventoryHudConfig();
         Minecraft.getInstance().gui.setScreen(this.parent);
     }
 
@@ -90,6 +98,43 @@ public class HudLayoutEditorScreen extends Screen {
                 0x484F6BFF, 0xDD7B92FF
         );
 
+        // Inventory HUD+ overlays (Inventory, Potions, Armor)
+        int[] invBounds = getInventoryBounds(config);
+        if (invBounds != null) {
+            drawDraggableBox(
+                    graphics, mouseX, mouseY,
+                    invBounds[0], invBounds[1], invBounds[2], invBounds[3],
+                    "Inventory",
+                    config.inventoryHudEnabled && InventoryHUDCommon.isActive,
+                    this.dragging == HudTarget.INVENTORY,
+                    0x5032D74B, 0xEE5AF270
+            );
+        }
+
+        int[] potBounds = getPotionsBounds();
+        if (potBounds != null) {
+            drawDraggableBox(
+                    graphics, mouseX, mouseY,
+                    potBounds[0], potBounds[1], potBounds[2], potBounds[3],
+                    "Potions",
+                    config.inventoryHudEnabled && InventoryHUDCommon.potionHUD,
+                    this.dragging == HudTarget.POTIONS,
+                    0x50E06C75, 0xEEF08C95
+            );
+        }
+
+        int[] armBounds = getArmorBounds();
+        if (armBounds != null) {
+            drawDraggableBox(
+                    graphics, mouseX, mouseY,
+                    armBounds[0], armBounds[1], armBounds[2], armBounds[3],
+                    "Armor",
+                    config.inventoryHudEnabled && InventoryHUDCommon.armorHUD,
+                    this.dragging == HudTarget.ARMOR,
+                    0x506366F1, 0xEE8B8DFF
+            );
+        }
+
         // Bottom-center floating toolbar (Reset All + Done)
         int[] resetBtn = getResetButtonBounds();
         int[] doneBtn = getDoneButtonBounds();
@@ -136,10 +181,6 @@ public class HudLayoutEditorScreen extends Screen {
         return super.mouseClicked(event, wasHandled);
     }
 
-    /**
-     * Handles a left-click press at {@code (mouseX, mouseY)}.
-     * Returns {@code true} if the screen closed immediately (e.g. Done button).
-     */
     private boolean handlePressAt(int mouseX, int mouseY) {
         ModConfig config = ModConfig.getInstance();
 
@@ -175,6 +216,30 @@ public class HudLayoutEditorScreen extends Screen {
             this.dragOffsetY = mouseY - pos[1];
             return false;
         }
+
+        int[] inv = getInventoryBounds(config);
+        if (inv != null && isInside(mouseX, mouseY, inv)) {
+            this.dragging = HudTarget.INVENTORY;
+            this.dragOffsetX = mouseX - inv[0];
+            this.dragOffsetY = mouseY - inv[1];
+            return false;
+        }
+
+        int[] pot = getPotionsBounds();
+        if (pot != null && isInside(mouseX, mouseY, pot)) {
+            this.dragging = HudTarget.POTIONS;
+            this.dragOffsetX = mouseX - pot[0];
+            this.dragOffsetY = mouseY - pot[1];
+            return false;
+        }
+
+        int[] arm = getArmorBounds();
+        if (arm != null && isInside(mouseX, mouseY, arm)) {
+            this.dragging = HudTarget.ARMOR;
+            this.dragOffsetX = mouseX - arm[0];
+            this.dragOffsetY = mouseY - arm[1];
+            return false;
+        }
         return false;
     }
 
@@ -204,6 +269,30 @@ public class HudLayoutEditorScreen extends Screen {
                 config.posHudX = Mth.clamp(mouseX - this.dragOffsetX, 2, Math.max(2, this.width - b[2] - 2));
                 config.posHudY = Mth.clamp(mouseY - this.dragOffsetY, 2, Math.max(2, this.height - b[3] - 2));
             }
+            case INVENTORY -> {
+                int[] b = getInventoryBounds(config);
+                if (b != null) {
+                    int nx = Mth.clamp(mouseX - this.dragOffsetX, 0, Math.max(0, this.width - b[2]));
+                    int ny = Mth.clamp(mouseY - this.dragOffsetY, 0, Math.max(0, this.height - b[3]));
+                    applyInventoryPos(nx, ny);
+                }
+            }
+            case POTIONS -> {
+                int[] b = getPotionsBounds();
+                if (b != null) {
+                    int nx = Mth.clamp(mouseX - this.dragOffsetX, 0, Math.max(0, this.width - b[2]));
+                    int ny = Mth.clamp(mouseY - this.dragOffsetY, 0, Math.max(0, this.height - b[3]));
+                    applyPotionsPos(nx, ny);
+                }
+            }
+            case ARMOR -> {
+                int[] b = getArmorBounds();
+                if (b != null) {
+                    int nx = Mth.clamp(mouseX - this.dragOffsetX, 0, Math.max(0, this.width - b[2]));
+                    int ny = Mth.clamp(mouseY - this.dragOffsetY, 0, Math.max(0, this.height - b[3]));
+                    applyArmorPos(nx, ny);
+                }
+            }
             case NONE -> {
             }
         }
@@ -212,8 +301,14 @@ public class HudLayoutEditorScreen extends Screen {
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
         if ((MouseButtonMapping.isLeftClick(event.button()) || event.button() == 0) && this.dragging != HudTarget.NONE) {
+            boolean wasInv = this.dragging == HudTarget.INVENTORY
+                    || this.dragging == HudTarget.POTIONS
+                    || this.dragging == HudTarget.ARMOR;
             this.dragging = HudTarget.NONE;
             ModConfig.getInstance().save();
+            if (wasInv) {
+                saveInventoryHudConfig();
+            }
             return true;
         }
         return super.mouseReleased(event);
@@ -236,6 +331,123 @@ public class HudLayoutEditorScreen extends Screen {
         config.posHudX = -1;
         config.posHudY = -1;
         config.save();
+    }
+
+    private int[] getInventoryBounds(ModConfig config) {
+        try {
+            InventoryHUDCommon common = InventoryHUDCommon.getInstance();
+            ConfigAccess invCfg = InventoryHUDCommon.getConfig();
+            if (common == null || common.getInventoryGui() == null || invCfg == null) {
+                return null;
+            }
+            InventoryGui invGui = common.getInventoryGui();
+            float miniScale = invCfg.getInvMini() ? 0.75f : 1.0f;
+            float totalScale = miniScale * Mth.clamp(config.invHudScale, 0.5f, 2.0f);
+            int w = Math.max(24, Math.round((invCfg.getInvVert() ? 52 : 160) * totalScale));
+            int h = Math.max(24, Math.round((invCfg.getInvVert() ? 160 : 52) * totalScale));
+            int x = invGui.getX(this.width, w, invCfg.getXPos(), invCfg.getInvHalign());
+            int y = invGui.getY(this.height, h, invCfg.getYPos(), invCfg.getInvValign());
+            return new int[]{x, y, w, h};
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private int[] getPotionsBounds() {
+        try {
+            InventoryHUDCommon common = InventoryHUDCommon.getInstance();
+            ConfigAccess invCfg = InventoryHUDCommon.getConfig();
+            if (common == null || common.getInventoryGui() == null || invCfg == null) {
+                return null;
+            }
+            InventoryGui invGui = common.getInventoryGui();
+            int w = invCfg.getPotMini() ? 66 : 82;
+            int h = invCfg.getPotMini() ? 22 : 28;
+            int x = invGui.getX(this.width, w, invCfg.getXPotionPos(), invCfg.getPotHalign());
+            int y = invGui.getY(this.height, h, invCfg.getYPotionPos(), invCfg.getPotValign());
+            return new int[]{x, y, w, h};
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private int[] getArmorBounds() {
+        try {
+            InventoryHUDCommon common = InventoryHUDCommon.getInstance();
+            ConfigAccess invCfg = InventoryHUDCommon.getConfig();
+            if (common == null || common.getInventoryGui() == null || invCfg == null) {
+                return null;
+            }
+            InventoryGui invGui = common.getInventoryGui();
+            int w = 64;
+            int h = 64;
+            int x = invGui.getX(this.width, w, invCfg.getXArmPos(), invCfg.getArmHalign());
+            int y = invGui.getY(this.height, h, invCfg.getYArmPos(), invCfg.getArmValign());
+            return new int[]{x, y, w, h};
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static void applyInventoryPos(int x, int y) {
+        try {
+            ConfigAccess invCfg = InventoryHUDCommon.getConfig();
+            if (invCfg != null) {
+                invCfg.setInvHalign(WidgetAligns.HAlign.LEFT);
+                invCfg.setInvValign(WidgetAligns.VAlign.TOP);
+                invCfg.setXPos(x);
+                invCfg.setYPos(y);
+            }
+            InventoryGui.invX = x;
+            InventoryGui.invY = y;
+            InventoryGui.InvAligns = new WidgetAligns(WidgetAligns.HAlign.LEFT, WidgetAligns.VAlign.TOP);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void applyPotionsPos(int x, int y) {
+        try {
+            InventoryHUDCommon common = InventoryHUDCommon.getInstance();
+            ConfigAccess invCfg = InventoryHUDCommon.getConfig();
+            if (invCfg != null) {
+                invCfg.setPotHalign(WidgetAligns.HAlign.LEFT);
+                invCfg.setPotValign(WidgetAligns.VAlign.TOP);
+                invCfg.setXPotionPos(x);
+                invCfg.setYPotionPos(y);
+            }
+            if (common != null && common.getInventoryGui() != null && common.getInventoryGui().potionRenderer != null) {
+                common.getInventoryGui().potionRenderer.potX = x;
+                common.getInventoryGui().potionRenderer.potY = y;
+                common.getInventoryGui().potionRenderer.PotAligns = new WidgetAligns(WidgetAligns.HAlign.LEFT, WidgetAligns.VAlign.TOP);
+                common.getInventoryGui().potionRenderer.PotPosChanged();
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void applyArmorPos(int x, int y) {
+        try {
+            InventoryHUDCommon common = InventoryHUDCommon.getInstance();
+            ConfigAccess invCfg = InventoryHUDCommon.getConfig();
+            WidgetAligns aligns = new WidgetAligns(WidgetAligns.HAlign.LEFT, WidgetAligns.VAlign.TOP);
+            if (invCfg != null) {
+                invCfg.setArmHalign(WidgetAligns.HAlign.LEFT);
+                invCfg.setArmValign(WidgetAligns.VAlign.TOP);
+                invCfg.setXArmPos(x);
+                invCfg.setYArmPos(y);
+            }
+            if (common != null && common.getInventoryGui() != null) {
+                common.getInventoryGui().changeArmorPos(aligns, x, y);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void saveInventoryHudConfig() {
+        try {
+            InventoryHUDCommon.saveConfig();
+        } catch (Throwable ignored) {
+        }
     }
 
     private int[] getKeybindsBounds(ModConfig config) {
