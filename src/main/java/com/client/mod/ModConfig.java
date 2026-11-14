@@ -274,6 +274,13 @@ public class ModConfig {
         }
     }
 
+    public void resetDefaultAutoCraftTargets() {
+        this.autoCrafterTargets = new HashSet<>(Arrays.asList(
+                "iron_block", "gold_block", "diamond_block", "emerald_block",
+                "lapis_block", "redstone_block", "coal_block", "copper_block"
+        ));
+    }
+
     // Right-Shift ClickGUI Tab position & state
     public int guiWindowX = 480;
     public int guiWindowY = 34;
@@ -559,11 +566,8 @@ public class ModConfig {
         if (this.fullbrightMode < 0 || this.fullbrightMode > 2) this.fullbrightMode = 0;
         if (this.zoomFactor < 1.5f || this.zoomFactor > 20.0f) this.zoomFactor = 4.0f;
         if (this.autoCrafterDelay < 0 || this.autoCrafterDelay > 10) this.autoCrafterDelay = 0;
-        if (this.autoCrafterTargets == null || this.autoCrafterTargets.isEmpty()) {
-            this.autoCrafterTargets = new HashSet<>(Arrays.asList(
-                    "iron_block", "gold_block", "diamond_block", "emerald_block",
-                    "lapis_block", "redstone_block", "coal_block", "copper_block"
-            ));
+        if (this.autoCrafterTargets == null) {
+            resetDefaultAutoCraftTargets();
         }
         if (this.fastBreakSpeed < 0.5f || this.fastBreakSpeed > 5.0f) this.fastBreakSpeed = 1.15f;
         if (this.fastBreakMode < 0 || this.fastBreakMode > 1) this.fastBreakMode = 1;

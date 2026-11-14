@@ -151,6 +151,12 @@ public class AutoCrafterHandler {
     }
 
     private static boolean matchesTarget(RecipeDisplayEntry entry, String resultId, ModConfig config) {
+        if (config.isAutoCraftTargetEnabled(resultId)) {
+            if (wouldLoopSingleIngredient(entry, config)) {
+                return false;
+            }
+            return true;
+        }
         for (CraftTarget target : TARGETS) {
             if (!config.isAutoCraftTargetEnabled(target.id())) continue;
 
@@ -169,6 +175,20 @@ public class AutoCrafterHandler {
             }
         }
         return false;
+    }
+
+    private static boolean wouldLoopSingleIngredient(RecipeDisplayEntry entry, ModConfig config) {
+        return entry.craftingRequirements().map(reqs -> {
+            if (reqs.size() != 1) {
+                return false;
+            }
+            return reqs.get(0).items().anyMatch(h -> {
+                String regName = h.getRegisteredName();
+                int colon = regName.indexOf(':');
+                String path = colon >= 0 ? regName.substring(colon + 1) : regName;
+                return config.isAutoCraftTargetEnabled(path);
+            });
+        }).orElse(false);
     }
 
     private static boolean isFromNugget(RecipeDisplayEntry entry) {

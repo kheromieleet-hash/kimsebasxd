@@ -374,37 +374,62 @@ public final class ModernModuleSettings {
     }
 
     private static List<Control> buildAutoCrafterControls(ModConfig cfg, Actions actions) {
-        List<ChipOption> chips = new ArrayList<>(AutoCrafterHandler.TARGETS.size());
-        for (AutoCrafterHandler.CraftTarget target : AutoCrafterHandler.TARGETS) {
+        List<String> selectedIds = new ArrayList<>();
+        if (cfg.autoCrafterTargets != null) {
+            selectedIds.addAll(cfg.autoCrafterTargets);
+            selectedIds.sort(String.CASE_INSENSITIVE_ORDER);
+        }
+
+        List<ChipOption> chips = new ArrayList<>(selectedIds.size());
+        for (String id : selectedIds) {
+            String label = resolveItemShortLabel(id);
             chips.add(new ChipOption(
-                    target.id(),
-                    target.label(),
-                    () -> cfg.isAutoCraftTargetEnabled(target.id()),
+                    id,
+                    label,
+                    () -> cfg.isAutoCraftTargetEnabled(id),
                     () -> {
-                        cfg.toggleAutoCraftTarget(target.id());
+                        cfg.toggleAutoCraftTarget(id);
                         actions.persist(false);
                     }
             ));
         }
 
-        return List.of(
-                intSlider("autoCrafterDelay", "Delay", 0, 5, "t",
-                        () -> cfg.autoCrafterDelay, v -> cfg.autoCrafterDelay = v),
-                toggle("Close When Done", () -> cfg.autoCrafterCloseWhenDone, v -> cfg.autoCrafterCloseWhenDone = v, actions, false),
-                new ActionControl(
-                        () -> {
-                            boolean allSelected = cfg.autoCrafterTargets != null
-                                    && cfg.autoCrafterTargets.size() >= AutoCrafterHandler.TARGETS.size();
-                            return allSelected ? "Deselect All" : "Select All";
-                        },
-                        () -> {
-                            boolean allSelected = cfg.autoCrafterTargets != null
-                                    && cfg.autoCrafterTargets.size() >= AutoCrafterHandler.TARGETS.size();
-                            cfg.setAllAutoCraftTargets(!allSelected);
-                            actions.persist(false);
-                        }),
-                new ChipsControl(chips)
-        );
+        List<Control> controls = new ArrayList<>();
+        controls.add(intSlider("autoCrafterDelay", "Delay", 0, 5, "t",
+                () -> cfg.autoCrafterDelay, v -> cfg.autoCrafterDelay = v));
+        controls.add(toggle("Close When Done", () -> cfg.autoCrafterCloseWhenDone, v -> cfg.autoCrafterCloseWhenDone = v, actions, false));
+        controls.add(new ActionControl(
+                () -> {
+                    int n = cfg.autoCrafterTargets != null ? cfg.autoCrafterTargets.size() : 0;
+                    return "Select Items (" + n + ")...";
+                },
+                () -> {
+                    net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+                    mc.gui.setScreen(new AutoCrafterItemPickerScreen(mc.gui.screen()));
+                }));
+        if (!chips.isEmpty()) {
+            controls.add(new ChipsControl(chips));
+        }
+        return controls;
+    }
+
+    private static String resolveItemShortLabel(String itemId) {
+        try {
+            net.minecraft.resources.Identifier key = net.minecraft.resources.Identifier.withDefaultNamespace(itemId);
+            if (net.minecraft.core.registries.BuiltInRegistries.ITEM.containsKey(key)) {
+                net.minecraft.world.item.Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(key);
+                if (item != null && item != net.minecraft.world.item.Items.AIR) {
+                    return new net.minecraft.world.item.ItemStack(item).getHoverName().getString();
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        for (AutoCrafterHandler.CraftTarget target : AutoCrafterHandler.TARGETS) {
+            if (target.id().equals(itemId)) {
+                return target.label();
+            }
+        }
+        return itemId.replace('_', ' ');
     }
 
     private static List<Control> buildViewmodelControls(ModConfig cfg, Actions actions) {
