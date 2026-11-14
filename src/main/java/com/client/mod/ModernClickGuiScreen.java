@@ -14,6 +14,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 
+import java.nio.file.Path;
 import java.util.*;
 
 /**
@@ -88,6 +89,13 @@ public class ModernClickGuiScreen extends Screen {
     private EditBox macroNameBox;
     private EditBox macroCmdBox;
 
+    // Config profiles state
+    private EditBox profileNameBox;
+    private List<ConfigProfileManager.ProfileSummary> cachedProfiles = List.of();
+    private String profileStatusText = null;
+    private boolean profileStatusError = false;
+    private long profileStatusUntilMs = 0L;
+
     public ModernClickGuiScreen(Screen parent) {
         super(Component.literal("Sestia ClickGUI"));
         this.parent = parent;
@@ -153,6 +161,15 @@ public class ModernClickGuiScreen extends Screen {
         this.macroCmdBox.setMaxLength(128);
         this.macroCmdBox.visible = false;
         this.addRenderableWidget(this.macroCmdBox);
+
+        this.profileNameBox = new EditBox(this.font, 0, 0, 180, 20, Component.literal("Profile Name"));
+        this.profileNameBox.setHint(Component.literal("e.g. PvP, Survival, Mine"));
+        this.profileNameBox.setBordered(false);
+        this.profileNameBox.setMaxLength(32);
+        this.profileNameBox.visible = false;
+        this.addRenderableWidget(this.profileNameBox);
+
+        refreshProfilesList();
     }
 
     @Override
@@ -194,16 +211,20 @@ public class ModernClickGuiScreen extends Screen {
 
         boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
         if (showingModules) {
+            setSecondaryInputsVisible(false, false);
             renderModulesWorkspace(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH, dt);
         } else {
-            graphics.enableScissor(contentX, contentY, contentX + contentW, contentY + contentH);
             if (this.activeNav == NavTab.MACROS) {
+                setSecondaryInputsVisible(this.editingMacroIndex != -1, false);
+                graphics.enableScissor(contentX, contentY, contentX + contentW, contentY + contentH);
                 renderMacrosView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH, dt);
+                graphics.disableScissor();
+                renderScrollbarAt(graphics, contentX + contentW - 6, contentY, contentH, this.contentTotalHeight, this.scrollAmount);
             } else if (this.activeNav == NavTab.SETTINGS) {
-                renderClientSettingsView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH, dt);
+                setSecondaryInputsVisible(false, true);
+                renderProfilesView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH);
+                renderScrollbarAt(graphics, contentX + contentW - 6, contentY, contentH, this.contentTotalHeight, this.scrollAmount);
             }
-            graphics.disableScissor();
-            renderScrollbarAt(graphics, contentX + contentW - 6, contentY, contentH, this.contentTotalHeight, this.scrollAmount);
         }
 
         super.extractRenderState(graphics, mouseX, mouseY, delta);
@@ -619,29 +640,6 @@ public class ModernClickGuiScreen extends Screen {
         }
     }
 
-    private int renderSettingsToggleCard(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int x, int y, int w, String title, String desc, boolean active, float dt) {
-        int cardH = 40;
-        boolean hovered = isInside(mouseX, mouseY, x, y, w, cardH);
-        float hoverT = animateHover("cfg:" + title, hovered, dt);
-
-        if (active) {
-            JelloTheme.drawGlowShadow(graphics, x, y, x + w, y + cardH, 10, 0x3AFF1E2D, 3);
-        }
-        int bg = active
-                ? JelloTheme.lerpColor(JelloTheme.CARD_ACTIVE, JelloTheme.CARD_ACTIVE_HOVER, hoverT)
-                : JelloTheme.lerpColor(JelloTheme.CARD_INACTIVE, JelloTheme.CARD_INACTIVE_HOVER, hoverT);
-        int border = active
-                ? JelloTheme.lerpColor(JelloTheme.BORDER_ACTIVE_SOFT, JelloTheme.ACCENT_HOVER, hoverT)
-                : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, 0x5094A3B8, hoverT);
-        JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + cardH, 10, bg, border);
-
-        graphics.text(this.font, Component.literal(title), x + 12, y + 7, active ? 0xFFFFFFFF : 0xFFE2E8F0, active);
-        graphics.text(this.font, Component.literal(fitText(desc, w - 58)), x + 12, y + 21, JelloTheme.TEXT_MUTED, false);
-
-        renderSmoothSwitch(graphics, mouseX, mouseY, x + w - 42, y + (cardH - 16) / 2, 32, 16, "cfg:" + title, active, dt);
-        return y + cardH + 7;
-    }
-
     // ==========================================
     // MACROS & KEYBINDS VIEW
     // ==========================================
@@ -831,45 +829,175 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     // ==========================================
-    // CLIENT SETTINGS VIEW
+    // CONFIG PROFILES VIEW (SAVE / LOAD / EXPORT / IMPORT)
     // ==========================================
-    private record ClientSettingItem(
-            String title,
-            String desc,
-            java.util.function.BooleanSupplier getter,
-            Runnable onToggle
+    private record ProfileLayout(
+            int leftColX, int leftColW,
+            int rightColX, int rightColY, int rightColW, int rightColH,
+            int innerY, int listStartY,
+            int folderBtnX, int folderBtnY, int folderBtnW, int folderBtnH,
+            int boxX, int boxW, int inputBoxY,
+            int saveBtnY, int exportCodeBtnY, int exportJsonBtnY, int importBtnY, int btnH
     ) {}
 
-    private List<ClientSettingItem> getClientSettingItems(ModConfig config) {
-        return List.of(
-                new ClientSettingItem("Toggle Notifications", "Show [Sestia] overlay alert when toggling modules via keybind",
-                        () -> config.toggleNotifications,
-                        () -> config.toggleNotifications = !config.toggleNotifications),
-                new ClientSettingItem("Infinite Chat History", "Remove chat line limits and preserve all messages",
-                        () -> config.chatInfinite,
-                        () -> config.chatInfinite = !config.chatInfinite),
-                new ClientSettingItem("Anti Chat Clear", "Prevent servers from clearing your chat buffer",
-                        () -> config.chatAntiClear,
-                        () -> config.chatAntiClear = !config.chatAntiClear)
+    private ProfileLayout computeProfileLayout(int contentX, int contentY, int contentW, int contentH) {
+        int innerY = contentY + 12;
+        int leftColW = Math.max(255, contentW - 255);
+        int leftColX = contentX + 14;
+        int rightColX = leftColX + leftColW + 12;
+        int rightColY = innerY - 2;
+        int rightColW = contentW - leftColW - 38;
+        int rightColH = contentH - 24;
+        int listStartY = innerY + 24;
+
+        int folderBtnW = 74;
+        int folderBtnH = 16;
+        int folderBtnX = leftColX + leftColW - folderBtnW;
+        int folderBtnY = innerY - 3;
+
+        int boxX = rightColX + 12;
+        int boxW = Math.max(120, rightColW - 24);
+        int inputBoxY = rightColY + 41;
+        int saveBtnY = rightColY + 67;
+        int exportCodeBtnY = rightColY + 112;
+        int exportJsonBtnY = rightColY + 139;
+        int importBtnY = rightColY + 166;
+        int btnH = 22;
+
+        return new ProfileLayout(
+                leftColX, leftColW,
+                rightColX, rightColY, rightColW, rightColH,
+                innerY, listStartY,
+                folderBtnX, folderBtnY, folderBtnW, folderBtnH,
+                boxX, boxW, inputBoxY,
+                saveBtnY, exportCodeBtnY, exportJsonBtnY, importBtnY, btnH
         );
     }
 
-    private void renderClientSettingsView(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, int contentH, float dt) {
-        int topY = (int) (contentY + 12 - this.scrollAmount);
-        ModernIcons.drawSlidersIcon(graphics, contentX + 14, topY - 1, JelloTheme.ACCENT);
-        graphics.text(this.font, Component.literal("§lCLIENT CONFIGURATION"), contentX + 29, topY, JelloTheme.TEXT, false);
-        JelloTheme.fillHorizontalGradient(graphics, contentX + 14, topY + 13, contentX + 180, topY + 14, JelloTheme.ACCENT, 0x55FF424E);
+    private void renderProfilesView(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, int contentH) {
+        ProfileLayout layout = computeProfileLayout(contentX, contentY, contentW, contentH);
 
-        ModConfig config = ModConfig.getInstance();
-        int cardY = topY + 22;
-        int colW = contentW - 28;
+        ModernIcons.drawSlidersIcon(graphics, layout.leftColX(), layout.innerY() - 1, JelloTheme.ACCENT);
+        graphics.text(this.font, Component.literal("§lCONFIG PROFILES"), layout.leftColX() + 15, layout.innerY(), JelloTheme.TEXT, false);
+        JelloTheme.fillHorizontalGradient(graphics, layout.leftColX(), layout.innerY() + 13, layout.leftColX() + 155, layout.innerY() + 14, JelloTheme.ACCENT, 0x55FF424E);
 
-        for (ClientSettingItem item : getClientSettingItems(config)) {
-            cardY = renderSettingsToggleCard(graphics, mouseX, mouseY, contentX + 14, cardY, colW,
-                    item.title(), item.desc(), item.getter().getAsBoolean(), dt);
+        boolean folderHov = isInside(mouseX, mouseY, layout.folderBtnX(), layout.folderBtnY(), layout.folderBtnW(), layout.folderBtnH());
+        JelloTheme.fillRoundedCard(graphics, layout.folderBtnX(), layout.folderBtnY(), layout.folderBtnX() + layout.folderBtnW(), layout.folderBtnY() + layout.folderBtnH(),
+                4, folderHov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE, folderHov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+        graphics.centeredText(this.font, Component.literal("Open Folder"), layout.folderBtnX() + layout.folderBtnW() / 2, layout.folderBtnY() + 4,
+                folderHov ? JelloTheme.TEXT : JelloTheme.TEXT_DIM);
+
+        int cardH = 46;
+        int cardGap = 8;
+        this.contentTotalHeight = Math.max(contentH, 34 + this.cachedProfiles.size() * (cardH + cardGap));
+
+        graphics.enableScissor(layout.leftColX() - 2, layout.listStartY() - 2, layout.leftColX() + layout.leftColW() + 2, contentY + contentH);
+        if (this.cachedProfiles.isEmpty()) {
+            int emptyH = 82;
+            JelloTheme.fillRoundedCard(graphics, layout.leftColX(), layout.listStartY(), layout.leftColX() + layout.leftColW(), layout.listStartY() + emptyH,
+                    7, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
+            graphics.centeredText(this.font, Component.literal("No saved profiles yet."), layout.leftColX() + layout.leftColW() / 2, layout.listStartY() + 24, JelloTheme.TEXT);
+            graphics.centeredText(this.font, Component.literal("Save your active modules, binds & macros on the right."), layout.leftColX() + layout.leftColW() / 2, layout.listStartY() + 42, JelloTheme.TEXT_MUTED);
+        } else {
+            for (int i = 0; i < this.cachedProfiles.size(); i++) {
+                ConfigProfileManager.ProfileSummary p = this.cachedProfiles.get(i);
+                int cardY = layout.listStartY() + i * (cardH + cardGap) - (int) this.scrollAmount;
+                if (cardY + cardH < layout.listStartY() || cardY > contentY + contentH) {
+                    continue;
+                }
+
+                boolean cardHov = isInside(mouseX, mouseY, layout.leftColX(), cardY, layout.leftColW(), cardH);
+                int cardBg = cardHov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE;
+                int borderColor = cardHov ? 0xAAFF1E2D : JelloTheme.BORDER_SUBTLE;
+                JelloTheme.fillRoundedCard(graphics, layout.leftColX(), cardY, layout.leftColX() + layout.leftColW(), cardY + cardH, 7, cardBg, borderColor);
+
+                int btnY = cardY + 14;
+                int delBtnX = layout.leftColX() + layout.leftColW() - 28;
+                int copyBtnX = delBtnX - 46;
+                int loadBtnX = copyBtnX - 46;
+                int textMaxW = Math.max(60, loadBtnX - layout.leftColX() - 18);
+
+                graphics.text(this.font, Component.literal(fitText(p.name(), textMaxW)), layout.leftColX() + 12, cardY + 9, JelloTheme.TEXT, false);
+                String meta = p.activeCount() + " Active  •  " + p.bindCount() + " Binds  •  " + p.macroCount() + " Macros";
+                graphics.text(this.font, Component.literal(fitText(meta, textMaxW)), layout.leftColX() + 12, cardY + 25, JelloTheme.TEXT_MUTED, false);
+
+                boolean loadHov = isInside(mouseX, mouseY, loadBtnX, btnY, 40, 18);
+                JelloTheme.fillRoundedCard(graphics, loadBtnX, btnY, loadBtnX + 40, btnY + 18, 4,
+                        loadHov ? JelloTheme.ACCENT : 0x33FF1E2D, loadHov ? JelloTheme.ACCENT_HOVER : 0x88FF1E2D);
+                graphics.centeredText(this.font, Component.literal("Load"), loadBtnX + 20, btnY + 5, 0xFFFFFFFF);
+
+                boolean copyHov = isInside(mouseX, mouseY, copyBtnX, btnY, 40, 18);
+                JelloTheme.fillRoundedCard(graphics, copyBtnX, btnY, copyBtnX + 40, btnY + 18, 4,
+                        copyHov ? 0x44FF1E2D : 0xFF141419, copyHov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+                graphics.centeredText(this.font, Component.literal("Copy"), copyBtnX + 20, btnY + 5, copyHov ? 0xFFFFFFFF : JelloTheme.TEXT_DIM);
+
+                boolean delHov = isInside(mouseX, mouseY, delBtnX, btnY, 22, 18);
+                JelloTheme.fillRoundedCard(graphics, delBtnX, btnY, delBtnX + 22, btnY + 18, 4,
+                        delHov ? 0x77FF1E2D : 0xFF141419, delHov ? JelloTheme.ACCENT_HOVER : JelloTheme.BORDER_SUBTLE);
+                ModernIcons.drawCloseIcon(graphics, delBtnX + 11, btnY + 9, delHov ? 0xFFFFFFFF : 0xFFFF6666);
+            }
+        }
+        graphics.disableScissor();
+
+        renderProfileActionsPanel(graphics, mouseX, mouseY, layout);
+    }
+
+    private void renderProfileActionsPanel(GuiGraphicsExtractor graphics, int mouseX, int mouseY, ProfileLayout layout) {
+        int x = layout.rightColX();
+        int y = layout.rightColY();
+        int w = layout.rightColW();
+        int h = layout.rightColH();
+
+        JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + h, 8, JelloTheme.CONTAINER_BG, JelloTheme.BORDER_SUBTLE);
+
+        graphics.text(this.font, Component.literal("§lPROFILE MANAGER"), x + 12, y + 10, JelloTheme.TEXT, false);
+        JelloTheme.fillHorizontalGradient(graphics, x + 12, y + 23, x + 145, y + 24, JelloTheme.ACCENT, 0x33FF5252);
+
+        graphics.text(this.font, Component.literal("Profile Name:"), layout.boxX(), y + 30, JelloTheme.TEXT_MUTED, false);
+        boolean nameFocus = this.profileNameBox != null && this.profileNameBox.isFocused();
+        JelloTheme.fillRoundedCard(graphics, layout.boxX(), layout.inputBoxY(), layout.boxX() + layout.boxW(), layout.inputBoxY() + 20,
+                5, 0xFF0A0A0F, nameFocus ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+        if (this.profileNameBox != null) {
+            this.profileNameBox.setX(layout.boxX() + 5);
+            this.profileNameBox.setY(layout.inputBoxY() + 6);
+            this.profileNameBox.setWidth(layout.boxW() - 10);
         }
 
-        this.contentTotalHeight = cardY - contentY + (int) this.scrollAmount + 20;
+        renderProfileButton(graphics, mouseX, mouseY, layout.boxX(), layout.saveBtnY(), layout.boxW(), layout.btnH(), "+ Save Current Config", true);
+
+        graphics.text(this.font, Component.literal("EXPORT & IMPORT"), layout.boxX(), y + 98, JelloTheme.TEXT_MUTED, false);
+        renderProfileButton(graphics, mouseX, mouseY, layout.boxX(), layout.exportCodeBtnY(), layout.boxW(), layout.btnH(), "Export Share Code (Clipboard)", false);
+        renderProfileButton(graphics, mouseX, mouseY, layout.boxX(), layout.exportJsonBtnY(), layout.boxW(), layout.btnH(), "Export JSON (Clipboard)", false);
+        renderProfileButton(graphics, mouseX, mouseY, layout.boxX(), layout.importBtnY(), layout.boxW(), layout.btnH(), "Import from Clipboard", false);
+
+        int footerY = layout.importBtnY() + layout.btnH() + 8;
+        if (this.profileStatusText != null && System.currentTimeMillis() < this.profileStatusUntilMs) {
+            int stBg = this.profileStatusError ? 0x33FF1E2D : 0x2410B981;
+            int stBorder = this.profileStatusError ? 0xAAFF1E2D : 0x5510B981;
+            int stColor = this.profileStatusError ? 0xFFFF8089 : 0xFF6EE7B7;
+            JelloTheme.fillRoundedCard(graphics, layout.boxX(), footerY, layout.boxX() + layout.boxW(), footerY + 20, 5, stBg, stBorder);
+            graphics.centeredText(this.font, Component.literal(fitText(this.profileStatusText, layout.boxW() - 10)),
+                    layout.boxX() + layout.boxW() / 2, footerY + 6, stColor);
+            footerY += 26;
+        }
+
+        if (footerY + 22 <= y + h) {
+            graphics.text(this.font, Component.literal(fitText("Saves all active modules, sliders,", layout.boxW())), layout.boxX(), footerY + 2, 0xFF64748B, false);
+            graphics.text(this.font, Component.literal(fitText("keybinds, macros & HUD settings.", layout.boxW())), layout.boxX(), footerY + 13, 0xFF64748B, false);
+        }
+    }
+
+    private void renderProfileButton(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int x, int y, int w, int h, String label, boolean primary) {
+        boolean hov = isInside(mouseX, mouseY, x, y, w, h);
+        if (primary) {
+            JelloTheme.fillRounded(graphics, x, y, x + w, y + h, 5, hov ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT);
+        } else {
+            JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + h, 5,
+                    hov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE,
+                    hov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+        }
+        graphics.centeredText(this.font, Component.literal(fitText(label, w - 10)), x + w / 2, y + 7,
+                (primary || hov) ? 0xFFFFFFFF : JelloTheme.TEXT_DIM);
     }
 
     // ==========================================
@@ -974,9 +1102,13 @@ public class ModernClickGuiScreen extends Screen {
             return true;
         }
 
-        // Unfocus header search box when clicking anywhere outside it
+        // Unfocus secondary boxes when clicking outside them
         if (this.searchBox != null && !isInside(mouseX, mouseY, searchBoxX, searchBoxY, SEARCH_BOX_WIDTH, SEARCH_BOX_HEIGHT)) {
             this.searchBox.setFocused(false);
+        }
+        if (this.profileNameBox != null && (!this.profileNameBox.visible || !isInside(mouseX, mouseY,
+                this.profileNameBox.getX() - 5, this.profileNameBox.getY() - 6, this.profileNameBox.getWidth() + 10, 20))) {
+            this.profileNameBox.setFocused(false);
         }
 
         // Close [X] button in header
@@ -1007,9 +1139,12 @@ public class ModernClickGuiScreen extends Screen {
                 if (this.activeNav != NavTab.MACROS) {
                     this.editingMacroIndex = -1;
                     this.listeningMacroKey = false;
-                    if (this.macroNameBox != null) this.macroNameBox.visible = false;
-                    if (this.macroCmdBox != null) this.macroCmdBox.visible = false;
                 }
+                if (this.activeNav == NavTab.SETTINGS) {
+                    refreshProfilesList();
+                }
+                setSecondaryInputsVisible(this.activeNav == NavTab.MACROS && this.editingMacroIndex != -1,
+                        this.activeNav == NavTab.SETTINGS);
                 playClickSound();
                 return true;
             }
@@ -1032,7 +1167,7 @@ public class ModernClickGuiScreen extends Screen {
                     return true;
                 }
             } else if (this.activeNav == NavTab.SETTINGS) {
-                if (handleClientSettingsClick(mouseX, mouseY, button, contentX, contentY, contentW)) {
+                if (handleProfilesClick(mouseX, mouseY, button, contentX, contentY, contentW, contentH)) {
                     return true;
                 }
             }
@@ -1356,24 +1491,170 @@ public class ModernClickGuiScreen extends Screen {
         if (this.macroCmdBox != null) this.macroCmdBox.visible = false;
     }
 
-    private boolean handleClientSettingsClick(int mouseX, int mouseY, int button, int contentX, int contentY, int contentW) {
+    private boolean handleProfilesClick(int mouseX, int mouseY, int button, int contentX, int contentY, int contentW, int contentH) {
         if (!MouseButtonMapping.isLeftClick(button)) return false;
+        ProfileLayout layout = computeProfileLayout(contentX, contentY, contentW, contentH);
         ModConfig config = ModConfig.getInstance();
-        int topY = (int) (contentY + 12 - this.scrollAmount);
-        int cardY = topY + 22;
-        int cardH = 40;
-        int colW = contentW - 28;
+        ModernModuleSettings.InventoryBridge inv = this.settingsActions.inventory();
+        Path profilesDir = ConfigProfileManager.getDefaultProfilesDir();
 
-        for (ClientSettingItem item : getClientSettingItems(config)) {
-            if (isInside(mouseX, mouseY, contentX + 14, cardY, colW, cardH)) {
-                item.onToggle().run();
-                config.save();
+        if (isInside(mouseX, mouseY, layout.folderBtnX(), layout.folderBtnY(), layout.folderBtnW(), layout.folderBtnH())) {
+            boolean opened = ConfigProfileManager.openProfilesFolder(profilesDir);
+            setProfileStatus(opened ? "Opened profiles folder!" : "Could not open folder", !opened);
+            playClickSound();
+            return true;
+        }
+
+        if (isInside(mouseX, mouseY, layout.boxX(), layout.saveBtnY(), layout.boxW(), layout.btnH())) {
+            String rawName = this.profileNameBox != null ? this.profileNameBox.getValue() : "";
+            String finalName = ConfigProfileManager.normalizeProfileName(rawName);
+            try {
+                ConfigProfileManager.saveProfile(profilesDir, finalName, config, inv, countActiveModules());
+                refreshProfilesList();
+                setProfileStatus("Saved '" + finalName + "'!", false);
+            } catch (Exception e) {
+                setProfileStatus("Failed to save profile", true);
+            }
+            playClickSound();
+            return true;
+        }
+
+        if (isInside(mouseX, mouseY, layout.boxX(), layout.exportCodeBtnY(), layout.boxW(), layout.btnH())) {
+            String rawName = this.profileNameBox != null ? this.profileNameBox.getValue() : "";
+            String code = ConfigProfileManager.exportShareCode(rawName, config, inv, countActiveModules());
+            setClipboardSafe(code);
+            setProfileStatus("Share code copied!", false);
+            playClickSound();
+            return true;
+        }
+
+        if (isInside(mouseX, mouseY, layout.boxX(), layout.exportJsonBtnY(), layout.boxW(), layout.btnH())) {
+            String rawName = this.profileNameBox != null ? this.profileNameBox.getValue() : "";
+            String json = ConfigProfileManager.exportJson(rawName, config, inv, countActiveModules());
+            setClipboardSafe(json);
+            setProfileStatus("Profile JSON copied!", false);
+            playClickSound();
+            return true;
+        }
+
+        if (isInside(mouseX, mouseY, layout.boxX(), layout.importBtnY(), layout.boxW(), layout.btnH())) {
+            try {
+                String clip = getClipboardSafe();
+                ConfigProfileManager.ProfileEnvelope env = ConfigProfileManager.parseImportPayload(clip);
+                String customName = this.profileNameBox != null ? this.profileNameBox.getValue().trim() : "";
+                if (!customName.isEmpty()) {
+                    env.name = customName;
+                }
+                applyProfileEnvelope(env, config, inv);
+                env.activeCount = countActiveModules();
+                ConfigProfileManager.saveEnvelope(profilesDir, env);
+                refreshProfilesList();
+                setProfileStatus("Imported '" + env.name + "'!", false);
+            } catch (Exception e) {
+                setProfileStatus("Invalid clipboard profile", true);
+            }
+            playClickSound();
+            return true;
+        }
+
+        int cardH = 46;
+        int cardGap = 8;
+        for (int i = 0; i < this.cachedProfiles.size(); i++) {
+            ConfigProfileManager.ProfileSummary p = this.cachedProfiles.get(i);
+            int cardY = layout.listStartY() + i * (cardH + cardGap) - (int) this.scrollAmount;
+            if (cardY + cardH < layout.listStartY() || cardY > contentY + contentH) {
+                continue;
+            }
+            if (!isInside(mouseX, mouseY, layout.leftColX(), cardY, layout.leftColW(), cardH)) {
+                continue;
+            }
+
+            int btnY = cardY + 14;
+            int delBtnX = layout.leftColX() + layout.leftColW() - 28;
+            int copyBtnX = delBtnX - 46;
+            int loadBtnX = copyBtnX - 46;
+
+            if (isInside(mouseX, mouseY, delBtnX, btnY, 22, 18)) {
+                try {
+                    ConfigProfileManager.deleteProfile(p.file());
+                    refreshProfilesList();
+                    setProfileStatus("Deleted '" + p.name() + "'", false);
+                } catch (Exception e) {
+                    setProfileStatus("Could not delete profile", true);
+                }
                 playClickSound();
                 return true;
             }
-            cardY += cardH + 7;
+
+            if (isInside(mouseX, mouseY, copyBtnX, btnY, 40, 18)) {
+                try {
+                    ConfigProfileManager.ProfileEnvelope env = ConfigProfileManager.loadProfileFile(p.file());
+                    setClipboardSafe(ConfigProfileManager.exportShareCode(env));
+                    setProfileStatus("Copied '" + p.name() + "' code!", false);
+                } catch (Exception e) {
+                    setProfileStatus("Failed to export profile", true);
+                }
+                playClickSound();
+                return true;
+            }
+
+            if (isInside(mouseX, mouseY, loadBtnX, btnY, 40, 18)) {
+                try {
+                    ConfigProfileManager.ProfileEnvelope env = ConfigProfileManager.loadProfileFile(p.file());
+                    applyProfileEnvelope(env, config, inv);
+                    setProfileStatus("Loaded '" + p.name() + "'!", false);
+                } catch (Exception e) {
+                    setProfileStatus("Failed to load profile", true);
+                }
+                playClickSound();
+                return true;
+            }
+            return false;
         }
         return false;
+    }
+
+    private void applyProfileEnvelope(
+            ConfigProfileManager.ProfileEnvelope env,
+            ModConfig config,
+            ModernModuleSettings.InventoryBridge inv
+    ) {
+        ConfigProfileManager.applyProfile(env, config, inv, () -> {
+            config.save();
+            ModernModuleCardUi.flushInventoryConfigSave();
+            ModConfig.reloadChunks();
+        });
+    }
+
+    private void refreshProfilesList() {
+        this.cachedProfiles = ConfigProfileManager.listProfiles(ConfigProfileManager.getDefaultProfilesDir());
+    }
+
+    private void setSecondaryInputsVisible(boolean showMacroInputs, boolean showProfileInput) {
+        if (this.macroNameBox != null) this.macroNameBox.visible = showMacroInputs;
+        if (this.macroCmdBox != null) this.macroCmdBox.visible = showMacroInputs;
+        if (this.profileNameBox != null) this.profileNameBox.visible = showProfileInput;
+    }
+
+    private void setProfileStatus(String text, boolean isError) {
+        this.profileStatusText = text;
+        this.profileStatusError = isError;
+        this.profileStatusUntilMs = System.currentTimeMillis() + 3500L;
+    }
+
+    private static void setClipboardSafe(String text) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc != null && mc.keyboardHandler != null) {
+            mc.keyboardHandler.setClipboard(text != null ? text : "");
+        }
+    }
+
+    private static String getClipboardSafe() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc != null && mc.keyboardHandler != null) {
+            return mc.keyboardHandler.getClipboard();
+        }
+        return "";
     }
 
     @Override
@@ -1459,6 +1740,10 @@ public class ModernClickGuiScreen extends Screen {
         if (event.key() == InputConstants.KEY_ESCAPE) {
             if (this.searchBox != null && this.searchBox.isFocused() && !this.searchQuery.isEmpty()) {
                 this.searchBox.setValue("");
+                return true;
+            }
+            if (this.profileNameBox != null && this.profileNameBox.isFocused()) {
+                this.profileNameBox.setFocused(false);
                 return true;
             }
             if (this.editingMacroIndex != -1) {
