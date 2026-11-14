@@ -180,7 +180,6 @@ public final class ModernModuleSettings {
                     toggle("Swap Back", () -> cfg.autoToolSwapBack, v -> cfg.autoToolSwapBack = v, actions, false)
             );
             case "Auto Crafter" -> buildAutoCrafterControls(cfg, actions);
-            case "Better Chat" -> buildBetterChatControls(cfg, actions);
             case "Backtrack" -> List.of(
                     intSlider("backtrackDelay", "Max Delay", 40, 300, "ms",
                             () -> cfg.backtrackDelay, v -> cfg.backtrackDelay = v)
@@ -406,16 +405,6 @@ public final class ModernModuleSettings {
                             actions.persist(false);
                         }),
                 new ChipsControl(chips)
-        );
-    }
-
-    private static List<Control> buildBetterChatControls(ModConfig cfg, Actions actions) {
-        return List.of(
-                toggle("Infinite History", () -> cfg.chatInfinite, v -> cfg.chatInfinite = v, actions, false),
-                toggle("Anti Clear", () -> cfg.chatAntiClear, v -> cfg.chatAntiClear = v, actions, false),
-                toggle("Click to Copy", () -> cfg.chatClickCopy, v -> cfg.chatClickCopy = v, actions, false),
-                toggle("Timestamps", () -> cfg.chatTimestamps, v -> cfg.chatTimestamps = v, actions, false),
-                toggle("Compact Chat", () -> cfg.compactChat, v -> cfg.compactChat = v, actions, false)
         );
     }
 

@@ -281,18 +281,6 @@ public class ClickGuiScreen {
                 }
         ));
 
-        // 15. Better Chat (Misc)
-        MODULES.add(new ModuleEntry(
-                "Better Chat", Category.MISC,
-                () -> config.chatInfinite || config.chatAntiClear || config.chatClickCopy,
-                val -> {
-                    config.chatInfinite = val;
-                    config.chatAntiClear = val;
-                    config.chatClickCopy = val;
-                    config.save();
-                }
-        ));
-
         // TrueSight (Render)
         MODULES.add(new ModuleEntry(
                 "TrueSight", Category.RENDER,
@@ -1153,22 +1141,6 @@ public class ClickGuiScreen {
                 drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
                         "Only With Tool: " + (config.autoBreakOnlyTool ? "ON" : "OFF"), config.autoBreakOnlyTool);
             }
-            case "Better Chat" -> {
-                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
-                        "Infinite History: " + (config.chatInfinite ? "ON" : "OFF"), config.chatInfinite);
-                rowY += 22;
-                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
-                        "Anti Clear: " + (config.chatAntiClear ? "ON" : "OFF"), config.chatAntiClear);
-                rowY += 22;
-                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
-                        "Click to Copy: " + (config.chatClickCopy ? "ON" : "OFF"), config.chatClickCopy);
-                rowY += 22;
-                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
-                        "Timestamps: " + (config.chatTimestamps ? "ON" : "OFF"), config.chatTimestamps);
-                rowY += 22;
-                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
-                        "Compact Chat: " + (config.compactChat ? "ON" : "OFF"), config.compactChat);
-            }
             case "HUD Info" -> {
                 drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
                         "HUD Info: " + (config.hudInfoEnabled ? "ON" : "OFF"), config.hudInfoEnabled);
@@ -1346,7 +1318,6 @@ public class ClickGuiScreen {
             case "Auto Tool" -> 1;
             case "Auto Crafter" -> 3 + (AutoCrafterHandler.TARGETS.size() + 1) / 2;
             case "Auto Break" -> 1;
-            case "Better Chat" -> 5;
             case "Keybinds HUD" -> 4;
             case "FastBreak", "Light Overlay", "Trajectories" -> 3;
             case "Backtrack", "Disabler", "Exploit Guard", "No Mining Trace", "No Slowdown", "Ping Spoof" -> 2;
@@ -2200,29 +2171,6 @@ public class ClickGuiScreen {
             case "Auto Break" -> {
                 if (specificRow == 0) {
                     config.autoBreakOnlyTool = !config.autoBreakOnlyTool;
-                    config.save();
-                    playClickSound();
-                }
-            }
-            case "Better Chat" -> {
-                if (specificRow == 0) {
-                    config.chatInfinite = !config.chatInfinite;
-                    config.save();
-                    playClickSound();
-                } else if (specificRow == 1) {
-                    config.chatAntiClear = !config.chatAntiClear;
-                    config.save();
-                    playClickSound();
-                } else if (specificRow == 2) {
-                    config.chatClickCopy = !config.chatClickCopy;
-                    config.save();
-                    playClickSound();
-                } else if (specificRow == 3) {
-                    config.chatTimestamps = !config.chatTimestamps;
-                    config.save();
-                    playClickSound();
-                } else if (specificRow == 4) {
-                    config.compactChat = !config.compactChat;
                     config.save();
                     playClickSound();
                 }
