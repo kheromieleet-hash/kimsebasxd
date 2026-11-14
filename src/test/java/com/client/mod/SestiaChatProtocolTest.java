@@ -36,21 +36,14 @@ public class SestiaChatProtocolTest {
         assert SestiaChatProtocol.parseOutgoingCommand(".c").kind() == SestiaChatProtocol.CommandKind.HELP;
         assert SestiaChatProtocol.parseOutgoingCommand(".c help").kind() == SestiaChatProtocol.CommandKind.HELP;
         assert SestiaChatProtocol.parseOutgoingCommand(".c ?").kind() == SestiaChatProtocol.CommandKind.HELP;
-        assert SestiaChatProtocol.parseOutgoingCommand(".c status").kind() == SestiaChatProtocol.CommandKind.STATUS;
         assert SestiaChatProtocol.parseOutgoingCommand(".c list").kind() == SestiaChatProtocol.CommandKind.LIST;
         assert SestiaChatProtocol.parseOutgoingCommand(".cobble").kind() == SestiaChatProtocol.CommandKind.NONE;
 
-        SestiaChatProtocol.ParsedCommand urlCmd = SestiaChatProtocol.parseOutgoingCommand(".c url https://chat.example.workers.dev");
-        assert urlCmd.kind() == SestiaChatProtocol.CommandKind.URL;
-        assert "https://chat.example.workers.dev".equals(urlCmd.arg1());
-
-        SestiaChatProtocol.ParsedCommand muteCmd = SestiaChatProtocol.parseOutgoingCommand(".c mute Griefer_01");
-        assert muteCmd.kind() == SestiaChatProtocol.CommandKind.MUTE;
-        assert "Griefer_01".equals(muteCmd.arg1());
-
-        SestiaChatProtocol.ParsedCommand unmuteCmd = SestiaChatProtocol.parseOutgoingCommand(".c unmute Griefer_01");
-        assert unmuteCmd.kind() == SestiaChatProtocol.CommandKind.UNMUTE;
-        assert "Griefer_01".equals(unmuteCmd.arg1());
+        // Removed commands (.c status, .c url, .c mute, .c unmute) are no longer subcommands and fall back to global chat
+        assert SestiaChatProtocol.parseOutgoingCommand(".c status").kind() == SestiaChatProtocol.CommandKind.CHAT;
+        assert SestiaChatProtocol.parseOutgoingCommand(".c url https://chat.example.workers.dev").kind() == SestiaChatProtocol.CommandKind.CHAT;
+        assert SestiaChatProtocol.parseOutgoingCommand(".c mute Griefer_01").kind() == SestiaChatProtocol.CommandKind.CHAT;
+        assert SestiaChatProtocol.parseOutgoingCommand(".c unmute Griefer_01").kind() == SestiaChatProtocol.CommandKind.CHAT;
 
         SestiaChatProtocol.ParsedCommand dmCmd = SestiaChatProtocol.parseOutgoingCommand(".c msg Ali selam nasilsin?");
         assert dmCmd.kind() == SestiaChatProtocol.CommandKind.DM;

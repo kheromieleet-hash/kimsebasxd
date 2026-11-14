@@ -117,7 +117,7 @@ public final class SestiaChatClient {
             return;
         }
         if (SestiaChatProtocol.resolveEffectiveUrl(cfg.clientChatUrl).isEmpty()) {
-            postChat("§8[§cSestiaChat§8] §7Worker URL is not configured: §f.c url wss://...");
+            postChat("§8[§cSestiaChat§8] §7Worker URL is not configured.");
             return;
         }
         reconnectAttempts = 0;
@@ -165,44 +165,6 @@ public final class SestiaChatClient {
         SestiaChatProtocol.ParsedCommand cmd = SestiaChatProtocol.parseOutgoingCommand(rawMessage);
         switch (cmd.kind()) {
             case HELP -> printHelpInChat();
-            case STATUS -> printStatusInChat(cfg);
-            case URL -> {
-                String rawArg = cmd.arg1().trim();
-                if (rawArg.equalsIgnoreCase("default") || rawArg.equalsIgnoreCase("reset")) {
-                    cfg.clientChatUrl = "";
-                    cfg.save();
-                    postChat("§8[§cSestiaChat§8] §aReverted to the default chat server URL.");
-                    reconnect();
-                    return true;
-                }
-                String normalized = SestiaChatProtocol.normalizeWebSocketUrl(rawArg);
-                if (normalized.isEmpty()) {
-                    postChat("§8[§cSestiaChat§8] §cInvalid URL. Example: §f.c url wss://sestia-client-chat.example.workers.dev");
-                    return true;
-                }
-                cfg.clientChatUrl = normalized;
-                cfg.save();
-                postChat("§8[§cSestiaChat§8] §aCustom chat server saved: §f" + normalized);
-                reconnect();
-            }
-            case MUTE -> {
-                if (cmd.arg1().isBlank()) {
-                    postChat("§8[§cSestiaChat§8] §7Usage: §f.c mute <player>");
-                    return true;
-                }
-                cfg.clientChatMuted = SestiaChatProtocol.addMute(cmd.arg1(), cfg.clientChatMuted);
-                cfg.save();
-                postChat("§8[§cSestiaChat§8] §eMuted: §f" + SestiaChatProtocol.sanitizeNick(cmd.arg1()));
-            }
-            case UNMUTE -> {
-                if (cmd.arg1().isBlank()) {
-                    postChat("§8[§cSestiaChat§8] §7Usage: §f.c unmute <player>");
-                    return true;
-                }
-                cfg.clientChatMuted = SestiaChatProtocol.removeMute(cmd.arg1(), cfg.clientChatMuted);
-                cfg.save();
-                postChat("§8[§cSestiaChat§8] §aUnmuted: §f" + SestiaChatProtocol.sanitizeNick(cmd.arg1()));
-            }
             case LIST -> sendOrQueue(SestiaChatProtocol.buildListJson());
             case DM -> {
                 if (!cfg.clientChatAllowDms) {
@@ -229,22 +191,13 @@ public final class SestiaChatClient {
         postChat("  §e.c <message> §7- Send a message to global chat");
         postChat("  §e.c msg <player> <message> §7- Send a private message (DM)");
         postChat("  §e.c list §7- Show online Sestia users");
-        postChat("  §e.c mute/unmute <player> §7| §e.c status");
-        postChat("  §e.c url <wss://...|default> §7- Set custom/default server");
-    }
-
-    private static void printStatusInChat(ModConfig cfg) {
-        String stateLabel = loggedIn ? "§aConnected (" + Math.max(1, lastOnlineCount) + " online)" : (connecting ? "§eConnecting..." : "§cDisconnected");
-        String effectiveUrl = SestiaChatProtocol.resolveEffectiveUrl(cfg.clientChatUrl);
-        String urlDisplay = effectiveUrl.isEmpty() ? "Not set" : effectiveUrl;
-        postChat("§8[§cSestiaChat§8] §7Status: " + stateLabel + " §8| §7Nick: §f" + activeNick);
-        postChat("§8[§cSestiaChat§8] §7URL: §f" + urlDisplay);
+        postChat("  §e.c help §7- Show Sestia chat command help");
     }
 
     private static void sendOrQueue(String json) {
         ModConfig cfg = ModConfig.getInstance();
         if (SestiaChatProtocol.resolveEffectiveUrl(cfg.clientChatUrl).isEmpty()) {
-            postChat("§8[§cSestiaChat§8] §cServer URL is not set: §f.c url wss://...");
+            postChat("§8[§cSestiaChat§8] §cServer URL is not set.");
             return;
         }
         WebSocket ws = activeSocket;
