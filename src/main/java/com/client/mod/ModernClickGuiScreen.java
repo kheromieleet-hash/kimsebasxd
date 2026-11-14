@@ -78,9 +78,9 @@ public class ModernClickGuiScreen extends Screen {
     private int draggingSliderWidth = 100;
 
     // Inline slider numeric editing state
+    private EditBox sliderInputBox;
     private ModernModuleSettings.SliderControl editingSlider = null;
     private String editingSliderText = "";
-    private boolean editingSliderSelectAll = false;
     private int editingBoxX = 0;
     private int editingBoxY = 0;
     private int editingBoxW = 0;
@@ -202,6 +202,18 @@ public class ModernClickGuiScreen extends Screen {
         this.profileCodeBox.visible = false;
         this.addRenderableWidget(this.profileCodeBox);
 
+        this.sliderInputBox = new EditBox(this.font, 0, 0, 42, 9, Component.literal("Value"));
+        this.sliderInputBox.setBordered(false);
+        this.sliderInputBox.setMaxLength(16);
+        this.sliderInputBox.setTextColor(0xFFFFFFFF);
+        this.sliderInputBox.setResponder(text -> {
+            if (this.editingSlider != null) {
+                this.editingSliderText = text != null ? text : "";
+            }
+        });
+        this.sliderInputBox.visible = false;
+        this.addRenderableWidget(this.sliderInputBox);
+
         refreshProfilesList();
     }
 
@@ -247,6 +259,9 @@ public class ModernClickGuiScreen extends Screen {
             setSecondaryInputsVisible(false, false);
             renderModulesWorkspace(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH, dt);
         } else {
+            if (this.sliderInputBox != null) {
+                this.sliderInputBox.visible = false;
+            }
             if (this.activeNav == NavTab.MACROS) {
                 setSecondaryInputsVisible(this.editingMacroIndex != -1, false);
                 graphics.enableScissor(contentX, contentY, contentX + contentW, contentY + contentH);
@@ -657,7 +672,7 @@ public class ModernClickGuiScreen extends Screen {
 
             int controlsY = y + cardH + 1 + resolved.descHeaderHeight();
             ModernModuleCardUi.SliderEditState editState = this.editingSlider != null
-                    ? new ModernModuleCardUi.SliderEditState(this.editingSlider.key(), this.editingSliderText, this.editingSliderSelectAll)
+                    ? new ModernModuleCardUi.SliderEditState(this.editingSlider.key(), this.editingSliderText, false)
                     : null;
             ModernModuleCardUi.renderControls(
                     graphics,
@@ -677,6 +692,13 @@ public class ModernClickGuiScreen extends Screen {
                         this.editingBoxY = by;
                         this.editingBoxW = bw;
                         this.editingBoxH = bh;
+                        if (this.sliderInputBox != null && this.editingSlider != null) {
+                            this.sliderInputBox.setX(bx + 4);
+                            this.sliderInputBox.setY(by + 2);
+                            this.sliderInputBox.setWidth(Math.max(16, bw - 8));
+                            this.sliderInputBox.setHeight(9);
+                            this.sliderInputBox.visible = true;
+                        }
                     }
             );
             graphics.disableScissor();
@@ -1142,7 +1164,11 @@ public class ModernClickGuiScreen extends Screen {
         if (this.editingSlider != null) {
             if (MouseButtonMapping.isLeftClick(button) && this.editingBoxW > 0
                     && isInside(mouseX, mouseY, this.editingBoxX, this.editingBoxY, this.editingBoxW, this.editingBoxH)) {
-                this.editingSliderSelectAll = false;
+                super.mouseClicked(event, wasHandled);
+                if (this.sliderInputBox != null) {
+                    this.sliderInputBox.setFocused(true);
+                    this.setFocused(this.sliderInputBox);
+                }
                 playClickSound();
                 return true;
             }
@@ -1819,7 +1845,6 @@ public class ModernClickGuiScreen extends Screen {
 
         if (this.editingSlider != null) {
             int key = event.key();
-            boolean ctrlDown = (event.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0;
             if (key == InputConstants.KEY_RETURN || key == GLFW.GLFW_KEY_KP_ENTER || key == InputConstants.KEY_TAB) {
                 commitEditingSlider();
                 playClickSound();
@@ -1830,54 +1855,15 @@ public class ModernClickGuiScreen extends Screen {
                 playClickSound();
                 return true;
             }
-            if (key == InputConstants.KEY_BACKSPACE) {
-                if (this.editingSliderSelectAll) {
-                    this.editingSliderText = "";
-                    this.editingSliderSelectAll = false;
-                } else if (!this.editingSliderText.isEmpty()) {
-                    this.editingSliderText = this.editingSliderText.substring(0, this.editingSliderText.length() - 1);
-                }
+            if (this.sliderInputBox != null && this.sliderInputBox.keyPressed(event)) {
                 return true;
             }
-            if (key == InputConstants.KEY_DELETE) {
-                this.editingSliderText = "";
-                this.editingSliderSelectAll = false;
-                return true;
-            }
-            if (ctrlDown && key == InputConstants.KEY_A) {
-                this.editingSliderSelectAll = true;
-                return true;
-            }
-            if (ctrlDown && key == InputConstants.KEY_C) {
-                setClipboardSafe(this.editingSliderText);
-                return true;
-            }
-            if (ctrlDown && key == InputConstants.KEY_V) {
-                String pasted = ModernModuleSettings.sanitizeSliderInputString(getClipboardSafe(), 16);
-                if (this.editingSliderSelectAll) {
-                    this.editingSliderText = pasted;
-                    this.editingSliderSelectAll = false;
-                } else {
-                    for (int i = 0; i < pasted.length(); i++) {
-                        this.editingSliderText = ModernModuleSettings.appendSliderInputChar(
-                                this.editingSliderText, false, pasted.charAt(i), 16);
-                    }
-                }
-                return true;
-            }
-            if (key == InputConstants.KEY_LEFT || key == InputConstants.KEY_RIGHT
-                    || key == InputConstants.KEY_HOME || key == InputConstants.KEY_END) {
-                this.editingSliderSelectAll = false;
-                return true;
-            }
+            boolean ctrlDown = (event.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0;
             boolean shiftDown = (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0;
             boolean altDown = (event.modifiers() & GLFW.GLFW_MOD_ALT) != 0;
             char mappedChar = ModernModuleSettings.mapKeyCodeToSliderChar(key, shiftDown, ctrlDown || altDown);
-            if (mappedChar != 0) {
-                String updated = ModernModuleSettings.appendSliderInputChar(
-                        this.editingSliderText, this.editingSliderSelectAll, mappedChar, 16);
-                this.editingSliderSelectAll = false;
-                this.editingSliderText = updated;
+            if (mappedChar != 0 && this.sliderInputBox != null) {
+                this.sliderInputBox.insertText(String.valueOf(mappedChar));
                 this.lastSliderKeyChar = mappedChar;
                 this.lastSliderKeyTimeMs = System.currentTimeMillis();
                 return true;
@@ -1922,12 +1908,8 @@ public class ModernClickGuiScreen extends Screen {
                 this.lastSliderKeyChar = 0;
                 return true;
             }
-            String updated = ModernModuleSettings.appendSliderInputChar(
-                    this.editingSliderText, this.editingSliderSelectAll, ch, 16);
-            boolean validChar = (ch >= '0' && ch <= '9') || ch == '.' || ch == ',' || ch == '-';
-            if (validChar) {
-                this.editingSliderSelectAll = false;
-                this.editingSliderText = updated;
+            if (this.sliderInputBox != null) {
+                this.sliderInputBox.charTyped(event);
             }
             return true;
         }
@@ -1943,21 +1925,27 @@ public class ModernClickGuiScreen extends Screen {
         if (this.searchBox != null) this.searchBox.setFocused(false);
         if (this.profileNameBox != null) this.profileNameBox.setFocused(false);
         if (this.profileCodeBox != null) this.profileCodeBox.setFocused(false);
-        this.setFocused(null);
 
         this.editingSlider = slider;
         String initial = slider.editText() != null ? slider.editText().get() : "";
         this.editingSliderText = initial != null ? initial : "";
-        this.editingSliderSelectAll = true;
         this.editingBoxX = 0;
         this.editingBoxY = 0;
         this.editingBoxW = 0;
         this.editingBoxH = 0;
+        if (this.sliderInputBox != null) {
+            this.sliderInputBox.setValue(this.editingSliderText);
+            this.sliderInputBox.moveCursorToEnd(false);
+            this.sliderInputBox.setHighlightPos(0);
+            this.sliderInputBox.visible = true;
+            this.sliderInputBox.setFocused(true);
+            this.setFocused(this.sliderInputBox);
+        }
     }
 
     private void commitEditingSlider() {
         ModernModuleSettings.SliderControl slider = this.editingSlider;
-        String text = this.editingSliderText;
+        String text = this.sliderInputBox != null ? this.sliderInputBox.getValue() : this.editingSliderText;
         cancelEditingSlider();
         if (slider == null || slider.textCommitter() == null) {
             return;
@@ -1976,11 +1964,17 @@ public class ModernClickGuiScreen extends Screen {
     private void cancelEditingSlider() {
         this.editingSlider = null;
         this.editingSliderText = "";
-        this.editingSliderSelectAll = false;
         this.editingBoxX = 0;
         this.editingBoxY = 0;
         this.editingBoxW = 0;
         this.editingBoxH = 0;
+        if (this.sliderInputBox != null) {
+            this.sliderInputBox.visible = false;
+            this.sliderInputBox.setFocused(false);
+            if (this.getFocused() == this.sliderInputBox) {
+                this.setFocused(null);
+            }
+        }
     }
 
     private void updateSliderValue(int mouseX) {

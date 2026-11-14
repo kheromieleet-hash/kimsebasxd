@@ -240,7 +240,7 @@ final class ModernModuleCardUi {
                 if (isEditingThis) {
                     String buf = editState.text() != null ? editState.text() : "";
                     int rawTextW = font.width(buf);
-                    int boxW = Math.max(36, Math.min(cw - 24, rawTextW + 12));
+                    int boxW = Math.max(42, Math.min(cw - 24, rawTextW + 14));
                     int boxX = cx + cw - boxW;
                     int boxY = cy - 1;
                     int boxH = 11;
@@ -250,17 +250,6 @@ final class ModernModuleCardUi {
                     String label = fitText(font, s.label(), Math.max(20, cw - boxW - 6));
                     graphics.text(font, Component.literal(label), cx, cy, JelloTheme.TEXT, false);
                     JelloTheme.fillRoundedCard(graphics, boxX, boxY, boxX + boxW, boxY + boxH, 3, 0xFF0A0A0F, JelloTheme.ACCENT);
-                    String shown = fitText(font, buf, boxW - 6);
-                    int shownW = font.width(shown);
-                    int textX = boxX + Math.max(3, (boxW - shownW) / 2);
-                    if (editState.selectAll() && !shown.isEmpty()) {
-                        graphics.fill(textX - 1, boxY + 1, textX + shownW + 1, boxY + boxH - 1, 0x55FF1E2D);
-                    }
-                    graphics.text(font, Component.literal(shown), textX, cy + 1, 0xFFFFFFFF, false);
-                    if (!editState.selectAll() && ((System.currentTimeMillis() / 500L) % 2L == 0L)) {
-                        int caretX = Math.min(boxX + boxW - 3, textX + shownW + 1);
-                        graphics.fill(caretX, boxY + 2, caretX + 1, boxY + boxH - 2, JelloTheme.ACCENT_HOVER);
-                    }
                 } else {
                     String valText = s.valueLabel().get();
                     int valW = font.width(valText);
