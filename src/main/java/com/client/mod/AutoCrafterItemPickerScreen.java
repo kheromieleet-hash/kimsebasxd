@@ -66,6 +66,8 @@ public class AutoCrafterItemPickerScreen extends Screen {
 
     private double scrollAmount = 0.0;
     private int contentTotalHeight = 0;
+    private boolean draggingScrollbar = false;
+    private int scrollbarDragOffsetY = 0;
 
     private static final int HEADER_H = 42;
     private static final int TOOLBAR_H = 34;
@@ -298,7 +300,8 @@ public class AutoCrafterItemPickerScreen extends Screen {
             int thumbH = Math.max(24, (int) ((float) gridH * gridH / this.contentTotalHeight));
             int maxScroll = Math.max(1, this.contentTotalHeight - gridH);
             int thumbY = gridTop + (int) ((gridH - thumbH) * (this.scrollAmount / maxScroll));
-            graphics.fill(trackX, thumbY, trackX + 3, thumbY + thumbH, JelloTheme.ACCENT);
+            boolean thumbHov = this.draggingScrollbar || (mouseX >= trackX - 4 && mouseX <= trackX + 7 && mouseY >= thumbY && mouseY <= thumbY + thumbH);
+            graphics.fill(trackX, thumbY, trackX + 3, thumbY + thumbH, thumbHov ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT);
         }
 
         super.extractRenderState(graphics, mouseX, mouseY, delta);
@@ -391,6 +394,28 @@ public class AutoCrafterItemPickerScreen extends Screen {
 
         int gridTop = this.windowY + HEADER_H + TOOLBAR_H + 4;
         int gridBottom = this.windowY + this.windowH - 10;
+        int gridH = gridBottom - gridTop;
+
+        if (this.contentTotalHeight > gridH) {
+            int trackX = this.windowX + this.windowW - 8;
+            if (mouseX >= trackX - 4 && mouseX <= trackX + 7 && mouseY >= gridTop && mouseY <= gridBottom) {
+                int thumbH = Math.max(24, (int) ((float) gridH * gridH / this.contentTotalHeight));
+                int maxScroll = Math.max(1, this.contentTotalHeight - gridH);
+                int thumbY = gridTop + (int) ((gridH - thumbH) * (this.scrollAmount / maxScroll));
+                if (mouseY >= thumbY && mouseY <= thumbY + thumbH) {
+                    this.draggingScrollbar = true;
+                    this.scrollbarDragOffsetY = mouseY - thumbY;
+                } else {
+                    int targetThumbY = Mth.clamp(mouseY - thumbH / 2, gridTop, gridBottom - thumbH);
+                    double ratio = (double) (targetThumbY - gridTop) / Math.max(1, gridH - thumbH);
+                    this.scrollAmount = Mth.clamp(ratio * maxScroll, 0.0, maxScroll);
+                    this.draggingScrollbar = true;
+                    this.scrollbarDragOffsetY = thumbH / 2;
+                }
+                return true;
+            }
+        }
+
         int innerX = this.windowX + PAD;
         int innerW = this.windowW - PAD * 2 - 8;
         int cellW = (innerW - CELL_GAP * (COLS - 1)) / COLS;
@@ -419,6 +444,33 @@ public class AutoCrafterItemPickerScreen extends Screen {
         }
 
         return super.mouseClicked(event, wasHandled);
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        if (this.draggingScrollbar && (MouseButtonMapping.isLeftClick(event.button()) || event.button() == 0)) {
+            int gridTop = this.windowY + HEADER_H + TOOLBAR_H + 4;
+            int gridBottom = this.windowY + this.windowH - 10;
+            int gridH = gridBottom - gridTop;
+            if (this.contentTotalHeight > gridH) {
+                int thumbH = Math.max(24, (int) ((float) gridH * gridH / this.contentTotalHeight));
+                int maxScroll = Math.max(1, this.contentTotalHeight - gridH);
+                int targetThumbY = Mth.clamp((int) event.y() - this.scrollbarDragOffsetY, gridTop, gridBottom - thumbH);
+                double ratio = (double) (targetThumbY - gridTop) / Math.max(1, gridH - thumbH);
+                this.scrollAmount = Mth.clamp(ratio * maxScroll, 0.0, maxScroll);
+            }
+            return true;
+        }
+        return super.mouseDragged(event, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (this.draggingScrollbar && (MouseButtonMapping.isLeftClick(event.button()) || event.button() == 0)) {
+            this.draggingScrollbar = false;
+            return true;
+        }
+        return super.mouseReleased(event);
     }
 
     @Override
