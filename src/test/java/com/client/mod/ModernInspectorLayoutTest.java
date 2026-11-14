@@ -184,7 +184,7 @@ public class ModernInspectorLayoutTest {
 
         // Single-column layout without horizontal overflow for all configurable modules inside 162px card
         List<String> configurableModules = List.of(
-                "Dulkir", "Inventory HUD+", "Fullbright", "Keybinds HUD",
+                "Dulkir", "Viewmodel", "Inventory HUD+", "Fullbright", "Keybinds HUD",
                 "Fast Place", "Auto Break", "FastBreak", "Inventory Tweaks",
                 "Auto Replenish", "Fast Use", "Auto Tool", "Auto Crafter",
                 "Better Chat", "Client Chat", "Backtrack", "Disabler", "Exploit Guard",

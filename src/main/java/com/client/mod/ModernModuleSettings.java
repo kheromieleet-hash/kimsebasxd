@@ -155,6 +155,7 @@ public final class ModernModuleSettings {
         }
         return switch (modName) {
             case "Dulkir" -> buildDulkirControls(cfg, actions);
+            case "Viewmodel" -> buildViewmodelControls(cfg, actions);
             case "Inventory HUD+" -> buildInventoryHudControls(cfg, actions);
             case "Fullbright" -> buildFullbrightControls(cfg, actions);
             case "Keybinds HUD" -> buildKeybindsHudControls(cfg, actions);
@@ -440,6 +441,54 @@ public final class ModernModuleSettings {
         );
     }
 
+    private static List<Control> buildViewmodelControls(ModConfig cfg, Actions actions) {
+        return List.of(
+                toggle("No Haste", () -> cfg.vmNoHaste, v -> cfg.vmNoHaste = v, actions, false),
+                toggle("No Equip", () -> cfg.vmNoEquip, v -> cfg.vmNoEquip = v, actions, false),
+                toggle("No Bow Swing", () -> cfg.vmNoBowSwing, v -> cfg.vmNoBowSwing = v, actions, false),
+                toggle("No Swing Reset", () -> cfg.vmNoSwingReset, v -> cfg.vmNoSwingReset = v, actions, false),
+                toggle("Apply To Hand", () -> cfg.vmApplyToHand, v -> cfg.vmApplyToHand = v, actions, false),
+                new SliderControl("vmSwingSpeed", "Swing Speed",
+                        () -> cfg.vmSwingSpeed / 100.0f,
+                        pct -> cfg.vmSwingSpeed = clampInt(Math.round(pct * 100.0f), 0, 100),
+                        () -> cfg.vmSwingSpeed <= 0 ? "Off" : cfg.vmSwingSpeed + "t",
+                        false),
+                floatSlider("vmOffsetX", "Offset X", -2.0f, 2.0f, 100.0f, "%.2f", () -> cfg.vmOffsetX, v -> cfg.vmOffsetX = v),
+                floatSlider("vmOffsetY", "Offset Y", -2.0f, 2.0f, 100.0f, "%.2f", () -> cfg.vmOffsetY, v -> cfg.vmOffsetY = v),
+                floatSlider("vmOffsetZ", "Offset Z", -2.0f, 2.0f, 100.0f, "%.2f", () -> cfg.vmOffsetZ, v -> cfg.vmOffsetZ = v),
+                floatSlider("vmScaleX", "Scale X", 0.0f, 5.0f, 100.0f, "%.2fx", () -> cfg.vmScaleX, v -> cfg.vmScaleX = v),
+                floatSlider("vmScaleY", "Scale Y", 0.0f, 5.0f, 100.0f, "%.2fx", () -> cfg.vmScaleY, v -> cfg.vmScaleY = v),
+                floatSlider("vmScaleZ", "Scale Z", 0.0f, 5.0f, 100.0f, "%.2fx", () -> cfg.vmScaleZ, v -> cfg.vmScaleZ = v),
+                floatSlider("vmRotX", "Rotation X", -180.0f, 180.0f, 2.0f, "%.1f°", () -> cfg.vmRotX, v -> cfg.vmRotX = v),
+                floatSlider("vmRotY", "Rotation Y", -180.0f, 180.0f, 2.0f, "%.1f°", () -> cfg.vmRotY, v -> cfg.vmRotY = v),
+                floatSlider("vmRotZ", "Rotation Z", -180.0f, 180.0f, 2.0f, "%.1f°", () -> cfg.vmRotZ, v -> cfg.vmRotZ = v),
+                floatSlider("vmSwingX", "Swing X", 0.0f, 2.0f, 100.0f, "%.2fx", () -> cfg.vmSwingX, v -> cfg.vmSwingX = v),
+                floatSlider("vmSwingY", "Swing Y", 0.0f, 2.0f, 100.0f, "%.2fx", () -> cfg.vmSwingY, v -> cfg.vmSwingY = v),
+                floatSlider("vmSwingZ", "Swing Z", 0.0f, 2.0f, 100.0f, "%.2fx", () -> cfg.vmSwingZ, v -> cfg.vmSwingZ = v),
+                new ActionControl(() -> "Reset Defaults", () -> {
+                    cfg.vmNoHaste = false;
+                    cfg.vmNoEquip = false;
+                    cfg.vmApplyToHand = false;
+                    cfg.vmNoBowSwing = false;
+                    cfg.vmNoSwingReset = false;
+                    cfg.vmSwingSpeed = 0;
+                    cfg.vmOffsetX = 0.0f;
+                    cfg.vmOffsetY = 0.0f;
+                    cfg.vmOffsetZ = 0.0f;
+                    cfg.vmScaleX = 1.0f;
+                    cfg.vmScaleY = 1.0f;
+                    cfg.vmScaleZ = 1.0f;
+                    cfg.vmRotX = 0.0f;
+                    cfg.vmRotY = 0.0f;
+                    cfg.vmRotZ = 0.0f;
+                    cfg.vmSwingX = 1.0f;
+                    cfg.vmSwingY = 1.0f;
+                    cfg.vmSwingZ = 1.0f;
+                    actions.persist(false);
+                })
+        );
+    }
+
     private static ToggleControl toggle(String label, BooleanSupplier getter, BooleanConsumer setter,
                                         Actions actions, boolean reloadChunks) {
         return new ToggleControl(label, getter, value -> {
@@ -458,6 +507,23 @@ public final class ModernModuleSettings {
                 () -> (getter.getAsInt() - min) / span,
                 pct -> setter.accept(clampInt(Math.round(min + pct * span), min, max)),
                 () -> getter.getAsInt() + unit,
+                false
+        );
+    }
+
+    private static SliderControl floatSlider(String key, String label, float min, float max, float stepScale, String fmt,
+                                             FloatSupplier getter, FloatConsumer setter) {
+        float span = Math.max(0.0001f, max - min);
+        return new SliderControl(
+                key,
+                label,
+                () -> Math.max(0.0f, Math.min(1.0f, (getter.get() - min) / span)),
+                pct -> {
+                    float raw = min + Math.max(0.0f, Math.min(1.0f, pct)) * span;
+                    float rounded = roundToStep(raw, stepScale);
+                    setter.accept(Math.max(min, Math.min(max, rounded)));
+                },
+                () -> String.format(Locale.ROOT, fmt, getter.get()),
                 false
         );
     }

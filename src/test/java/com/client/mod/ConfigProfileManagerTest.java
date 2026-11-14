@@ -54,6 +54,11 @@ public class ConfigProfileManagerTest {
         source.backtrack = true;
         source.backtrackDelay = 180;
         source.chatInfinite = false;
+        source.vmEnabled = true;
+        source.vmOffsetX = 0.45f;
+        source.vmScaleY = 1.75f;
+        source.vmRotZ = -35.0f;
+        source.vmSwingSpeed = 12;
         source.moduleKeybinds.put("Fullbright", 70);
         source.moduleKeybindIsMouse.put("Fullbright", false);
         source.macros.add(new ModConfig.MacroEntry("Hub", "/hub", 72, false));
@@ -84,6 +89,9 @@ public class ConfigProfileManagerTest {
             assert target.fastBreak;
             assert target.backtrack && target.backtrackDelay == 180;
             assert !target.chatInfinite;
+            assert target.vmEnabled && Math.abs(target.vmOffsetX - 0.45f) < 0.001f;
+            assert Math.abs(target.vmScaleY - 1.75f) < 0.001f && Math.abs(target.vmRotZ + 35.0f) < 0.001f;
+            assert target.vmSwingSpeed == 12;
             assert target.moduleKeybinds.getOrDefault("Fullbright", -1) == 70;
             assert target.macros.size() == 1 && "/hub".equals(target.macros.get(0).message);
             assert !dstInv.active && dstInv.mini && dstInv.alpha == 25;

@@ -128,6 +128,16 @@ public class ClickGuiScreen {
                 }
         ));
 
+        // 1b. Viewmodel (NoFrills) (Render)
+        MODULES.add(new ModuleEntry(
+                "Viewmodel", Category.RENDER,
+                () -> config.vmEnabled,
+                val -> {
+                    config.vmEnabled = val;
+                    config.save();
+                }
+        ));
+
         // 2. Inventory HUD+ (Render)
         MODULES.add(new ModuleEntry(
                 "Inventory HUD+", Category.RENDER,

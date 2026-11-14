@@ -144,6 +144,27 @@ public class ModConfig {
     // Extra Dulkir Animations
     public boolean dulkirAirWalker = false;
 
+    // NoFrills Viewmodel
+    public boolean vmEnabled = false;
+    public boolean vmNoHaste = false;
+    public boolean vmNoEquip = false;
+    public boolean vmApplyToHand = false;
+    public boolean vmNoBowSwing = false;
+    public boolean vmNoSwingReset = false;
+    public int vmSwingSpeed = 0;        // 0 to 100 (0 = disabled)
+    public float vmOffsetX = 0.0f;      // -2.0 to 2.0
+    public float vmOffsetY = 0.0f;      // -2.0 to 2.0
+    public float vmOffsetZ = 0.0f;      // -2.0 to 2.0
+    public float vmScaleX = 1.0f;       // 0.0 to 5.0
+    public float vmScaleY = 1.0f;       // 0.0 to 5.0
+    public float vmScaleZ = 1.0f;       // 0.0 to 5.0
+    public float vmRotX = 0.0f;         // -180.0 to 180.0
+    public float vmRotY = 0.0f;         // -180.0 to 180.0
+    public float vmRotZ = 0.0f;         // -180.0 to 180.0
+    public float vmSwingX = 1.0f;       // 0.0 to 2.0
+    public float vmSwingY = 1.0f;       // 0.0 to 2.0
+    public float vmSwingZ = 1.0f;       // 0.0 to 2.0
+
     // TNT & Creeper Timer
     public boolean tntTimer = true;
 
@@ -408,6 +429,25 @@ public class ModConfig {
         this.autoTool = other.autoTool;
         this.autoToolSwapBack = other.autoToolSwapBack;
         this.dulkirAirWalker = other.dulkirAirWalker;
+        this.vmEnabled = other.vmEnabled;
+        this.vmNoHaste = other.vmNoHaste;
+        this.vmNoEquip = other.vmNoEquip;
+        this.vmApplyToHand = other.vmApplyToHand;
+        this.vmNoBowSwing = other.vmNoBowSwing;
+        this.vmNoSwingReset = other.vmNoSwingReset;
+        this.vmSwingSpeed = clampInt(other.vmSwingSpeed, 0, 100, 0);
+        this.vmOffsetX = clampFloat(other.vmOffsetX, -2.0f, 2.0f, 0.0f);
+        this.vmOffsetY = clampFloat(other.vmOffsetY, -2.0f, 2.0f, 0.0f);
+        this.vmOffsetZ = clampFloat(other.vmOffsetZ, -2.0f, 2.0f, 0.0f);
+        this.vmScaleX = clampFloat(other.vmScaleX, 0.0f, 5.0f, 1.0f);
+        this.vmScaleY = clampFloat(other.vmScaleY, 0.0f, 5.0f, 1.0f);
+        this.vmScaleZ = clampFloat(other.vmScaleZ, 0.0f, 5.0f, 1.0f);
+        this.vmRotX = clampFloat(other.vmRotX, -180.0f, 180.0f, 0.0f);
+        this.vmRotY = clampFloat(other.vmRotY, -180.0f, 180.0f, 0.0f);
+        this.vmRotZ = clampFloat(other.vmRotZ, -180.0f, 180.0f, 0.0f);
+        this.vmSwingX = clampFloat(other.vmSwingX, 0.0f, 2.0f, 1.0f);
+        this.vmSwingY = clampFloat(other.vmSwingY, 0.0f, 2.0f, 1.0f);
+        this.vmSwingZ = clampFloat(other.vmSwingZ, 0.0f, 2.0f, 1.0f);
         this.tntTimer = other.tntTimer;
         this.trueSight = other.trueSight;
         this.itemEsp = other.itemEsp;
@@ -533,6 +573,28 @@ public class ModConfig {
         if (this.moduleKeybindIsMouse == null) this.moduleKeybindIsMouse = new HashMap<>();
         if (this.keybindsHudX < 0 || this.keybindsHudX > 3000) this.keybindsHudX = 8;
         if (this.keybindsHudY < 0 || this.keybindsHudY > 3000) this.keybindsHudY = 60;
+        this.vmSwingSpeed = clampInt(this.vmSwingSpeed, 0, 100, 0);
+        this.vmOffsetX = clampFloat(this.vmOffsetX, -2.0f, 2.0f, 0.0f);
+        this.vmOffsetY = clampFloat(this.vmOffsetY, -2.0f, 2.0f, 0.0f);
+        this.vmOffsetZ = clampFloat(this.vmOffsetZ, -2.0f, 2.0f, 0.0f);
+        this.vmScaleX = clampFloat(this.vmScaleX, 0.0f, 5.0f, 1.0f);
+        this.vmScaleY = clampFloat(this.vmScaleY, 0.0f, 5.0f, 1.0f);
+        this.vmScaleZ = clampFloat(this.vmScaleZ, 0.0f, 5.0f, 1.0f);
+        this.vmRotX = clampFloat(this.vmRotX, -180.0f, 180.0f, 0.0f);
+        this.vmRotY = clampFloat(this.vmRotY, -180.0f, 180.0f, 0.0f);
+        this.vmRotZ = clampFloat(this.vmRotZ, -180.0f, 180.0f, 0.0f);
+        this.vmSwingX = clampFloat(this.vmSwingX, 0.0f, 2.0f, 1.0f);
+        this.vmSwingY = clampFloat(this.vmSwingY, 0.0f, 2.0f, 1.0f);
+        this.vmSwingZ = clampFloat(this.vmSwingZ, 0.0f, 2.0f, 1.0f);
+    }
+
+    private static float clampFloat(float value, float min, float max, float fallback) {
+        if (!Float.isFinite(value)) return fallback;
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private static int clampInt(int value, int min, int max, int fallback) {
+        return (value < min || value > max) ? fallback : value;
     }
 
     private static File getConfigFile() {

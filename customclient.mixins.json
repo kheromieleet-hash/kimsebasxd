@@ -6,6 +6,7 @@
   "client": [
     "AvatarRendererMixin",
     "ClientAvatarStateMixin",
+    "FirstPersonHandsMixin",
     "FirstPersonRendererMixin",
     "LivingEntityMixin",
     "ConfigScreenMixin",
