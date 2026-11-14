@@ -91,6 +91,8 @@ public class ModConfig {
     // Visual / QoL Features
     public boolean zoomEnabled = true;
     public float zoomFactor = 4.0f;
+    public boolean customCrosshair = true;
+    public boolean customFont = true;
     public boolean chatTimestamps = true;    // Istanbul time <HH:mm:ss>
     public boolean compactChat = true;       // Stacks duplicate consecutive messages with (2), (3)
     public boolean chatInfinite = true;      // Expands chat history from 100 to 16,384 lines
@@ -405,6 +407,8 @@ public class ModConfig {
         this.fullbrightForceMaxLight = other.fullbrightForceMaxLight;
         this.zoomEnabled = other.zoomEnabled;
         this.zoomFactor = other.zoomFactor;
+        this.customCrosshair = other.customCrosshair;
+        this.customFont = other.customFont;
         this.chatTimestamps = other.chatTimestamps;
         this.compactChat = other.compactChat;
         this.chatInfinite = other.chatInfinite;

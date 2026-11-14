@@ -1172,7 +1172,7 @@ public class ModernClickGuiScreen extends Screen {
         int cardH = 40;
         int cardGap = 6;
 
-        int totalContentH = 14 + 34 + (cardH + cardGap) * 5 + 10 + 30 + (cardH + cardGap) * 3 + 10 + 30 + (cardH + cardGap) * 3 + 12;
+        int totalContentH = 14 + 34 + (cardH + cardGap) * 5 + 10 + 30 + (cardH + cardGap) * 3 + 10 + 30 + (cardH + cardGap) * 5 + 12;
         this.contentTotalHeight = Math.max(contentH, totalContentH);
         this.scrollAmount = Mth.clamp(this.scrollAmount, 0.0, Math.max(0, this.contentTotalHeight - contentH));
         int scroll = (int) Math.round(this.scrollAmount);
@@ -1251,6 +1251,16 @@ public class ModernClickGuiScreen extends Screen {
                 "Zoom Factor",
                 "Camera zoom magnification level (1.5x - 20.0x)",
                 String.format(java.util.Locale.ROOT, "%.1fx", config.zoomFactor));
+
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 3, innerW, cardH,
+                "Custom Crosshair",
+                "Use Sestia custom crosshair texture (reloads resource packs)",
+                config.customCrosshair, true, false, "");
+
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 4, innerW, cardH,
+                "Custom Font",
+                "Use Sestia custom Minecraft UI font (reloads resource packs)",
+                config.customFont, true, false, "");
     }
 
     private void drawStepperCard(
@@ -1403,7 +1413,7 @@ public class ModernClickGuiScreen extends Screen {
                 () -> { config.zoomEnabled = !config.zoomEnabled; config.save(); }, null)) {
             return true;
         }
-        return handleStepperCardClick(mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 2, innerW, cardH,
+        if (handleStepperCardClick(mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 2, innerW, cardH,
                 () -> {
                     config.zoomFactor = Math.max(1.5f, Math.round((config.zoomFactor - 0.5f) * 2.0f) / 2.0f);
                     config.save();
@@ -1411,7 +1421,23 @@ public class ModernClickGuiScreen extends Screen {
                 () -> {
                     config.zoomFactor = Math.min(20.0f, Math.round((config.zoomFactor + 0.5f) * 2.0f) / 2.0f);
                     config.save();
-                });
+                })) {
+            return true;
+        }
+        if (handleHudCardClick(mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 3, innerW, cardH, true, false, "",
+                () -> {
+                    config.customCrosshair = !config.customCrosshair;
+                    config.save();
+                    Minecraft.getInstance().reloadResourcePacks();
+                }, null)) {
+            return true;
+        }
+        return handleHudCardClick(mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 4, innerW, cardH, true, false, "",
+                () -> {
+                    config.customFont = !config.customFont;
+                    config.save();
+                    Minecraft.getInstance().reloadResourcePacks();
+                }, null);
     }
 
     private boolean handleHudCardClick(
