@@ -279,7 +279,10 @@ public class ModernClickGuiScreen extends Screen {
                 renderScrollbarAt(graphics, contentX + contentW - 6, contentY, contentH, this.contentTotalHeight, this.scrollAmount);
             } else if (this.activeNav == NavTab.SETTINGS) {
                 setSecondaryInputsVisible(false, false);
+                graphics.enableScissor(contentX, contentY, contentX + contentW, contentY + contentH);
                 renderSettingsView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH);
+                graphics.disableScissor();
+                renderScrollbarAt(graphics, contentX + contentW - 6, contentY, contentH, this.contentTotalHeight, this.scrollAmount);
             }
         }
 
@@ -1159,21 +1162,27 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     // ==========================================
-    // SETTINGS VIEW (BETTER CHAT INDIVIDUAL TOGGLES)
+    // SETTINGS VIEW (BETTER CHAT + ITEM NOTIFIER)
     // ==========================================
     private void renderSettingsView(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, int contentH) {
         ModConfig config = ModConfig.getInstance();
         int pad = 16;
         int innerX = contentX + pad;
         int innerW = contentW - pad * 2;
-        int innerY = contentY + 14;
+        int cardH = 40;
+        int cardGap = 6;
+
+        int totalContentH = 14 + 34 + (cardH + cardGap) * 5 + 16 + 20 + (cardH + cardGap) * 3 + 12;
+        this.contentTotalHeight = Math.max(contentH, totalContentH);
+        this.scrollAmount = Mth.clamp(this.scrollAmount, 0.0, Math.max(0, this.contentTotalHeight - contentH));
+        int scroll = (int) Math.round(this.scrollAmount);
+
+        int innerY = contentY + 14 - scroll;
 
         graphics.text(this.font, Component.literal("§lSETTINGS — BETTER CHAT"), innerX, innerY, JelloTheme.TEXT, false);
         graphics.text(this.font, Component.literal("Toggle individual Better Chat features on or off"), innerX, innerY + 13, JelloTheme.TEXT_MUTED, false);
 
         int listY = innerY + 34;
-        int cardH = 40;
-        int cardGap = 6;
 
         drawHudResetCard(graphics, mouseX, mouseY, innerX, listY, innerW, cardH,
                 "Infinite History",
@@ -1199,6 +1208,94 @@ public class ModernClickGuiScreen extends Screen {
                 "Compact Chat",
                 "Stacks duplicate consecutive messages with (2), (3)...",
                 config.compactChat, true, false, "");
+
+        int notifierHeaderY = listY + (cardH + cardGap) * 5 + 10;
+        graphics.text(this.font, Component.literal("§lITEM NOTIFIER"), innerX, notifierHeaderY, JelloTheme.TEXT, false);
+        graphics.text(this.font, Component.literal("Pickup/drop HUD alerts (drag position in Open HUD Editor)"), innerX, notifierHeaderY + 13, JelloTheme.TEXT_MUTED, false);
+
+        int notifierY = notifierHeaderY + 30;
+        String notifierPosDesc = (config.itemNotifierX < 0 || config.itemNotifierY < 0)
+                ? "Auto-placed near hotbar (drag in HUD Editor)"
+                : ("Pos: " + config.itemNotifierX + ", " + config.itemNotifierY);
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, notifierY, innerW, cardH,
+                "Item Notifier",
+                notifierPosDesc,
+                config.itemNotifierEnabled, true, true, "Reset");
+
+        drawStepperCard(graphics, mouseX, mouseY, innerX, notifierY + (cardH + cardGap), innerW, cardH,
+                "Display Duration",
+                "How long each pickup/drop alert stays on screen",
+                String.format(java.util.Locale.ROOT, "%.1fs", config.itemNotifierDuration));
+
+        drawStepperCard(graphics, mouseX, mouseY, innerX, notifierY + (cardH + cardGap) * 2, innerW, cardH,
+                "Max Items",
+                "Maximum number of simultaneous item alerts shown",
+                Integer.toString(config.itemNotifierMaxItems));
+    }
+
+    private void drawStepperCard(
+            GuiGraphicsExtractor graphics,
+            int mouseX, int mouseY,
+            int x, int y, int w, int h,
+            String title, String subtitle, String valueText
+    ) {
+        JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + h, 6, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
+        graphics.text(this.font, Component.literal(title), x + 12, y + 9, JelloTheme.TEXT, false);
+        graphics.text(this.font, Component.literal(subtitle), x + 12, y + 24, JelloTheme.TEXT_MUTED, false);
+
+        int btnH = 20;
+        int btnY = y + (h - btnH) / 2;
+        int stepW = 22;
+        int valW = 46;
+        int rightEdge = x + w - 10;
+
+        int plusX = rightEdge - stepW;
+        int valX = plusX - 4 - valW;
+        int minusX = valX - 4 - stepW;
+
+        boolean hovMinus = isInside(mouseX, mouseY, minusX, btnY, stepW, btnH);
+        JelloTheme.fillRoundedCard(graphics, minusX, btnY, minusX + stepW, btnY + btnH, 4,
+                hovMinus ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CONTAINER_BG,
+                hovMinus ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+        graphics.centeredText(this.font, Component.literal("-"), minusX + stepW / 2, btnY + 6, JelloTheme.TEXT);
+
+        JelloTheme.fillRoundedCard(graphics, valX, btnY, valX + valW, btnY + btnH, 4,
+                JelloTheme.CONTAINER_BG, JelloTheme.BORDER_SUBTLE);
+        graphics.centeredText(this.font, Component.literal(valueText), valX + valW / 2, btnY + 6, JelloTheme.TEXT);
+
+        boolean hovPlus = isInside(mouseX, mouseY, plusX, btnY, stepW, btnH);
+        JelloTheme.fillRoundedCard(graphics, plusX, btnY, plusX + stepW, btnY + btnH, 4,
+                hovPlus ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CONTAINER_BG,
+                hovPlus ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+        graphics.centeredText(this.font, Component.literal("+"), plusX + stepW / 2, btnY + 6, JelloTheme.TEXT);
+    }
+
+    private boolean handleStepperCardClick(
+            int mouseX, int mouseY,
+            int x, int y, int w, int h,
+            Runnable onMinus, Runnable onPlus
+    ) {
+        int btnH = 20;
+        int btnY = y + (h - btnH) / 2;
+        int stepW = 22;
+        int valW = 46;
+        int rightEdge = x + w - 10;
+
+        int plusX = rightEdge - stepW;
+        int valX = plusX - 4 - valW;
+        int minusX = valX - 4 - stepW;
+
+        if (isInside(mouseX, mouseY, minusX, btnY, stepW, btnH)) {
+            onMinus.run();
+            playClickSound();
+            return true;
+        }
+        if (isInside(mouseX, mouseY, plusX, btnY, stepW, btnH)) {
+            onPlus.run();
+            playClickSound();
+            return true;
+        }
+        return false;
     }
 
     private boolean handleSettingsClick(int mouseX, int mouseY, int button, int contentX, int contentY, int contentW, int contentH) {
@@ -1209,7 +1306,8 @@ public class ModernClickGuiScreen extends Screen {
         int pad = 16;
         int innerX = contentX + pad;
         int innerW = contentW - pad * 2;
-        int innerY = contentY + 14;
+        int scroll = (int) Math.round(this.scrollAmount);
+        int innerY = contentY + 14 - scroll;
         int listY = innerY + 34;
         int cardH = 40;
         int cardGap = 6;
@@ -1230,8 +1328,49 @@ public class ModernClickGuiScreen extends Screen {
                 () -> { config.chatTimestamps = !config.chatTimestamps; config.save(); }, null)) {
             return true;
         }
-        return handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap) * 4, innerW, cardH, true, false, "",
-                () -> { config.compactChat = !config.compactChat; config.save(); }, null);
+        if (handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap) * 4, innerW, cardH, true, false, "",
+                () -> { config.compactChat = !config.compactChat; config.save(); }, null)) {
+            return true;
+        }
+
+        int notifierY = listY + (cardH + cardGap) * 5 + 10 + 30;
+        if (handleHudCardClick(mouseX, mouseY, innerX, notifierY, innerW, cardH, true, true, "Reset",
+                () -> {
+                    config.itemNotifierEnabled = !config.itemNotifierEnabled;
+                    if (!config.itemNotifierEnabled) {
+                        ItemNotifierHudRenderer.reset();
+                    }
+                    config.save();
+                },
+                () -> {
+                    config.itemNotifierX = -1;
+                    config.itemNotifierY = -1;
+                    config.save();
+                })) {
+            return true;
+        }
+
+        if (handleStepperCardClick(mouseX, mouseY, innerX, notifierY + (cardH + cardGap), innerW, cardH,
+                () -> {
+                    config.itemNotifierDuration = Math.max(1.0f, Math.round((config.itemNotifierDuration - 0.5f) * 2.0f) / 2.0f);
+                    config.save();
+                },
+                () -> {
+                    config.itemNotifierDuration = Math.min(10.0f, Math.round((config.itemNotifierDuration + 0.5f) * 2.0f) / 2.0f);
+                    config.save();
+                })) {
+            return true;
+        }
+
+        return handleStepperCardClick(mouseX, mouseY, innerX, notifierY + (cardH + cardGap) * 2, innerW, cardH,
+                () -> {
+                    config.itemNotifierMaxItems = Math.max(1, config.itemNotifierMaxItems - 1);
+                    config.save();
+                },
+                () -> {
+                    config.itemNotifierMaxItems = Math.min(10, config.itemNotifierMaxItems + 1);
+                    config.save();
+                });
     }
 
     private boolean handleHudCardClick(

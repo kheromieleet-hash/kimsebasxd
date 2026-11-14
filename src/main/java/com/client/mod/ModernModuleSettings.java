@@ -160,7 +160,6 @@ public final class ModernModuleSettings {
             case "Inventory HUD+" -> buildInventoryHudControls(cfg, actions);
             case "Fullbright" -> buildFullbrightControls(cfg, actions);
             case "Keybinds HUD" -> buildKeybindsHudControls(cfg, actions);
-            case "Item Notifier" -> buildItemNotifierControls(cfg, actions);
             case "HUD Info" -> buildHudInfoControls(cfg, actions);
             case "Fast Place" -> List.of(
                     toggle("Auto Right Click", () -> cfg.fastPlaceAutoRightClick, v -> cfg.fastPlaceAutoRightClick = v, actions, false),
@@ -294,20 +293,6 @@ public final class ModernModuleSettings {
                 new ActionControl(() -> "Reset Position", () -> {
                     cfg.keybindsHudX = 8;
                     cfg.keybindsHudY = 60;
-                    actions.persist(false);
-                })
-        );
-    }
-
-    private static List<Control> buildItemNotifierControls(ModConfig cfg, Actions actions) {
-        return List.of(
-                floatSlider("itemNotifierDuration", "Duration", 1.0f, 10.0f, 2.0f, "%.1fs",
-                        () -> cfg.itemNotifierDuration, v -> cfg.itemNotifierDuration = v),
-                intSlider("itemNotifierMaxItems", "Max Items", 1, 10, "",
-                        () -> cfg.itemNotifierMaxItems, v -> cfg.itemNotifierMaxItems = v),
-                new ActionControl(() -> "Reset Position", () -> {
-                    cfg.itemNotifierX = -1;
-                    cfg.itemNotifierY = -1;
                     actions.persist(false);
                 })
         );

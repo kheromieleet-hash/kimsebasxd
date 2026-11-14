@@ -191,19 +191,6 @@ public class ClickGuiScreen {
                 }
         ));
 
-        // 7. Item Notifier (Render)
-        MODULES.add(new ModuleEntry(
-                "Item Notifier", Category.RENDER,
-                () -> config.itemNotifierEnabled,
-                val -> {
-                    config.itemNotifierEnabled = val;
-                    if (!val) {
-                        ItemNotifierHudRenderer.reset();
-                    }
-                    config.save();
-                }
-        ));
-
         // 6. Fast Place (World)
         MODULES.add(new ModuleEntry(
                 "Fast Place", Category.WORLD,
