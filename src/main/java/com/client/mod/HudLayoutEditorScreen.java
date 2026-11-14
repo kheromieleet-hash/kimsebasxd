@@ -92,7 +92,7 @@ public class HudLayoutEditorScreen extends Screen {
         drawDraggableBox(
                 graphics, mouseX, mouseY,
                 statsBounds[0], statsBounds[1], statsBounds[2], statsBounds[3],
-                "Stats",
+                "Telemetry",
                 config.hudInfoEnabled,
                 this.dragging == HudTarget.STATS,
                 0x4436D37C, 0xDD4CF094

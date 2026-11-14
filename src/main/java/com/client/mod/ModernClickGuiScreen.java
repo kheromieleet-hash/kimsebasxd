@@ -998,7 +998,7 @@ public class ModernClickGuiScreen extends Screen {
                 config.keybindsHudEnabled, true, true, "Reset");
 
         drawHudResetCard(graphics, mouseX, mouseY, innerX, listY + (cardH + cardGap), innerW, cardH,
-                "Stats HUD (FPS / TPS / Ping / Speed)",
+                "Telemetry HUD (FPS / TPS / Ping / Speed)",
                 "Pos: " + config.statsHudX + ", " + config.statsHudY,
                 config.hudInfoEnabled, true, true, "Reset");
 

@@ -119,7 +119,7 @@ public class StatsHudRenderer {
         List<Component> lines = (mc.player != null && mc.level != null)
                 ? buildStatsLines(mc, config)
                 : buildDummyStatsLines(config);
-        int w = Math.max(68, measureMaxWidth(font, lines));
+        int w = Math.max(74, measureMaxWidth(font, lines));
         int h = Math.max(11, lines.size() * 11);
         int x = Mth.clamp(config.statsHudX, 2, Math.max(2, screenW - w - 2));
         int y = Mth.clamp(config.statsHudY, 2, Math.max(2, screenH - h - 2));
