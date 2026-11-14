@@ -1,7 +1,7 @@
 ================================================================================
 SESTIA CLIENT - TUM MODULLER VE OZELLIKLER REHBERI
-Surum: v1.0.27 (VersionCode: 28) | Minecraft: 26.3 Fabric
-Toplam Kayitli Modul: 38 (+ 4 Yerlesik Sistem Ozelligi)
+Surum: v1.0.35 (VersionCode: 35) | Minecraft: 26.3 Fabric
+Toplam Kayitli Modul: 37 (+ 4 Yerlesik Sistem Ozelligi)
 ================================================================================
 
 --------------------------------------------------------------------------------
@@ -225,7 +225,7 @@ Toplam Kayitli Modul: 38 (+ 4 Yerlesik Sistem Ozelligi)
 
 
 --------------------------------------------------------------------------------
-[6] MISC KATEGORISI (3 Modul)
+[6] MISC KATEGORISI (2 Modul)
 --------------------------------------------------------------------------------
 
 36. Better Chat
@@ -248,10 +248,6 @@ Toplam Kayitli Modul: 38 (+ 4 Yerlesik Sistem Ozelligi)
     - .c status / .c help / .c ? : Baglanti durumunu ve komut listesini gosterir
     - .c url <wss://...|default> : Istege bagli ozel sunucu adresi ayarlar
     Ayarlar: Client Chat (Varsayilan ACIK), Allow DMs, Reconnect, Chat Help (.c).
-
-38. GUI Style
-    Ne ise yarar: Client menusunun gorunumunu Modern Dashboard (4 sutunlu tek
-    panel) ve Classic Multi-Window (suruklenebilir pencereler) arasinda degistirir.
 
 
 --------------------------------------------------------------------------------

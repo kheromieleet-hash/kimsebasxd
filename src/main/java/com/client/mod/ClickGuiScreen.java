@@ -25,7 +25,7 @@ import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public class ClickGuiScreen extends Screen {
+public class ClickGuiScreen {
     private static final Style COMFORTAA_STYLE = Style.EMPTY;
 
     private static final int PANEL_WIDTH = 124;
@@ -102,24 +102,9 @@ public class ClickGuiScreen extends Screen {
     private static boolean listeningMacroBind = false;
     public static String listeningModuleBind = null;
 
-    private final Screen parent;
-
-    public ClickGuiScreen(Screen parent) {
-        super(Component.literal("Client ClickGUI"));
-        this.parent = parent;
-        ensureModulesInitialized();
-    }
-
-    public ClickGuiScreen() {
-        this(null);
-    }
-
     public static boolean isTargetScreen(Screen screen) {
         if (screen == null) {
             return false;
-        }
-        if (screen instanceof ClickGuiScreen) {
-            return true;
         }
         String className = screen.getClass().getName();
         return className.equals("meteordevelopment.meteorclient.gui.screens.ModulesScreen");
@@ -320,17 +305,7 @@ public class ClickGuiScreen extends Screen {
                 }
         ));
 
-        // 16. GUI Style (Misc)
-        MODULES.add(new ModuleEntry(
-                "GUI Style", Category.MISC,
-                () -> config.clickGuiStyle == 1,
-                val -> {
-                    config.clickGuiStyle = val ? 1 : 0;
-                    config.save();
-                }
-        ));
-
-        // 16. TrueSight (Render)
+        // TrueSight (Render)
         MODULES.add(new ModuleEntry(
                 "TrueSight", Category.RENDER,
                 () -> config.trueSight,
@@ -1407,10 +1382,6 @@ public class ClickGuiScreen extends Screen {
                 drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
                         "Box Outline: " + (config.trajectoriesBoxOutline ? "ON" : "OFF"), config.trajectoriesBoxOutline);
             }
-            case "GUI Style" -> {
-                String styleName = (config.clickGuiStyle == 1) ? "Modern Dashboard" : "Classic Multi-Window";
-                drawActionButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW, "Style: " + styleName);
-            }
             case "Client Chat" -> {
                 drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
                         "Client Chat: " + (config.clientChatEnabled ? "ON" : "OFF"), config.clientChatEnabled);
@@ -1443,7 +1414,7 @@ public class ClickGuiScreen extends Screen {
             case "Backtrack", "Disabler", "Exploit Guard", "No Mining Trace", "No Slowdown", "Ping Spoof" -> 2;
             case "HUD Info", "TNT Timer", "Auto Sprint", "Safe Walk", "TrueSight", "Item ESP",
                  "No Pitch Limit", "Abort Breaking", "Anti Hunger", "Anti Levitation",
-                 "Ghost Hand", "Portal GUI", "Resource Pack Spoof", "GUI Style" -> 1;
+                 "Ghost Hand", "Portal GUI", "Resource Pack Spoof" -> 1;
             default -> 0;
         };
         return specific + 1;
@@ -2635,13 +2606,6 @@ public class ClickGuiScreen extends Screen {
                     playClickSound();
                 }
             }
-            case "GUI Style" -> {
-                if (specificRow == 0) {
-                    config.clickGuiStyle = (config.clickGuiStyle == 1) ? 0 : 1;
-                    config.save();
-                    playClickSound();
-                }
-            }
             case "Client Chat" -> {
                 if (specificRow == 0) {
                     config.clientChatEnabled = !config.clientChatEnabled;
@@ -2719,23 +2683,6 @@ public class ClickGuiScreen extends Screen {
             case "packetMineDelay" -> config.packetMineDelay = Math.max(0, Math.min(5, Math.round(pct * 5.0f)));
             case "lightOverlayRange" -> config.lightOverlayRange = Math.max(8, Math.min(24, Math.round(8 + pct * 16.0f)));
         }
-    }
-
-    @Override
-    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        if (ModConfig.getInstance().jelloBlur) {
-            this.extractBlurredBackground(graphics);
-        }
-    }
-
-    @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        super.extractRenderState(graphics, mouseX, mouseY, delta);
-    }
-
-    @Override
-    public boolean isPauseScreen() {
-        return false;
     }
 
     public static class ModuleEntry {

@@ -4,53 +4,40 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FontDescription;
-import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Glassmorphic Obsidian & Crimson Red Theme constants and rounded drawing utilities.
+ * Pure OLED Obsidian Black & Vivid Crimson Red Theme constants and rounded drawing utilities.
  */
 public final class JelloTheme {
-    public static final FontDescription SANS_FONT =
-            new FontDescription.Resource(Identifier.fromNamespaceAndPath("inventoryhud", "sans_ui"));
+    public static final int ACCENT = 0xFFFF1E2D;        // Vivid Crimson Red
+    public static final int ACCENT_HOVER = 0xFFFF424E;  // Bright Vivid Scarlet
+    public static final int PANEL = 0xF208080B;             // Deep OLED black panel body
+    public static final int HEADER = 0xFA09090C;            // Pure black header
+    public static final int BORDER = 0xCCFF1E2D;            // Vivid crimson hairline border
+    public static final int ROW_HOVER = 0x2EFF1E2D;
+    public static final int TEXT = 0xFFFFFFFF;              // Crisp pure white
+    public static final int TEXT_MUTED = 0xFF94A3B8;        // Secondary neutral slate
+    public static final int TEXT_DIM = 0xFFFF9EA6;          // Bright coral-red accent text
+    public static final int TRACK = 0x44FF1E2D;
+    public static final int SWITCH_OFF = 0xFF16161D;        // Dark OLED pill off-track
+    public static final int SWITCH_OFF_HOVER = 0xFF22222C;
 
-    public static final int ACCENT = 0xFFE53935;        // Crimson Red
-    public static final int ACCENT_HOVER = 0xFFFF5252;  // Vibrant Scarlet Red
-    public static final int PANEL = 0xD80B0F17;             // Translucent obsidian-navy panel body
-    public static final int HEADER = 0x700E131D;            // Layered translucent header
-    public static final int BORDER = 0x48E53935;            // Soft crimson hairline border
-    public static final int ROW_HOVER = 0x22E53935;
-    public static final int TEXT = 0xFFF8FAFC;              // Primary high-contrast white
-    public static final int TEXT_MUTED = 0xFF94A3B8;        // Crisp slate secondary text
-    public static final int TEXT_DIM = 0xFFFCA5A5;          // Warm Soft Red accent text
-    public static final int TRACK = 0x33E53935;
-    public static final int SWITCH_OFF = 0xFF161A25;        // Dark obsidian-navy pill off-track
-    public static final int SWITCH_OFF_HOVER = 0xFF1F2534;
-
-    public static final int WINDOW_BG = 0xD80B0F17;         // Layered translucent obsidian-navy glass shell
-    public static final int HEADER_BG = 0x700E131D;         // Elevated translucent top bar
-    public static final int SIDEBAR_BG = 0x68080B12;        // Recessed translucent nav rail
-    public static final int CONTAINER_BG = 0xC010141F;      // Translucent container surface
-    public static final int CARD_INACTIVE = 0xAC131722;     // Translucent elevated dark navy card
-    public static final int CARD_INACTIVE_HOVER = 0xCC1B2130;
-    public static final int CARD_ACTIVE = 0xBF281218;       // Warm crimson-tinted active glass card
-    public static final int CARD_ACTIVE_HOVER = 0xD834161D;
-    public static final int BORDER_SUBTLE = 0x1EFFFFFF;     // 1px low-opacity glass hairline
-    public static final int BORDER_ACTIVE_SOFT = 0x5CE53935;// Soft low-opacity active crimson hairline
-    public static final int BORDER_EXPANDED_SOFT = 0x80FF5252;
-    public static final int DIVIDER = 0x18FFFFFF;           // Subtle translucent structural divider
-
-    public static Component sans(String text) {
-        return Component.literal(text == null ? "" : text).withStyle(style -> style.withFont(SANS_FONT));
-    }
-
-    public static Component sansBold(String text) {
-        return Component.literal(text == null ? "" : text).withStyle(style -> style.withFont(SANS_FONT).withBold(true));
-    }
+    public static final int WINDOW_BG = 0xF4060608;         // Pure OLED Black shell (non-bluish)
+    public static final int HEADER_BG = 0xFA09090C;         // Elevated OLED Black top bar
+    public static final int SIDEBAR_BG = 0xF6050507;        // Pure OLED Black nav rail
+    public static final int CONTAINER_BG = 0xF00B0B0F;      // Dark container surface
+    public static final int CARD_INACTIVE = 0xF00E0E12;     // Solid-feel dark OLED card
+    public static final int CARD_INACTIVE_HOVER = 0xF515151C;
+    public static final int CARD_ACTIVE = 0xF222070B;       // Deep vivid crimson-black active card
+    public static final int CARD_ACTIVE_HOVER = 0xF82E090E;
+    public static final int BORDER_SUBTLE = 0x20FFFFFF;     // Subtle neutral hairline
+    public static final int BORDER_ACTIVE_SOFT = 0xD8FF2838;// Vivid active crimson card border
+    public static final int BORDER_EXPANDED_SOFT = 0xFFFF424E;
+    public static final int DIVIDER = 0x1AFFFFFF;           // Crisp structural divider
 
     private static float alpha = 1.0f;
 

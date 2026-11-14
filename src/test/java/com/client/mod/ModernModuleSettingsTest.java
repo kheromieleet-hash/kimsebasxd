@@ -66,9 +66,8 @@ public class ModernModuleSettingsTest {
         List<String> simpleModules = List.of(
                 "HUD Info", "TNT Timer", "Auto Sprint", "Safe Walk",
                 "TrueSight", "Item ESP", "No Pitch Limit", "Abort Breaking",
-                "Anti Hunger", "Anti Levitation", "Ghost Hand",
-                "Portal GUI", "Resource Pack Spoof",
-                "GUI Style", "Version Switcher", "Unknown Module"
+                "Anti Hunger", "Anti Levitation", "Ghost Hand", "Portal GUI", "Resource Pack Spoof",
+                "Version Switcher", "Unknown Module"
         );
         for (String name : simpleModules) {
             assert !ModernModuleSettings.hasSettings(name, cfg, actions)
@@ -221,9 +220,6 @@ public class ModernModuleSettingsTest {
 
         String disabledMsg = ModConfig.formatToggleNotification("Fast Use", false);
         assert disabledMsg.startsWith("§c[Sestia] §fFast Use") && disabledMsg.endsWith("§cDisabled");
-
-        String styleMsg = ModConfig.formatToggleNotification("GUI Style", true);
-        assert styleMsg.startsWith("§c[Sestia] §fGUI Style") && styleMsg.endsWith("§eModern Dashboard");
     }
 
     private static void testNewExploitModulesControls() {
