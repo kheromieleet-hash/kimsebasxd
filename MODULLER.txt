@@ -263,8 +263,9 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
   Minecraft protokol surumu gondererek surum degistirmeyi saglar.
 - Sohbet Makrolari: Tek tusla sohbet komutu veya mesaj gonderme (Macros sekmesi).
 - Ayar Profilleri (Settings sekmesi): Acik modulleri, slider/mod ayarlarini,
-  tus atamalarini, makrolari ve HUD ayarlarini JSON dosyasi olarak kaydetme,
-  yukleme, paylasim kodu (SESTIA1:...) / JSON olarak disa ve ice aktarma.
+  tus atamalarini, makrolari ve HUD ayarlarini yerel profil olarak kaydetme/yukleme,
+  profil kartindaki Export butonu ile paylasim kodu (SESTIA1:...) olarak panoya
+  disa aktarma ve sag paneldeki IMPORT CODE kutusundan kod yapistirip ice aktarma.
 - Slider Sayi Girisi: Tum modullerdeki slider deger etiketlerinin (orn. 1.00x,
   -0.21, 0.0°, 25t, 70%) uzerine tiklayip klavyeden istenen sayiyi dogrudan
   yazma (Enter/Tab veya disa tikla onayla, Esc ile iptal et).

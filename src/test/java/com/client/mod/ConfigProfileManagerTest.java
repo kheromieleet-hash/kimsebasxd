@@ -33,6 +33,7 @@ public class ConfigProfileManagerTest {
         testSlugSanitization();
         testJsonAndShareCodeRoundTrip();
         testBareConfigJsonImportAndUrlPreservation();
+        testShareCodeOnlyImport();
         testLocalSaveListLoadAndDelete();
         testRejectsCorruptPayloads();
         System.out.println("ALL ConfigProfileManagerTest ASSERTIONS PASSED!");
@@ -114,6 +115,31 @@ public class ConfigProfileManagerTest {
         assert target.pingSpoof;
         assert target.pingSpoofDelay >= 50 && target.pingSpoofDelay <= 1000
                 : "Sanitizer must normalize out-of-range pingSpoofDelay, got " + target.pingSpoofDelay;
+    }
+
+    private static void testShareCodeOnlyImport() {
+        ModConfig source = new ModConfig();
+        source.fullbright = true;
+        source.fastBreak = true;
+        source.fastBreakSpeed = 1.12f;
+
+        String json = ConfigProfileManager.exportJson("CodeOnly", source, null, 2);
+        String shareCode = ConfigProfileManager.exportShareCode("CodeOnly", source, null, 2);
+
+        ConfigProfileManager.ProfileEnvelope parsed = ConfigProfileManager.parseShareCode("  " + shareCode + "  ");
+        assert "CodeOnly".equals(parsed.name);
+        assert parsed.config.fastBreak;
+        assert Math.abs(parsed.config.fastBreakSpeed - 1.12f) < 0.001f;
+
+        for (String nonShareCode : List.of(json, "{}", "", "   ", "SESTIA1:", "SESTIA1:bad")) {
+            boolean threw = false;
+            try {
+                ConfigProfileManager.parseShareCode(nonShareCode);
+            } catch (IllegalArgumentException expected) {
+                threw = true;
+            }
+            assert threw : "parseShareCode must reject non-share-code input: " + nonShareCode;
+        }
     }
 
     private static void testLocalSaveListLoadAndDelete() throws Exception {
