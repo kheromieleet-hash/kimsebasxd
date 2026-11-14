@@ -56,6 +56,7 @@ public class ModernModuleSettingsTest {
         testInventoryHudActions();
         testNewExploitModulesControls();
         testViewmodelControlsAndReset();
+        testAllSlidersSupportDirectNumericInput();
         System.out.println("ALL ModernModuleSettingsTest ASSERTIONS PASSED!");
     }
 
@@ -331,5 +332,70 @@ public class ModernModuleSettingsTest {
         assert Math.abs(cfg.itemScale - 1.0f) < 0.001f && Math.abs(cfg.playerScale - 1.0f) < 0.001f;
         assert Math.abs(cfg.vmOffsetX) < 0.001f && Math.abs(cfg.vmScaleX - 1.0f) < 0.001f;
         assert Math.abs(cfg.vmRotZ) < 0.001f && Math.abs(cfg.vmSwingY - 1.0f) < 0.001f;
+    }
+
+    private static void testAllSlidersSupportDirectNumericInput() {
+        ModConfig cfg = new ModConfig();
+        RecordingActions actions = new RecordingActions();
+        List<String> sliderModules = List.of(
+                "Viewmodel", "Inventory HUD+", "Fullbright", "Fast Place", "FastBreak",
+                "Inventory Tweaks", "Auto Replenish", "Fast Use", "Auto Crafter",
+                "Backtrack", "Exploit Guard", "Packet Mine", "Ping Spoof", "Light Overlay"
+        );
+        int sliderCount = 0;
+        for (String mod : sliderModules) {
+            for (ModernModuleSettings.Control c : ModernModuleSettings.getControls(mod, cfg, actions)) {
+                if (c instanceof ModernModuleSettings.SliderControl s) {
+                    sliderCount++;
+                    assert s.editText() != null && s.editText().get() != null
+                            : "Missing editText on slider " + mod + "/" + s.key();
+                    assert s.textCommitter() != null
+                            : "Missing textCommitter on slider " + mod + "/" + s.key();
+                    assert !s.textCommitter().test("not-a-number")
+                            : "Invalid text must be rejected for " + mod + "/" + s.key();
+                }
+            }
+        }
+        assert sliderCount >= 25 : "Expected all module sliders tested, got " + sliderCount;
+
+        // Viewmodel floats & int sliders (including commas, exact values, negatives, clamping)
+        List<ModernModuleSettings.Control> vm = ModernModuleSettings.getControls("Viewmodel", cfg, actions);
+        ModernModuleSettings.SliderControl swingSpeed = (ModernModuleSettings.SliderControl) vm.get(6);
+        assert swingSpeed.textCommitter().test("25") && cfg.vmSwingSpeed == 25;
+        assert swingSpeed.textCommitter().test("999") && cfg.vmSwingSpeed == 100;
+        assert swingSpeed.textCommitter().test("off") && cfg.vmSwingSpeed == 0;
+
+        ModernModuleSettings.SliderControl itemScale = (ModernModuleSettings.SliderControl) vm.get(7);
+        assert "1.00".equals(itemScale.editText().get());
+        assert itemScale.textCommitter().test("1,23") && Math.abs(cfg.itemScale - 1.23f) < 0.001f;
+        assert itemScale.textCommitter().test("-5") && Math.abs(cfg.itemScale - 0.10f) < 0.001f;
+
+        ModernModuleSettings.SliderControl offsetX = (ModernModuleSettings.SliderControl) vm.get(9);
+        assert offsetX.textCommitter().test("-0.75") && Math.abs(cfg.vmOffsetX + 0.75f) < 0.001f;
+
+        ModernModuleSettings.SliderControl rotX = (ModernModuleSettings.SliderControl) vm.get(15);
+        assert rotX.textCommitter().test("-45.5") && Math.abs(cfg.vmRotX + 45.5f) < 0.001f;
+
+        // Fullbright percentage slider auto-switches from Natural to Gamma
+        cfg.fullbrightMode = 0;
+        ModernModuleSettings.SliderControl fb =
+                (ModernModuleSettings.SliderControl) ModernModuleSettings.getControls("Fullbright", cfg, actions).get(1);
+        assert fb.textCommitter().test("85%") && Math.abs(cfg.fullbrightBrightness - 0.85f) < 0.001f;
+        assert cfg.fullbrightMode == 1 : "Typing Fullbright brightness should switch from Natural to Gamma mode";
+
+        // FastBreak dynamic mode range
+        cfg.fastBreakMode = 1; // Vulcan max 1.15x
+        ModernModuleSettings.SliderControl breakSpeed =
+                (ModernModuleSettings.SliderControl) ModernModuleSettings.getControls("FastBreak", cfg, actions).get(1);
+        assert breakSpeed.textCommitter().test("3.5x") && Math.abs(cfg.fastBreakSpeed - 1.15f) < 0.001f;
+        cfg.fastBreakMode = 0; // Vanilla up to 5.0x
+        assert breakSpeed.textCommitter().test("3.2x") && Math.abs(cfg.fastBreakSpeed - 3.2f) < 0.001f;
+
+        // Input buffer & hitbox helpers
+        assert "-0.59".equals(ModernModuleSettings.sanitizeSliderInputString("abc-0,5.9x", 16))
+                : "Expected sanitized '-0.59', got " + ModernModuleSettings.sanitizeSliderInputString("abc-0,5.9x", 16);
+        assert "5".equals(ModernModuleSettings.appendSliderInputChar("1.00", true, '5', 16));
+        assert ModernModuleSettings.isInsideSliderValueBox(145, 22, 10, 20, 150, 24);
+        assert !ModernModuleSettings.isInsideSliderValueBox(50, 35, 10, 20, 150, 24);
     }
 }

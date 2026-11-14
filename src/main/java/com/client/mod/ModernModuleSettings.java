@@ -3,6 +3,7 @@ package com.client.mod;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -73,7 +74,9 @@ public final class ModernModuleSettings {
             FloatSupplier pctGetter,
             FloatConsumer pctSetter,
             Supplier<String> valueLabel,
-            boolean needsChunkReload
+            boolean needsChunkReload,
+            Supplier<String> editText,
+            Predicate<String> textCommitter
     ) implements Control {
         @Override
         public int height() {
@@ -248,11 +251,8 @@ public final class ModernModuleSettings {
                 toggle("Potions HUD", inv::isPotions, inv::setPotions, actions, false),
                 toggle("Mini Mode", inv::isMini, inv::setMini, actions, false),
                 toggle("Vertical Mode", inv::isVert, inv::setVert, actions, false),
-                new SliderControl("invHudScale", "Inv Scale",
-                        () -> (cfg.invHudScale - 0.50f) / 1.50f,
-                        pct -> cfg.invHudScale = roundToStep(0.50f + pct * 1.50f, 20.0f),
-                        () -> String.format(Locale.ROOT, "%.2fx", cfg.invHudScale),
-                        false),
+                floatSlider("invHudScale", "Inv Scale", 0.50f, 2.00f, 20.0f, "%.2fx",
+                        () -> cfg.invHudScale, v -> cfg.invHudScale = v),
                 intSlider("invBgAlpha", "Bg Opacity", 0, 100, "%", inv::getBgAlpha, inv::setBgAlpha),
                 new ActionControl(() -> "Open Settings...", actions::openInventorySettings),
                 new ActionControl(() -> "Move HUD...", actions::openInventoryMove)
@@ -280,7 +280,14 @@ public final class ModernModuleSettings {
                             }
                         },
                         () -> Math.round(cfg.fullbrightBrightness * 100.0f) + "%",
-                        true),
+                        true,
+                        () -> Integer.toString(Math.round(cfg.fullbrightBrightness * 100.0f)),
+                        raw -> parseAndApplyFloat(raw, 20.0f, 100.0f, pctVal -> {
+                            cfg.fullbrightBrightness = Math.round(pctVal) / 100.0f;
+                            if (cfg.fullbrightMode == 0) {
+                                cfg.fullbrightMode = 1;
+                            }
+                        })),
                 toggle("3D Shading", () -> cfg.fullbright3DShading, v -> cfg.fullbright3DShading = v, actions, true),
                 toggle("No Dark Corners", () -> cfg.noBlockShadows, v -> cfg.noBlockShadows = v, actions, true)
         );
@@ -326,7 +333,13 @@ public final class ModernModuleSettings {
                         () -> cfg.fastBreakMode == 1
                                 ? String.format(Locale.ROOT, "%.2fx", Math.min(cfg.fastBreakSpeed, 1.15f))
                                 : String.format(Locale.ROOT, "%.1fx", cfg.fastBreakSpeed),
-                        false)
+                        false,
+                        () -> cfg.fastBreakMode == 1
+                                ? String.format(Locale.ROOT, "%.2f", Math.min(cfg.fastBreakSpeed, 1.15f))
+                                : String.format(Locale.ROOT, "%.1f", cfg.fastBreakSpeed),
+                        raw -> cfg.fastBreakMode == 1
+                                ? parseAndApplyFloat(raw, 1.0f, 1.15f, v -> cfg.fastBreakSpeed = v)
+                                : parseAndApplyFloat(raw, 0.5f, 5.0f, v -> cfg.fastBreakSpeed = v))
         );
     }
 
@@ -371,11 +384,8 @@ public final class ModernModuleSettings {
         }
 
         return List.of(
-                new SliderControl("autoCrafterDelay", "Delay",
-                        () -> cfg.autoCrafterDelay / 5.0f,
-                        pct -> cfg.autoCrafterDelay = clampInt(Math.round(pct * 5.0f), 0, 5),
-                        () -> cfg.autoCrafterDelay == 0 ? "0t" : (cfg.autoCrafterDelay + "t"),
-                        false),
+                intSlider("autoCrafterDelay", "Delay", 0, 5, "t",
+                        () -> cfg.autoCrafterDelay, v -> cfg.autoCrafterDelay = v),
                 toggle("Close When Done", () -> cfg.autoCrafterCloseWhenDone, v -> cfg.autoCrafterCloseWhenDone = v, actions, false),
                 new ActionControl(
                         () -> {
@@ -415,7 +425,16 @@ public final class ModernModuleSettings {
                         () -> cfg.vmSwingSpeed / 100.0f,
                         pct -> cfg.vmSwingSpeed = clampInt(Math.round(pct * 100.0f), 0, 100),
                         () -> cfg.vmSwingSpeed <= 0 ? "Off" : cfg.vmSwingSpeed + "t",
-                        false),
+                        false,
+                        () -> Integer.toString(cfg.vmSwingSpeed),
+                        raw -> {
+                            String trimmed = raw == null ? "" : raw.trim();
+                            if ("off".equalsIgnoreCase(trimmed)) {
+                                cfg.vmSwingSpeed = 0;
+                                return true;
+                            }
+                            return parseAndApplyInt(trimmed, 0, 100, v -> cfg.vmSwingSpeed = v);
+                        }),
                 floatSlider("itemScale", "Item Scale", 0.10f, 2.00f, 20.0f, "%.2fx", () -> cfg.itemScale, v -> cfg.itemScale = v),
                 floatSlider("playerScale", "Player Scale", 0.10f, 2.00f, 20.0f, "%.2fx", () -> cfg.playerScale, v -> cfg.playerScale = v),
                 floatSlider("vmOffsetX", "Offset X", -2.0f, 2.0f, 100.0f, "%.2f", () -> cfg.vmOffsetX, v -> cfg.vmOffsetX = v),
@@ -475,13 +494,16 @@ public final class ModernModuleSettings {
                 () -> (getter.getAsInt() - min) / span,
                 pct -> setter.accept(clampInt(Math.round(min + pct * span), min, max)),
                 () -> getter.getAsInt() + unit,
-                false
+                false,
+                () -> Integer.toString(getter.getAsInt()),
+                raw -> parseAndApplyInt(raw, min, max, setter)
         );
     }
 
     private static SliderControl floatSlider(String key, String label, float min, float max, float stepScale, String fmt,
                                              FloatSupplier getter, FloatConsumer setter) {
         float span = Math.max(0.0001f, max - min);
+        String editFmt = numericFormat(fmt);
         return new SliderControl(
                 key,
                 label,
@@ -492,8 +514,109 @@ public final class ModernModuleSettings {
                     setter.accept(Math.max(min, Math.min(max, rounded)));
                 },
                 () -> String.format(Locale.ROOT, fmt, getter.get()),
-                false
+                false,
+                () -> String.format(Locale.ROOT, editFmt, getter.get()),
+                raw -> parseAndApplyFloat(raw, min, max, setter)
         );
+    }
+
+    static boolean isInsideSliderValueBox(int mouseX, int mouseY, int cx, int cy, int cw, int valW) {
+        int hitW = Math.max(valW + 8, 28);
+        int hitX = cx + cw - hitW;
+        return mouseX >= hitX && mouseX <= cx + cw + 2 && mouseY >= cy - 2 && mouseY < cy + 12;
+    }
+
+    static String appendSliderInputChar(String current, boolean selectAll, char ch, int maxLength) {
+        String base = selectAll || current == null ? "" : current;
+        if (base.length() >= maxLength) {
+            return base;
+        }
+        char normalized = (ch == ',') ? '.' : ch;
+        if (normalized >= '0' && normalized <= '9') {
+            return base + normalized;
+        }
+        if (normalized == '.' && base.indexOf('.') < 0) {
+            return base + '.';
+        }
+        if (normalized == '-' && base.isEmpty()) {
+            return "-";
+        }
+        return current == null ? "" : current;
+    }
+
+    static String sanitizeSliderInputString(String raw, int maxLength) {
+        if (raw == null || raw.isEmpty()) {
+            return "";
+        }
+        String out = "";
+        for (int i = 0; i < raw.length(); i++) {
+            out = appendSliderInputChar(out, false, raw.charAt(i), maxLength);
+        }
+        return out;
+    }
+
+    private static String numericFormat(String fmt) {
+        if (fmt == null || fmt.isEmpty()) {
+            return "%.2f";
+        }
+        String res = fmt.trim();
+        if (res.endsWith("ms")) {
+            res = res.substring(0, res.length() - 2);
+        }
+        while (!res.isEmpty()) {
+            char last = res.charAt(res.length() - 1);
+            if (last == 'x' || last == '°' || last == 't' || last == '%') {
+                res = res.substring(0, res.length() - 1);
+            } else {
+                break;
+            }
+        }
+        return res.isEmpty() ? "%.2f" : res;
+    }
+
+    private static boolean parseAndApplyInt(String raw, int min, int max, java.util.function.IntConsumer setter) {
+        Double parsed = parseNormalizedNumber(raw);
+        if (parsed == null) {
+            return false;
+        }
+        int rounded = (int) Math.round(parsed);
+        setter.accept(clampInt(rounded, min, max));
+        return true;
+    }
+
+    private static boolean parseAndApplyFloat(String raw, float min, float max, FloatConsumer setter) {
+        Double parsed = parseNormalizedNumber(raw);
+        if (parsed == null) {
+            return false;
+        }
+        float clamped = Math.max(min, Math.min(max, parsed.floatValue()));
+        setter.accept(clamped);
+        return true;
+    }
+
+    private static Double parseNormalizedNumber(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String s = raw.trim().replace(',', '.').toLowerCase(Locale.ROOT);
+        s = s.replace("ms", "");
+        while (!s.isEmpty()) {
+            char last = s.charAt(s.length() - 1);
+            if (last == 'x' || last == 't' || last == '%' || last == '°' || last == ' ') {
+                s = s.substring(0, s.length() - 1);
+            } else {
+                break;
+            }
+        }
+        if (s.isEmpty() || "-".equals(s) || ".".equals(s) || "-.".equals(s)) {
+            return null;
+        }
+        try {
+            double value = Double.parseDouble(s);
+            return Double.isFinite(value) ? value : null;
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private static float roundToStep(float value, float scale) {

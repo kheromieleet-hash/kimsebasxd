@@ -13,6 +13,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import org.lwjgl.glfw.GLFW;
 
 import java.nio.file.Path;
 import java.util.*;
@@ -75,6 +76,15 @@ public class ModernClickGuiScreen extends Screen {
     private int draggingSliderStartX = 0;
     private int draggingSliderWidth = 100;
 
+    // Inline slider numeric editing state
+    private ModernModuleSettings.SliderControl editingSlider = null;
+    private String editingSliderText = "";
+    private boolean editingSliderSelectAll = false;
+    private int editingBoxX = 0;
+    private int editingBoxY = 0;
+    private int editingBoxW = 0;
+    private int editingBoxH = 0;
+
     private long lastFrameNanos = 0L;
 
     // Module Keybind listening state
@@ -116,6 +126,7 @@ public class ModernClickGuiScreen extends Screen {
         this.scrollAmount = 0.0;
         this.draggingSliderKey = null;
         this.activeSlider = null;
+        cancelEditingSlider();
         if (this.expandedModule != null) {
             this.ensureExpandedVisible = true;
         }
@@ -138,6 +149,7 @@ public class ModernClickGuiScreen extends Screen {
             this.scrollAmount = 0.0;
             this.draggingSliderKey = null;
             this.activeSlider = null;
+            cancelEditingSlider();
             if (this.expandedModule != null) {
                 if (findModuleIndex(getVisibleModules(), this.expandedModule) < 0) {
                     clearExpandedImmediate();
@@ -623,6 +635,9 @@ public class ModernClickGuiScreen extends Screen {
             }
 
             int controlsY = y + cardH + 1 + resolved.descHeaderHeight();
+            ModernModuleCardUi.SliderEditState editState = this.editingSlider != null
+                    ? new ModernModuleCardUi.SliderEditState(this.editingSlider.key(), this.editingSliderText, this.editingSliderSelectAll)
+                    : null;
             ModernModuleCardUi.renderControls(
                     graphics,
                     this.font,
@@ -634,7 +649,14 @@ public class ModernClickGuiScreen extends Screen {
                     mod.name,
                     resolved.expandedControls(),
                     (sx, sy, sw, sh, skey, pct) -> renderInteractiveSlider(graphics, mouseX, mouseY, sx, sy, sw, sh, skey, pct),
-                    (tx, ty, tw, th, tkey, tactive) -> renderSmoothSwitch(graphics, mouseX, mouseY, tx, ty, tw, th, tkey, tactive, dt)
+                    (tx, ty, tw, th, tkey, tactive) -> renderSmoothSwitch(graphics, mouseX, mouseY, tx, ty, tw, th, tkey, tactive, dt),
+                    editState,
+                    (bx, by, bw, bh) -> {
+                        this.editingBoxX = bx;
+                        this.editingBoxY = by;
+                        this.editingBoxW = bw;
+                        this.editingBoxH = bh;
+                    }
             );
             graphics.disableScissor();
         }
@@ -1091,6 +1113,16 @@ public class ModernClickGuiScreen extends Screen {
         }
 
         // Clear search [X] button in header
+        if (this.editingSlider != null) {
+            if (MouseButtonMapping.isLeftClick(button) && this.editingBoxW > 0
+                    && isInside(mouseX, mouseY, this.editingBoxX, this.editingBoxY, this.editingBoxW, this.editingBoxH)) {
+                this.editingSliderSelectAll = false;
+                playClickSound();
+                return true;
+            }
+            commitEditingSlider();
+        }
+
         int searchBoxX = this.windowX + this.windowW - SEARCH_BOX_WIDTH - 44;
         int searchBoxY = this.windowY + (HEADER_HEIGHT - SEARCH_BOX_HEIGHT) / 2;
         if (MouseButtonMapping.isLeftClick(button) && !this.searchQuery.isEmpty() && isInside(mouseX, mouseY, searchBoxX + SEARCH_BOX_WIDTH - 18, searchBoxY, 18, SEARCH_BOX_HEIGHT)) {
@@ -1243,6 +1275,7 @@ public class ModernClickGuiScreen extends Screen {
                     if (this.expandedModule != null && MouseButtonMapping.isLeftClick(button)) {
                         int controlsY = cy + cardH + 1 + resolved.descHeaderHeight();
                         ModernModuleCardUi.handleControlsClick(
+                                this.font,
                                 mouseX,
                                 mouseY,
                                 cx + ModernModuleGridLayout.CARD_PADDING_X,
@@ -1256,6 +1289,7 @@ public class ModernClickGuiScreen extends Screen {
                                     this.draggingSliderWidth = width;
                                     slider.pctSetter().accept(initialPct);
                                 },
+                                this::startEditingSlider,
                                 this::playClickSound
                         );
                     }
@@ -1664,6 +1698,7 @@ public class ModernClickGuiScreen extends Screen {
             boolean wasInvAlpha = "invBgAlpha".equals(this.draggingSliderKey);
             this.draggingSliderKey = null;
             this.activeSlider = null;
+            cancelEditingSlider();
             ModConfig.getInstance().save();
             if (needReload) ModConfig.reloadChunks();
             if (wasInvAlpha) ModernModuleCardUi.flushInventoryConfigSave();
@@ -1737,6 +1772,62 @@ public class ModernClickGuiScreen extends Screen {
             return true;
         }
 
+        if (this.editingSlider != null) {
+            int key = event.key();
+            boolean ctrlDown = (event.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0;
+            if (key == InputConstants.KEY_RETURN || key == GLFW.GLFW_KEY_KP_ENTER || key == InputConstants.KEY_TAB) {
+                commitEditingSlider();
+                playClickSound();
+                return true;
+            }
+            if (key == InputConstants.KEY_ESCAPE) {
+                cancelEditingSlider();
+                playClickSound();
+                return true;
+            }
+            if (key == InputConstants.KEY_BACKSPACE) {
+                if (this.editingSliderSelectAll) {
+                    this.editingSliderText = "";
+                    this.editingSliderSelectAll = false;
+                } else if (!this.editingSliderText.isEmpty()) {
+                    this.editingSliderText = this.editingSliderText.substring(0, this.editingSliderText.length() - 1);
+                }
+                return true;
+            }
+            if (key == InputConstants.KEY_DELETE) {
+                this.editingSliderText = "";
+                this.editingSliderSelectAll = false;
+                return true;
+            }
+            if (ctrlDown && key == InputConstants.KEY_A) {
+                this.editingSliderSelectAll = true;
+                return true;
+            }
+            if (ctrlDown && key == InputConstants.KEY_C) {
+                setClipboardSafe(this.editingSliderText);
+                return true;
+            }
+            if (ctrlDown && key == InputConstants.KEY_V) {
+                String pasted = ModernModuleSettings.sanitizeSliderInputString(getClipboardSafe(), 16);
+                if (this.editingSliderSelectAll) {
+                    this.editingSliderText = pasted;
+                    this.editingSliderSelectAll = false;
+                } else {
+                    for (int i = 0; i < pasted.length(); i++) {
+                        this.editingSliderText = ModernModuleSettings.appendSliderInputChar(
+                                this.editingSliderText, false, pasted.charAt(i), 16);
+                    }
+                }
+                return true;
+            }
+            if (key == InputConstants.KEY_LEFT || key == InputConstants.KEY_RIGHT
+                    || key == InputConstants.KEY_HOME || key == InputConstants.KEY_END) {
+                this.editingSliderSelectAll = false;
+                return true;
+            }
+            return true;
+        }
+
         if (event.key() == InputConstants.KEY_ESCAPE) {
             if (this.searchBox != null && this.searchBox.isFocused() && !this.searchQuery.isEmpty()) {
                 this.searchBox.setValue("");
@@ -1763,7 +1854,66 @@ public class ModernClickGuiScreen extends Screen {
 
     @Override
     public boolean charTyped(CharacterEvent event) {
+        if (this.editingSlider != null) {
+            char ch = (char) event.codepoint();
+            String updated = ModernModuleSettings.appendSliderInputChar(
+                    this.editingSliderText, this.editingSliderSelectAll, ch, 16);
+            boolean validChar = (ch >= '0' && ch <= '9') || ch == '.' || ch == ',' || ch == '-';
+            if (validChar) {
+                this.editingSliderSelectAll = false;
+                this.editingSliderText = updated;
+            }
+            return true;
+        }
         return super.charTyped(event);
+    }
+
+    private void startEditingSlider(ModernModuleSettings.SliderControl slider) {
+        if (this.editingSlider != null) {
+            commitEditingSlider();
+        }
+        this.draggingSliderKey = null;
+        this.activeSlider = null;
+        if (this.searchBox != null) this.searchBox.setFocused(false);
+        if (this.profileNameBox != null) this.profileNameBox.setFocused(false);
+        this.setFocused(null);
+
+        this.editingSlider = slider;
+        String initial = slider.editText() != null ? slider.editText().get() : "";
+        this.editingSliderText = initial != null ? initial : "";
+        this.editingSliderSelectAll = true;
+        this.editingBoxX = 0;
+        this.editingBoxY = 0;
+        this.editingBoxW = 0;
+        this.editingBoxH = 0;
+    }
+
+    private void commitEditingSlider() {
+        ModernModuleSettings.SliderControl slider = this.editingSlider;
+        String text = this.editingSliderText;
+        cancelEditingSlider();
+        if (slider == null || slider.textCommitter() == null) {
+            return;
+        }
+        if (slider.textCommitter().test(text)) {
+            ModConfig.getInstance().save();
+            if (slider.needsChunkReload()) {
+                ModConfig.reloadChunks();
+            }
+            if ("invBgAlpha".equals(slider.key())) {
+                ModernModuleCardUi.flushInventoryConfigSave();
+            }
+        }
+    }
+
+    private void cancelEditingSlider() {
+        this.editingSlider = null;
+        this.editingSliderText = "";
+        this.editingSliderSelectAll = false;
+        this.editingBoxX = 0;
+        this.editingBoxY = 0;
+        this.editingBoxW = 0;
+        this.editingBoxH = 0;
     }
 
     private void updateSliderValue(int mouseX) {
@@ -1801,6 +1951,7 @@ public class ModernClickGuiScreen extends Screen {
             this.renderedExpandedModule = modName;
             this.draggingSliderKey = null;
             this.activeSlider = null;
+            cancelEditingSlider();
             this.ensureExpandedVisible = true;
         }
         playClickSound();
@@ -1811,6 +1962,7 @@ public class ModernClickGuiScreen extends Screen {
         this.ensureExpandedVisible = false;
         this.draggingSliderKey = null;
         this.activeSlider = null;
+        cancelEditingSlider();
     }
 
     private void clearExpandedImmediate() {
@@ -1820,6 +1972,7 @@ public class ModernClickGuiScreen extends Screen {
         this.ensureExpandedVisible = false;
         this.draggingSliderKey = null;
         this.activeSlider = null;
+        cancelEditingSlider();
     }
 
     private record FilterChip(String id, String label, int count) {}
