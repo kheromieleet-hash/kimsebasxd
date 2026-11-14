@@ -45,7 +45,7 @@ $cpFile = Join-Path $buildTmp "javac_args.txt"
 [IO.File]::WriteAllText($cpFile, "-cp `"$cpString`"", [Text.Encoding]::ASCII)
 
 $sources = @(Get-ChildItem -Path (Join-Path $repoRoot "src\main\java") -Recurse -Filter "*.java" | Select-Object -ExpandProperty FullName)
-Write-Host "Compiling $($sources.Count) Java sources for SCT Client v$Version (code=$VersionCode)..."
+Write-Host "Compiling $($sources.Count) Java sources for Sestia Client v$Version (code=$VersionCode)..."
 & $javac "@$cpFile" -encoding UTF-8 -d $classesDir $sources
 if ($LASTEXITCODE -ne 0) {
     throw "Compilation failed with exit code $LASTEXITCODE"
@@ -234,7 +234,7 @@ if ($Upload) {
         if ($exists) {
             & gh release upload $tag $coreJarOut $manifestOut $loaderJarOut --repo $Repo --clobber
         } else {
-            & gh release create $tag $coreJarOut $manifestOut $loaderJarOut --repo $Repo --title "SCT Client $tag" --notes $Changelog
+            & gh release create $tag $coreJarOut $manifestOut $loaderJarOut --repo $Repo --title "Sestia Client $tag" --notes $Changelog
         }
         if ($LASTEXITCODE -ne 0) { throw "gh release upload failed!" }
         Write-Host "Uploaded $tag to https://github.com/$Repo/releases/tag/$tag"
@@ -243,9 +243,9 @@ if ($Upload) {
         $headers = @{
             Authorization = "Bearer $($env:GITHUB_TOKEN)"
             Accept        = "application/vnd.github+json"
-            "User-Agent"  = "SCTClient-Publisher"
+            "User-Agent"  = "SestiaClient-Publisher"
         }
-        $relBody = @{ tag_name = $tag; name = "SCT Client $tag"; body = $Changelog; draft = $false; prerelease = $false } | ConvertTo-Json
+        $relBody = @{ tag_name = $tag; name = "Sestia Client $tag"; body = $Changelog; draft = $false; prerelease = $false } | ConvertTo-Json
         try {
             $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/tags/$tag" -Headers $headers -Method Get
         } catch {

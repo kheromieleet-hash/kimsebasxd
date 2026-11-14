@@ -54,7 +54,7 @@ public class CoreAssetsPackMixin {
         }
         PackLocationInfo info = new PackLocationInfo(
                 "sestia-core",
-                Component.literal("SCT Client Core"),
+                Component.literal("Sestia Client Core"),
                 ModResourcePackCreator.RESOURCE_PACK_SOURCE,
                 Optional.empty()
         );

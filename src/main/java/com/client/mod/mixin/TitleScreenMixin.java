@@ -26,7 +26,7 @@ public abstract class TitleScreenMixin extends Screen {
     @Inject(method = "init", at = @At("TAIL"))
     private void onInitTail(CallbackInfo ci) {
         this.fading = false;
-        this.splash = new SplashRenderer(Component.literal("sct services"));
+        this.splash = new SplashRenderer(Component.literal("sestia services"));
         CustomTitleMenu.configureIasPosition();
     }
 }

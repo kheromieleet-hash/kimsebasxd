@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "inventoryhud",
   "version": "3.4.37",
-  "name": "SCT Client",
-  "description": "SCT Client with Inventory HUD +, Viewmodel, ClickGUI & Auto-Updater for Minecraft 26.3.",
+  "name": "Sestia Client",
+  "description": "Sestia Client with Inventory HUD +, Viewmodel, ClickGUI & Auto-Updater for Minecraft 26.3.",
   "authors": [
     "DmitryLovin",
     "inglettronald (DulkirMod)",

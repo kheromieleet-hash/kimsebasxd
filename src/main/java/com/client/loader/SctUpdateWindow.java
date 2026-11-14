@@ -78,7 +78,7 @@ public final class SctUpdateWindow implements SctUpdateListener {
 
     private void initDialog() {
         this.dialog = new JDialog();
-        this.dialog.setTitle("SCT Client Auto Updater");
+        this.dialog.setTitle("Sestia Client Auto Updater");
         this.dialog.setUndecorated(true);
         this.dialog.setAlwaysOnTop(true);
         this.dialog.setSize(WIN_W, WIN_H);
