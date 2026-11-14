@@ -2088,7 +2088,7 @@ public class ClickGuiScreen {
                             case 6 -> startSliderDrag(mouseX, innerX, innerW, "invBgAlpha");
                             case 7 -> {
                                 playClickSound();
-                                Minecraft.getInstance().gui.setScreen(new InGameConfigScreen(0, true));
+                                Minecraft.getInstance().gui.setScreen(new InGameConfigScreen(-1, true));
                             }
                         }
                     }

@@ -1,5 +1,6 @@
 package com.client.mod.mixin;
 
+import dlovin.inventoryhud.gui.InGameConfigScreen;
 import dlovin.inventoryhud.gui.config.ConfigScreen;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.screens.Screen;
@@ -13,6 +14,10 @@ public class GuiMixin {
     @Inject(method = "setScreen", at = @At("HEAD"), cancellable = true)
     private void onSetScreen(Screen screen, CallbackInfo ci) {
         if (screen instanceof ConfigScreen) {
+            Gui self = (Gui) (Object) this;
+            if (self.screen() instanceof InGameConfigScreen) {
+                self.setScreen(null);
+            }
             ci.cancel();
         }
     }

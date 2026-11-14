@@ -187,7 +187,7 @@ final class ModernModuleCardUi {
                 try {
                     Minecraft mc = Minecraft.getInstance();
                     if (mc != null && mc.gui != null) {
-                        mc.gui.setScreen(new InGameConfigScreen(0, true));
+                        mc.gui.setScreen(new InGameConfigScreen(-1, true));
                     }
                 } catch (Throwable ignored) {
                 }
