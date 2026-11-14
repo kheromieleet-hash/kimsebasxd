@@ -15,6 +15,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 
 public class StatsHudRenderer {
@@ -80,23 +81,98 @@ public class StatsHudRenderer {
         int screenH = graphics.guiHeight();
         int lineSpacing = 11;
 
-        int fps = mc.getFps();
-        float tps = getTickRate();
-        int ping = getPing(mc);
-        double speed = getPlayerSpeed(mc);
+        List<Component> statsLines = buildStatsLines(mc, config);
+        if (!statsLines.isEmpty()) {
+            int statsW = measureMaxWidth(mc.font, statsLines);
+            int statsH = statsLines.size() * lineSpacing;
+            int statsX = Mth.clamp(config.statsHudX, 2, Math.max(2, screenW - statsW - 2));
+            int statsY = Mth.clamp(config.statsHudY, 2, Math.max(2, screenH - statsH - 2));
+            for (int i = 0; i < statsLines.size(); i++) {
+                graphics.text(mc.font, statsLines.get(i), statsX, statsY + i * lineSpacing, -1, true);
+            }
+        }
 
-        MutableComponent fpsComp = buildPair("FPS: ", Integer.toString(fps));
-        MutableComponent tpsComp = buildPair("TPS: ", formatRound1(tps));
-        MutableComponent pingComp = buildPair("Ping: ", Integer.toString(ping));
-        MutableComponent speedComp = buildPair("Speed: ", formatRound1(speed));
+        List<Component> posLines = buildPositionLines(mc);
+        int posW = measureMaxWidth(mc.font, posLines);
+        int posH = posLines.size() * lineSpacing;
+        int posX = config.posHudX < 0
+                ? Math.max(2, screenW - 4 - posW)
+                : Mth.clamp(config.posHudX, 2, Math.max(2, screenW - posW - 2));
+        int posY = config.posHudY < 0
+                ? Math.max(2, screenH - 4 - posH)
+                : Mth.clamp(config.posHudY, 2, Math.max(2, screenH - posH - 2));
+        boolean alignRight = config.posHudX < 0 || (posX + posW / 2) > (screenW / 2);
+        for (int i = 0; i < posLines.size(); i++) {
+            Component line = posLines.get(i);
+            int lineX = alignRight ? (posX + posW - mc.font.width(line)) : posX;
+            graphics.text(mc.font, line, lineX, posY + i * lineSpacing, -1, true);
+        }
+    }
 
-        int x = 4;
-        int y = 4;
-        graphics.text(mc.font, fpsComp, x, y, -1, true);
-        graphics.text(mc.font, tpsComp, x, y + lineSpacing, -1, true);
-        graphics.text(mc.font, pingComp, x, y + lineSpacing * 2, -1, true);
-        graphics.text(mc.font, speedComp, x, y + lineSpacing * 3, -1, true);
+    public static int[] resolveStatsBounds(Font font, int screenW, int screenH, ModConfig config) {
+        Minecraft mc = Minecraft.getInstance();
+        List<Component> lines = (mc.player != null && mc.level != null)
+                ? buildStatsLines(mc, config)
+                : buildDummyStatsLines(config);
+        int w = Math.max(68, measureMaxWidth(font, lines));
+        int h = Math.max(11, lines.size() * 11);
+        int x = Mth.clamp(config.statsHudX, 2, Math.max(2, screenW - w - 2));
+        int y = Mth.clamp(config.statsHudY, 2, Math.max(2, screenH - h - 2));
+        return new int[]{x, y, w, h};
+    }
 
+    public static int[] resolvePositionBounds(Font font, int screenW, int screenH, ModConfig config) {
+        Minecraft mc = Minecraft.getInstance();
+        List<Component> lines = (mc.player != null && mc.level != null)
+                ? buildPositionLines(mc)
+                : buildDummyPositionLines();
+        int w = Math.max(96, measureMaxWidth(font, lines));
+        int h = lines.size() * 11;
+        int x = config.posHudX < 0
+                ? Math.max(2, screenW - 4 - w)
+                : Mth.clamp(config.posHudX, 2, Math.max(2, screenW - w - 2));
+        int y = config.posHudY < 0
+                ? Math.max(2, screenH - 4 - h)
+                : Mth.clamp(config.posHudY, 2, Math.max(2, screenH - h - 2));
+        return new int[]{x, y, w, h};
+    }
+
+    private static int measureMaxWidth(Font font, List<Component> lines) {
+        int max = 0;
+        for (Component c : lines) {
+            int w = font.width(c);
+            if (w > max) max = w;
+        }
+        return max;
+    }
+
+    private static List<Component> buildStatsLines(Minecraft mc, ModConfig config) {
+        java.util.ArrayList<Component> lines = new java.util.ArrayList<>(4);
+        if (config.hudShowFps) {
+            lines.add(buildPair("FPS: ", Integer.toString(mc.getFps())));
+        }
+        if (config.hudShowTps) {
+            lines.add(buildPair("TPS: ", formatRound1(getTickRate())));
+        }
+        if (config.hudShowPing) {
+            lines.add(buildPair("Ping: ", Integer.toString(getPing(mc))));
+        }
+        if (config.hudShowSpeed) {
+            lines.add(buildPair("Speed: ", formatRound1(getPlayerSpeed(mc))));
+        }
+        return lines;
+    }
+
+    private static List<Component> buildDummyStatsLines(ModConfig config) {
+        java.util.ArrayList<Component> lines = new java.util.ArrayList<>(4);
+        if (config.hudShowFps) lines.add(buildPair("FPS: ", "144"));
+        if (config.hudShowTps) lines.add(buildPair("TPS: ", "20"));
+        if (config.hudShowPing) lines.add(buildPair("Ping: ", "24"));
+        if (config.hudShowSpeed) lines.add(buildPair("Speed: ", "4.3"));
+        return lines;
+    }
+
+    private static List<Component> buildPositionLines(Minecraft mc) {
         Camera camera = mc.gameRenderer.mainCamera();
         Vec3 pos = camera.position();
         int posX = (int) Math.floor(pos.x);
@@ -110,36 +186,31 @@ public class StatsHudRenderer {
 
         MutableComponent dirComp = Component.literal(dirName + " (").setStyle(PRIMARY_STYLE)
                 .append(Component.literal(dirAxis + " " + formatRound1(yaw) + " / " + formatRound1(pitch) + ")").setStyle(SECONDARY_STYLE));
-
         MutableComponent posComp = buildPair("Pos: ", posX + ", " + posY + ", " + posZ);
 
+        java.util.ArrayList<Component> lines = new java.util.ArrayList<>(3);
+        lines.add(dirComp);
+
         ResourceKey<Level> dim = mc.level.dimension();
-        MutableComponent otherDimComp = null;
         if (dim == Level.OVERWORLD) {
             int netherX = (int) Math.floor(pos.x / 8.0);
             int netherZ = (int) Math.floor(pos.z / 8.0);
-            otherDimComp = buildPair("Nether: ", netherX + ", " + posY + ", " + netherZ);
+            lines.add(buildPair("Nether: ", netherX + ", " + posY + ", " + netherZ));
         } else if (dim == Level.NETHER) {
             int overX = (int) Math.floor(pos.x * 8.0);
             int overZ = (int) Math.floor(pos.z * 8.0);
-            otherDimComp = buildPair("Overworld: ", overX + ", " + posY + ", " + overZ);
+            lines.add(buildPair("Overworld: ", overX + ", " + posY + ", " + overZ));
         }
-
-        int rightX = screenW - 4;
-        int botY = screenH - 14;
-
-        drawRightAligned(graphics, mc, posComp, rightX, botY);
-        if (otherDimComp != null) {
-            drawRightAligned(graphics, mc, otherDimComp, rightX, botY - lineSpacing);
-            drawRightAligned(graphics, mc, dirComp, rightX, botY - lineSpacing * 2);
-        } else {
-            drawRightAligned(graphics, mc, dirComp, rightX, botY - lineSpacing);
-        }
+        lines.add(posComp);
+        return lines;
     }
 
-    private static void drawRightAligned(GuiGraphicsExtractor graphics, Minecraft mc, Component comp, int x, int y) {
-        int w = mc.font.width(comp);
-        graphics.text(mc.font, comp, x - w, y, -1, true);
+    private static List<Component> buildDummyPositionLines() {
+        return java.util.List.of(
+                Component.literal("South (Z+ 0 / 0)").setStyle(PRIMARY_STYLE),
+                buildPair("Nether: ", "0, 64, 0"),
+                buildPair("Pos: ", "0, 64, 0")
+        );
     }
 
     private static MutableComponent buildPair(String label, String value) {

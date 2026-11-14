@@ -160,6 +160,7 @@ public final class ModernModuleSettings {
             case "Inventory HUD+" -> buildInventoryHudControls(cfg, actions);
             case "Fullbright" -> buildFullbrightControls(cfg, actions);
             case "Keybinds HUD" -> buildKeybindsHudControls(cfg, actions);
+            case "HUD Info" -> buildHudInfoControls(cfg, actions);
             case "Fast Place" -> List.of(
                     toggle("Auto Right Click", () -> cfg.fastPlaceAutoRightClick, v -> cfg.fastPlaceAutoRightClick = v, actions, false),
                     intSlider("fastPlaceDelay", "Fast Place Delay", 0, 4, "t",
@@ -295,6 +296,15 @@ public final class ModernModuleSettings {
                     cfg.keybindsHudY = 60;
                     actions.persist(false);
                 })
+        );
+    }
+
+    private static List<Control> buildHudInfoControls(ModConfig cfg, Actions actions) {
+        return List.of(
+                toggle("Show FPS", () -> cfg.hudShowFps, v -> cfg.hudShowFps = v, actions, false),
+                toggle("Show TPS", () -> cfg.hudShowTps, v -> cfg.hudShowTps = v, actions, false),
+                toggle("Show Ping", () -> cfg.hudShowPing, v -> cfg.hudShowPing = v, actions, false),
+                toggle("Show Speed", () -> cfg.hudShowSpeed, v -> cfg.hudShowSpeed = v, actions, false)
         );
     }
 

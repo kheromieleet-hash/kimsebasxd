@@ -162,5 +162,15 @@ final class ModernIcons {
         g.fill(x + 1, y + 3, x + 8, y + 6, 0xFF140B0E);
         g.fill(x + 2, y + 4, x + 7, y + 5, color);
     }
+
+    /** HUD layout frame icon (10x10) for the GUI tab. */
+    static void drawLayoutIcon(GuiGraphicsExtractor g, int x, int y, int color) {
+        g.fill(x, y, x + 10, y + 1, color);
+        g.fill(x, y + 9, x + 10, y + 10, color);
+        g.fill(x, y, x + 1, y + 10, color);
+        g.fill(x + 9, y, x + 10, y + 10, color);
+        g.fill(x + 2, y + 2, x + 5, y + 5, color);
+        g.fill(x + 5, y + 6, x + 8, y + 8, color);
+    }
 }
 

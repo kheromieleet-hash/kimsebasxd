@@ -48,6 +48,14 @@ public class ModConfig {
 
     // Top-Left (FPS, TPS, Ping, Speed) & Bottom-Right (Direction, Nether/Overworld, Pos) HUD
     public boolean hudInfoEnabled = true;
+    public boolean hudShowFps = true;
+    public boolean hudShowTps = true;
+    public boolean hudShowPing = true;
+    public boolean hudShowSpeed = true;
+    public int statsHudX = 4;
+    public int statsHudY = 4;
+    public int posHudX = -1;
+    public int posHudY = -1;
 
     // Keybinds HUD Table
     public boolean keybindsHudEnabled = true;
@@ -351,6 +359,14 @@ public class ModConfig {
         this.inventoryHudEnabled = other.inventoryHudEnabled;
         this.invHudScale = other.invHudScale;
         this.hudInfoEnabled = other.hudInfoEnabled;
+        this.hudShowFps = other.hudShowFps;
+        this.hudShowTps = other.hudShowTps;
+        this.hudShowPing = other.hudShowPing;
+        this.hudShowSpeed = other.hudShowSpeed;
+        this.statsHudX = other.statsHudX;
+        this.statsHudY = other.statsHudY;
+        this.posHudX = other.posHudX;
+        this.posHudY = other.posHudY;
         this.keybindsHudEnabled = other.keybindsHudEnabled;
         this.keybindsHudOnlyActive = other.keybindsHudOnlyActive;
         this.keybindsHudAutoHide = other.keybindsHudAutoHide;
@@ -546,6 +562,10 @@ public class ModConfig {
         if (this.moduleKeybindIsMouse == null) this.moduleKeybindIsMouse = new HashMap<>();
         if (this.keybindsHudX < 0 || this.keybindsHudX > 3000) this.keybindsHudX = 8;
         if (this.keybindsHudY < 0 || this.keybindsHudY > 3000) this.keybindsHudY = 60;
+        if (this.statsHudX < 0 || this.statsHudX > 4000) this.statsHudX = 4;
+        if (this.statsHudY < 0 || this.statsHudY > 4000) this.statsHudY = 4;
+        if (this.posHudX < -1 || this.posHudX > 4000) this.posHudX = -1;
+        if (this.posHudY < -1 || this.posHudY > 4000) this.posHudY = -1;
         this.vmSwingSpeed = clampInt(this.vmSwingSpeed, 0, 100, 0);
         this.vmOffsetX = clampFloat(this.vmOffsetX, -2.0f, 2.0f, 0.0f);
         this.vmOffsetY = clampFloat(this.vmOffsetY, -2.0f, 2.0f, 0.0f);

@@ -28,6 +28,7 @@ public class ModernClickGuiScreen extends Screen {
     public enum NavTab {
         MODULES("Modules"),
         MACROS("Macros"),
+        GUI("GUI"),
         SETTINGS("Settings");
 
         public final String label;
@@ -268,6 +269,9 @@ public class ModernClickGuiScreen extends Screen {
                 renderMacrosView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH, dt);
                 graphics.disableScissor();
                 renderScrollbarAt(graphics, contentX + contentW - 6, contentY, contentH, this.contentTotalHeight, this.scrollAmount);
+            } else if (this.activeNav == NavTab.GUI) {
+                setSecondaryInputsVisible(false, false);
+                renderGuiView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH);
             } else if (this.activeNav == NavTab.SETTINGS) {
                 setSecondaryInputsVisible(false, true);
                 renderProfilesView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH);
@@ -378,6 +382,7 @@ public class ModernClickGuiScreen extends Screen {
             switch (tab) {
                 case MODULES -> ModernIcons.drawGridIcon(graphics, iconX, iconY, iconColor);
                 case MACROS -> ModernIcons.drawBoltIcon(graphics, iconX, iconY, iconColor);
+                case GUI -> ModernIcons.drawLayoutIcon(graphics, iconX, iconY, iconColor);
                 case SETTINGS -> ModernIcons.drawSlidersIcon(graphics, iconX, iconY, iconColor);
             }
 
@@ -956,6 +961,185 @@ public class ModernClickGuiScreen extends Screen {
         return new ProfileCardButtons(btnY, loadBtnX, loadBtnW, exportBtnX, exportBtnW, delBtnX, delBtnW);
     }
 
+    private void renderGuiView(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, int contentH) {
+        ModConfig config = ModConfig.getInstance();
+        int pad = 16;
+        int innerX = contentX + pad;
+        int innerW = contentW - pad * 2;
+        int innerY = contentY + 14;
+
+        ModernIcons.drawLayoutIcon(graphics, innerX, innerY - 1, JelloTheme.ACCENT);
+        graphics.text(this.font, Component.literal("§lHUD LAYOUT & GUI"), innerX + 15, innerY, JelloTheme.TEXT, false);
+        JelloTheme.fillHorizontalGradient(graphics, innerX, innerY + 13, innerX + 165, innerY + 14, JelloTheme.ACCENT, 0x55FF424E);
+
+        int btnY = innerY + 24;
+        int openBtnW = 148;
+        int resetAllBtnW = 132;
+        int btnH = 24;
+        boolean openHov = isInside(mouseX, mouseY, innerX, btnY, openBtnW, btnH);
+        JelloTheme.fillRoundedCard(graphics, innerX, btnY, innerX + openBtnW, btnY + btnH, 6,
+                openHov ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT, 0xFFFF6674);
+        graphics.centeredText(this.font, Component.literal("Open HUD Editor"), innerX + openBtnW / 2, btnY + 8, 0xFFFFFFFF);
+
+        int resetAllX = innerX + openBtnW + 10;
+        boolean resetAllHov = isInside(mouseX, mouseY, resetAllX, btnY, resetAllBtnW, btnH);
+        JelloTheme.fillRoundedCard(graphics, resetAllX, btnY, resetAllX + resetAllBtnW, btnY + btnH, 6,
+                resetAllHov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE,
+                resetAllHov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+        graphics.centeredText(this.font, Component.literal("Reset All Positions"), resetAllX + resetAllBtnW / 2, btnY + 8, JelloTheme.TEXT);
+
+        int listY = btnY + btnH + 14;
+        int cardH = 44;
+        int cardGap = 8;
+
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, listY, innerW, cardH,
+                "Keybinds HUD",
+                "Pos: " + config.keybindsHudX + ", " + config.keybindsHudY,
+                config.keybindsHudEnabled, true, true, "Reset");
+
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, listY + (cardH + cardGap), innerW, cardH,
+                "Stats HUD (FPS / TPS / Ping / Speed)",
+                "Pos: " + config.statsHudX + ", " + config.statsHudY,
+                config.hudInfoEnabled, true, true, "Reset");
+
+        String posDesc = (config.posHudX < 0 || config.posHudY < 0)
+                ? "Pos: Default (Bottom-Right)"
+                : ("Pos: " + config.posHudX + ", " + config.posHudY);
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, listY + (cardH + cardGap) * 2, innerW, cardH,
+                "Position HUD (Pos / Nether / Dir)",
+                posDesc,
+                config.hudInfoEnabled, false, true, "Reset");
+
+        boolean hasInvBridge = this.settingsActions.inventory() != null;
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, listY + (cardH + cardGap) * 3, innerW, cardH,
+                "Inventory HUD+",
+                "Inventory, Potions & Armor overlays",
+                config.inventoryHudEnabled, true, hasInvBridge, "Move HUD...");
+    }
+
+    private void drawHudResetCard(
+            GuiGraphicsExtractor graphics,
+            int mouseX, int mouseY,
+            int x, int y, int w, int h,
+            String title, String subtitle,
+            boolean enabled, boolean showToggle, boolean showActionBtn, String actionLabel
+    ) {
+        JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + h, 6, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
+        graphics.text(this.font, Component.literal(title), x + 12, y + 9, JelloTheme.TEXT, false);
+        graphics.text(this.font, Component.literal(subtitle), x + 12, y + 24, JelloTheme.TEXT_MUTED, false);
+
+        int rightEdge = x + w - 10;
+        int btnH = 20;
+        int btnY = y + (h - btnH) / 2;
+
+        if (showActionBtn) {
+            int actionW = Math.max(54, this.font.width(actionLabel) + 16);
+            int actionX = rightEdge - actionW;
+            boolean hov = isInside(mouseX, mouseY, actionX, btnY, actionW, btnH);
+            JelloTheme.fillRoundedCard(graphics, actionX, btnY, actionX + actionW, btnY + btnH, 4,
+                    hov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CONTAINER_BG,
+                    hov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+            graphics.centeredText(this.font, Component.literal(actionLabel), actionX + actionW / 2, btnY + 6, JelloTheme.TEXT);
+            rightEdge = actionX - 8;
+        }
+
+        if (showToggle) {
+            int toggleW = 38;
+            int toggleX = rightEdge - toggleW;
+            boolean hov = isInside(mouseX, mouseY, toggleX, btnY, toggleW, btnH);
+            int bg = enabled ? (hov ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT) : (hov ? 0x33FFFFFF : 0x22FFFFFF);
+            int border = enabled ? 0xFFFF6674 : JelloTheme.BORDER_SUBTLE;
+            JelloTheme.fillRoundedCard(graphics, toggleX, btnY, toggleX + toggleW, btnY + btnH, 4, bg, border);
+            graphics.centeredText(this.font, Component.literal(enabled ? "ON" : "OFF"), toggleX + toggleW / 2, btnY + 6, 0xFFFFFFFF);
+        }
+    }
+
+    private boolean handleGuiClick(int mouseX, int mouseY, int button, int contentX, int contentY, int contentW, int contentH) {
+        if (!MouseButtonMapping.isLeftClick(button)) {
+            return false;
+        }
+        ModConfig config = ModConfig.getInstance();
+        int pad = 16;
+        int innerX = contentX + pad;
+        int innerW = contentW - pad * 2;
+        int innerY = contentY + 14;
+        int btnY = innerY + 24;
+        int openBtnW = 148;
+        int resetAllBtnW = 132;
+        int btnH = 24;
+
+        if (isInside(mouseX, mouseY, innerX, btnY, openBtnW, btnH)) {
+            playClickSound();
+            Minecraft.getInstance().gui.setScreen(new HudLayoutEditorScreen(this));
+            return true;
+        }
+        int resetAllX = innerX + openBtnW + 10;
+        if (isInside(mouseX, mouseY, resetAllX, btnY, resetAllBtnW, btnH)) {
+            HudLayoutEditorScreen.resetAllHudPositions(config);
+            playClickSound();
+            return true;
+        }
+
+        int listY = btnY + btnH + 14;
+        int cardH = 44;
+        int cardGap = 8;
+
+        // Card 0: Keybinds HUD (Toggle + Reset)
+        if (handleHudCardClick(mouseX, mouseY, innerX, listY, innerW, cardH, true, true, "Reset",
+                () -> { config.keybindsHudEnabled = !config.keybindsHudEnabled; config.save(); },
+                () -> { config.keybindsHudX = 8; config.keybindsHudY = 60; config.save(); })) {
+            return true;
+        }
+        // Card 1: Stats HUD (Toggle + Reset)
+        if (handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap), innerW, cardH, true, true, "Reset",
+                () -> { config.hudInfoEnabled = !config.hudInfoEnabled; config.save(); },
+                () -> { config.statsHudX = 4; config.statsHudY = 4; config.save(); })) {
+            return true;
+        }
+        // Card 2: Position HUD (Reset only; shares hudInfoEnabled)
+        if (handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap) * 2, innerW, cardH, false, true, "Reset",
+                null,
+                () -> { config.posHudX = -1; config.posHudY = -1; config.save(); })) {
+            return true;
+        }
+        // Card 3: Inventory HUD+ (Toggle + Move HUD...)
+        boolean hasInvBridge = this.settingsActions.inventory() != null;
+        return handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap) * 3, innerW, cardH, true, hasInvBridge, "Move HUD...",
+                () -> { config.inventoryHudEnabled = !config.inventoryHudEnabled; config.save(); },
+                () -> this.settingsActions.openInventoryMove());
+    }
+
+    private boolean handleHudCardClick(
+            int mouseX, int mouseY,
+            int x, int y, int w, int h,
+            boolean showToggle, boolean showActionBtn, String actionLabel,
+            Runnable onToggle, Runnable onAction
+    ) {
+        int rightEdge = x + w - 10;
+        int btnH = 20;
+        int btnY = y + (h - btnH) / 2;
+        if (showActionBtn) {
+            int actionW = Math.max(54, this.font.width(actionLabel) + 16);
+            int actionX = rightEdge - actionW;
+            if (isInside(mouseX, mouseY, actionX, btnY, actionW, btnH)) {
+                if (onAction != null) onAction.run();
+                playClickSound();
+                return true;
+            }
+            rightEdge = actionX - 8;
+        }
+        if (showToggle) {
+            int toggleW = 38;
+            int toggleX = rightEdge - toggleW;
+            if (isInside(mouseX, mouseY, toggleX, btnY, toggleW, btnH)) {
+                if (onToggle != null) onToggle.run();
+                playClickSound();
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void renderProfilesView(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, int contentH) {
         ProfileLayout layout = computeProfileLayout(contentX, contentY, contentW, contentH);
 
@@ -1261,6 +1445,10 @@ public class ModernClickGuiScreen extends Screen {
                 }
             } else if (this.activeNav == NavTab.MACROS) {
                 if (handleMacrosClick(mouseX, mouseY, button, contentX, contentY, contentW, contentH)) {
+                    return true;
+                }
+            } else if (this.activeNav == NavTab.GUI) {
+                if (handleGuiClick(mouseX, mouseY, button, contentX, contentY, contentW, contentH)) {
                     return true;
                 }
             } else if (this.activeNav == NavTab.SETTINGS) {
@@ -1631,14 +1819,12 @@ public class ModernClickGuiScreen extends Screen {
                 if (!customName.isEmpty()) {
                     env.name = customName;
                 }
-                applyProfileEnvelope(env, config, inv);
-                env.activeCount = countActiveModules();
                 ConfigProfileManager.saveEnvelope(profilesDir, env);
                 refreshProfilesList();
                 if (this.profileCodeBox != null) {
                     this.profileCodeBox.setValue("");
                 }
-                setProfileStatus("Imported '" + env.name + "'!", false);
+                setProfileStatus("Imported '" + env.name + "' (click Load)", false);
             } catch (Exception e) {
                 setProfileStatus("Invalid share code", true);
             }
