@@ -52,7 +52,6 @@ public class ModernModuleSettingsTest {
         testFullbrightControls();
         testFastBreakModeAndClamp();
         testFastPlaceAndFastUseSettings();
-        testDulkirSlidersAndReset();
         testAutoCrafterActionsAndChips();
         testInventoryHudActions();
         testNewExploitModulesControls();
@@ -82,7 +81,7 @@ public class ModernModuleSettingsTest {
         ModConfig cfg = new ModConfig();
         RecordingActions actions = new RecordingActions();
         List<String> configurable = List.of(
-                "Dulkir", "Viewmodel", "Inventory HUD+", "Fullbright", "Keybinds HUD",
+                "Viewmodel", "Inventory HUD+", "Fullbright", "Keybinds HUD",
                 "Fast Place", "Auto Break", "FastBreak", "Inventory Tweaks",
                 "Auto Replenish", "Fast Use", "Auto Tool", "Auto Crafter",
                 "Better Chat", "Backtrack", "Disabler", "Exploit Guard",
@@ -152,29 +151,6 @@ public class ModernModuleSettingsTest {
         assert fastUseControls.size() == 1 : "Expected only Cooldown under Fast Use, got " + fastUseControls.size();
         ModernModuleSettings.SliderControl cooldown = (ModernModuleSettings.SliderControl) fastUseControls.get(0);
         assert "fastUseCooldown".equals(cooldown.key());
-    }
-
-    private static void testDulkirSlidersAndReset() {
-        ModConfig cfg = new ModConfig();
-        RecordingActions actions = new RecordingActions();
-        List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls("Dulkir", cfg, actions);
-
-        ModernModuleSettings.SliderControl itemScale = (ModernModuleSettings.SliderControl) controls.get(0);
-        itemScale.pctSetter().accept(1.0f);
-        assert Math.abs(cfg.itemScale - 2.0f) < 0.001f;
-
-        ModernModuleSettings.SliderControl posZ = (ModernModuleSettings.SliderControl) controls.get(4);
-        posZ.pctSetter().accept(1.0f);
-        assert cfg.posZ == 50 : "Expected posZ upper bound 50, got " + cfg.posZ;
-
-        ModernModuleSettings.ToggleControl airWalker = (ModernModuleSettings.ToggleControl) controls.get(8);
-        airWalker.setter().accept(true);
-        assert cfg.dulkirAirWalker;
-
-        ModernModuleSettings.ActionControl reset = (ModernModuleSettings.ActionControl) controls.get(9);
-        reset.onClick().run();
-        assert Math.abs(cfg.itemScale - 1.0f) < 0.001f;
-        assert cfg.posZ == 0 && !cfg.dulkirAirWalker && cfg.swingDuration == 6;
     }
 
     private static void testAutoCrafterActionsAndChips() {
@@ -309,40 +285,50 @@ public class ModernModuleSettingsTest {
         ModConfig cfg = new ModConfig();
         RecordingActions actions = new RecordingActions();
         List<ModernModuleSettings.Control> vm = ModernModuleSettings.getControls("Viewmodel", cfg, actions);
-        assert vm.size() == 19 : "Expected 19 Viewmodel controls matching NoFrills + Reset, got " + vm.size();
+        assert vm.size() == 22 : "Expected 22 Viewmodel controls (NoFrills + AirWalker + Item/Player Scale + Reset), got " + vm.size();
 
         ((ModernModuleSettings.ToggleControl) vm.get(0)).setter().accept(true);
         ((ModernModuleSettings.ToggleControl) vm.get(1)).setter().accept(true);
         ((ModernModuleSettings.ToggleControl) vm.get(2)).setter().accept(true);
         ((ModernModuleSettings.ToggleControl) vm.get(3)).setter().accept(true);
         ((ModernModuleSettings.ToggleControl) vm.get(4)).setter().accept(true);
-        assert cfg.vmNoHaste && cfg.vmNoEquip && cfg.vmNoBowSwing && cfg.vmNoSwingReset && cfg.vmApplyToHand;
+        ((ModernModuleSettings.ToggleControl) vm.get(5)).setter().accept(true);
+        assert cfg.vmNoHaste && cfg.vmNoEquip && cfg.vmNoBowSwing && cfg.vmNoSwingReset && cfg.vmApplyToHand && cfg.vmAirWalker;
 
-        ModernModuleSettings.SliderControl speed = (ModernModuleSettings.SliderControl) vm.get(5);
+        ModernModuleSettings.SliderControl speed = (ModernModuleSettings.SliderControl) vm.get(6);
         assert "Off".equals(speed.valueLabel().get());
         speed.pctSetter().accept(0.25f);
         assert cfg.vmSwingSpeed == 25 && "25t".equals(speed.valueLabel().get());
 
-        ModernModuleSettings.SliderControl offsetX = (ModernModuleSettings.SliderControl) vm.get(6);
+        ModernModuleSettings.SliderControl itemScale = (ModernModuleSettings.SliderControl) vm.get(7);
+        itemScale.pctSetter().accept(1.0f);
+        assert Math.abs(cfg.itemScale - 2.0f) < 0.001f;
+
+        ModernModuleSettings.SliderControl playerScale = (ModernModuleSettings.SliderControl) vm.get(8);
+        playerScale.pctSetter().accept(0.0f);
+        assert Math.abs(cfg.playerScale - 0.10f) < 0.001f;
+
+        ModernModuleSettings.SliderControl offsetX = (ModernModuleSettings.SliderControl) vm.get(9);
         offsetX.pctSetter().accept(1.0f);
         assert Math.abs(cfg.vmOffsetX - 2.0f) < 0.001f;
 
-        ModernModuleSettings.SliderControl scaleX = (ModernModuleSettings.SliderControl) vm.get(9);
+        ModernModuleSettings.SliderControl scaleX = (ModernModuleSettings.SliderControl) vm.get(12);
         scaleX.pctSetter().accept(0.5f);
         assert Math.abs(cfg.vmScaleX - 2.5f) < 0.001f;
 
-        ModernModuleSettings.SliderControl rotZ = (ModernModuleSettings.SliderControl) vm.get(14);
+        ModernModuleSettings.SliderControl rotZ = (ModernModuleSettings.SliderControl) vm.get(17);
         rotZ.pctSetter().accept(0.0f);
         assert Math.abs(cfg.vmRotZ + 180.0f) < 0.001f;
 
-        ModernModuleSettings.SliderControl swingY = (ModernModuleSettings.SliderControl) vm.get(16);
+        ModernModuleSettings.SliderControl swingY = (ModernModuleSettings.SliderControl) vm.get(19);
         swingY.pctSetter().accept(0.0f);
         assert Math.abs(cfg.vmSwingY) < 0.001f;
 
         int beforePersist = actions.persistCalls;
-        ((ModernModuleSettings.ActionControl) vm.get(18)).onClick().run();
+        ((ModernModuleSettings.ActionControl) vm.get(21)).onClick().run();
         assert actions.persistCalls == beforePersist + 1;
-        assert !cfg.vmNoHaste && !cfg.vmNoEquip && cfg.vmSwingSpeed == 0;
+        assert !cfg.vmNoHaste && !cfg.vmNoEquip && !cfg.vmAirWalker && cfg.vmSwingSpeed == 0;
+        assert Math.abs(cfg.itemScale - 1.0f) < 0.001f && Math.abs(cfg.playerScale - 1.0f) < 0.001f;
         assert Math.abs(cfg.vmOffsetX) < 0.001f && Math.abs(cfg.vmScaleX - 1.0f) < 0.001f;
         assert Math.abs(cfg.vmRotZ) < 0.001f && Math.abs(cfg.vmSwingY - 1.0f) < 0.001f;
     }

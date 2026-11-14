@@ -401,8 +401,7 @@ final class ModernModuleCardUi {
 
     static String getModuleDescription(String name, String fallbackCategory) {
         return switch (name) {
-            case "Dulkir" -> "Custom hand model scale, positions & swing speed";
-            case "Viewmodel" -> "Held item offset, scale, rotation & swing (NoFrills)";
+            case "Viewmodel" -> "Held item/hand viewmodel, Item & Player Scale, AirWalker";
             case "Inventory HUD+" -> "On-screen inventory, armor & potion status";
             case "Fullbright" -> "Full night vision & clear sight in caves";
             case "HUD Info" -> "FPS, Ping, TPS & coordinates on screen";

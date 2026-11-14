@@ -118,17 +118,7 @@ public class ClickGuiScreen {
         MODULES.clear();
         ModConfig config = ModConfig.getInstance();
 
-        // 1. Dulkir Animations (Render)
-        MODULES.add(new ModuleEntry(
-                "Dulkir", Category.RENDER,
-                () -> config.dulkirEnabled,
-                val -> {
-                    config.dulkirEnabled = val;
-                    config.save();
-                }
-        ));
-
-        // 1b. Viewmodel (NoFrills) (Render)
+        // 1. Viewmodel (Render)
         MODULES.add(new ModuleEntry(
                 "Viewmodel", Category.RENDER,
                 () -> config.vmEnabled,
@@ -1024,42 +1014,6 @@ public class ClickGuiScreen {
         rowY += 22;
 
         switch (activeSettingsModule) {
-            case "Dulkir" -> {
-                drawSlider(graphics, font, innerX, rowY, innerW,
-                        String.format(Locale.US, "Item Scale: %.2fx", config.itemScale),
-                        (config.itemScale - 0.10f) / 1.90f);
-                rowY += 22;
-                drawSlider(graphics, font, innerX, rowY, innerW,
-                        String.format(Locale.US, "Player Scale: %.2fx", config.playerScale),
-                        (config.playerScale - 0.10f) / 1.90f);
-                rowY += 22;
-                drawSlider(graphics, font, innerX, rowY, innerW,
-                        "Pos X: " + config.posX,
-                        (config.posX + 150) / 300.0f);
-                rowY += 22;
-                drawSlider(graphics, font, innerX, rowY, innerW,
-                        "Pos Y: " + config.posY,
-                        (config.posY + 150) / 300.0f);
-                rowY += 22;
-                drawSlider(graphics, font, innerX, rowY, innerW,
-                        "Pos Z: " + config.posZ,
-                        (config.posZ + 150) / 200.0f);
-                rowY += 22;
-                drawSlider(graphics, font, innerX, rowY, innerW,
-                        "Swing Duration: " + config.swingDuration,
-                        (config.swingDuration - 2) / 18.0f);
-                rowY += 22;
-                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
-                        "Cancel Re-Equip: " + (config.cancelReEquip ? "ON" : "OFF"), config.cancelReEquip);
-                rowY += 22;
-                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
-                        "Rotationless Drink: " + (config.rotationlessDrink ? "ON" : "OFF"), config.rotationlessDrink);
-                rowY += 22;
-                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
-                        "AirWalker: " + (config.dulkirAirWalker ? "ON" : "OFF"), config.dulkirAirWalker);
-                rowY += 22;
-                drawActionButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW, "Reset Dulkir Defaults");
-            }
             case "Inventory HUD+" -> {
                 boolean inv = InventoryHUDCommon.isActive;
                 boolean arm = InventoryHUDCommon.armorHUD;
@@ -1408,7 +1362,6 @@ public class ClickGuiScreen {
 
     private static int getSubSettingsRowCount(String modName) {
         int specific = switch (modName) {
-            case "Dulkir" -> 10;
             case "Inventory HUD+" -> 9;
             case "Inventory Tweaks" -> 7;
             case "Auto Replenish" -> 6;
@@ -2094,47 +2047,6 @@ public class ClickGuiScreen {
         int specificRow = rowIndex - 1;
 
         switch (activeSettingsModule) {
-            case "Dulkir" -> {
-                switch (specificRow) {
-                    case 0 -> startSliderDrag(mouseX, innerX, innerW, "itemScale");
-                    case 1 -> startSliderDrag(mouseX, innerX, innerW, "playerScale");
-                    case 2 -> startSliderDrag(mouseX, innerX, innerW, "posX");
-                    case 3 -> startSliderDrag(mouseX, innerX, innerW, "posY");
-                    case 4 -> startSliderDrag(mouseX, innerX, innerW, "posZ");
-                    case 5 -> startSliderDrag(mouseX, innerX, innerW, "swingDuration");
-                    case 6 -> {
-                        config.cancelReEquip = !config.cancelReEquip;
-                        config.save();
-                        playClickSound();
-                    }
-                    case 7 -> {
-                        config.rotationlessDrink = !config.rotationlessDrink;
-                        config.save();
-                        playClickSound();
-                    }
-                    case 8 -> {
-                        config.dulkirAirWalker = !config.dulkirAirWalker;
-                        config.save();
-                        playClickSound();
-                    }
-                    case 9 -> {
-                        config.itemScale = 1.0f;
-                        config.playerScale = 1.0f;
-                        config.posX = 0;
-                        config.posY = 0;
-                        config.posZ = 0;
-                        config.rotationX = 0;
-                        config.rotationY = 0;
-                        config.rotationZ = 0;
-                        config.swingDuration = 6;
-                        config.cancelReEquip = false;
-                        config.rotationlessDrink = true;
-                        config.dulkirAirWalker = false;
-                        config.save();
-                        playClickSound();
-                    }
-                }
-            }
             case "Inventory HUD+" -> {
                 try {
                     ConfigAccess invCfg = InventoryHUDCommon.getConfig();
@@ -2642,12 +2554,6 @@ public class ClickGuiScreen {
         float pct = Mth.clamp((float) (mouseX - x) / (float) w, 0.0f, 1.0f);
         ModConfig config = ModConfig.getInstance();
         switch (key) {
-            case "itemScale" -> config.itemScale = Math.round((0.10f + pct * 1.90f) * 20.0f) / 20.0f;
-            case "playerScale" -> config.playerScale = Math.round((0.10f + pct * 1.90f) * 20.0f) / 20.0f;
-            case "posX" -> config.posX = Math.round(-150 + pct * 300.0f);
-            case "posY" -> config.posY = Math.round(-150 + pct * 300.0f);
-            case "posZ" -> config.posZ = Math.round(-150 + pct * 200.0f);
-            case "swingDuration" -> config.swingDuration = Math.round(2 + pct * 18.0f);
             case "invHudScale" -> config.invHudScale = Math.round((0.50f + pct * 1.50f) * 20.0f) / 20.0f;
             case "fullbrightBrightness" -> {
                 config.fullbrightBrightness = Math.round((0.20f + pct * 0.80f) * 100.0f) / 100.0f;

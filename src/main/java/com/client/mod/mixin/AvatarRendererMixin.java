@@ -15,7 +15,7 @@ public class AvatarRendererMixin {
     @Inject(method = "scale(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;)V", at = @At("TAIL"))
     protected void onScale(AvatarRenderState state, PoseStack poseStack, CallbackInfo ci) {
         ModConfig config = ModConfig.getInstance();
-        if (!config.dulkirEnabled) {
+        if (!config.vmEnabled) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();

@@ -9,7 +9,6 @@
     "FirstPersonHandsMixin",
     "FirstPersonRendererMixin",
     "LivingEntityMixin",
-    "ConfigScreenMixin",
     "HudOverlayMixin",
     "ClientPacketListenerMixin",
     "CameraMixin",

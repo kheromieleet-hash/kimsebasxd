@@ -46,33 +46,7 @@ public class FirstPersonRendererMixin {
     private void onRenderHeldItem(PlayerRenderState playerState, FirstPersonHandsAndItemsRenderState handState, float f, float g, InteractionHand hand, float h, ItemStack itemStack, float i, PoseStack poseStack, SubmitNodeCollector collector, int light, CallbackInfo ci) {
         ModConfig config = ModConfig.getInstance();
         if (config.vmEnabled) {
-            applyViewmodelRotAndScale(poseStack, config);
-            return;
-        }
-        if (!config.dulkirEnabled) {
-            return;
-        }
-        float scale = config.itemScale;
-        if (hand == InteractionHand.MAIN_HAND) {
-            float rotX = (float) config.rotationX;
-            float rotY = (float) config.rotationY;
-            float rotZ = (float) config.rotationZ;
-            float posX = (float) config.posX / 100.0f;
-            float posY = (float) config.posY / 100.0f;
-            float posZ = (float) config.posZ / 100.0f;
-
-            poseStack.translate(posX, posY, posZ);
-            poseStack.rotateDegrees(Axis.XP, rotX);
-            poseStack.rotateDegrees(Axis.YP, rotY);
-            poseStack.rotateDegrees(Axis.ZP, rotZ);
-            poseStack.scale(scale, scale, scale);
-        } else if (hand == InteractionHand.OFF_HAND) {
-            float posX = -(float) config.posX / 100.0f;
-            float posY = (float) config.posY / 100.0f;
-            float posZ = (float) config.posZ / 100.0f;
-
-            poseStack.translate(posX, posY, posZ);
-            poseStack.scale(scale, scale, scale);
+            applyViewmodelRotAndScale(poseStack, config, config.itemScale);
         }
     }
 
@@ -95,7 +69,7 @@ public class FirstPersonRendererMixin {
     private void onRenderPlayerArm(PoseStack poseStack, SubmitNodeCollector collector, int light, float inverseArmHeight, float attackValue, HumanoidArm arm, PlayerRenderState playerState, CallbackInfo ci) {
         ModConfig config = ModConfig.getInstance();
         if (config.vmEnabled && config.vmApplyToHand) {
-            applyViewmodelRotAndScale(poseStack, config);
+            applyViewmodelRotAndScale(poseStack, config, 1.0f);
         }
     }
 
@@ -116,19 +90,10 @@ public class FirstPersonRendererMixin {
         }
     }
 
-    @Inject(method = "applyEatTransform", at = @At("HEAD"), cancellable = true)
-    private void onApplyEatTransform(PoseStack poseStack, float f, HumanoidArm humanoidArm, float g, int i, CallbackInfo ci) {
-        ModConfig config = ModConfig.getInstance();
-        if (!config.vmEnabled && config.dulkirEnabled && config.rotationlessDrink) {
-            ci.cancel();
-        }
-    }
-
     @Inject(method = "applyItemArmTransform", at = @At("HEAD"), cancellable = true)
     private void onApplyItemArmTransform(PoseStack poseStack, HumanoidArm humanoidArm, float f, CallbackInfo ci) {
         ModConfig config = ModConfig.getInstance();
-        boolean cancelEquip = config.vmEnabled ? config.vmNoEquip : (config.dulkirEnabled && config.cancelReEquip);
-        if (cancelEquip) {
+        if (config.vmEnabled && config.vmNoEquip) {
             int dir = (humanoidArm == HumanoidArm.RIGHT) ? 1 : -1;
             poseStack.translate((float) dir * 0.56f, -0.52f, -0.72f);
             ci.cancel();
@@ -136,10 +101,10 @@ public class FirstPersonRendererMixin {
     }
 
     @Unique
-    private static void applyViewmodelRotAndScale(PoseStack poseStack, ModConfig config) {
+    private static void applyViewmodelRotAndScale(PoseStack poseStack, ModConfig config, float uniformScale) {
         poseStack.rotateDegrees(Axis.XP, config.vmRotX);
         poseStack.rotateDegrees(Axis.YP, config.vmRotY);
         poseStack.rotateDegrees(Axis.ZP, config.vmRotZ);
-        poseStack.scale(config.vmScaleX, config.vmScaleY, config.vmScaleZ);
+        poseStack.scale(config.vmScaleX * uniformScale, config.vmScaleY * uniformScale, config.vmScaleZ * uniformScale);
     }
 }

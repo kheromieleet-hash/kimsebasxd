@@ -39,23 +39,20 @@ public class LivingEntityMixin {
             return;
         }
         ModConfig config = ModConfig.getInstance();
-        if (config.vmEnabled) {
-            LivingEntity self = (LivingEntity) (Object) this;
-            if (config.vmNoBowSwing && self.isHolding(Items.BOW)) {
-                cir.setReturnValue(0);
-                return;
-            }
-            if (config.vmSwingSpeed > 0) {
-                cir.setReturnValue(config.vmSwingSpeed);
-                return;
-            }
-            if (config.vmNoHaste) {
-                cir.setReturnValue(swingAnimation.duration());
-            }
+        if (!config.vmEnabled) {
             return;
         }
-        if (config.dulkirEnabled && config.swingDuration > 0) {
-            cir.setReturnValue(config.swingDuration);
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (config.vmNoBowSwing && self.isHolding(Items.BOW)) {
+            cir.setReturnValue(0);
+            return;
+        }
+        if (config.vmSwingSpeed > 0) {
+            cir.setReturnValue(config.vmSwingSpeed);
+            return;
+        }
+        if (config.vmNoHaste) {
+            cir.setReturnValue(swingAnimation.duration());
         }
     }
 
