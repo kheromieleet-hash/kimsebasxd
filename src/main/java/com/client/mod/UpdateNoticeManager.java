@@ -115,49 +115,47 @@ public final class UpdateNoticeManager {
         Font font = mc.font;
         String verText = notice.version != null ? notice.version : ClientBuildInfo.getVersion();
         String title = isOutdated
-                ? "[!] New sestia.jar Loader Required"
-                : "SCT Client Updated to v" + verText;
+                ? "Loader Update Available"
+                : "Sestia Updated (v" + verText + ")";
         String subtitle = isOutdated
-                ? ("Needed for v" + verText + " | Running cached build")
-                : (((notice.changelog != null && !notice.changelog.isBlank()) ? notice.changelog : "Latest build active") + " | Ready");
-        String pillLabel = isOutdated ? "ACTION" : "READY";
+                ? ("Download latest sestia.jar for v" + verText)
+                : ((notice.changelog != null && !notice.changelog.isBlank()) ? notice.changelog : "Ready to play");
 
-        int maxSubtitleW = 205;
-        if (font.width(subtitle) > maxSubtitleW) {
-            while (subtitle.length() > 3 && font.width(subtitle + "...") > maxSubtitleW) {
+        int maxTextW = 190;
+        if (font.width(subtitle) > maxTextW) {
+            while (subtitle.length() > 3 && font.width(subtitle + "...") > maxTextW) {
                 subtitle = subtitle.substring(0, subtitle.length() - 1);
             }
             subtitle = subtitle + "...";
         }
 
-        int pillW = font.width(pillLabel) + 12;
-        int titleOffset = isOutdated ? 12 : 24;
-        int contentW = Math.max(font.width(title) + (isOutdated ? 0 : 12), font.width(subtitle));
-        int boxW = Math.max(210, Math.min(315, contentW + pillW + 34));
-        int boxH = 38;
-        int x = Math.round(graphics.guiWidth() - boxW - 10 + slideOffset);
-        int y = 10;
+        int contentW = Math.max(font.width(title), font.width(subtitle));
+        int boxW = Math.max(168, Math.min(248, contentW + 38));
+        int boxH = 32;
+        int x = Math.round(graphics.guiWidth() - boxW - 6 + slideOffset);
+        int y = 6;
 
-        int accentColor = isOutdated ? 0xFFFBBF24 : JelloTheme.ACCENT;
-        int borderColor = isOutdated ? 0x99FBBF24 : 0x99E53935;
-        int pillBg = isOutdated ? 0x30FBBF24 : 0x3034D399;
-        int pillText = isOutdated ? 0xFFFBBF24 : 0xFF34D399;
+        int titleColor = isOutdated ? 0xFFFFFF55 : 0xFF55FF55;
+        int bgColor = 0xEE212121;
+        int outerBorder = 0xFF555555;
+        int innerBorder = 0xFF3A3A3A;
 
         JelloTheme.setAlpha(alpha);
         try {
-            JelloTheme.fillRoundedCard(graphics, x, y, x + boxW, y + boxH, 8, 0xEC140B0E, borderColor);
-            JelloTheme.fillRounded(graphics, x + 3, y + 6, x + 6, y + boxH - 6, 2, accentColor);
+            // Classic Minecraft advancement / system toast style: crisp dark panel + double 1px border
+            JelloTheme.fill(graphics, x, y, x + boxW, y + boxH, outerBorder);
+            JelloTheme.fill(graphics, x + 1, y + 1, x + boxW - 1, y + boxH - 1, innerBorder);
+            JelloTheme.fill(graphics, x + 2, y + 2, x + boxW - 2, y + boxH - 2, bgColor);
 
-            if (!isOutdated) {
-                ModernIcons.drawBrandEmblem(graphics, x + 15, y + 11, JelloTheme.ACCENT, 0xFFFFCDD2);
-            }
-            JelloTheme.text(graphics, font, title, x + titleOffset, y + 7, 0xFFFFFFFF);
-            JelloTheme.text(graphics, font, subtitle, x + 12, y + 21, JelloTheme.TEXT_DIM);
+            // Minimal 16x16 Minecraft block icon (dirt/stone base + grass/amber top)
+            int ix = x + 8;
+            int iy = y + 8;
+            JelloTheme.fill(graphics, ix, iy, ix + 16, iy + 16, 0xFF5E3D28);
+            JelloTheme.fill(graphics, ix, iy, ix + 16, iy + 5, isOutdated ? 0xFFE0A82E : 0xFF52A535);
+            JelloTheme.fill(graphics, ix + 1, iy + 1, ix + 15, iy + 2, isOutdated ? 0xFFFBBF24 : 0xFF6BCB46);
 
-            int px1 = x + boxW - pillW - 8;
-            int py1 = y + 11;
-            JelloTheme.fillRounded(graphics, px1, py1, px1 + pillW, py1 + 15, 4, pillBg);
-            JelloTheme.textCentered(graphics, font, pillLabel, px1 + pillW / 2, py1 + 4, pillText);
+            JelloTheme.text(graphics, font, title, x + 30, y + 7, titleColor);
+            JelloTheme.text(graphics, font, subtitle, x + 30, y + 18, 0xFFFFFFFF);
         } finally {
             JelloTheme.setAlpha(1.0f);
         }
@@ -176,12 +174,12 @@ public final class UpdateNoticeManager {
         String msg;
         if ("LOADER_OUTDATED".equalsIgnoreCase(notice.type)) {
             String url = notice.releaseUrl != null ? notice.releaseUrl : "https://github.com/kheromieallah/sestia/releases/latest";
-            msg = "§e§l[!] [SCT Client] §fA newer §bsestia.jar §floader is required for §cv" + ver + "§f. Download latest from: §n" + url;
+            msg = "§7[§eSestia§7] §fNew §bsestia.jar §floader required for §ev" + ver + "§f: §n" + url;
         } else {
             String prev = (notice.previousVersion != null && !"initial".equals(notice.previousVersion))
                     ? (" §7(from v" + notice.previousVersion + ")") : "";
             String log = (notice.changelog != null && !notice.changelog.isBlank()) ? (" §7- " + notice.changelog) : "";
-            msg = "§c§l[SCT Client] §aUpdated to v" + ver + prev + log;
+            msg = "§7[§aSestia§7] §fUpdated to §av" + ver + prev + log;
         }
         client.gui.hud.getChat().addClientSystemMessage(Component.literal(msg));
     }

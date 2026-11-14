@@ -21,26 +21,22 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Rise 6 Luxury undecorated Swing desktop window displayed during startup updates.
+ * Clean, minimal Minecraft-style startup updater window.
  */
 public final class SctUpdateWindow implements SctUpdateListener {
-    private static final int WIN_W = 432;
-    private static final int WIN_H = 198;
+    private static final int WIN_W = 388;
+    private static final int WIN_H = 128;
 
-    private static final Color BG_TOP = new Color(0x18, 0x0C, 0x10);
-    private static final Color BG_BOTTOM = new Color(0x0E, 0x08, 0x0B);
-    private static final Color CARD_BG = new Color(34, 18, 22, 200);
-    private static final Color CARD_BORDER = new Color(255, 255, 255, 22);
-    private static final Color OUTER_BORDER = new Color(229, 57, 53, 120);
-    private static final Color VIOLET = new Color(0xE5, 0x39, 0x35);
-    private static final Color ROSE = new Color(0xFF, 0x52, 0x52);
-    private static final Color EMERALD_A = new Color(0x34, 0xD3, 0x99);
-    private static final Color EMERALD_B = new Color(0x10, 0xB9, 0x81);
-    private static final Color AMBER_A = new Color(0xFB, 0xBF, 0x24);
-    private static final Color AMBER_B = new Color(0xF5, 0x9E, 0x0B);
-    private static final Color TEXT_MUTED = new Color(0x94, 0xA3, 0xB8);
-    private static final Color TEXT_SOFT = new Color(0xFC, 0xA5, 0xA5);
-    private static final Color TRACK_BG = new Color(42, 22, 28, 230);
+    private static final Color BG_MAIN = new Color(0x1E, 0x1E, 0x1E, 248);
+    private static final Color OUTER_BORDER = new Color(0x4A, 0x4A, 0x4A);
+    private static final Color INNER_BORDER = new Color(0x2D, 0x2D, 0x2D);
+    private static final Color MC_GREEN = new Color(0x3C, 0x85, 0x27);
+    private static final Color MC_GREEN_TOP = new Color(0x52, 0xA5, 0x35);
+    private static final Color MC_GOLD = new Color(0xE0, 0xA8, 0x2E);
+    private static final Color TEXT_PRIMARY = new Color(0xF0, 0xF0, 0xF0);
+    private static final Color TEXT_MUTED = new Color(0xA0, 0xA0, 0xA0);
+    private static final Color TRACK_BG = new Color(0x11, 0x11, 0x11);
+    private static final Color TRACK_BORDER = new Color(0x38, 0x38, 0x38);
 
     private final boolean headless;
     private JDialog dialog;
@@ -49,18 +45,15 @@ public final class SctUpdateWindow implements SctUpdateListener {
     private Timer animTimer;
     private volatile boolean shown = false;
 
-    private volatile String badgeText = "CHECKING";
     private volatile String versionTag = "v" + SctUpdateConfig.BASELINE_VERSION;
     private volatile String statusTitle = "Checking for updates...";
-    private volatile String statusSub = "Contacting GitHub Releases manifest";
-    private volatile String pctText = "...";
-    private volatile String leftMeta = "Connecting to release server";
-    private volatile String rightMeta = "Timeout: 4s";
+    private volatile String statusSub = "Connecting to release server";
+    private volatile String pctText = "";
+    private volatile String leftMeta = "";
     private volatile double progress = 0.25;
-    private volatile Color accentA = VIOLET;
-    private volatile Color accentB = new Color(0xFB, 0x71, 0x85);
-    private volatile boolean shimmerActive = true;
-    private volatile float shimmerPhase = 0.0f;
+    private volatile Color accentTop = MC_GREEN_TOP;
+    private volatile Color accentBottom = MC_GREEN;
+    private volatile boolean indeterminate = true;
 
     public SctUpdateWindow() {
         this.headless = GraphicsEnvironment.isHeadless();
@@ -100,9 +93,9 @@ public final class SctUpdateWindow implements SctUpdateListener {
         if (perPixelOk) {
             this.dialog.setBackground(new Color(0, 0, 0, 0));
         } else {
-            this.dialog.setBackground(BG_BOTTOM);
+            this.dialog.setBackground(BG_MAIN);
             try {
-                this.dialog.setShape(new RoundRectangle2D.Double(0, 0, WIN_W, WIN_H, 24, 24));
+                this.dialog.setShape(new RoundRectangle2D.Double(0, 0, WIN_W, WIN_H, 8, 8));
             } catch (Throwable ignored) {
             }
         }
@@ -113,11 +106,7 @@ public final class SctUpdateWindow implements SctUpdateListener {
         this.dialog.setContentPane(this.canvas);
 
         this.animTimer = new Timer(33, e -> {
-            this.shimmerPhase += 0.035f;
-            if (this.shimmerPhase > 1.4f) {
-                this.shimmerPhase = -0.4f;
-            }
-            if (this.canvas != null && this.shown) {
+            if (this.canvas != null && this.shown && this.indeterminate) {
                 this.canvas.repaint();
             }
         });
@@ -154,16 +143,14 @@ public final class SctUpdateWindow implements SctUpdateListener {
     @Override
     public void onChecking() {
         if (this.headless) return;
-        this.badgeText = "CHECKING";
         this.statusTitle = "Checking for updates...";
-        this.statusSub = "Contacting GitHub Releases manifest";
-        this.pctText = "...";
-        this.leftMeta = "Connecting to release server";
-        this.rightMeta = "Timeout: 4s";
-        this.progress = 0.28;
-        this.accentA = VIOLET;
-        this.accentB = new Color(0xFB, 0x71, 0x85);
-        this.shimmerActive = true;
+        this.statusSub = "Connecting to GitHub Releases";
+        this.pctText = "";
+        this.leftMeta = "Minecraft 26.3 • Sestia";
+        this.progress = 0.25;
+        this.accentTop = MC_GREEN_TOP;
+        this.accentBottom = MC_GREEN;
+        this.indeterminate = true;
 
         SwingUtilities.invokeLater(() -> {
             if (this.dialog != null && !this.shown) {
@@ -180,23 +167,21 @@ public final class SctUpdateWindow implements SctUpdateListener {
         double ratio = totalBytes > 0 ? Math.min(1.0, Math.max(0.02, (double) bytesRead / totalBytes)) : 0.45;
         int pct = (int) Math.round(ratio * 100.0);
 
-        this.badgeText = "UPDATING";
         this.versionTag = "v" + toVer;
-        this.statusTitle = "Downloading update...";
-        this.statusSub = "v" + fromVer + " -> v" + toVer + " • " + (changelog != null ? changelog : "Latest build");
+        this.statusTitle = "Updating Sestia Client...";
+        this.statusSub = "v" + fromVer + " -> v" + toVer + ((changelog != null && !changelog.isBlank()) ? (" • " + changelog) : "");
         this.pctText = totalBytes > 0 ? (pct + "%") : String.format(Locale.ROOT, "%.1f MB", bytesRead / (1024.0 * 1024.0));
         if (totalBytes > 0) {
-            this.leftMeta = String.format(Locale.ROOT, "%.1f MB / %.1f MB • %.1f MB/s",
+            this.leftMeta = String.format(Locale.ROOT, "%.1f / %.1f MB (%.1f MB/s)",
                     bytesRead / (1024.0 * 1024.0), totalBytes / (1024.0 * 1024.0), speedMbPerSec);
         } else {
-            this.leftMeta = String.format(Locale.ROOT, "%.1f MB downloaded • %.1f MB/s",
+            this.leftMeta = String.format(Locale.ROOT, "%.1f MB (%.1f MB/s)",
                     bytesRead / (1024.0 * 1024.0), speedMbPerSec);
         }
-        this.rightMeta = "SHA-256 verification queued";
         this.progress = ratio;
-        this.accentA = VIOLET;
-        this.accentB = ROSE;
-        this.shimmerActive = true;
+        this.accentTop = MC_GREEN_TOP;
+        this.accentBottom = MC_GREEN;
+        this.indeterminate = false;
 
         ensureVisible();
     }
@@ -208,17 +193,15 @@ public final class SctUpdateWindow implements SctUpdateListener {
             cancelTimers();
             return;
         }
-        this.badgeText = "READY";
         this.versionTag = "v" + version;
-        this.statusTitle = updated ? "Update verified, launching Minecraft!" : "Up to date, launching Minecraft!";
-        this.statusSub = updated ? "SHA-256 matched • Old cache cleaned" : "Latest verified build ready";
+        this.statusTitle = updated ? "Update ready, launching game..." : "Up to date, launching game...";
+        this.statusSub = "Minecraft 26.3 • Sestia v" + version;
         this.pctText = "100%";
-        this.leftMeta = updated ? "Update complete" : "Verified cache";
-        this.rightMeta = "Loading game...";
+        this.leftMeta = updated ? "Verified & ready" : "Cache verified";
         this.progress = 1.0;
-        this.accentA = EMERALD_A;
-        this.accentB = EMERALD_B;
-        this.shimmerActive = false;
+        this.accentTop = MC_GREEN_TOP;
+        this.accentBottom = MC_GREEN;
+        this.indeterminate = false;
 
         if (updated) {
             ensureVisible();
@@ -235,17 +218,15 @@ public final class SctUpdateWindow implements SctUpdateListener {
             cancelTimers();
             return;
         }
-        this.badgeText = "OFFLINE";
         this.versionTag = "v" + cachedVersion;
-        this.statusTitle = "Update server unreachable — using cache";
-        this.statusSub = "Launching last verified build (v" + cachedVersion + ")";
-        this.pctText = "CACHED";
-        this.leftMeta = "Offline fallback active";
-        this.rightMeta = "Safe launch";
+        this.statusTitle = "Offline — launching cached build";
+        this.statusSub = "Minecraft 26.3 • Sestia v" + cachedVersion;
+        this.pctText = "";
+        this.leftMeta = "Cached version";
         this.progress = 1.0;
-        this.accentA = AMBER_A;
-        this.accentB = AMBER_B;
-        this.shimmerActive = false;
+        this.accentTop = MC_GOLD;
+        this.accentBottom = MC_GOLD.darker();
+        this.indeterminate = false;
         triggerRepaint();
         sleepQuietly(650);
     }
@@ -256,17 +237,15 @@ public final class SctUpdateWindow implements SctUpdateListener {
             cancelTimers();
             return;
         }
-        this.badgeText = "LOADER";
         this.versionTag = "v" + latestVersion;
-        this.statusTitle = "New sestia.jar loader required";
-        this.statusSub = "Launching cached build — see in-game notice";
-        this.pctText = "UPDATE";
-        this.leftMeta = "Continuing safely with cached core";
-        this.rightMeta = "Check GitHub Releases";
+        this.statusTitle = "Loader update recommended";
+        this.statusSub = "Launching cached build — see notice in game";
+        this.pctText = "";
+        this.leftMeta = "New sestia.jar available";
         this.progress = 1.0;
-        this.accentA = AMBER_A;
-        this.accentB = AMBER_B;
-        this.shimmerActive = false;
+        this.accentTop = MC_GOLD;
+        this.accentBottom = MC_GOLD.darker();
+        this.indeterminate = false;
         triggerRepaint();
         sleepQuietly(750);
     }
@@ -300,10 +279,9 @@ public final class SctUpdateWindow implements SctUpdateListener {
     }
 
     private final class UpdateCanvas extends JPanel {
-        private final Font brandFont = new Font("Segoe UI", Font.BOLD, 14);
-        private final Font boldFont = new Font("Segoe UI", Font.BOLD, 12);
-        private final Font regFont = new Font("Segoe UI", Font.PLAIN, 12);
-        private final Font smallFont = new Font("Segoe UI", Font.PLAIN, 11);
+        private final Font titleFont = new Font("Segoe UI", Font.BOLD, 13);
+        private final Font subFont = new Font("Segoe UI", Font.PLAIN, 11);
+        private final Font monoFont = new Font("Consolas", Font.BOLD, 11);
 
         @Override
         protected void paintComponent(Graphics gRaw) {
@@ -315,123 +293,78 @@ public final class SctUpdateWindow implements SctUpdateListener {
                 int w = getWidth();
                 int h = getHeight();
 
-                // Window rounded card
-                RoundRectangle2D.Double winShape = new RoundRectangle2D.Double(1, 1, w - 2, h - 2, 24, 24);
-                g.setPaint(new GradientPaint(0, 0, BG_TOP, w, h, BG_BOTTOM));
+                // Classic clean dark Minecraft launcher panel
+                RoundRectangle2D.Double winShape = new RoundRectangle2D.Double(0.5, 0.5, w - 1.0, h - 1.0, 8, 8);
+                g.setColor(BG_MAIN);
                 g.fill(winShape);
-
-                // Top 2px gradient accent bar clipped to rounded frame
-                g.setClip(winShape);
-                g.setPaint(new GradientPaint(0, 0, accentA, w, 0, accentB));
-                g.fillRect(0, 1, w, 3);
-                g.setClip(null);
-
                 g.setColor(OUTER_BORDER);
-                g.setStroke(new BasicStroke(1.2f));
+                g.setStroke(new BasicStroke(1.0f));
                 g.draw(winShape);
 
-                // Brand Emblem
-                RoundRectangle2D.Double iconRect = new RoundRectangle2D.Double(20, 20, 34, 34, 16, 16);
-                g.setPaint(new GradientPaint(20, 20, VIOLET, 54, 54, ROSE));
-                g.fill(iconRect);
-                g.setColor(BG_BOTTOM);
-                g.setFont(new Font("Segoe UI Symbol", Font.BOLD, 16));
-                FontMetrics starFm = g.getFontMetrics();
-                String star = "\u2726";
-                g.drawString(star, 20 + (34 - starFm.stringWidth(star)) / 2, 20 + ((34 - starFm.getHeight()) / 2) + starFm.getAscent());
+                // Subtle inner bevel line
+                g.setColor(INNER_BORDER);
+                g.draw(new RoundRectangle2D.Double(1.5, 1.5, w - 3.0, h - 3.0, 7, 7));
 
-                // Brand Title + Badge
-                g.setFont(brandFont);
-                g.setColor(Color.WHITE);
-                g.drawString("SCT CLIENT", 64, 34);
-                int brandW = g.getFontMetrics().stringWidth("SCT CLIENT");
+                // Simple Minecraft grass-block style icon (green top + dark dirt/stone base)
+                int iconX = 18;
+                int iconY = 18;
+                int iconS = 22;
+                g.setColor(new Color(0x5E, 0x3D, 0x28));
+                g.fillRoundRect(iconX, iconY, iconS, iconS, 3, 3);
+                g.setColor(MC_GREEN_TOP);
+                g.fillRoundRect(iconX, iconY, iconS, 8, 3, 3);
+                g.fillRect(iconX, iconY + 4, iconS, 4);
+                g.setColor(new Color(0x2B, 0x2B, 0x2B));
+                g.drawRoundRect(iconX, iconY, iconS, iconS, 3, 3);
 
-                g.setFont(smallFont);
-                FontMetrics badgeFm = g.getFontMetrics();
-                String badge = badgeText;
-                int badgeW = badgeFm.stringWidth(badge) + 14;
-                int badgeX = 64 + brandW + 8;
-                g.setColor(new Color(accentA.getRed(), accentA.getGreen(), accentA.getBlue(), 40));
-                g.fillRoundRect(badgeX, 21, badgeW, 18, 18, 18);
-                g.setColor(new Color(accentA.getRed(), accentA.getGreen(), accentA.getBlue(), 110));
-                g.drawRoundRect(badgeX, 21, badgeW, 18, 18, 18);
-                g.setColor(TEXT_SOFT);
-                g.drawString(badge, badgeX + 7, 34);
+                // Title + Version
+                g.setFont(titleFont);
+                g.setColor(TEXT_PRIMARY);
+                g.drawString(fitText(statusTitle, w - 120, g.getFontMetrics()), 50, 31);
 
-                // Subtitle
+                g.setFont(monoFont);
                 g.setColor(TEXT_MUTED);
-                g.drawString("Fabric 26.3 • Auto Updater", 64, 50);
-
-                // Top-right Version Pill
+                FontMetrics verFm = g.getFontMetrics();
                 String ver = versionTag;
-                int verW = badgeFm.stringWidth(ver) + 24;
-                int verX = w - 20 - verW;
-                g.setColor(new Color(255, 255, 255, 14));
-                g.fillRoundRect(verX, 24, verW, 22, 22, 22);
-                g.setColor(new Color(255, 255, 255, 28));
-                g.drawRoundRect(verX, 24, verW, 22, 22, 22);
-                g.setColor(accentA);
-                g.fillOval(verX + 8, 31, 7, 7);
-                g.setColor(new Color(0xCB, 0xD5, 0xE1));
-                g.drawString(ver, verX + 19, 39);
+                g.drawString(ver, w - 18 - verFm.stringWidth(ver), 31);
 
-                // Center Info Card
-                int cardX = 20;
-                int cardY = 68;
-                int cardW = w - 40;
-                int cardH = 54;
-                g.setColor(CARD_BG);
-                g.fillRoundRect(cardX, cardY, cardW, cardH, 14, 14);
-                g.setColor(CARD_BORDER);
-                g.drawRoundRect(cardX, cardY, cardW, cardH, 14, 14);
-
-                g.setFont(boldFont);
-                g.setColor(Color.WHITE);
-                g.drawString(fitText(statusTitle, cardW - 88, g.getFontMetrics()), cardX + 14, cardY + 22);
-
-                g.setColor(accentB);
-                FontMetrics pctFm = g.getFontMetrics();
-                String pct = pctText;
-                g.drawString(pct, cardX + cardW - 14 - pctFm.stringWidth(pct), cardY + 22);
-
-                g.setFont(regFont);
-                g.setColor(TEXT_MUTED);
-                g.drawString(fitText(statusSub, cardW - 28, g.getFontMetrics()), cardX + 14, cardY + 41);
-
-                // Progress Track
-                int trackX = 20;
-                int trackY = 136;
-                int trackW = w - 40;
-                int trackH = 10;
+                // Clean Minecraft-style green progress bar
+                int trackX = 18;
+                int trackY = 54;
+                int trackW = w - 36;
+                int trackH = 14;
                 g.setColor(TRACK_BG);
-                g.fillRoundRect(trackX, trackY, trackW, trackH, trackH, trackH);
+                g.fillRect(trackX, trackY, trackW, trackH);
+                g.setColor(TRACK_BORDER);
+                g.drawRect(trackX, trackY, trackW, trackH);
 
-                int fillW = Math.max(trackH, (int) Math.round(trackW * Math.min(1.0, Math.max(0.0, progress))));
-                RoundRectangle2D.Double fillRect = new RoundRectangle2D.Double(trackX, trackY, fillW, trackH, trackH, trackH);
-                g.setPaint(new GradientPaint(trackX, trackY, accentA, trackX + fillW, trackY, accentB));
-                g.fill(fillRect);
-
-                if (shimmerActive && fillW > 20) {
-                    g.setClip(fillRect);
-                    int sx = trackX + (int) (shimmerPhase * fillW) - 30;
-                    g.setPaint(new GradientPaint(sx, trackY, new Color(255, 255, 255, 0),
-                            sx + 30, trackY, new Color(255, 255, 255, 110)));
-                    g.fillRect(sx, trackY, 30, trackH);
-                    g.setPaint(new GradientPaint(sx + 30, trackY, new Color(255, 255, 255, 110),
-                            sx + 60, trackY, new Color(255, 255, 255, 0)));
-                    g.fillRect(sx + 30, trackY, 30, trackH);
-                    g.setClip(null);
+                if (indeterminate) {
+                    int segW = Math.max(48, trackW / 4);
+                    long t = System.currentTimeMillis() % 1400L;
+                    int segX = trackX + 2 + (int) ((trackW - segW - 4) * (t / 1400.0));
+                    g.setPaint(new GradientPaint(segX, trackY + 2, accentTop, segX, trackY + trackH - 2, accentBottom));
+                    g.fillRect(segX, trackY + 2, segW, trackH - 3);
+                } else {
+                    int innerW = Math.max(4, (int) Math.round((trackW - 3) * Math.min(1.0, Math.max(0.0, progress))));
+                    g.setPaint(new GradientPaint(trackX + 2, trackY + 2, accentTop, trackX + 2, trackY + trackH - 2, accentBottom));
+                    g.fillRect(trackX + 2, trackY + 2, innerW, trackH - 3);
                 }
 
-                // Bottom Meta Telemetry
-                g.setFont(smallFont);
+                // Subtitle & percentage row
+                g.setFont(subFont);
                 g.setColor(TEXT_MUTED);
-                g.drawString(leftMeta, 20, 170);
+                g.drawString(fitText(statusSub, w - 90, g.getFontMetrics()), 18, 88);
 
-                g.setColor(TEXT_SOFT);
-                FontMetrics rightFm = g.getFontMetrics();
-                String rMeta = rightMeta;
-                g.drawString(rMeta, w - 20 - rightFm.stringWidth(rMeta), 170);
+                g.setFont(monoFont);
+                g.setColor(TEXT_PRIMARY);
+                FontMetrics pctFm = g.getFontMetrics();
+                String pct = pctText;
+                g.drawString(pct, w - 18 - pctFm.stringWidth(pct), 88);
+
+                // Quiet bottom footer
+                g.setFont(subFont);
+                g.setColor(new Color(0x78, 0x78, 0x78));
+                g.drawString(fitText(leftMeta, w - 36, g.getFontMetrics()), 18, 109);
             } finally {
                 g.dispose();
             }
