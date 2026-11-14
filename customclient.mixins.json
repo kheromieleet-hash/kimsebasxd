@@ -13,7 +13,6 @@
     "ClientPacketListenerMixin",
     "CameraMixin",
     "MouseHandlerMixin",
-    "ScreenEffectRendererMixin",
     "ScreenMixin",
     "LightmapMixin",
     "LightmapRenderStateExtractorMixin",
