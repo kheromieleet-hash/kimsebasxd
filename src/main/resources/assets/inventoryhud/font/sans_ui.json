@@ -1,0 +1,11 @@
+{
+  "providers": [
+    {
+      "type": "ttf",
+      "file": "inventoryhud:comfortaa.ttf",
+      "shift": [0.0, 0.8],
+      "size": 9.5,
+      "oversample": 3.0
+    }
+  ]
+}

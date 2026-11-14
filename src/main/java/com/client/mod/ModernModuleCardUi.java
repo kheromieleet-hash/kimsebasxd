@@ -236,8 +236,8 @@ final class ModernModuleCardUi {
             if (control instanceof ModernModuleSettings.SliderControl s) {
                 String valText = s.valueLabel().get();
                 int valW = font.width(valText);
-                String label = fitText(font, s.label(), Math.max(24, cw - valW - 10));
-                graphics.text(font, Component.literal(label), cx, cy, JelloTheme.TEXT, false);
+                String label = fitSansText(font, s.label(), Math.max(24, cw - valW - 10));
+                graphics.text(font, JelloTheme.sans(label), cx, cy, JelloTheme.TEXT, false);
                 graphics.text(font, Component.literal(valText), cx + cw - valW, cy, JelloTheme.TEXT_DIM, false);
                 sliderDrawer.draw(cx, cy + 12, cw, 6, s.key(), s.pctGetter().get());
             } else if (control instanceof ModernModuleSettings.ToggleControl t) {
@@ -253,8 +253,8 @@ final class ModernModuleCardUi {
                 int swX = compact ? (cx + cw - padX - swW) : (cx + cw - 34);
                 int swY = cy + (t.height() - swH) / 2;
                 int labelMaxW = compact ? Math.max(24, cw - 36) : Math.max(24, cw - 46);
-                String text = fitText(font, t.label(), labelMaxW);
-                graphics.text(font, Component.literal(text), cx + padX, cy + 6, active ? JelloTheme.TEXT : 0xFFCBD5E1, false);
+                String text = fitSansText(font, t.label(), labelMaxW);
+                graphics.text(font, JelloTheme.sans(text), cx + padX, cy + 6, active ? JelloTheme.TEXT : 0xFFCBD5E1, false);
                 switchDrawer.draw(swX, swY, swW, swH, "sub:" + modName + ":" + t.label(), active);
             } else if (control instanceof ModernModuleSettings.CycleControl c) {
                 boolean hovered = isInside(mouseX, mouseY, cx, cy, cw, c.height());
@@ -263,16 +263,16 @@ final class ModernModuleCardUi {
                 JelloTheme.fillRoundedCard(graphics, cx, cy, cx + cw, cy + c.height(), 5, bg, border);
                 String valText = c.valueLabel().get();
                 int valW = font.width(valText);
-                String label = fitText(font, c.label(), Math.max(18, cw - valW - padX * 2 - 6));
-                graphics.text(font, Component.literal(label), cx + padX, cy + 6, JelloTheme.TEXT, false);
+                String label = fitSansText(font, c.label(), Math.max(18, cw - valW - padX * 2 - 6));
+                graphics.text(font, JelloTheme.sans(label), cx + padX, cy + 6, JelloTheme.TEXT, false);
                 graphics.text(font, Component.literal(valText), cx + cw - padX - valW, cy + 6, JelloTheme.ACCENT_HOVER, false);
             } else if (control instanceof ModernModuleSettings.ActionControl a) {
                 boolean hovered = isInside(mouseX, mouseY, cx, cy, cw, a.height());
                 int bg = hovered ? 0x55E53935 : 0x28E53935;
                 int border = hovered ? JelloTheme.ACCENT : 0x66E53935;
                 JelloTheme.fillRoundedCard(graphics, cx, cy, cx + cw, cy + a.height(), 5, bg, border);
-                String label = fitText(font, a.labelSupplier().get(), Math.max(20, cw - padX * 2));
-                graphics.centeredText(font, Component.literal(label), cx + cw / 2, cy + 6, JelloTheme.TEXT);
+                String label = fitSansText(font, a.labelSupplier().get(), Math.max(20, cw - padX * 2));
+                graphics.centeredText(font, JelloTheme.sans(label), cx + cw / 2, cy + 6, JelloTheme.TEXT);
             } else if (control instanceof ModernModuleSettings.ChipsControl cc) {
                 renderChips(graphics, font, mouseX, mouseY, cx, cy, cw, placed.chipCols(), cc.options());
             }
@@ -304,8 +304,8 @@ final class ModernModuleCardUi {
                     : (hovered ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
             int border = active ? JelloTheme.ACCENT : (hovered ? 0x5594A3B8 : JelloTheme.BORDER_SUBTLE);
             JelloTheme.fillRoundedCard(graphics, cx, cy, cx + chipW, cy + ModernModuleSettings.CHIP_HEIGHT, 4, bg, border);
-            String label = fitText(font, opt.label(), chipW - 8);
-            graphics.centeredText(font, Component.literal(label), cx + chipW / 2, cy + 5,
+            String label = fitSansText(font, opt.label(), chipW - 8);
+            graphics.centeredText(font, JelloTheme.sans(label), cx + chipW / 2, cy + 5,
                     active ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED);
         }
     }
@@ -441,6 +441,17 @@ final class ModernModuleCardUi {
             case "Auto Replenish" -> "Refill hotbar slots from inventory";
             default -> fallbackCategory.toUpperCase(java.util.Locale.ROOT) + " MODULE";
         };
+    }
+
+    private static String fitSansText(Font font, String text, int maxWidth) {
+        if (text == null || maxWidth <= 8 || font.width(JelloTheme.sans(text)) <= maxWidth) {
+            return text == null ? "" : text;
+        }
+        String trimmed = text;
+        while (trimmed.length() > 2 && font.width(JelloTheme.sans(trimmed + "...")) > maxWidth) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed + "...";
     }
 
     private static String fitText(Font font, String text, int maxWidth) {

@@ -19,6 +19,7 @@ final class SmoothUiAtlas {
     static final int ATLAS_H = 512;
     static final int MAX_RADIUS = 12;
     static final int ICON_TEX_SIZE = 40;
+    static final int GLOW_TEX_SIZE = 80;
     private static final int SLOT_PAD = 2;
 
     enum IconKind {
@@ -44,6 +45,7 @@ final class SmoothUiAtlas {
         final Region[] solids = new Region[MAX_RADIUS + 1];
         final Region[] rings = new Region[MAX_RADIUS + 1];
         final Region[] icons = new Region[IconKind.values().length];
+        Region glow;
 
         AtlasLayout(int guiScale, int atlasScale) {
             this.guiScale = guiScale;
@@ -60,6 +62,10 @@ final class SmoothUiAtlas {
 
         Region icon(IconKind kind) {
             return this.icons[kind.ordinal()];
+        }
+
+        Region glow() {
+            return this.glow;
         }
     }
 
@@ -169,7 +175,27 @@ final class SmoothUiAtlas {
             curX += ICON_TEX_SIZE + SLOT_PAD;
         }
 
+        curX = SLOT_PAD;
+        curY += ICON_TEX_SIZE + SLOT_PAD;
+        Region glowRegion = new Region(curX, curY, GLOW_TEX_SIZE, GLOW_TEX_SIZE);
+        layout.glow = glowRegion;
+        rasterizeRadialGlow(glowRegion.u(), glowRegion.v(), GLOW_TEX_SIZE, sink);
+
         return layout;
+    }
+
+    private static void rasterizeRadialGlow(int u, int v, int size, PixelSink sink) {
+        float half = size * 0.5f;
+        for (int py = 0; py < size; py++) {
+            float dy = (py + 0.5f - half) / (half - 1.5f);
+            for (int px = 0; px < size; px++) {
+                float dx = (px + 0.5f - half) / (half - 1.5f);
+                float r = Mth.clamp((float) Math.hypot(dx, dy), 0.0f, 1.0f);
+                float smooth = 1.0f - r;
+                float cov = smooth * smooth * (0.4f + 0.6f * smooth);
+                sink.accept(u + px, v + py, packWhiteAlpha(cov));
+            }
+        }
     }
 
     private static void rasterizeCircle(int u, int v, float rTex, float aaHalf, PixelSink sink) {
