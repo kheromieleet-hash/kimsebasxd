@@ -461,7 +461,7 @@ public class ModConfig {
         this.trajectoriesShowPassive = other.trajectoriesShowPassive;
         this.trajectoriesBoxOutline = other.trajectoriesBoxOutline;
         this.configVersion = other.configVersion;
-        this.clientChatEnabled = other.clientChatEnabled;
+        this.clientChatEnabled = true;
         this.clientChatUrl = SestiaChatProtocol.normalizeWebSocketUrl(other.clientChatUrl);
         this.clientChatAllowDms = other.clientChatAllowDms;
         this.clientChatMuted = other.clientChatMuted != null ? other.clientChatMuted : "";
@@ -589,9 +589,9 @@ public class ModConfig {
                         this.moduleKeybindIsMouse.put("Fullbright", false);
                         this.keybindsHudEnabled = true;
                     }
+                    this.clientChatEnabled = true;
                     if (this.configVersion < 2) {
                         this.configVersion = 2;
-                        this.clientChatEnabled = true;
                         save();
                     }
                 }

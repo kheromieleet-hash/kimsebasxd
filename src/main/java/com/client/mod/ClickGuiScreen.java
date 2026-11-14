@@ -293,17 +293,6 @@ public class ClickGuiScreen {
                 }
         ));
 
-        // Client Chat (Misc)
-        MODULES.add(new ModuleEntry(
-                "Client Chat", Category.MISC,
-                () -> config.clientChatEnabled,
-                val -> {
-                    config.clientChatEnabled = val;
-                    config.save();
-                    SestiaChatClient.onConfigChanged();
-                }
-        ));
-
         // TrueSight (Render)
         MODULES.add(new ModuleEntry(
                 "TrueSight", Category.RENDER,
@@ -1343,17 +1332,6 @@ public class ClickGuiScreen {
                 drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
                         "Box Outline: " + (config.trajectoriesBoxOutline ? "ON" : "OFF"), config.trajectoriesBoxOutline);
             }
-            case "Client Chat" -> {
-                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
-                        "Client Chat: " + (config.clientChatEnabled ? "ON" : "OFF"), config.clientChatEnabled);
-                rowY += 22;
-                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
-                        "Allow DMs: " + (config.clientChatAllowDms ? "ON" : "OFF"), config.clientChatAllowDms);
-                rowY += 22;
-                drawActionButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW, "Reconnect");
-                rowY += 22;
-                drawActionButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW, "Chat Help (.c)");
-            }
         }
     }
 
@@ -1362,7 +1340,7 @@ public class ClickGuiScreen {
             case "Inventory HUD+" -> 8;
             case "Inventory Tweaks" -> 7;
             case "Auto Replenish" -> 6;
-            case "Fullbright", "Packet Mine", "Client Chat" -> 4;
+            case "Fullbright", "Packet Mine" -> 4;
             case "Fast Use" -> 1;
             case "Fast Place", "Chunk Borders" -> 2;
             case "Auto Tool" -> 1;
@@ -2495,24 +2473,6 @@ public class ClickGuiScreen {
                 } else if (specificRow == 2) {
                     config.trajectoriesBoxOutline = !config.trajectoriesBoxOutline;
                     config.save();
-                    playClickSound();
-                }
-            }
-            case "Client Chat" -> {
-                if (specificRow == 0) {
-                    config.clientChatEnabled = !config.clientChatEnabled;
-                    config.save();
-                    SestiaChatClient.onConfigChanged();
-                    playClickSound();
-                } else if (specificRow == 1) {
-                    config.clientChatAllowDms = !config.clientChatAllowDms;
-                    config.save();
-                    playClickSound();
-                } else if (specificRow == 2) {
-                    SestiaChatClient.reconnect();
-                    playClickSound();
-                } else if (specificRow == 3) {
-                    SestiaChatClient.printHelpInChat();
                     playClickSound();
                 }
             }
