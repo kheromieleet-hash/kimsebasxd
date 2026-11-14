@@ -27,6 +27,7 @@ public class HudLayoutEditorScreen extends Screen {
         KEYBINDS,
         STATS,
         POSITION,
+        CLOCK,
         INVENTORY,
         POTIONS,
         ARMOR
@@ -96,6 +97,16 @@ public class HudLayoutEditorScreen extends Screen {
                 config.hudInfoEnabled && config.hudPositionEnabled,
                 this.dragging == HudTarget.POSITION,
                 0x484F6BFF, 0xDD7B92FF
+        );
+
+        int[] clockBounds = StatsHudRenderer.resolveClockBounds(this.font, this.width, this.height, config);
+        drawDraggableBox(
+                graphics, mouseX, mouseY,
+                clockBounds[0], clockBounds[1], clockBounds[2], clockBounds[3],
+                "Clock",
+                config.hudInfoEnabled && config.hudShowClock,
+                this.dragging == HudTarget.CLOCK,
+                0x48F59E0B, 0xDDFBBF24
         );
 
         // Inventory HUD+ overlays (Inventory, Potions, Armor)
@@ -214,6 +225,16 @@ public class HudLayoutEditorScreen extends Screen {
             config.save();
             return true;
         }
+        if (isInside(mouseX, mouseY, StatsHudRenderer.resolveClockBounds(this.font, this.width, this.height, config))) {
+            if (!config.hudInfoEnabled) {
+                config.hudInfoEnabled = true;
+                config.hudShowClock = true;
+            } else {
+                config.hudShowClock = !config.hudShowClock;
+            }
+            config.save();
+            return true;
+        }
         int[] inv = getInventoryBounds(config);
         if (inv != null && isInside(mouseX, mouseY, inv)) {
             toggleInventoryComponent(config, HudTarget.INVENTORY);
@@ -299,6 +320,14 @@ public class HudLayoutEditorScreen extends Screen {
             return false;
         }
 
+        int[] clock = StatsHudRenderer.resolveClockBounds(this.font, this.width, this.height, config);
+        if (isInside(mouseX, mouseY, clock)) {
+            this.dragging = HudTarget.CLOCK;
+            this.dragOffsetX = mouseX - clock[0];
+            this.dragOffsetY = mouseY - clock[1];
+            return false;
+        }
+
         int[] inv = getInventoryBounds(config);
         if (inv != null && isInside(mouseX, mouseY, inv)) {
             this.dragging = HudTarget.INVENTORY;
@@ -350,6 +379,11 @@ public class HudLayoutEditorScreen extends Screen {
                 int[] b = StatsHudRenderer.resolvePositionBounds(this.font, this.width, this.height, config);
                 config.posHudX = Mth.clamp(mouseX - this.dragOffsetX, 2, Math.max(2, this.width - b[2] - 2));
                 config.posHudY = Mth.clamp(mouseY - this.dragOffsetY, 2, Math.max(2, this.height - b[3] - 2));
+            }
+            case CLOCK -> {
+                int[] b = StatsHudRenderer.resolveClockBounds(this.font, this.width, this.height, config);
+                config.clockHudX = Mth.clamp(mouseX - this.dragOffsetX, 2, Math.max(2, this.width - b[2] - 2));
+                config.clockHudY = Mth.clamp(mouseY - this.dragOffsetY, 2, Math.max(2, this.height - b[3] - 2));
             }
             case INVENTORY -> {
                 int[] b = getInventoryBounds(config);
@@ -412,6 +446,8 @@ public class HudLayoutEditorScreen extends Screen {
         config.statsHudY = 4;
         config.posHudX = -1;
         config.posHudY = -1;
+        config.clockHudX = -1;
+        config.clockHudY = -1;
         config.save();
     }
 

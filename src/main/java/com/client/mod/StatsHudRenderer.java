@@ -14,6 +14,9 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -22,6 +25,8 @@ public class StatsHudRenderer {
     // Uses Minecraft's default font
     private static final Style PRIMARY_STYLE = Style.EMPTY.withColor(0xFFFFFFFF);
     private static final Style SECONDARY_STYLE = Style.EMPTY.withColor(0xFFD8D8D8);
+    private static final ZoneId ISTANBUL_ZONE = ZoneId.of("Europe/Istanbul");
+    private static final DateTimeFormatter CLOCK_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private static final float[] TICK_RATES = new float[20];
     private static int nextIndex = 0;
@@ -112,6 +117,30 @@ public class StatsHudRenderer {
                 graphics.text(mc.font, line, lineX, posY + i * lineSpacing, -1, true);
             }
         }
+
+        if (config.hudShowClock) {
+            Component clockLine = buildClockLine();
+            int[] cb = resolveClockBounds(mc.font, screenW, screenH, config);
+            graphics.text(mc.font, clockLine, cb[0], cb[1], -1, true);
+        }
+    }
+
+    public static int[] resolveClockBounds(Font font, int screenW, int screenH, ModConfig config) {
+        Component line = buildClockLine();
+        int w = Math.max(66, font.width(line));
+        int h = 11;
+        int x = config.clockHudX < 0
+                ? Math.max(2, screenW - 4 - w)
+                : Mth.clamp(config.clockHudX, 2, Math.max(2, screenW - w - 2));
+        int y = config.clockHudY < 0
+                ? 4
+                : Mth.clamp(config.clockHudY, 2, Math.max(2, screenH - h - 2));
+        return new int[]{x, y, w, h};
+    }
+
+    private static Component buildClockLine() {
+        String timeStr = ZonedDateTime.now(ISTANBUL_ZONE).format(CLOCK_FORMATTER);
+        return buildPair("Time: ", timeStr);
     }
 
     public static int[] resolveStatsBounds(Font font, int screenW, int screenH, ModConfig config) {

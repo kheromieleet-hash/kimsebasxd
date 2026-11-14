@@ -57,10 +57,13 @@ public class ModConfig {
     public boolean hudShowDir = true;
     public boolean hudShowNether = true;
     public boolean hudShowPos = true;
+    public boolean hudShowClock = true;
     public int statsHudX = 4;
     public int statsHudY = 4;
     public int posHudX = -1;
     public int posHudY = -1;
+    public int clockHudX = -1;
+    public int clockHudY = -1;
 
     // Keybinds HUD Table
     public boolean keybindsHudEnabled = true;
@@ -373,10 +376,13 @@ public class ModConfig {
         this.hudShowDir = other.hudShowDir;
         this.hudShowNether = other.hudShowNether;
         this.hudShowPos = other.hudShowPos;
+        this.hudShowClock = other.hudShowClock;
         this.statsHudX = other.statsHudX;
         this.statsHudY = other.statsHudY;
         this.posHudX = other.posHudX;
         this.posHudY = other.posHudY;
+        this.clockHudX = other.clockHudX;
+        this.clockHudY = other.clockHudY;
         this.keybindsHudEnabled = other.keybindsHudEnabled;
         this.keybindsHudOnlyActive = other.keybindsHudOnlyActive;
         this.keybindsHudAutoHide = other.keybindsHudAutoHide;
@@ -576,6 +582,8 @@ public class ModConfig {
         if (this.statsHudY < 0 || this.statsHudY > 4000) this.statsHudY = 4;
         if (this.posHudX < -1 || this.posHudX > 4000) this.posHudX = -1;
         if (this.posHudY < -1 || this.posHudY > 4000) this.posHudY = -1;
+        if (this.clockHudX < -1 || this.clockHudX > 4000) this.clockHudX = -1;
+        if (this.clockHudY < -1 || this.clockHudY > 4000) this.clockHudY = -1;
         this.vmSwingSpeed = clampInt(this.vmSwingSpeed, 0, 100, 0);
         this.vmOffsetX = clampFloat(this.vmOffsetX, -2.0f, 2.0f, 0.0f);
         this.vmOffsetY = clampFloat(this.vmOffsetY, -2.0f, 2.0f, 0.0f);

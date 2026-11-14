@@ -988,9 +988,9 @@ public class ModernClickGuiScreen extends Screen {
                 resetAllHov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
         graphics.centeredText(this.font, Component.literal("Reset All Positions"), resetAllX + resetAllBtnW / 2, btnY + 8, JelloTheme.TEXT);
 
-        int listY = btnY + btnH + 14;
-        int cardH = 44;
-        int cardGap = 8;
+        int listY = btnY + btnH + 12;
+        int cardH = 40;
+        int cardGap = 6;
 
         drawHudResetCard(graphics, mouseX, mouseY, innerX, listY, innerW, cardH,
                 "Keybinds HUD",
@@ -1000,7 +1000,7 @@ public class ModernClickGuiScreen extends Screen {
         drawHudResetCard(graphics, mouseX, mouseY, innerX, listY + (cardH + cardGap), innerW, cardH,
                 "Telemetry HUD (FPS / TPS / Ping / Speed)",
                 "Pos: " + config.statsHudX + ", " + config.statsHudY,
-                config.hudInfoEnabled, true, true, "Reset");
+                config.hudInfoEnabled && config.hudTelemetryEnabled, true, true, "Reset");
 
         String posDesc = (config.posHudX < 0 || config.posHudY < 0)
                 ? "Pos: Default (Bottom-Right)"
@@ -1008,9 +1008,17 @@ public class ModernClickGuiScreen extends Screen {
         drawHudResetCard(graphics, mouseX, mouseY, innerX, listY + (cardH + cardGap) * 2, innerW, cardH,
                 "Position HUD (Pos / Nether / Dir)",
                 posDesc,
-                config.hudInfoEnabled, false, true, "Reset");
+                config.hudInfoEnabled && config.hudPositionEnabled, true, true, "Reset");
 
+        String clockDesc = (config.clockHudX < 0 || config.clockHudY < 0)
+                ? "Pos: Default (Top-Right)  |  Europe/Istanbul"
+                : ("Pos: " + config.clockHudX + ", " + config.clockHudY + "  |  Europe/Istanbul");
         drawHudResetCard(graphics, mouseX, mouseY, innerX, listY + (cardH + cardGap) * 3, innerW, cardH,
+                "Clock HUD (Istanbul)",
+                clockDesc,
+                config.hudInfoEnabled && config.hudShowClock, true, true, "Reset");
+
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, listY + (cardH + cardGap) * 4, innerW, cardH,
                 "Inventory HUD+",
                 "Inventory, Potions & Armor overlays (edit in HUD Editor)",
                 config.inventoryHudEnabled, true, false, "");
@@ -1079,9 +1087,9 @@ public class ModernClickGuiScreen extends Screen {
             return true;
         }
 
-        int listY = btnY + btnH + 14;
-        int cardH = 44;
-        int cardGap = 8;
+        int listY = btnY + btnH + 12;
+        int cardH = 40;
+        int cardGap = 6;
 
         // Card 0: Keybinds HUD (Toggle + Reset)
         if (handleHudCardClick(mouseX, mouseY, innerX, listY, innerW, cardH, true, true, "Reset",
@@ -1089,20 +1097,38 @@ public class ModernClickGuiScreen extends Screen {
                 () -> { config.keybindsHudX = 8; config.keybindsHudY = 60; config.save(); })) {
             return true;
         }
-        // Card 1: Stats HUD (Toggle + Reset)
+        // Card 1: Telemetry HUD (Toggle + Reset)
         if (handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap), innerW, cardH, true, true, "Reset",
-                () -> { config.hudInfoEnabled = !config.hudInfoEnabled; config.save(); },
+                () -> {
+                    if (!config.hudInfoEnabled) { config.hudInfoEnabled = true; config.hudTelemetryEnabled = true; }
+                    else { config.hudTelemetryEnabled = !config.hudTelemetryEnabled; }
+                    config.save();
+                },
                 () -> { config.statsHudX = 4; config.statsHudY = 4; config.save(); })) {
             return true;
         }
-        // Card 2: Position HUD (Reset only; shares hudInfoEnabled)
-        if (handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap) * 2, innerW, cardH, false, true, "Reset",
-                null,
+        // Card 2: Position HUD (Toggle + Reset)
+        if (handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap) * 2, innerW, cardH, true, true, "Reset",
+                () -> {
+                    if (!config.hudInfoEnabled) { config.hudInfoEnabled = true; config.hudPositionEnabled = true; }
+                    else { config.hudPositionEnabled = !config.hudPositionEnabled; }
+                    config.save();
+                },
                 () -> { config.posHudX = -1; config.posHudY = -1; config.save(); })) {
             return true;
         }
-        // Card 3: Inventory HUD+ (Toggle only; positions edited in Open HUD Editor)
-        return handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap) * 3, innerW, cardH, true, false, "",
+        // Card 3: Clock HUD (Istanbul) (Toggle + Reset)
+        if (handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap) * 3, innerW, cardH, true, true, "Reset",
+                () -> {
+                    if (!config.hudInfoEnabled) { config.hudInfoEnabled = true; config.hudShowClock = true; }
+                    else { config.hudShowClock = !config.hudShowClock; }
+                    config.save();
+                },
+                () -> { config.clockHudX = -1; config.clockHudY = -1; config.save(); })) {
+            return true;
+        }
+        // Card 4: Inventory HUD+ (Toggle only; positions edited in Open HUD Editor)
+        return handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap) * 4, innerW, cardH, true, false, "",
                 () -> { config.inventoryHudEnabled = !config.inventoryHudEnabled; config.save(); },
                 null);
     }
