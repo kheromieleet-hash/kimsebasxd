@@ -127,7 +127,7 @@ public class StatsHudRenderer {
 
     public static int[] resolveClockBounds(Font font, int screenW, int screenH, ModConfig config) {
         Component line = buildClockLine();
-        int w = Math.max(66, font.width(line));
+        int w = Math.max(46, font.width(line));
         int h = 11;
         int x = config.clockHudX < 0
                 ? Math.max(2, screenW - 4 - w)
@@ -140,7 +140,7 @@ public class StatsHudRenderer {
 
     private static Component buildClockLine() {
         String timeStr = ZonedDateTime.now(ISTANBUL_ZONE).format(CLOCK_FORMATTER);
-        return buildPair("Time: ", timeStr);
+        return Component.literal(timeStr).setStyle(PRIMARY_STYLE);
     }
 
     public static int[] resolveStatsBounds(Font font, int screenW, int screenH, ModConfig config) {
