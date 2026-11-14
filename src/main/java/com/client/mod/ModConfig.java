@@ -570,7 +570,9 @@ public class ModConfig {
         if (this.invHudScale < 0.50f || this.invHudScale > 2.50f) this.invHudScale = 1.0f;
         if (this.zoomFactor < 1.5f || this.zoomFactor > 20.0f) this.zoomFactor = 4.0f;
         if (this.guiTheme < 0 || this.guiTheme >= JelloTheme.THEME_COUNT) this.guiTheme = 0;
-        JelloTheme.applyTheme(this.guiTheme);
+        if (this == INSTANCE) {
+            JelloTheme.applyTheme(this.guiTheme);
+        }
         this.freecamSpeed = clampFloat(this.freecamSpeed, 0.2f, 5.0f, 1.0f);
         if (this.autoCrafterDelay < 0 || this.autoCrafterDelay > 10) this.autoCrafterDelay = 0;
         if (this.autoCrafterTargets == null) {
