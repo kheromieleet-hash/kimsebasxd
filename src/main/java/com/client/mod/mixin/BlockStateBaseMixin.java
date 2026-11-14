@@ -13,9 +13,5 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class BlockStateBaseMixin {
     @Inject(method = "getShadeBrightness", at = @At("HEAD"), cancellable = true)
     private void onGetShadeBrightness(BlockGetter level, BlockPos pos, CallbackInfoReturnable<Float> cir) {
-        ModConfig cfg = ModConfig.getInstance();
-        if (cfg.fullbright && cfg.noBlockShadows) {
-            cir.setReturnValue(1.0f);
-        }
     }
 }

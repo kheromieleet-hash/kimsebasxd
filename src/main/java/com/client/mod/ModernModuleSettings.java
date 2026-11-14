@@ -158,7 +158,6 @@ public final class ModernModuleSettings {
         return switch (modName) {
             case "Viewmodel" -> buildViewmodelControls(cfg, actions);
             case "Inventory HUD+" -> buildInventoryHudControls(cfg, actions);
-            case "Fullbright" -> buildFullbrightControls(cfg, actions);
             case "Keybinds HUD" -> buildKeybindsHudControls(cfg, actions);
             case "HUD Info" -> buildHudInfoControls(cfg, actions);
             case "Fast Place" -> List.of(
@@ -248,40 +247,6 @@ public final class ModernModuleSettings {
                 floatSlider("invHudScale", "Inv Scale", 0.50f, 2.00f, 20.0f, "%.2fx",
                         () -> cfg.invHudScale, v -> cfg.invHudScale = v),
                 intSlider("invBgAlpha", "Bg Opacity", 0, 100, "%", inv::getBgAlpha, inv::setBgAlpha)
-        );
-    }
-
-    private static List<Control> buildFullbrightControls(ModConfig cfg, Actions actions) {
-        return List.of(
-                new CycleControl("Mode",
-                        () -> switch (cfg.fullbrightMode) {
-                            case 0 -> "Natural";
-                            case 1 -> "Gamma";
-                            default -> "Ultra";
-                        },
-                        () -> {
-                            cfg.fullbrightMode = (cfg.fullbrightMode + 1) % 3;
-                            actions.persist(true);
-                        }),
-                new SliderControl("fullbrightBrightness", "Brightness",
-                        () -> (cfg.fullbrightBrightness - 0.20f) / 0.80f,
-                        pct -> {
-                            cfg.fullbrightBrightness = roundToStep(0.20f + pct * 0.80f, 100.0f);
-                            if (cfg.fullbrightMode == 0) {
-                                cfg.fullbrightMode = 1;
-                            }
-                        },
-                        () -> Math.round(cfg.fullbrightBrightness * 100.0f) + "%",
-                        true,
-                        () -> Integer.toString(Math.round(cfg.fullbrightBrightness * 100.0f)),
-                        raw -> parseAndApplyFloat(raw, 20.0f, 100.0f, pctVal -> {
-                            cfg.fullbrightBrightness = Math.round(pctVal) / 100.0f;
-                            if (cfg.fullbrightMode == 0) {
-                                cfg.fullbrightMode = 1;
-                            }
-                        })),
-                toggle("3D Shading", () -> cfg.fullbright3DShading, v -> cfg.fullbright3DShading = v, actions, true),
-                toggle("No Dark Corners", () -> cfg.noBlockShadows, v -> cfg.noBlockShadows = v, actions, true)
         );
     }
 

@@ -1032,23 +1032,8 @@ public class ClickGuiScreen {
                 drawActionButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW, "Move HUD Positions...");
             }
             case "Fullbright" -> {
-                String modeName = switch (config.fullbrightMode) {
-                    case 0 -> "Natural (Night Vision)";
-                    case 1 -> "Gamma (Custom)";
-                    default -> "Ultra (Flat)";
-                };
                 drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
-                        "Mode: " + modeName, true);
-                rowY += 22;
-                drawSlider(graphics, font, innerX, rowY, innerW,
-                        String.format(Locale.US, "Brightness: %d%%", Math.round(config.fullbrightBrightness * 100f)),
-                        (config.fullbrightBrightness - 0.20f) / 0.80f);
-                rowY += 22;
-                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
-                        "3D Shading: " + (config.fullbright3DShading ? "ON" : "OFF"), config.fullbright3DShading);
-                rowY += 22;
-                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
-                        "No Dark Corners: " + (config.noBlockShadows ? "ON" : "OFF"), config.noBlockShadows);
+                        "Fullbright: " + (config.fullbright ? "ON" : "OFF"), config.fullbright);
             }
             case "Fast Use" -> {
                 drawSlider(graphics, font, innerX, rowY, innerW,
@@ -1309,8 +1294,8 @@ public class ClickGuiScreen {
             case "Inventory HUD+" -> 8;
             case "Inventory Tweaks" -> 6;
             case "Auto Replenish" -> 6;
-            case "Fullbright", "Packet Mine" -> 4;
-            case "Fast Use" -> 1;
+            case "Packet Mine" -> 4;
+            case "Fullbright", "Fast Use" -> 1;
             case "Fast Place", "Chunk Borders" -> 2;
             case "Auto Tool" -> 1;
             case "Auto Crafter" -> 3 + (AutoCrafterHandler.TARGETS.size() + 1) / 2;
@@ -2025,26 +2010,10 @@ public class ClickGuiScreen {
                 }
             }
             case "Fullbright" -> {
-                switch (specificRow) {
-                    case 0 -> {
-                        config.fullbrightMode = (config.fullbrightMode + 1) % 3;
-                        config.save();
-                        ModConfig.reloadChunks();
-                        playClickSound();
-                    }
-                    case 1 -> startSliderDrag(mouseX, innerX, innerW, "fullbrightBrightness");
-                    case 2 -> {
-                        config.fullbright3DShading = !config.fullbright3DShading;
-                        config.save();
-                        ModConfig.reloadChunks();
-                        playClickSound();
-                    }
-                    case 3 -> {
-                        config.noBlockShadows = !config.noBlockShadows;
-                        config.save();
-                        ModConfig.reloadChunks();
-                        playClickSound();
-                    }
+                if (specificRow == 0) {
+                    config.fullbright = !config.fullbright;
+                    config.save();
+                    playClickSound();
                 }
             }
             case "Fast Use" -> {
@@ -2431,12 +2400,6 @@ public class ClickGuiScreen {
         ModConfig config = ModConfig.getInstance();
         switch (key) {
             case "invHudScale" -> config.invHudScale = Math.round((0.50f + pct * 1.50f) * 20.0f) / 20.0f;
-            case "fullbrightBrightness" -> {
-                config.fullbrightBrightness = Math.round((0.20f + pct * 0.80f) * 100.0f) / 100.0f;
-                if (config.fullbrightMode == 0) {
-                    config.fullbrightMode = 1; // switch to Gamma mode so slider changes apply live
-                }
-            }
             case "invBgAlpha" -> {
                 int alpha = Math.round(pct * 100.0f);
                 try {

@@ -12,10 +12,5 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class LightmapRenderStateExtractorMixin {
     @Inject(method = "extract", at = @At("RETURN"))
     private void onExtract(LightmapRenderState state, float partialTick, CallbackInfo ci) {
-        ModConfig cfg = ModConfig.getInstance();
-        if (cfg.fullbright && cfg.fullbrightMode == 0) { // Natural / Night Vision mode
-            state.needsUpdate = true;
-            state.nightVisionEffectIntensity = 1.0f;
-        }
     }
 }

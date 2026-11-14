@@ -82,10 +82,6 @@ public class ModConfig {
 
     // Fullbright settings
     public boolean fullbright = false;
-    public int fullbrightMode = 0;            // 0 = Natural / Night Vision (göz yormayan), 1 = Gamma (slider), 2 = Ultra
-    public float fullbrightBrightness = 0.70f;// 0.20f to 1.00f
-    public boolean fullbright3DShading = true;// 3D blok derinliğini korur, parlamayı önler
-    public boolean noBlockShadows = false;    // AO köşe karartması
     public boolean fullbrightForceMaxLight = false;
 
     // Visual / QoL Features
@@ -407,10 +403,6 @@ public class ModConfig {
         this.keybindsHudX = other.keybindsHudX;
         this.keybindsHudY = other.keybindsHudY;
         this.fullbright = other.fullbright;
-        this.fullbrightMode = other.fullbrightMode;
-        this.fullbrightBrightness = other.fullbrightBrightness;
-        this.fullbright3DShading = other.fullbright3DShading;
-        this.noBlockShadows = other.noBlockShadows;
         this.fullbrightForceMaxLight = other.fullbrightForceMaxLight;
         this.zoomEnabled = other.zoomEnabled;
         this.zoomFactor = other.zoomFactor;
@@ -562,8 +554,6 @@ public class ModConfig {
         this.itemScale = clampFloat(this.itemScale, 0.10f, 2.00f, 1.0f);
         this.playerScale = clampFloat(this.playerScale, 0.10f, 2.00f, 1.0f);
         if (this.invHudScale < 0.50f || this.invHudScale > 2.50f) this.invHudScale = 1.0f;
-        if (this.fullbrightBrightness < 0.20f || this.fullbrightBrightness > 1.0f) this.fullbrightBrightness = 0.70f;
-        if (this.fullbrightMode < 0 || this.fullbrightMode > 2) this.fullbrightMode = 0;
         if (this.zoomFactor < 1.5f || this.zoomFactor > 20.0f) this.zoomFactor = 4.0f;
         if (this.autoCrafterDelay < 0 || this.autoCrafterDelay > 10) this.autoCrafterDelay = 0;
         if (this.autoCrafterTargets == null) {

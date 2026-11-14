@@ -27,15 +27,8 @@ public class LightmapMixin {
     private void onRenderLightmap(LightmapRenderState state, CallbackInfo ci) {
         ModConfig cfg = ModConfig.getInstance();
         if (cfg.fullbright) {
-            if (cfg.fullbrightMode == 1) { // Gamma / Slider mode
-                float b = cfg.fullbrightBrightness;
-                RenderSystem.getDevice().createCommandEncoder().clearColorTexture(this.texture, new Vector4f(b, b, b, 1.0f));
-                ci.cancel();
-            } else if (cfg.fullbrightMode == 2) { // Ultra Flat mode
-                RenderSystem.getDevice().createCommandEncoder().clearColorTexture(this.texture, FULLBRIGHT_WHITE);
-                ci.cancel();
-            }
-            // In mode 0 (Natural / Night Vision), we do not cancel: Lightmap.render executes with nightVisionEffectIntensity = 1.0f
+            RenderSystem.getDevice().createCommandEncoder().clearColorTexture(this.texture, FULLBRIGHT_WHITE);
+            ci.cancel();
         }
     }
 }

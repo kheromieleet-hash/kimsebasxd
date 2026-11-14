@@ -12,9 +12,5 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class CardinalLightingMixin {
     @Inject(method = "byFace", at = @At("HEAD"), cancellable = true)
     private void onByFace(Direction direction, CallbackInfoReturnable<Float> cir) {
-        ModConfig cfg = ModConfig.getInstance();
-        if (cfg.fullbright && !cfg.fullbright3DShading) {
-            cir.setReturnValue(1.0f);
-        }
     }
 }
