@@ -3,7 +3,6 @@ package com.client.mod.mixin;
 import com.client.mod.FreecamHandler;
 import com.client.mod.ZoomHandler;
 import net.minecraft.client.Camera;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -23,14 +22,10 @@ public abstract class CameraMixin {
     @Shadow
     protected abstract void setRotation(float yRot, float xRot);
 
-    @Shadow
-    public abstract float getCameraEntityPartialTicks(DeltaTracker deltaTracker);
-
-    @Inject(method = "update", at = @At("TAIL"))
-    private void onUpdateFreecam(DeltaTracker deltaTracker, CallbackInfo ci) {
+    @Inject(method = "alignWithEntity", at = @At("TAIL"))
+    private void onAlignWithEntityFreecam(float partialTicks, CallbackInfo ci) {
         if (FreecamHandler.isActive()) {
-            float partial = this.getCameraEntityPartialTicks(deltaTracker);
-            Vec3 pos = FreecamHandler.getInterpolatedPos(partial);
+            Vec3 pos = FreecamHandler.getInterpolatedPos(partialTicks);
             this.setPosition(pos.x, pos.y, pos.z);
             this.setRotation(FreecamHandler.getYaw(), FreecamHandler.getPitch());
             this.detached = true;
