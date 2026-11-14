@@ -95,20 +95,22 @@ public class StatsHudRenderer {
             }
         }
 
-        List<Component> posLines = buildPositionLines(mc);
-        int posW = measureMaxWidth(mc.font, posLines);
-        int posH = posLines.size() * lineSpacing;
-        int posX = config.posHudX < 0
-                ? Math.max(2, screenW - 4 - posW)
-                : Mth.clamp(config.posHudX, 2, Math.max(2, screenW - posW - 2));
-        int posY = config.posHudY < 0
-                ? Math.max(2, screenH - 4 - posH)
-                : Mth.clamp(config.posHudY, 2, Math.max(2, screenH - posH - 2));
-        boolean alignRight = config.posHudX < 0 || (posX + posW / 2) > (screenW / 2);
-        for (int i = 0; i < posLines.size(); i++) {
-            Component line = posLines.get(i);
-            int lineX = alignRight ? (posX + posW - mc.font.width(line)) : posX;
-            graphics.text(mc.font, line, lineX, posY + i * lineSpacing, -1, true);
+        List<Component> posLines = buildPositionLines(mc, config);
+        if (!posLines.isEmpty()) {
+            int posW = measureMaxWidth(mc.font, posLines);
+            int posH = posLines.size() * lineSpacing;
+            int posX = config.posHudX < 0
+                    ? Math.max(2, screenW - 4 - posW)
+                    : Mth.clamp(config.posHudX, 2, Math.max(2, screenW - posW - 2));
+            int posY = config.posHudY < 0
+                    ? Math.max(2, screenH - 4 - posH)
+                    : Mth.clamp(config.posHudY, 2, Math.max(2, screenH - posH - 2));
+            boolean alignRight = config.posHudX < 0 || (posX + posW / 2) > (screenW / 2);
+            for (int i = 0; i < posLines.size(); i++) {
+                Component line = posLines.get(i);
+                int lineX = alignRight ? (posX + posW - mc.font.width(line)) : posX;
+                graphics.text(mc.font, line, lineX, posY + i * lineSpacing, -1, true);
+            }
         }
     }
 
@@ -127,10 +129,10 @@ public class StatsHudRenderer {
     public static int[] resolvePositionBounds(Font font, int screenW, int screenH, ModConfig config) {
         Minecraft mc = Minecraft.getInstance();
         List<Component> lines = (mc.player != null && mc.level != null)
-                ? buildPositionLines(mc)
-                : buildDummyPositionLines();
+                ? buildPositionLines(mc, config)
+                : buildDummyPositionLines(config);
         int w = Math.max(96, measureMaxWidth(font, lines));
-        int h = lines.size() * 11;
+        int h = Math.max(11, lines.size() * 11);
         int x = config.posHudX < 0
                 ? Math.max(2, screenW - 4 - w)
                 : Mth.clamp(config.posHudX, 2, Math.max(2, screenW - w - 2));
@@ -175,45 +177,50 @@ public class StatsHudRenderer {
         return lines;
     }
 
-    private static List<Component> buildPositionLines(Minecraft mc) {
+    private static List<Component> buildPositionLines(Minecraft mc, ModConfig config) {
         Camera camera = mc.gameRenderer.mainCamera();
         Vec3 pos = camera.position();
         int posX = (int) Math.floor(pos.x);
         int posY = (int) Math.floor(pos.y);
         int posZ = (int) Math.floor(pos.z);
 
-        float yaw = Mth.wrapDegrees(camera.yRot());
-        float pitch = camera.xRot();
-        String dirName = getDirectionName(yaw);
-        String dirAxis = getDirectionAxis(yaw);
-
-        MutableComponent dirComp = Component.literal(dirName + " (").setStyle(PRIMARY_STYLE)
-                .append(Component.literal(dirAxis + " " + formatRound1(yaw) + " / " + formatRound1(pitch) + ")").setStyle(SECONDARY_STYLE));
-        MutableComponent posComp = buildPair("Pos: ", posX + ", " + posY + ", " + posZ);
-
         java.util.ArrayList<Component> lines = new java.util.ArrayList<>(3);
-        lines.add(dirComp);
 
-        ResourceKey<Level> dim = mc.level.dimension();
-        if (dim == Level.OVERWORLD) {
-            int netherX = (int) Math.floor(pos.x / 8.0);
-            int netherZ = (int) Math.floor(pos.z / 8.0);
-            lines.add(buildPair("Nether: ", netherX + ", " + posY + ", " + netherZ));
-        } else if (dim == Level.NETHER) {
-            int overX = (int) Math.floor(pos.x * 8.0);
-            int overZ = (int) Math.floor(pos.z * 8.0);
-            lines.add(buildPair("Overworld: ", overX + ", " + posY + ", " + overZ));
+        if (config.hudShowDir) {
+            float yaw = Mth.wrapDegrees(camera.yRot());
+            float pitch = camera.xRot();
+            String dirName = getDirectionName(yaw);
+            String dirAxis = getDirectionAxis(yaw);
+            MutableComponent dirComp = Component.literal(dirName + " (").setStyle(PRIMARY_STYLE)
+                    .append(Component.literal(dirAxis + " " + formatRound1(yaw) + " / " + formatRound1(pitch) + ")").setStyle(SECONDARY_STYLE));
+            lines.add(dirComp);
         }
-        lines.add(posComp);
+
+        if (config.hudShowNether) {
+            ResourceKey<Level> dim = mc.level.dimension();
+            if (dim == Level.OVERWORLD) {
+                int netherX = (int) Math.floor(pos.x / 8.0);
+                int netherZ = (int) Math.floor(pos.z / 8.0);
+                lines.add(buildPair("Nether: ", netherX + ", " + posY + ", " + netherZ));
+            } else if (dim == Level.NETHER) {
+                int overX = (int) Math.floor(pos.x * 8.0);
+                int overZ = (int) Math.floor(pos.z * 8.0);
+                lines.add(buildPair("Overworld: ", overX + ", " + posY + ", " + overZ));
+            }
+        }
+
+        if (config.hudShowPos) {
+            lines.add(buildPair("Pos: ", posX + ", " + posY + ", " + posZ));
+        }
         return lines;
     }
 
-    private static List<Component> buildDummyPositionLines() {
-        return java.util.List.of(
-                Component.literal("South (Z+ 0 / 0)").setStyle(PRIMARY_STYLE),
-                buildPair("Nether: ", "0, 64, 0"),
-                buildPair("Pos: ", "0, 64, 0")
-        );
+    private static List<Component> buildDummyPositionLines(ModConfig config) {
+        java.util.ArrayList<Component> lines = new java.util.ArrayList<>(3);
+        if (config.hudShowDir) lines.add(Component.literal("South (Z+ 0 / 0)").setStyle(PRIMARY_STYLE));
+        if (config.hudShowNether) lines.add(buildPair("Nether: ", "0, 64, 0"));
+        if (config.hudShowPos) lines.add(buildPair("Pos: ", "0, 64, 0"));
+        return lines;
     }
 
     private static MutableComponent buildPair(String label, String value) {

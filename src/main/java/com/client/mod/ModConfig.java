@@ -52,6 +52,9 @@ public class ModConfig {
     public boolean hudShowTps = true;
     public boolean hudShowPing = true;
     public boolean hudShowSpeed = true;
+    public boolean hudShowDir = true;
+    public boolean hudShowNether = true;
+    public boolean hudShowPos = true;
     public int statsHudX = 4;
     public int statsHudY = 4;
     public int posHudX = -1;
@@ -363,6 +366,9 @@ public class ModConfig {
         this.hudShowTps = other.hudShowTps;
         this.hudShowPing = other.hudShowPing;
         this.hudShowSpeed = other.hudShowSpeed;
+        this.hudShowDir = other.hudShowDir;
+        this.hudShowNether = other.hudShowNether;
+        this.hudShowPos = other.hudShowPos;
         this.statsHudX = other.statsHudX;
         this.statsHudY = other.statsHudY;
         this.posHudX = other.posHudX;

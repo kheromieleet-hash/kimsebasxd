@@ -304,7 +304,10 @@ public final class ModernModuleSettings {
                 toggle("Show FPS", () -> cfg.hudShowFps, v -> cfg.hudShowFps = v, actions, false),
                 toggle("Show TPS", () -> cfg.hudShowTps, v -> cfg.hudShowTps = v, actions, false),
                 toggle("Show Ping", () -> cfg.hudShowPing, v -> cfg.hudShowPing = v, actions, false),
-                toggle("Show Speed", () -> cfg.hudShowSpeed, v -> cfg.hudShowSpeed = v, actions, false)
+                toggle("Show Speed", () -> cfg.hudShowSpeed, v -> cfg.hudShowSpeed = v, actions, false),
+                toggle("Show Direction", () -> cfg.hudShowDir, v -> cfg.hudShowDir = v, actions, false),
+                toggle("Show Nether", () -> cfg.hudShowNether, v -> cfg.hudShowNether = v, actions, false),
+                toggle("Show Pos", () -> cfg.hudShowPos, v -> cfg.hudShowPos = v, actions, false)
         );
     }
 
