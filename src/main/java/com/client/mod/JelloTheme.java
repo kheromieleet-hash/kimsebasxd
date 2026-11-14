@@ -4,20 +4,15 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FontDescription;
-import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Glassmorphic Obsidian & Crimson Red Theme constants, typography, and rounded drawing utilities.
+ * Glassmorphic Obsidian & Crimson Red Theme constants and rounded drawing utilities.
  */
 public final class JelloTheme {
-    public static final FontDescription SANS_FONT =
-            new FontDescription.Resource(Identifier.fromNamespaceAndPath("inventoryhud", "comfortaa"));
-
     public static final int ACCENT = 0xFFE53935;        // Crimson Red
     public static final int ACCENT_HOVER = 0xFFFF5252;  // Vibrant Scarlet Red
     public static final int PANEL = 0xD80E0F16;             // Translucent obsidian panel body
@@ -43,10 +38,6 @@ public final class JelloTheme {
     public static final int BORDER_ACTIVE_SOFT = 0x4CE53935;// Soft low-opacity active crimson hairline
     public static final int BORDER_EXPANDED_SOFT = 0x73FF5252;
     public static final int DIVIDER = 0x1EFFFFFF;           // Subtle translucent structural divider
-
-    public static Component sans(String text) {
-        return Component.literal(text == null ? "" : text).withStyle(style -> style.withFont(SANS_FONT));
-    }
 
     private static float alpha = 1.0f;
 
