@@ -2449,7 +2449,6 @@ public class ClickGuiScreen {
                 }
             }
             case "zoomFactor" -> config.zoomFactor = Math.round((1.5f + pct * 13.5f) * 10.0f) / 10.0f;
-            case "lowFireOffset" -> config.lowFireOffset = Math.round((0.10f + pct * 0.50f) * 100.0f) / 100.0f;
             case "invSortingDelay" -> config.invSortingDelay = Math.round(pct * 10.0f);
             case "fastUseCooldown" -> config.fastUseCooldown = Math.round(pct * 4.0f);
             case "autoReplenishMinCount" -> config.autoReplenishMinCount = Math.max(1, Math.min(63, Math.round(1 + pct * 62.0f)));

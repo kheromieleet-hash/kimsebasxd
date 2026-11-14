@@ -91,8 +91,6 @@ public class ModConfig {
     // Visual / QoL Features
     public boolean zoomEnabled = true;
     public float zoomFactor = 4.0f;
-    public boolean lowFire = false;
-    public float lowFireOffset = 0.35f;
     public boolean chatTimestamps = true;    // Istanbul time <HH:mm:ss>
     public boolean compactChat = true;       // Stacks duplicate consecutive messages with (2), (3)
     public boolean chatInfinite = true;      // Expands chat history from 100 to 16,384 lines
@@ -116,8 +114,6 @@ public class ModConfig {
     public boolean invDisableInCreative = true;
     public boolean invShulkerPreview = true;
 
-    // Jello theme
-    public boolean jelloBlur = true;
     public boolean autoSprint = false;
 
     // Fast Use
@@ -409,8 +405,6 @@ public class ModConfig {
         this.fullbrightForceMaxLight = other.fullbrightForceMaxLight;
         this.zoomEnabled = other.zoomEnabled;
         this.zoomFactor = other.zoomFactor;
-        this.lowFire = other.lowFire;
-        this.lowFireOffset = other.lowFireOffset;
         this.chatTimestamps = other.chatTimestamps;
         this.compactChat = other.compactChat;
         this.chatInfinite = other.chatInfinite;
@@ -424,7 +418,6 @@ public class ModConfig {
         this.invXcarry = other.invXcarry;
         this.invDisableInCreative = other.invDisableInCreative;
         this.invShulkerPreview = other.invShulkerPreview;
-        this.jelloBlur = other.jelloBlur;
         this.autoSprint = other.autoSprint;
         this.fastUseEnabled = other.fastUseEnabled;
         this.fastUseMode = other.fastUseMode;
@@ -561,7 +554,6 @@ public class ModConfig {
         if (this.fullbrightBrightness < 0.20f || this.fullbrightBrightness > 1.0f) this.fullbrightBrightness = 0.70f;
         if (this.fullbrightMode < 0 || this.fullbrightMode > 2) this.fullbrightMode = 0;
         if (this.zoomFactor < 1.5f || this.zoomFactor > 20.0f) this.zoomFactor = 4.0f;
-        if (this.lowFireOffset < 0.05f || this.lowFireOffset > 0.8f) this.lowFireOffset = 0.35f;
         if (this.autoCrafterDelay < 0 || this.autoCrafterDelay > 10) this.autoCrafterDelay = 0;
         if (this.autoCrafterTargets == null || this.autoCrafterTargets.isEmpty()) {
             this.autoCrafterTargets = new HashSet<>(Arrays.asList(
