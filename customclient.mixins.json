@@ -29,6 +29,7 @@
     "PlayerMixin",
     "MultiPlayerGameModeMixin",
     "TitleScreenMixin",
+    "LoadingOverlayMixin",
     "LogoRendererMixin",
     "TntRendererMixin",
     "TntMinecartRendererMixin",
