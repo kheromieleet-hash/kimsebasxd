@@ -334,7 +334,7 @@ public final class SestiaChatProtocol {
         return "§8[§c" + sanitizeNick(from) + " §7-> §cme§8] §r" + safeText;
     }
 
-    private static Set<String> parseMuteSet(String mutedCsv) {
+    public static Set<String> parseMuteSet(String mutedCsv) {
         Set<String> set = new LinkedHashSet<>();
         if (mutedCsv != null && !mutedCsv.isBlank()) {
             for (String part : mutedCsv.split(",")) {

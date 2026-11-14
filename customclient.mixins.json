@@ -22,6 +22,8 @@
     "LightCoordsUtilMixin",
     "ChatComponentMixin",
     "ChatScreenMixin",
+    "CommandSuggestionsMixin",
+    "GuiMixin",
     "AbstractContainerScreenMixin",
     "MinecraftMixin",
     "KeyboardHandlerMixin",

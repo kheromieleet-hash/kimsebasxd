@@ -25,7 +25,6 @@ public class ModernInspectorLayoutTest {
         };
         return new ModernModuleSettings.Actions() {
             @Override public void persist(boolean reloadChunks) {}
-            @Override public void openInventorySettings() {}
             @Override public void openInventoryMove() {}
             @Override public ModernModuleSettings.InventoryBridge inventory() { return inv; }
         };
@@ -86,7 +85,7 @@ public class ModernInspectorLayoutTest {
             }
         }
 
-        for (String oddMod : List.of("Keybinds HUD", "Better Chat", "Client Chat", "Inventory Tweaks", "Inventory HUD+", "Packet Mine")) {
+        for (String oddMod : List.of("Keybinds HUD", "Better Chat", "Client Chat", "Inventory Tweaks", "Packet Mine")) {
             List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(oddMod, cfg, actions);
             assert (controls.size() & 1) == 1 : "Expected odd control count for " + oddMod;
 

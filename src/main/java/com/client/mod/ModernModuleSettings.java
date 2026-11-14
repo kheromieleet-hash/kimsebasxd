@@ -59,7 +59,6 @@ public final class ModernModuleSettings {
 
     public interface Actions {
         void persist(boolean reloadChunks);
-        void openInventorySettings();
         void openInventoryMove();
         InventoryBridge inventory();
     }
@@ -254,7 +253,6 @@ public final class ModernModuleSettings {
                 floatSlider("invHudScale", "Inv Scale", 0.50f, 2.00f, 20.0f, "%.2fx",
                         () -> cfg.invHudScale, v -> cfg.invHudScale = v),
                 intSlider("invBgAlpha", "Bg Opacity", 0, 100, "%", inv::getBgAlpha, inv::setBgAlpha),
-                new ActionControl(() -> "Open Settings...", actions::openInventorySettings),
                 new ActionControl(() -> "Move HUD...", actions::openInventoryMove)
         );
     }

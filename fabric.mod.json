@@ -22,9 +22,6 @@
     "client": [
       "dlovin.inventoryhud.fabric.InventoryHUDFabric",
       "com.client.mod.ClientMod"
-    ],
-    "modmenu": [
-      "dlovin.inventoryhud.fabric.modmenu.ModMenuImpl"
     ]
   },
   "mixins": [
