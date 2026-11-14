@@ -10,34 +10,36 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Pure OLED Obsidian Black & Vivid Crimson Red Theme constants and rounded drawing utilities.
+ * Transparent Frosted-Glass Theme constants and rounded drawing utilities.
  */
 public final class JelloTheme {
-    public static final int ACCENT = 0xFFFF1A2B;        // Saturated Vivid Crimson Red
-    public static final int ACCENT_HOVER = 0xFFFF4757;  // Bright Vivid Scarlet
-    public static final int PANEL = 0xF508080C;             // Deep OLED black panel body
-    public static final int HEADER = 0xFC0A0A0E;            // Pure black header
-    public static final int BORDER = 0xE6FF1A2B;            // Crisp vivid crimson hairline border
-    public static final int ROW_HOVER = 0x38FF1A2B;
-    public static final int TEXT = 0xFFFFFFFF;              // Crisp pure white
-    public static final int TEXT_MUTED = 0xFFC8D2E0;        // Bright readable silver-slate
-    public static final int TEXT_DIM = 0xFFFF5A67;          // Vibrant coral-crimson accent text
-    public static final int TRACK = 0x55FF1A2B;
-    public static final int SWITCH_OFF = 0xFF1F2029;        // Crisp dark pill off-track
-    public static final int SWITCH_OFF_HOVER = 0xFF2D2E3B;
+    public static final int ACCENT = 0xFFB84242;        // Selected/accent crimson (184, 66, 66)
+    public static final int ACCENT_HOVER = 0xFFBD5C5C;  // Hover crimson (189, 92, 92)
+    public static final int PANEL = 0x24A7A7A7;         // Transparent panel (167, 167, 167)
+    public static final int HEADER = 0x28A7A7A7;        // Transparent header
+    public static final int BORDER = 0x88B84242;        // Soft crimson hairline border
+    public static final int ROW_HOVER = 0x28B86060;
+    public static final int TEXT = 0xFFDCDCDC;          // Title / subtitle (220, 220, 220)
+    public static final int TEXT_MUTED = 0xFFBEBEBE;    // Standard text (190, 190, 190)
+    public static final int TEXT_DIM = 0xFFEA6060;      // Categories title (234, 96, 96)
+    public static final int TRACK = 0x38A74545;
+    public static final int SWITCH_ON = 0xFF5AAF5A;     // Enabled toggle green (90, 175, 90)
+    public static final int SWITCH_ON_HOVER = 0xFF69BD69; // Enabled hover (105, 189, 105)
+    public static final int SWITCH_OFF = 0xFFA74545;    // Disabled toggle red (167, 69, 69)
+    public static final int SWITCH_OFF_HOVER = 0xFFBD5C5C; // Disabled hover (189, 92, 92)
 
-    public static final int WINDOW_BG = 0xF6060609;         // Pure OLED Black shell
-    public static final int HEADER_BG = 0xFC0A0A0E;         // Elevated OLED Black top bar
-    public static final int SIDEBAR_BG = 0xF8060608;        // Pure OLED Black nav rail
-    public static final int CONTAINER_BG = 0xF20C0C11;      // Dark container surface
-    public static final int CARD_INACTIVE = 0xF2111117;     // Crisp dark OLED card
-    public static final int CARD_INACTIVE_HOVER = 0xF81A1A23;
-    public static final int CARD_ACTIVE = 0xF6340910;       // Rich vibrant crimson-black active card
-    public static final int CARD_ACTIVE_HOVER = 0xFA450D17;
-    public static final int BORDER_SUBTLE = 0x44FFFFFF;     // Crisp visible neutral hairline
-    public static final int BORDER_ACTIVE_SOFT = 0xFFFF2E3E;// Full vivid active crimson card border
-    public static final int BORDER_EXPANDED_SOFT = 0xFFFF5260;
-    public static final int DIVIDER = 0x2EFFFFFF;           // Crisp structural divider
+    public static final int WINDOW_BG = 0x22B6B6B6;     // Transparent window (182, 182, 182)
+    public static final int HEADER_BG = 0x26A7A7A7;     // Transparent top bar (167, 167, 167)
+    public static final int SIDEBAR_BG = 0x20A7A7A7;    // Transparent nav rail
+    public static final int CONTAINER_BG = 0x20B1B1B1;  // Transparent container (177, 177, 177)
+    public static final int CARD_INACTIVE = 0x1EB1B1B1; // Transparent card (177, 177, 177)
+    public static final int CARD_INACTIVE_HOVER = 0x2E909090; // Hover card (144, 144, 144)
+    public static final int CARD_ACTIVE = 0x36B84242;   // Soft transparent crimson active card
+    public static final int CARD_ACTIVE_HOVER = 0x48B86060;
+    public static final int BORDER_SUBTLE = 0x3CA0A0A0; // Soft gray hairline
+    public static final int BORDER_ACTIVE_SOFT = 0xCCEA6060;
+    public static final int BORDER_EXPANDED_SOFT = 0xFFD19898;
+    public static final int DIVIDER = 0x2EA0A0A0;       // Structural divider
 
     private static float alpha = 1.0f;
 

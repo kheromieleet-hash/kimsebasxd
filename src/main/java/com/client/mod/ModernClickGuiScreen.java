@@ -245,12 +245,12 @@ public class ModernClickGuiScreen extends Screen {
             }
         }
 
-        // Dim world backdrop
-        graphics.fill(0, 0, this.width, this.height, 0x80000000);
+        // Soft translucent world backdrop for Transparent theme
+        graphics.fill(0, 0, this.width, this.height, 0x38000000);
 
-        // Soft dark elevation shadow + Pure OLED Obsidian Black shell (no corner glow, flat pure black)
-        JelloTheme.drawGlowShadow(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, 0x66000000, 4);
-        JelloTheme.fillRoundedCard(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, JelloTheme.WINDOW_BG, 0x48FFFFFF);
+        // Soft elevation shadow + Transparent frosted-glass shell
+        JelloTheme.drawGlowShadow(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, 0x44000000, 4);
+        JelloTheme.fillRoundedCard(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, JelloTheme.WINDOW_BG, 0x3CA0A0A0);
 
         renderHeader(graphics, mouseX, mouseY);
         renderSidebar(graphics, mouseX, mouseY, dt);
@@ -1607,9 +1607,9 @@ public class ModernClickGuiScreen extends Screen {
         boolean hovered = isInside(mouseX, mouseY, x, y, w, h);
         int trackRadius = h / 2;
         int offColor = hovered ? JelloTheme.SWITCH_OFF_HOVER : JelloTheme.SWITCH_OFF;
-        int onColor = hovered ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT;
+        int onColor = hovered ? JelloTheme.SWITCH_ON_HOVER : JelloTheme.SWITCH_ON;
         int trackColor = JelloTheme.lerpColor(offColor, onColor, nextAnim);
-        int trackBorder = JelloTheme.lerpColor(0x22FFFFFF, JelloTheme.ACCENT_HOVER, nextAnim);
+        int trackBorder = JelloTheme.lerpColor(0x44FFFFFF, 0xAA69BD69, nextAnim);
 
         JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + h, trackRadius, trackColor, trackBorder);
 
@@ -1620,7 +1620,7 @@ public class ModernClickGuiScreen extends Screen {
         int knobY = y + 2;
         int knobRadius = knobSize / 2;
 
-        JelloTheme.fillCircle(graphics, knobX + knobRadius, knobY + knobRadius, knobRadius, hovered ? 0xFFFFFFFF : 0xFFF1F5F9);
+        JelloTheme.fillCircle(graphics, knobX + knobRadius, knobY + knobRadius, knobRadius, hovered ? 0xFFFFFFFF : 0xDCFFFFFF);
     }
 
     private void renderInteractiveSlider(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int x, int y, int w, int h, String key, float value) {
@@ -1629,17 +1629,17 @@ public class ModernClickGuiScreen extends Screen {
         boolean isDraggingThis = key.equals(this.draggingSliderKey);
 
         int trackRadius = h / 2;
-        JelloTheme.fillRounded(graphics, x, y, x + w, y + h, trackRadius, JelloTheme.SWITCH_OFF);
+        JelloTheme.fillRounded(graphics, x, y, x + w, y + h, trackRadius, 0x44A0A0A0);
 
         int fillW = Math.max(trackRadius * 2, (int) (w * value));
-        int fillColor = isDraggingThis ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT;
+        int fillColor = (isDraggingThis || hovered) ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT;
         JelloTheme.fillRounded(graphics, x, y, x + fillW, y + h, trackRadius, fillColor);
 
         int knobX = x + (int) (w * value);
         int knobRadius = h / 2 + 3;
         int knobY = y + h / 2;
-        JelloTheme.fillCircle(graphics, knobX, knobY, knobRadius, (isDraggingThis || hovered) ? 0xFFFFFFFF : 0xFFE2E8F0);
-        JelloTheme.fillCircle(graphics, knobX, knobY, knobRadius - 2, isDraggingThis ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT);
+        JelloTheme.fillCircle(graphics, knobX, knobY, knobRadius, (isDraggingThis || hovered) ? 0xFFFFFFFF : 0xDCFFFFFF);
+        JelloTheme.fillCircle(graphics, knobX, knobY, knobRadius - 2, (isDraggingThis || hovered) ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT);
     }
 
     private void renderScrollbarAt(GuiGraphicsExtractor graphics, int barX, int viewY, int viewH, int totalH, double scroll) {
@@ -1649,9 +1649,9 @@ public class ModernClickGuiScreen extends Screen {
         int thumbH = Math.max(22, (int) ((float) (viewH * viewH) / totalH));
         int thumbY = viewY + (int) ((scroll / maxScroll) * (viewH - thumbH));
 
-        JelloTheme.fillRounded(graphics, barX, viewY, barX + 3, viewY + viewH, 1, 0x33000000);
+        JelloTheme.fillRounded(graphics, barX, viewY, barX + 3, viewY + viewH, 1, 0x32A0A0A0);
         JelloTheme.fillRounded(graphics, barX, thumbY, barX + 3, thumbY + thumbH, 1,
-                this.draggingScrollbar ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT);
+                this.draggingScrollbar ? 0x99C8C8C8 : 0x64A0A0A0);
     }
 
     private int[] computeActiveScrollbarMetrics() {
