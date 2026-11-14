@@ -69,6 +69,8 @@ public class ModernClickGuiScreen extends Screen {
     // Scroll & Inline Accordion state
     private double scrollAmount = 0.0;
     private int contentTotalHeight = 0;
+    private boolean draggingScrollbar = false;
+    private double scrollbarDragOffset = 0.0;
     private String expandedModule = null;
     private String renderedExpandedModule = null;
     private float expandAnim = 0.0f;
@@ -1648,7 +1650,39 @@ public class ModernClickGuiScreen extends Screen {
         int thumbY = viewY + (int) ((scroll / maxScroll) * (viewH - thumbH));
 
         JelloTheme.fillRounded(graphics, barX, viewY, barX + 3, viewY + viewH, 1, 0x33000000);
-        JelloTheme.fillRounded(graphics, barX, thumbY, barX + 3, thumbY + thumbH, 1, JelloTheme.ACCENT);
+        JelloTheme.fillRounded(graphics, barX, thumbY, barX + 3, thumbY + thumbH, 1,
+                this.draggingScrollbar ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT);
+    }
+
+    private int[] computeActiveScrollbarMetrics() {
+        int contentX = this.windowX + SIDEBAR_WIDTH + 1;
+        int contentY = this.windowY + HEADER_HEIGHT + 1;
+        int contentW = this.windowW - SIDEBAR_WIDTH - 2;
+        int contentH = this.windowH - HEADER_HEIGHT - 2;
+
+        boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
+        int viewY = showingModules ? (contentY + CHIP_BAR_HEIGHT + 4) : contentY;
+        int viewH = showingModules ? Math.max(0, contentH - CHIP_BAR_HEIGHT - 8) : contentH;
+        int totalH = showingModules
+                ? resolveAccordionPlan(contentX, contentY + CHIP_BAR_HEIGHT, contentW).plan().totalHeight()
+                : this.contentTotalHeight;
+        int maxScroll = Math.max(0, totalH - viewH);
+        int thumbH = maxScroll > 0 ? Math.max(22, (int) ((float) (viewH * viewH) / totalH)) : viewH;
+        int thumbY = maxScroll > 0 ? viewY + (int) ((this.scrollAmount / maxScroll) * (viewH - thumbH)) : viewY;
+        int barX = contentX + contentW - 6;
+        return new int[]{barX, viewY, viewH, maxScroll, thumbH, thumbY, contentX + contentW};
+    }
+
+    private void updateScrollFromDrag(double mouseY, int[] metrics) {
+        int viewY = metrics[1];
+        int viewH = metrics[2];
+        int maxScroll = metrics[3];
+        int thumbH = metrics[4];
+        int trackSpan = Math.max(1, viewH - thumbH);
+        double thumbTop = mouseY - this.scrollbarDragOffset - viewY;
+        double ratio = Mth.clamp(thumbTop / (double) trackSpan, 0.0, 1.0);
+        this.scrollAmount = ratio * maxScroll;
+        this.ensureExpandedVisible = false;
     }
 
     // ==========================================
@@ -1777,6 +1811,29 @@ public class ModernClickGuiScreen extends Screen {
         int contentH = this.windowH - HEADER_HEIGHT - 2;
 
         if (isInside(mouseX, mouseY, contentX, contentY, contentW, contentH)) {
+            if (MouseButtonMapping.isLeftClick(button)) {
+                int[] sb = computeActiveScrollbarMetrics();
+                int barX = sb[0];
+                int viewY = sb[1];
+                int viewH = sb[2];
+                int maxScroll = sb[3];
+                int thumbH = sb[4];
+                int thumbY = sb[5];
+                int contentRight = sb[6];
+                if (maxScroll > 0 && viewH > 20 && mouseX >= barX - 4 && mouseX <= contentRight
+                        && mouseY >= viewY && mouseY <= viewY + viewH) {
+                    if (mouseY >= thumbY && mouseY <= thumbY + thumbH) {
+                        this.scrollbarDragOffset = mouseY - thumbY;
+                    } else {
+                        this.scrollbarDragOffset = thumbH / 2.0;
+                        updateScrollFromDrag(mouseY, sb);
+                    }
+                    this.draggingScrollbar = true;
+                    this.ensureExpandedVisible = false;
+                    return true;
+                }
+            }
+
             boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
             if (showingModules) {
                 if (handleModulesWorkspaceClick(mouseX, mouseY, button, contentX, contentY, contentW, contentH)) {
@@ -2293,6 +2350,10 @@ public class ModernClickGuiScreen extends Screen {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
+        if (this.draggingScrollbar) {
+            this.draggingScrollbar = false;
+            return true;
+        }
         if (this.draggingSliderKey != null) {
             boolean needReload = this.activeSlider != null && this.activeSlider.needsChunkReload();
             boolean wasInvAlpha = "invBgAlpha".equals(this.draggingSliderKey);
@@ -2309,6 +2370,13 @@ public class ModernClickGuiScreen extends Screen {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        if (this.draggingScrollbar) {
+            int[] sb = computeActiveScrollbarMetrics();
+            if (sb[3] > 0) {
+                updateScrollFromDrag(event.y(), sb);
+            }
+            return true;
+        }
         if (this.draggingSliderKey != null) {
             updateSliderValue((int) event.x());
             return true;
