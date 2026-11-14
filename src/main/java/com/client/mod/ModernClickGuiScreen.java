@@ -121,7 +121,7 @@ public class ModernClickGuiScreen extends Screen {
 
         String prevQuery = this.searchQuery;
         this.searchBox = new EditBox(this.font, searchX + 26, searchBoxY + 7, SEARCH_BOX_WIDTH - 44, 14, Component.literal("Search"));
-        this.searchBox.setHint(JelloTheme.sans("Search modules..."));
+        this.searchBox.setHint(Component.literal("Search modules..."));
         this.searchBox.setBordered(false);
         this.searchBox.setMaxLength(30);
         this.searchBox.setValue(prevQuery);
@@ -157,9 +157,6 @@ public class ModernClickGuiScreen extends Screen {
 
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        if (ModConfig.getInstance().jelloBlur) {
-            this.extractBlurredBackground(graphics);
-        }
     }
 
     @Override
@@ -183,16 +180,9 @@ public class ModernClickGuiScreen extends Screen {
         // Dim world backdrop
         graphics.fill(0, 0, this.width, this.height, 0x80000000);
 
-        // Soft dark elevation shadow + layered obsidian-navy glass shell (no harsh outer red neon outline)
-        JelloTheme.drawGlowShadow(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, 0x48000000, 4);
-        JelloTheme.fillRoundedCard(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, JelloTheme.WINDOW_BG, 0x22FFFFFF);
-
-        // Internal corner radial crimson ambient glows clipped strictly inside window bounds
-        graphics.enableScissor(this.windowX + 1, this.windowY + 1, this.windowX + this.windowW - 1, this.windowY + this.windowH - 1);
-        JelloTheme.drawRadialGlow(graphics, this.windowX + 28, this.windowY + HEADER_HEIGHT + 28, 165, 0x4ED92B2B);
-        JelloTheme.drawRadialGlow(graphics, this.windowX + 46, this.windowY + this.windowH - 36, 170, 0x52D92B2B);
-        JelloTheme.drawRadialGlow(graphics, this.windowX + this.windowW - 44, this.windowY + 24, 185, 0x42D92B2B);
-        graphics.disableScissor();
+        // Soft dark elevation shadow + Pure OLED Obsidian Black shell (no corner glow, flat pure black)
+        JelloTheme.drawGlowShadow(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, 0x66000000, 4);
+        JelloTheme.fillRoundedCard(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, JelloTheme.WINDOW_BG, 0x26FFFFFF);
 
         renderHeader(graphics, mouseX, mouseY);
         renderSidebar(graphics, mouseX, mouseY, dt);
@@ -230,40 +220,38 @@ public class ModernClickGuiScreen extends Screen {
         JelloTheme.fillRoundedTop(graphics, headX + 1, headY + 1, headX + headW - 1, headY + HEADER_HEIGHT, 9, JelloTheme.HEADER_BG);
         graphics.fill(headX + 1, headY + HEADER_HEIGHT, headX + headW - 1, headY + HEADER_HEIGHT + 1, JelloTheme.DIVIDER);
 
-        // Brand emblem + Name + Version badge (SESTIA sans, badges monospace)
-        ModernIcons.drawBrandEmblem(graphics, headX + 20, headY + HEADER_HEIGHT / 2, JelloTheme.ACCENT, 0xFFFFCDD2);
-        Component brandTitle = JelloTheme.sansBold("SESTIA");
-        graphics.text(this.font, brandTitle, headX + 32, headY + 17, 0xFFFFFFFF, false);
-        int titleW = this.font.width(brandTitle);
+        // Brand emblem + Name + Version badge (classic crisp default font)
+        ModernIcons.drawBrandEmblem(graphics, headX + 20, headY + HEADER_HEIGHT / 2, JelloTheme.ACCENT, 0xFFFFFFFF);
+        graphics.text(this.font, Component.literal("§lSESTIA"), headX + 32, headY + 18, 0xFFFFFFFF, true);
+        int titleW = this.font.width("SESTIA");
 
         String verLabel = "v" + ClientBuildInfo.getVersion();
         Component verComp = Component.literal(verLabel);
         int verX = headX + 40 + titleW;
         int verY = headY + 15;
         int verW = this.font.width(verComp) + 12;
-        JelloTheme.fillRoundedCard(graphics, verX, verY, verX + verW, verY + 14, 4, 0x22E53935, 0x42E53935);
+        JelloTheme.fillRoundedCard(graphics, verX, verY, verX + verW, verY + 14, 4, 0x36FF1E2D, 0xAAFF1E2D);
         graphics.centeredText(this.font, verComp, verX + verW / 2, verY + 3, JelloTheme.TEXT_DIM);
 
-        // Active module count pill (monospace)
+        // Active module count pill
         int activeCount = countActiveModules();
         String activeText = activeCount + " Active";
         Component activeComp = Component.literal(activeText);
         int activeX = verX + verW + 8;
         int activeW = this.font.width(activeComp) + 18;
         if (activeX + activeW < headX + headW - SEARCH_BOX_WIDTH - 56) {
-            JelloTheme.fillRoundedCard(graphics, activeX, verY, activeX + activeW, verY + 14, 4, 0x1A10B981, 0x3310B981);
+            JelloTheme.fillRoundedCard(graphics, activeX, verY, activeX + activeW, verY + 14, 4, 0x2410B981, 0x4410B981);
             JelloTheme.fillCircle(graphics, activeX + 6, verY + 7, 2, 0xFF34D399);
             graphics.text(this.font, activeComp, activeX + 12, verY + 3, 0xFF6EE7B7, false);
         }
 
-        // Frosted translucent Search container + top glass sheen
+        // Clean OLED black Search container
         int searchBoxX = headX + headW - SEARCH_BOX_WIDTH - 44;
         int searchBoxY = headY + (HEADER_HEIGHT - SEARCH_BOX_HEIGHT) / 2;
         boolean searchFocused = this.searchBox != null && this.searchBox.isFocused();
-        int sBg = searchFocused ? 0x34FFFFFF : 0x22FFFFFF;
-        int sBorder = searchFocused ? 0x80FF5252 : 0x3CFFFFFF;
+        int sBg = searchFocused ? 0xF5141419 : 0xEE0D0D11;
+        int sBorder = searchFocused ? JelloTheme.ACCENT : 0x34FFFFFF;
         JelloTheme.fillRoundedCard(graphics, searchBoxX, searchBoxY, searchBoxX + SEARCH_BOX_WIDTH, searchBoxY + SEARCH_BOX_HEIGHT, 6, sBg, sBorder);
-        JelloTheme.fillRoundedTop(graphics, searchBoxX + 1, searchBoxY + 1, searchBoxX + SEARCH_BOX_WIDTH - 1, searchBoxY + SEARCH_BOX_HEIGHT / 2, 5, 0x12FFFFFF);
         ModernIcons.drawSearchIcon(graphics, searchBoxX + 9, searchBoxY + 6, searchFocused ? JelloTheme.ACCENT_HOVER : 0xFFCBD5E1);
 
         if (!this.searchQuery.isEmpty()) {
@@ -278,7 +266,7 @@ public class ModernClickGuiScreen extends Screen {
         int closeY = headY + 12;
         boolean closeHovered = isInside(mouseX, mouseY, closeX, closeY, 20, 20);
         JelloTheme.fillRoundedCard(graphics, closeX, closeY, closeX + 20, closeY + 20, 5,
-                closeHovered ? 0x44E53935 : JelloTheme.CARD_INACTIVE,
+                closeHovered ? 0x66FF1E2D : JelloTheme.CARD_INACTIVE,
                 closeHovered ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
         ModernIcons.drawCloseIcon(graphics, closeX + 10, closeY + 10, closeHovered ? JelloTheme.ACCENT_HOVER : 0xFFCBD5E1);
     }
@@ -300,7 +288,7 @@ public class ModernClickGuiScreen extends Screen {
         this.indicatorY += (targetY - this.indicatorY) * Mth.clamp(dt * 16.0f, 0.08f, 1.0f);
 
         int indY = Math.round(this.indicatorY);
-        JelloTheme.fillRoundedCard(graphics, sideX + 8, indY + 2, sideX + sideW - 8, indY + NAV_ROW_HEIGHT - 2, 6, 0x2AE53935, 0x42E53935);
+        JelloTheme.fillRoundedCard(graphics, sideX + 8, indY + 2, sideX + sideW - 8, indY + NAV_ROW_HEIGHT - 2, 6, 0x38FF1E2D, 0xBBFF1E2D);
 
         NavTab[] tabs = NavTab.values();
         for (int i = 0; i < tabs.length; i++) {
@@ -310,10 +298,10 @@ public class ModernClickGuiScreen extends Screen {
             boolean hovered = isInside(mouseX, mouseY, sideX + 6, itemY, sideW - 12, NAV_ROW_HEIGHT);
 
             if (hovered && !isCurrent) {
-                JelloTheme.fillRounded(graphics, sideX + 8, itemY + 2, sideX + sideW - 8, itemY + NAV_ROW_HEIGHT - 2, 6, 0x12FFFFFF);
+                JelloTheme.fillRounded(graphics, sideX + 8, itemY + 2, sideX + sideW - 8, itemY + NAV_ROW_HEIGHT - 2, 6, 0x16FFFFFF);
             }
 
-            int iconColor = isCurrent ? 0xFFF87171 : (hovered ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED);
+            int iconColor = isCurrent ? JelloTheme.ACCENT_HOVER : (hovered ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED);
             int textColor = isCurrent ? JelloTheme.TEXT : (hovered ? 0xFFE2E8F0 : JelloTheme.TEXT_MUTED);
 
             int iconX = sideX + 18;
@@ -324,7 +312,7 @@ public class ModernClickGuiScreen extends Screen {
                 case SETTINGS -> ModernIcons.drawSlidersIcon(graphics, iconX, iconY, iconColor);
             }
 
-            graphics.text(this.font, JelloTheme.sans(tab.label), sideX + 35, itemY + 13, textColor, false);
+            graphics.text(this.font, Component.literal(tab.label), sideX + 35, itemY + 13, textColor, isCurrent);
         }
 
         // Interaction legend card at bottom of sidebar (minimal Controls only)
@@ -333,8 +321,8 @@ public class ModernClickGuiScreen extends Screen {
             int legW = sideW - 20;
             int legH = 56;
             int legY = sideY + sideH - legH - 10;
-            JelloTheme.fillRoundedCard(graphics, legX, legY, legX + legW, legY + legH, 6, 0x9C12151F, JelloTheme.BORDER_SUBTLE);
-            graphics.text(this.font, JelloTheme.sans("Controls"), legX + 8, legY + 7, 0xFFF87171, false);
+            JelloTheme.fillRoundedCard(graphics, legX, legY, legX + legW, legY + legH, 6, JelloTheme.CONTAINER_BG, JelloTheme.BORDER_SUBTLE);
+            graphics.text(this.font, Component.literal("Controls"), legX + 8, legY + 7, JelloTheme.ACCENT_HOVER, false);
             graphics.text(this.font, Component.literal("LMB  Toggle"), legX + 8, legY + 21, JelloTheme.TEXT_MUTED, false);
             graphics.text(this.font, Component.literal("RMB  Settings"), legX + 8, legY + 33, JelloTheme.TEXT_MUTED, false);
             graphics.text(this.font, Component.literal("ESC  Collapse"), legX + 8, legY + 45, 0xFF64748B, false);
@@ -369,7 +357,7 @@ public class ModernClickGuiScreen extends Screen {
         if (expandedEntry != null) {
             String desc = ModernModuleCardUi.getModuleDescription(expandedEntry.name, expandedEntry.category.name);
             descLines = this.font.split(
-                    JelloTheme.sans(desc),
+                    Component.literal(desc),
                     ModernModuleGridLayout.computeCardControlsWidth(baseMetrics.colWidth())
             );
             descHeaderH = ModernModuleGridLayout.computeExpandedDescHeaderHeight(descLines.size());
@@ -448,7 +436,7 @@ public class ModernClickGuiScreen extends Screen {
 
         for (FilterChip chip : chips) {
             String text = chip.label + " " + chip.count;
-            int chipW = Math.max(30, this.font.width(JelloTheme.sans(text)) + 18);
+            int chipW = Math.max(30, this.font.width(text) + 18);
             if (curX + chipW > contentX + contentW - 8) {
                 break;
             }
@@ -457,14 +445,13 @@ public class ModernClickGuiScreen extends Screen {
             float hoverT = animateHover("chip:" + chip.id, hovered, dt);
             int bg = active
                     ? JelloTheme.lerpColor(JelloTheme.ACCENT, JelloTheme.ACCENT_HOVER, hoverT)
-                    : JelloTheme.lerpColor(0xB0161B26, JelloTheme.CARD_INACTIVE_HOVER, hoverT);
+                    : JelloTheme.lerpColor(JelloTheme.CARD_INACTIVE, JelloTheme.CARD_INACTIVE_HOVER, hoverT);
             int border = active
-                    ? 0x80FF6B6B
-                    : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, 0x4894A3B8, hoverT);
+                    ? JelloTheme.ACCENT_HOVER
+                    : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, 0x5594A3B8, hoverT);
             JelloTheme.fillRoundedCard(graphics, curX, chipY, curX + chipW, chipY + chipH, 4, bg, border);
-            // Keep the label inside the pill even with wider glyphs/fonts.
-            String chipText = fitSansText(text, chipW - 12);
-            graphics.centeredText(this.font, JelloTheme.sans(chipText), curX + chipW / 2, chipY + 5,
+            String chipText = fitText(text, chipW - 12);
+            graphics.centeredText(this.font, Component.literal(chipText), curX + chipW / 2, chipY + 5,
                     active ? JelloTheme.TEXT : JelloTheme.lerpColor(JelloTheme.TEXT_MUTED, JelloTheme.TEXT, hoverT));
             curX += chipW + 5;
         }
@@ -486,7 +473,7 @@ public class ModernClickGuiScreen extends Screen {
             int emptyY = gridY + 24;
             JelloTheme.fillRoundedCard(graphics, gridX + 12, emptyY, gridX + gridW - 12, emptyY + 54, 10, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
             String msg = this.searchQuery.isEmpty() ? "No modules in this category" : ("No modules matched '" + this.searchQuery + "'");
-            graphics.centeredText(this.font, JelloTheme.sans(msg), gridX + gridW / 2, emptyY + 22, JelloTheme.TEXT_MUTED);
+            graphics.centeredText(this.font, Component.literal(msg), gridX + gridW / 2, emptyY + 22, JelloTheme.TEXT_MUTED);
             return;
         }
 
@@ -548,7 +535,7 @@ public class ModernClickGuiScreen extends Screen {
 
         if (active) {
             JelloTheme.drawGlowShadow(graphics, x, y, x + w, y + cardTotalH, ModernModuleGridLayout.CARD_CORNER_RADIUS,
-                    isExpanded ? 0x3CE53935 : 0x2AE53935, 3);
+                    isExpanded ? 0x55FF1E2D : 0x3FFF1E2D, 3);
         }
 
         int bg = active
@@ -557,25 +544,25 @@ public class ModernClickGuiScreen extends Screen {
         int border = isExpanded
                 ? JelloTheme.BORDER_EXPANDED_SOFT
                 : (active
-                    ? JelloTheme.lerpColor(JelloTheme.BORDER_ACTIVE_SOFT, 0x88FF5252, hoverT)
-                    : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, 0x4494A3B8, hoverT));
+                    ? JelloTheme.lerpColor(JelloTheme.BORDER_ACTIVE_SOFT, JelloTheme.ACCENT_HOVER, hoverT)
+                    : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, 0x5094A3B8, hoverT));
         JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + cardTotalH, ModernModuleGridLayout.CARD_CORNER_RADIUS, bg, border);
 
-        // Compact 2-Row Bento Tile: Clean sans-serif Title (top) + borderless [Tune] [Bind] [Pill Toggle] (bottom-right)
-        String title = fitSansText(mod.name, layout.titleMaxW());
+        // Compact 2-Row Bento Tile: Classic crisp Title (top) + borderless [Tune] [Bind] [Pill Toggle] (bottom-right)
+        String title = fitText(mod.name, layout.titleMaxW());
         int titleColor = active ? 0xFFFFFFFF : JelloTheme.lerpColor(0xFFE2E8F0, 0xFFFFFFFF, hoverT);
-        graphics.text(this.font, JelloTheme.sans(title),
+        graphics.text(this.font, Component.literal(title),
                 x + ModernModuleGridLayout.CARD_PAD_X,
                 y + ModernModuleGridLayout.TITLE_Y_OFFSET,
                 titleColor,
-                false);
+                active);
 
         if (controls.hasSettings()) {
             boolean tuneHov = isInside(mouseX, mouseY, layout.tuneX(), layout.tuneY(), layout.tuneW(), layout.tuneH());
             float tuneT = animateHover("tune:" + mod.name, tuneHov, dt);
             if (isExpanded || tuneT > 0.05f) {
-                int tuneBg = isExpanded ? 0x3CE53935 : JelloTheme.lerpColor(0x001C1E2B, 0x552C3044, tuneT);
-                int tuneBorder = isExpanded ? 0x72FF5252 : JelloTheme.lerpColor(0x0094A3B8, 0x4094A3B8, tuneT);
+                int tuneBg = isExpanded ? 0x55FF1E2D : JelloTheme.lerpColor(0x0016161D, 0x7724242F, tuneT);
+                int tuneBorder = isExpanded ? JelloTheme.BORDER_EXPANDED_SOFT : JelloTheme.lerpColor(0x0094A3B8, 0x5594A3B8, tuneT);
                 JelloTheme.fillRoundedCard(graphics, layout.tuneX(), layout.tuneY(), layout.tuneX() + layout.tuneW(), layout.tuneY() + layout.tuneH(), 4, tuneBg, tuneBorder);
             }
             ModernIcons.drawTuneIcon(graphics, layout.tuneX() + 4, layout.tuneY() + 3,
@@ -587,16 +574,16 @@ public class ModernClickGuiScreen extends Screen {
         boolean hasBoundKey = cfg.getModuleKey(mod.name) >= 0;
         if (controls.isListening() || hasBoundKey || bindT > 0.05f) {
             int bindBg = controls.isListening()
-                    ? 0x4CE53935
-                    : (hasBoundKey ? 0x260F131D : JelloTheme.lerpColor(0x001A1C28, 0x36E53935, bindT));
+                    ? 0x66FF1E2D
+                    : (hasBoundKey ? 0x33FF1E2D : JelloTheme.lerpColor(0x0016161D, 0x44FF1E2D, bindT));
             int bindBorder = controls.isListening()
-                    ? 0x99FF5252
-                    : (hasBoundKey ? 0x2EFFFFFF : JelloTheme.lerpColor(0x00E53935, 0x55E53935, bindT));
+                    ? JelloTheme.ACCENT_HOVER
+                    : (hasBoundKey ? 0x99FF2838 : JelloTheme.lerpColor(0x00FF1E2D, 0x88FF1E2D, bindT));
             JelloTheme.fillRoundedCard(graphics, layout.bindX(), layout.bindY(), layout.bindX() + layout.bindW(), layout.bindY() + layout.bindH(), 3, bindBg, bindBorder);
         }
         // Keybind badges deliberately retain monospace font for crisp alignment; [None] renders borderless
         graphics.centeredText(this.font, Component.literal(controls.bindTag()), layout.bindX() + layout.bindW() / 2, layout.bindY() + 4,
-                controls.isListening() ? 0xFFFFDD55 : (hasBoundKey ? (active ? 0xFFFCA5A5 : 0xFFCBD5E1) : JelloTheme.TEXT_MUTED));
+                controls.isListening() ? 0xFFFFDD55 : (hasBoundKey ? (active ? JelloTheme.TEXT_DIM : 0xFFE2E8F0) : JelloTheme.TEXT_MUTED));
 
         renderSmoothSwitch(graphics, mouseX, mouseY, layout.switchX(), layout.switchY(), layout.switchW(), layout.switchH(), "mod:" + mod.name, active, dt);
 
@@ -638,18 +625,18 @@ public class ModernClickGuiScreen extends Screen {
         float hoverT = animateHover("cfg:" + title, hovered, dt);
 
         if (active) {
-            JelloTheme.drawGlowShadow(graphics, x, y, x + w, y + cardH, 10, 0x26E53935, 3);
+            JelloTheme.drawGlowShadow(graphics, x, y, x + w, y + cardH, 10, 0x3AFF1E2D, 3);
         }
         int bg = active
                 ? JelloTheme.lerpColor(JelloTheme.CARD_ACTIVE, JelloTheme.CARD_ACTIVE_HOVER, hoverT)
                 : JelloTheme.lerpColor(JelloTheme.CARD_INACTIVE, JelloTheme.CARD_INACTIVE_HOVER, hoverT);
         int border = active
-                ? JelloTheme.lerpColor(JelloTheme.BORDER_ACTIVE_SOFT, 0x88FF5252, hoverT)
-                : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, 0x4494A3B8, hoverT);
+                ? JelloTheme.lerpColor(JelloTheme.BORDER_ACTIVE_SOFT, JelloTheme.ACCENT_HOVER, hoverT)
+                : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, 0x5094A3B8, hoverT);
         JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + cardH, 10, bg, border);
 
-        graphics.text(this.font, JelloTheme.sans(title), x + 12, y + 7, active ? 0xFFFFFFFF : 0xFFE2E8F0, false);
-        graphics.text(this.font, JelloTheme.sans(fitSansText(desc, w - 58)), x + 12, y + 21, JelloTheme.TEXT_MUTED, false);
+        graphics.text(this.font, Component.literal(title), x + 12, y + 7, active ? 0xFFFFFFFF : 0xFFE2E8F0, active);
+        graphics.text(this.font, Component.literal(fitText(desc, w - 58)), x + 12, y + 21, JelloTheme.TEXT_MUTED, false);
 
         renderSmoothSwitch(graphics, mouseX, mouseY, x + w - 42, y + (cardH - 16) / 2, 32, 16, "cfg:" + title, active, dt);
         return y + cardH + 7;
@@ -672,10 +659,10 @@ public class ModernClickGuiScreen extends Screen {
         int rightColH = contentH - 24;
 
         ModernIcons.drawBoltIcon(graphics, leftColX, innerY - 1, JelloTheme.ACCENT);
-        graphics.text(this.font, JelloTheme.sansBold("CONFIGURED MACROS"), leftColX + 15, innerY, JelloTheme.TEXT, false);
+        graphics.text(this.font, Component.literal("§lCONFIGURED MACROS"), leftColX + 15, innerY, JelloTheme.TEXT, false);
         String countText = config.macros.size() + " active";
         graphics.text(this.font, Component.literal(countText), leftColX + leftColW - this.font.width(countText), innerY, JelloTheme.TEXT_DIM, false);
-        JelloTheme.fillHorizontalGradient(graphics, leftColX, innerY + 13, leftColX + 155, innerY + 14, JelloTheme.ACCENT, 0x33FF5252);
+        JelloTheme.fillHorizontalGradient(graphics, leftColX, innerY + 13, leftColX + 155, innerY + 14, JelloTheme.ACCENT, 0x55FF424E);
 
         int listStartY = innerY + 24;
         int cardH = 46;
@@ -699,7 +686,7 @@ public class ModernClickGuiScreen extends Screen {
                 boolean hovered = isInside(mouseX, mouseY, leftColX, cardY, leftColW, cardH);
 
                 int cardBg = isEditingThis ? JelloTheme.CARD_ACTIVE : (hovered ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
-                int borderColor = isEditingThis ? JelloTheme.ACCENT : (hovered ? 0x66E53935 : JelloTheme.BORDER_SUBTLE);
+                int borderColor = isEditingThis ? JelloTheme.ACCENT : (hovered ? 0xAAFF1E2D : JelloTheme.BORDER_SUBTLE);
                 JelloTheme.fillRoundedCard(graphics, leftColX, cardY, leftColX + leftColW, cardY + cardH, 7, cardBg, borderColor);
 
                 String nameTitle = (m.name != null && !m.name.isEmpty()) ? m.name : "Unnamed Macro";
@@ -719,7 +706,7 @@ public class ModernClickGuiScreen extends Screen {
                 int bindBadgeY = cardY + 14;
 
                 boolean bindHovered = isInside(mouseX, mouseY, bindBadgeX, bindBadgeY, bindBadgeW, bindBadgeH);
-                int bindBg = (isEditingThis && this.listeningMacroKey) ? 0x55E53935 : (bindHovered ? 0x33E53935 : 0xFF1A1A24);
+                int bindBg = (isEditingThis && this.listeningMacroKey) ? 0x66FF1E2D : (bindHovered ? 0x44FF1E2D : 0xFF141419);
                 int bindBorder = (isEditingThis && this.listeningMacroKey) ? JelloTheme.ACCENT_HOVER : (bindHovered ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
                 JelloTheme.fillRoundedCard(graphics, bindBadgeX, bindBadgeY, bindBadgeX + bindBadgeW, bindBadgeY + bindBadgeH, 4, bindBg, bindBorder);
                 graphics.centeredText(this.font, Component.literal(bindText), bindBadgeX + bindBadgeW / 2, bindBadgeY + 5,
@@ -729,13 +716,13 @@ public class ModernClickGuiScreen extends Screen {
                 int editBtnY = cardY + 14;
                 boolean editHovered = isInside(mouseX, mouseY, editBtnX, editBtnY, 22, 18);
                 JelloTheme.fillRoundedCard(graphics, editBtnX, editBtnY, editBtnX + 22, editBtnY + 18, 4,
-                        editHovered ? 0x44E53935 : 0xFF1A1A24, editHovered ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+                        editHovered ? 0x55FF1E2D : 0xFF141419, editHovered ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
                 ModernIcons.drawTuneIcon(graphics, editBtnX + 6, editBtnY + 4, editHovered ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED);
 
                 int delBtnX = leftColX + leftColW - 28;
                 boolean delHovered = isInside(mouseX, mouseY, delBtnX, editBtnY, 22, 18);
                 JelloTheme.fillRoundedCard(graphics, delBtnX, editBtnY, delBtnX + 22, editBtnY + 18, 4,
-                        delHovered ? 0x66E53935 : 0xFF1A1A24, delHovered ? JelloTheme.ACCENT_HOVER : JelloTheme.BORDER_SUBTLE);
+                        delHovered ? 0x77FF1E2D : 0xFF141419, delHovered ? JelloTheme.ACCENT_HOVER : JelloTheme.BORDER_SUBTLE);
                 ModernIcons.drawCloseIcon(graphics, delBtnX + 11, editBtnY + 9, delHovered ? 0xFFFFFFFF : 0xFFFF6666);
             }
         }
@@ -783,7 +770,7 @@ public class ModernClickGuiScreen extends Screen {
             int bindBtnH = 22;
 
             boolean bindHovered = isInside(mouseX, mouseY, bindBtnX, bindBtnY, bindBtnW, bindBtnH);
-            int bindBg = this.listeningMacroKey ? 0x44E53935 : (bindHovered ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
+            int bindBg = this.listeningMacroKey ? 0x55FF1E2D : (bindHovered ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
             int bindBorder = this.listeningMacroKey ? JelloTheme.ACCENT_HOVER : (bindHovered ? 0x6694A3B8 : JelloTheme.BORDER_SUBTLE);
             JelloTheme.fillRoundedCard(graphics, bindBtnX, bindBtnY, bindBtnX + bindBtnW, bindBtnY + bindBtnH, 5, bindBg, bindBorder);
 
@@ -855,15 +842,6 @@ public class ModernClickGuiScreen extends Screen {
 
     private List<ClientSettingItem> getClientSettingItems(ModConfig config) {
         return List.of(
-                new ClientSettingItem("Modern Dashboard GUI", "Switch between Modern ClickGUI and Classic Floating Windows",
-                        () -> config.clickGuiStyle == 1,
-                        () -> config.clickGuiStyle = (config.clickGuiStyle == 1) ? 0 : 1),
-                new ClientSettingItem("Glass Background Blur", "Enable blurred backdrop behind ClickGUI screens",
-                        () -> config.jelloBlur,
-                        () -> config.jelloBlur = !config.jelloBlur),
-                new ClientSettingItem("Keybinds HUD Table", "Render active draggable keybinds overlay on screen",
-                        () -> config.keybindsHudEnabled,
-                        () -> config.keybindsHudEnabled = !config.keybindsHudEnabled),
                 new ClientSettingItem("Toggle Notifications", "Show [Sestia] overlay alert when toggling modules via keybind",
                         () -> config.toggleNotifications,
                         () -> config.toggleNotifications = !config.toggleNotifications),
@@ -879,8 +857,8 @@ public class ModernClickGuiScreen extends Screen {
     private void renderClientSettingsView(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, int contentH, float dt) {
         int topY = (int) (contentY + 12 - this.scrollAmount);
         ModernIcons.drawSlidersIcon(graphics, contentX + 14, topY - 1, JelloTheme.ACCENT);
-        graphics.text(this.font, JelloTheme.sansBold("CLIENT CONFIGURATION"), contentX + 29, topY, JelloTheme.TEXT, false);
-        JelloTheme.fillHorizontalGradient(graphics, contentX + 14, topY + 13, contentX + 180, topY + 14, JelloTheme.ACCENT, 0x33FF5252);
+        graphics.text(this.font, Component.literal("§lCLIENT CONFIGURATION"), contentX + 29, topY, JelloTheme.TEXT, false);
+        JelloTheme.fillHorizontalGradient(graphics, contentX + 14, topY + 13, contentX + 180, topY + 14, JelloTheme.ACCENT, 0x55FF424E);
 
         ModConfig config = ModConfig.getInstance();
         int cardY = topY + 22;
@@ -908,7 +886,7 @@ public class ModernClickGuiScreen extends Screen {
         int offColor = hovered ? JelloTheme.SWITCH_OFF_HOVER : JelloTheme.SWITCH_OFF;
         int onColor = hovered ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT;
         int trackColor = JelloTheme.lerpColor(offColor, onColor, nextAnim);
-        int trackBorder = JelloTheme.lerpColor(0x22FFFFFF, 0x88FF5252, nextAnim);
+        int trackBorder = JelloTheme.lerpColor(0x22FFFFFF, JelloTheme.ACCENT_HOVER, nextAnim);
 
         JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + h, trackRadius, trackColor, trackBorder);
 
@@ -931,7 +909,7 @@ public class ModernClickGuiScreen extends Screen {
         JelloTheme.fillRounded(graphics, x, y, x + w, y + h, trackRadius, JelloTheme.SWITCH_OFF);
 
         int fillW = Math.max(trackRadius * 2, (int) (w * value));
-        int fillColor = isDraggingThis ? JelloTheme.ACCENT_HOVER : (hovered ? JelloTheme.ACCENT : 0xDDE53935);
+        int fillColor = isDraggingThis ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT;
         JelloTheme.fillRounded(graphics, x, y, x + fillW, y + h, trackRadius, fillColor);
 
         int knobX = x + (int) (w * value);
@@ -949,7 +927,7 @@ public class ModernClickGuiScreen extends Screen {
         int thumbY = viewY + (int) ((scroll / maxScroll) * (viewH - thumbH));
 
         JelloTheme.fillRounded(graphics, barX, viewY, barX + 3, viewY + viewH, 1, 0x33000000);
-        JelloTheme.fillRounded(graphics, barX, thumbY, barX + 3, thumbY + thumbH, 1, 0xAAE53935);
+        JelloTheme.fillRounded(graphics, barX, thumbY, barX + 3, thumbY + thumbH, 1, JelloTheme.ACCENT);
     }
 
     // ==========================================
@@ -1072,7 +1050,7 @@ public class ModernClickGuiScreen extends Screen {
                 int chipY = contentY + 6;
                 int chipH = 18;
                 for (FilterChip chip : chips) {
-                    int chipW = Math.max(30, this.font.width(JelloTheme.sans(chip.label + " " + chip.count)) + 18);
+                    int chipW = Math.max(30, this.font.width(chip.label + " " + chip.count) + 18);
                     if (curX + chipW > contentX + contentW - 8) break;
                     if (isInside(mouseX, mouseY, curX, chipY, chipW, chipH)) {
                         this.selectedCategoryId = chip.id;
@@ -1383,7 +1361,7 @@ public class ModernClickGuiScreen extends Screen {
         ModConfig config = ModConfig.getInstance();
         int topY = (int) (contentY + 12 - this.scrollAmount);
         int cardY = topY + 22;
-        int cardH = 38;
+        int cardH = 40;
         int colW = contentW - 28;
 
         for (ClientSettingItem item : getClientSettingItems(config)) {
@@ -1393,7 +1371,7 @@ public class ModernClickGuiScreen extends Screen {
                 playClickSound();
                 return true;
             }
-            cardY += cardH + 6;
+            cardY += cardH + 7;
         }
         return false;
     }
@@ -1621,17 +1599,6 @@ public class ModernClickGuiScreen extends Screen {
         }
         this.hoverAnimations.put(key, next);
         return next;
-    }
-
-    private String fitSansText(String text, int maxWidth) {
-        if (text == null || maxWidth <= 8 || this.font.width(JelloTheme.sans(text)) <= maxWidth) {
-            return text == null ? "" : text;
-        }
-        String trimmed = text;
-        while (trimmed.length() > 2 && this.font.width(JelloTheme.sans(trimmed + "...")) > maxWidth) {
-            trimmed = trimmed.substring(0, trimmed.length() - 1);
-        }
-        return trimmed + "...";
     }
 
     private String fitText(String text, int maxWidth) {

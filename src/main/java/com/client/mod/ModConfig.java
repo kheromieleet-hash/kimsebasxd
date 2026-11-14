@@ -339,9 +339,7 @@ public class ModConfig {
 
     /** Formats the in-game hotbar overlay notification shown when toggling a module via keybind. */
     public static String formatToggleNotification(String modName, boolean enabled) {
-        String status = "GUI Style".equals(modName)
-                ? (enabled ? "§eModern Dashboard" : "§bClassic Multi-Window")
-                : (enabled ? "§aEnabled" : "§cDisabled");
+        String status = enabled ? "§aEnabled" : "§cDisabled";
         return "§c[Sestia] §f" + modName + " §7» " + status;
     }
 
