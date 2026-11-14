@@ -185,13 +185,30 @@ public final class ConfigProfileManager {
         }
     }
 
+    /**
+     * Parses a strict share-code payload ({@code SESTIA1:...}) into a sanitized profile envelope.
+     */
+    public static ProfileEnvelope parseShareCode(String rawInput) {
+        if (rawInput == null || rawInput.isBlank()) {
+            throw new IllegalArgumentException("Empty share code");
+        }
+        String trimmed = rawInput.trim();
+        if (!trimmed.startsWith(SHARE_PREFIX)) {
+            throw new IllegalArgumentException("Share code must start with " + SHARE_PREFIX);
+        }
+        return parseJsonEnvelope(decodeShareCode(trimmed));
+    }
+
     public static ProfileEnvelope parseImportPayload(String rawInput) {
         if (rawInput == null || rawInput.isBlank()) {
             throw new IllegalArgumentException("Empty profile input");
         }
         String trimmed = rawInput.trim();
         String jsonText = trimmed.startsWith(SHARE_PREFIX) ? decodeShareCode(trimmed) : trimmed;
+        return parseJsonEnvelope(jsonText);
+    }
 
+    private static ProfileEnvelope parseJsonEnvelope(String jsonText) {
         JsonElement rootEl;
         try {
             rootEl = JsonParser.parseString(jsonText);
