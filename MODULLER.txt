@@ -247,9 +247,7 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     - .c <mesaj> : Ortak global sohbete mesaj gonderir
     - .c msg|dm|w <nick> <mesaj> : Ozel mesaj (DM) gonderir
     - .c list : Cevrimici Sestia kullanicilarini listeler
-    - .c mute <nick> / .c unmute <nick> : Kullaniciyi susturur/acar
-    - .c status / .c help / .c ? : Baglanti durumunu ve komut listesini gosterir
-    - .c url <wss://...|default> : Istege bagli ozel sunucu adresi ayarlar
+    - .c help / .c ? : Komut listesini gosterir
     Ayarlar: Client Chat (Varsayilan ACIK), Allow DMs, Reconnect, Chat Help (.c).
 
 

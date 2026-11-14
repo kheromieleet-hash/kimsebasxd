@@ -3,7 +3,6 @@ package com.client.mod.mixin;
 import com.client.mod.DotCommandSuggester;
 import com.client.mod.ModConfig;
 import com.client.mod.SestiaChatClient;
-import com.client.mod.SestiaChatProtocol;
 import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.suggestion.Suggestions;
 import net.minecraft.ChatFormatting;
@@ -97,8 +96,7 @@ public abstract class CommandSuggestionsMixin {
             Suggestions built = DotCommandSuggester.buildSuggestions(
                     value,
                     cursor,
-                    SestiaChatClient.getSuggestedPlayers(),
-                    SestiaChatProtocol.parseMuteSet(cfg.clientChatMuted)
+                    SestiaChatClient.getSuggestedPlayers()
             );
             this.pendingSuggestions = CompletableFuture.completedFuture(built);
             if (!built.isEmpty()) {

@@ -31,10 +31,6 @@ public final class SestiaChatProtocol {
         CHAT,
         DM,
         LIST,
-        URL,
-        MUTE,
-        UNMUTE,
-        STATUS,
         HELP
     }
 
@@ -97,20 +93,8 @@ public final class SestiaChatProtocol {
             case "help", "?" -> {
                 return new ParsedCommand(CommandKind.HELP, "", "");
             }
-            case "status" -> {
-                return new ParsedCommand(CommandKind.STATUS, "", "");
-            }
             case "list" -> {
                 return new ParsedCommand(CommandKind.LIST, "", "");
-            }
-            case "url" -> {
-                return new ParsedCommand(CommandKind.URL, rest, "");
-            }
-            case "mute" -> {
-                return new ParsedCommand(CommandKind.MUTE, rest, "");
-            }
-            case "unmute" -> {
-                return new ParsedCommand(CommandKind.UNMUTE, rest, "");
             }
             case "msg", "dm", "w" -> {
                 if (rest.isEmpty()) {

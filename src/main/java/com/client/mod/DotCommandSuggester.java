@@ -21,14 +21,8 @@ public final class DotCommandSuggester {
             new Entry(".c", "", "Send message to Sestia global chat: .c <message>"),
             new Entry(".c list", "list", "Show online Sestia users"),
             new Entry(".c msg", "msg", "Send private message: .c msg <player> <message>"),
-            new Entry(".c mute", "mute", "Mute a player in Sestia chat: .c mute <player>"),
-            new Entry(".c unmute", "unmute", "Unmute a player in Sestia chat: .c unmute <player>"),
-            new Entry(".c status", "status", "Show Sestia chat connection status & URL"),
-            new Entry(".c url", "url", "Set custom or default chat URL: .c url <wss://...|default>"),
             new Entry(".c help", "help", "Show Sestia chat command help")
     );
-
-    private static final List<String> URL_PRESETS = List.of("default", "reset");
 
     private DotCommandSuggester() {
     }
@@ -40,8 +34,7 @@ public final class DotCommandSuggester {
     public static Suggestions buildSuggestions(
             String rawInput,
             int cursor,
-            Collection<String> onlinePlayers,
-            Collection<String> mutedPlayers
+            Collection<String> onlinePlayers
     ) {
         if (rawInput == null || rawInput.isEmpty()) {
             return Suggestions.empty().join();
@@ -95,12 +88,7 @@ public final class DotCommandSuggester {
 
         String argPrefix = argStart <= upToCursor.length() ? upToCursor.substring(argStart) : "";
         return switch (sub) {
-            case "msg", "dm", "w", "mute" -> buildCandidateSuggestions(upToCursor.length(), argStart, argPrefix, onlinePlayers);
-            case "unmute" -> {
-                Collection<String> pool = (mutedPlayers != null && !mutedPlayers.isEmpty()) ? mutedPlayers : onlinePlayers;
-                yield buildCandidateSuggestions(upToCursor.length(), argStart, argPrefix, pool);
-            }
-            case "url" -> buildCandidateSuggestions(upToCursor.length(), argStart, argPrefix, URL_PRESETS);
+            case "msg", "dm", "w" -> buildCandidateSuggestions(upToCursor.length(), argStart, argPrefix, onlinePlayers);
             default -> Suggestions.empty().join();
         };
     }
@@ -113,17 +101,8 @@ public final class DotCommandSuggester {
         if (trimmed.startsWith(".c msg") || trimmed.startsWith(".c dm") || trimmed.startsWith(".c w")) {
             return ".c msg <player> <message>";
         }
-        if (trimmed.startsWith(".c mute")) {
-            return ".c mute <player>";
-        }
-        if (trimmed.startsWith(".c unmute")) {
-            return ".c unmute <player>";
-        }
-        if (trimmed.startsWith(".c url")) {
-            return ".c url <wss://...|default>";
-        }
         if (trimmed.startsWith(".c")) {
-            return ".c <message> | list | msg | mute | unmute | status | url | help";
+            return ".c <message> | list | msg | help";
         }
         return "";
     }
