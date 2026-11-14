@@ -301,7 +301,7 @@ public final class ModernModuleSettings {
 
     private static List<Control> buildItemNotifierControls(ModConfig cfg, Actions actions) {
         return List.of(
-                floatSlider("itemNotifierDuration", "Duration", 1.0f, 10.0f, 0.5f, "s",
+                floatSlider("itemNotifierDuration", "Duration", 1.0f, 10.0f, 2.0f, "%.1fs",
                         () -> cfg.itemNotifierDuration, v -> cfg.itemNotifierDuration = v),
                 intSlider("itemNotifierMaxItems", "Max Items", 1, 10, "",
                         () -> cfg.itemNotifierMaxItems, v -> cfg.itemNotifierMaxItems = v),

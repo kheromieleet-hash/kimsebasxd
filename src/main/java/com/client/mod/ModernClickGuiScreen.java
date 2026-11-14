@@ -29,6 +29,7 @@ public class ModernClickGuiScreen extends Screen {
         MODULES("Modules"),
         MACROS("Macros"),
         GUI("GUI"),
+        CONFIG("Config"),
         SETTINGS("Settings");
 
         public final String label;
@@ -272,10 +273,13 @@ public class ModernClickGuiScreen extends Screen {
             } else if (this.activeNav == NavTab.GUI) {
                 setSecondaryInputsVisible(false, false);
                 renderGuiView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH);
-            } else if (this.activeNav == NavTab.SETTINGS) {
+            } else if (this.activeNav == NavTab.CONFIG) {
                 setSecondaryInputsVisible(false, true);
                 renderProfilesView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH);
                 renderScrollbarAt(graphics, contentX + contentW - 6, contentY, contentH, this.contentTotalHeight, this.scrollAmount);
+            } else if (this.activeNav == NavTab.SETTINGS) {
+                setSecondaryInputsVisible(false, false);
+                renderSettingsView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH);
             }
         }
 
@@ -383,7 +387,8 @@ public class ModernClickGuiScreen extends Screen {
                 case MODULES -> ModernIcons.drawGridIcon(graphics, iconX, iconY, iconColor);
                 case MACROS -> ModernIcons.drawBoltIcon(graphics, iconX, iconY, iconColor);
                 case GUI -> ModernIcons.drawLayoutIcon(graphics, iconX, iconY, iconColor);
-                case SETTINGS -> ModernIcons.drawSlidersIcon(graphics, iconX, iconY, iconColor);
+                case CONFIG -> ModernIcons.drawSlidersIcon(graphics, iconX, iconY, iconColor);
+                case SETTINGS -> ModernIcons.drawTuneIcon(graphics, iconX, iconY, iconColor);
             }
 
             graphics.text(this.font, Component.literal(tab.label), sideX + 35, itemY + 13, textColor, isCurrent);
@@ -1153,6 +1158,82 @@ public class ModernClickGuiScreen extends Screen {
                 () -> { config.itemNotifierX = -1; config.itemNotifierY = -1; config.save(); });
     }
 
+    // ==========================================
+    // SETTINGS VIEW (BETTER CHAT INDIVIDUAL TOGGLES)
+    // ==========================================
+    private void renderSettingsView(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, int contentH) {
+        ModConfig config = ModConfig.getInstance();
+        int pad = 16;
+        int innerX = contentX + pad;
+        int innerW = contentW - pad * 2;
+        int innerY = contentY + 14;
+
+        graphics.text(this.font, Component.literal("§lSETTINGS — BETTER CHAT"), innerX, innerY, JelloTheme.TEXT, false);
+        graphics.text(this.font, Component.literal("Toggle individual Better Chat features on or off"), innerX, innerY + 13, JelloTheme.TEXT_MUTED, false);
+
+        int listY = innerY + 34;
+        int cardH = 40;
+        int cardGap = 6;
+
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, listY, innerW, cardH,
+                "Infinite History",
+                "Expands chat history from 100 to 16,384 lines",
+                config.chatInfinite, true, false, "");
+
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, listY + (cardH + cardGap), innerW, cardH,
+                "Anti Clear",
+                "Prevents server-side clear chat wipes & blank lines",
+                config.chatAntiClear, true, false, "");
+
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, listY + (cardH + cardGap) * 2, innerW, cardH,
+                "Click to Copy",
+                "Right-click or Shift+Left click a chat message to copy",
+                config.chatClickCopy, true, false, "");
+
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, listY + (cardH + cardGap) * 3, innerW, cardH,
+                "Timestamps",
+                "Adds Istanbul time <HH:mm:ss> prefix to chat messages",
+                config.chatTimestamps, true, false, "");
+
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, listY + (cardH + cardGap) * 4, innerW, cardH,
+                "Compact Chat",
+                "Stacks duplicate consecutive messages with (2), (3)...",
+                config.compactChat, true, false, "");
+    }
+
+    private boolean handleSettingsClick(int mouseX, int mouseY, int button, int contentX, int contentY, int contentW, int contentH) {
+        if (!MouseButtonMapping.isLeftClick(button)) {
+            return false;
+        }
+        ModConfig config = ModConfig.getInstance();
+        int pad = 16;
+        int innerX = contentX + pad;
+        int innerW = contentW - pad * 2;
+        int innerY = contentY + 14;
+        int listY = innerY + 34;
+        int cardH = 40;
+        int cardGap = 6;
+
+        if (handleHudCardClick(mouseX, mouseY, innerX, listY, innerW, cardH, true, false, "",
+                () -> { config.chatInfinite = !config.chatInfinite; config.save(); }, null)) {
+            return true;
+        }
+        if (handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap), innerW, cardH, true, false, "",
+                () -> { config.chatAntiClear = !config.chatAntiClear; config.save(); }, null)) {
+            return true;
+        }
+        if (handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap) * 2, innerW, cardH, true, false, "",
+                () -> { config.chatClickCopy = !config.chatClickCopy; config.save(); }, null)) {
+            return true;
+        }
+        if (handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap) * 3, innerW, cardH, true, false, "",
+                () -> { config.chatTimestamps = !config.chatTimestamps; config.save(); }, null)) {
+            return true;
+        }
+        return handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap) * 4, innerW, cardH, true, false, "",
+                () -> { config.compactChat = !config.compactChat; config.save(); }, null);
+    }
+
     private boolean handleHudCardClick(
             int mouseX, int mouseY,
             int x, int y, int w, int h,
@@ -1465,11 +1546,11 @@ public class ModernClickGuiScreen extends Screen {
                     this.editingMacroIndex = -1;
                     this.listeningMacroKey = false;
                 }
-                if (this.activeNav == NavTab.SETTINGS) {
+                if (this.activeNav == NavTab.CONFIG) {
                     refreshProfilesList();
                 }
                 setSecondaryInputsVisible(this.activeNav == NavTab.MACROS && this.editingMacroIndex != -1,
-                        this.activeNav == NavTab.SETTINGS);
+                        this.activeNav == NavTab.CONFIG);
                 playClickSound();
                 return true;
             }
@@ -1495,8 +1576,12 @@ public class ModernClickGuiScreen extends Screen {
                 if (handleGuiClick(mouseX, mouseY, button, contentX, contentY, contentW, contentH)) {
                     return true;
                 }
-            } else if (this.activeNav == NavTab.SETTINGS) {
+            } else if (this.activeNav == NavTab.CONFIG) {
                 if (handleProfilesClick(mouseX, mouseY, button, contentX, contentY, contentW, contentH)) {
+                    return true;
+                }
+            } else if (this.activeNav == NavTab.SETTINGS) {
+                if (handleSettingsClick(mouseX, mouseY, button, contentX, contentY, contentW, contentH)) {
                     return true;
                 }
             }
