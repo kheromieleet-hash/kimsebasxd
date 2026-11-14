@@ -34,6 +34,18 @@ final class ModernModuleCardUi {
         void onStart(ModernModuleSettings.SliderControl slider, int x, int w, float initialPct);
     }
 
+    @FunctionalInterface
+    interface SliderEditHandler {
+        void onEditStart(ModernModuleSettings.SliderControl slider);
+    }
+
+    @FunctionalInterface
+    interface EditBoxBoundsConsumer {
+        void accept(int x, int y, int w, int h);
+    }
+
+    record SliderEditState(String key, String text, boolean selectAll) {}
+
     private ModernModuleCardUi() {
     }
 
@@ -221,7 +233,9 @@ final class ModernModuleCardUi {
             String modName,
             List<ModernModuleSettings.Control> controls,
             SliderDrawer sliderDrawer,
-            SwitchDrawer switchDrawer
+            SwitchDrawer switchDrawer,
+            SliderEditState editState,
+            EditBoxBoundsConsumer editBoundsConsumer
     ) {
         graphics.fill(x, startY, x + w, startY + 1, JelloTheme.DIVIDER);
         ModernInspectorLayout.ControlsFlow flow = ModernInspectorLayout.computeControlsFlow(x, startY, w, controls);
@@ -234,11 +248,44 @@ final class ModernModuleCardUi {
             int cy = placed.y();
             int cw = placed.w();
             if (control instanceof ModernModuleSettings.SliderControl s) {
-                String valText = s.valueLabel().get();
-                int valW = font.width(valText);
-                String label = fitText(font, s.label(), Math.max(24, cw - valW - 10));
-                graphics.text(font, Component.literal(label), cx, cy, JelloTheme.TEXT, false);
-                graphics.text(font, Component.literal(valText), cx + cw - valW, cy, JelloTheme.TEXT_DIM, false);
+                boolean isEditingThis = editState != null && s.key().equals(editState.key());
+                if (isEditingThis) {
+                    String buf = editState.text() != null ? editState.text() : "";
+                    int rawTextW = font.width(buf);
+                    int boxW = Math.max(36, Math.min(cw - 24, rawTextW + 12));
+                    int boxX = cx + cw - boxW;
+                    int boxY = cy - 1;
+                    int boxH = 11;
+                    if (editBoundsConsumer != null) {
+                        editBoundsConsumer.accept(boxX, boxY, boxW, boxH);
+                    }
+                    String label = fitText(font, s.label(), Math.max(20, cw - boxW - 6));
+                    graphics.text(font, Component.literal(label), cx, cy, JelloTheme.TEXT, false);
+                    JelloTheme.fillRoundedCard(graphics, boxX, boxY, boxX + boxW, boxY + boxH, 3, 0xFF0A0A0F, JelloTheme.ACCENT);
+                    String shown = fitText(font, buf, boxW - 6);
+                    int shownW = font.width(shown);
+                    int textX = boxX + Math.max(3, (boxW - shownW) / 2);
+                    if (editState.selectAll() && !shown.isEmpty()) {
+                        graphics.fill(textX - 1, boxY + 1, textX + shownW + 1, boxY + boxH - 1, 0x55FF1E2D);
+                    }
+                    graphics.text(font, Component.literal(shown), textX, cy + 1, 0xFFFFFFFF, false);
+                    if (!editState.selectAll() && ((System.currentTimeMillis() / 500L) % 2L == 0L)) {
+                        int caretX = Math.min(boxX + boxW - 3, textX + shownW + 1);
+                        graphics.fill(caretX, boxY + 2, caretX + 1, boxY + boxH - 2, JelloTheme.ACCENT_HOVER);
+                    }
+                } else {
+                    String valText = s.valueLabel().get();
+                    int valW = font.width(valText);
+                    boolean valHovered = ModernModuleSettings.isInsideSliderValueBox(mouseX, mouseY, cx, cy, cw, valW);
+                    String label = fitText(font, s.label(), Math.max(24, cw - valW - 10));
+                    graphics.text(font, Component.literal(label), cx, cy, JelloTheme.TEXT, false);
+                    if (valHovered) {
+                        int pillX = Math.max(cx + 22, cx + cw - valW - 3);
+                        JelloTheme.fillRoundedCard(graphics, pillX, cy - 1, cx + cw + 2, cy + 10, 3, 0x2AFF1E2D, 0x88FF1E2D);
+                    }
+                    graphics.text(font, Component.literal(valText), cx + cw - valW, cy,
+                            valHovered ? 0xFFFFFFFF : JelloTheme.TEXT_DIM, false);
+                }
                 sliderDrawer.draw(cx, cy + 12, cw, 6, s.key(), s.pctGetter().get());
             } else if (control instanceof ModernModuleSettings.ToggleControl t) {
                 boolean active = t.getter().get();
@@ -311,6 +358,7 @@ final class ModernModuleCardUi {
     }
 
     static boolean handleControlsClick(
+            Font font,
             int mouseX,
             int mouseY,
             int x,
@@ -318,6 +366,7 @@ final class ModernModuleCardUi {
             int w,
             List<ModernModuleSettings.Control> controls,
             SliderStartHandler sliderStartHandler,
+            SliderEditHandler sliderEditHandler,
             Runnable soundPlayer
     ) {
         ModernInspectorLayout.ControlsFlow flow = ModernInspectorLayout.computeControlsFlow(x, startY, w, controls);
@@ -327,12 +376,21 @@ final class ModernModuleCardUi {
             int cy = placed.y();
             int cw = placed.w();
             int ch = placed.h();
-            if (mouseY >= cy && mouseY < cy + ch && mouseX >= cx - 2 && mouseX <= cx + cw + 2) {
+            if (mouseY >= cy - 2 && mouseY < cy + ch && mouseX >= cx - 2 && mouseX <= cx + cw + 2) {
                 if (control instanceof ModernModuleSettings.SliderControl s) {
-                    float pct = Mth.clamp((float) (mouseX - cx) / (float) Math.max(1, cw), 0.0f, 1.0f);
-                    sliderStartHandler.onStart(s, cx, cw, pct);
-                    soundPlayer.run();
-                    return true;
+                    int valW = font != null ? font.width(s.valueLabel().get()) : 24;
+                    if (sliderEditHandler != null
+                            && ModernModuleSettings.isInsideSliderValueBox(mouseX, mouseY, cx, cy, cw, valW)) {
+                        sliderEditHandler.onEditStart(s);
+                        soundPlayer.run();
+                        return true;
+                    }
+                    if (mouseY >= cy) {
+                        float pct = Mth.clamp((float) (mouseX - cx) / (float) Math.max(1, cw), 0.0f, 1.0f);
+                        sliderStartHandler.onStart(s, cx, cw, pct);
+                        soundPlayer.run();
+                        return true;
+                    }
                 }
                 if (control instanceof ModernModuleSettings.ToggleControl t) {
                     t.setter().accept(!t.getter().get());
