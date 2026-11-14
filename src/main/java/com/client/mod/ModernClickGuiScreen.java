@@ -1193,10 +1193,10 @@ public class ModernClickGuiScreen extends Screen {
         graphics.text(this.font, Component.literal("Theme, inventory & quality-of-life settings"), innerX, innerY + 13, JelloTheme.TEXT_MUTED, false);
 
         int generalY = innerY + 34;
-        drawHudResetCard(graphics, mouseX, mouseY, innerX, generalY, innerW, cardH,
-                "GUI Theme",
-                "Active: " + JelloTheme.getThemeName(config.guiTheme) + " (Sestia OLED / Transparent / Light / Monokai Pro / Dark)",
-                false, false, true, "Switch");
+        drawStepperCard(graphics, mouseX, mouseY, innerX, generalY, innerW, cardH,
+                "GUI Theme (" + (config.guiTheme + 1) + "/" + JelloTheme.THEME_COUNT + ")",
+                "Sestia OLED, Transparent, Light, Monokai Pro, Dark, Cyber Cyan, Emerald Toxic, Solar Gold, Nord Frost, Blood Moon",
+                JelloTheme.getThemeName(config.guiTheme), 96, "<", ">");
 
         drawHudResetCard(graphics, mouseX, mouseY, innerX, generalY + (cardH + cardGap), innerW, cardH,
                 "Shulker Preview",
@@ -1284,6 +1284,16 @@ public class ModernClickGuiScreen extends Screen {
             int x, int y, int w, int h,
             String title, String subtitle, String valueText
     ) {
+        drawStepperCard(graphics, mouseX, mouseY, x, y, w, h, title, subtitle, valueText, 46, "-", "+");
+    }
+
+    private void drawStepperCard(
+            GuiGraphicsExtractor graphics,
+            int mouseX, int mouseY,
+            int x, int y, int w, int h,
+            String title, String subtitle, String valueText,
+            int valW, String minusLabel, String plusLabel
+    ) {
         JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + h, 6, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
         graphics.text(this.font, Component.literal(title), x + 12, y + 9, JelloTheme.TEXT, false);
         graphics.text(this.font, Component.literal(subtitle), x + 12, y + 24, JelloTheme.TEXT_MUTED, false);
@@ -1291,7 +1301,6 @@ public class ModernClickGuiScreen extends Screen {
         int btnH = 20;
         int btnY = y + (h - btnH) / 2;
         int stepW = 22;
-        int valW = 46;
         int rightEdge = x + w - 10;
 
         int plusX = rightEdge - stepW;
@@ -1302,7 +1311,7 @@ public class ModernClickGuiScreen extends Screen {
         JelloTheme.fillRoundedCard(graphics, minusX, btnY, minusX + stepW, btnY + btnH, 4,
                 hovMinus ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CONTAINER_BG,
                 hovMinus ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
-        graphics.centeredText(this.font, Component.literal("-"), minusX + stepW / 2, btnY + 6, JelloTheme.TEXT);
+        graphics.centeredText(this.font, Component.literal(minusLabel), minusX + stepW / 2, btnY + 6, JelloTheme.TEXT);
 
         JelloTheme.fillRoundedCard(graphics, valX, btnY, valX + valW, btnY + btnH, 4,
                 JelloTheme.CONTAINER_BG, JelloTheme.BORDER_SUBTLE);
@@ -1312,7 +1321,7 @@ public class ModernClickGuiScreen extends Screen {
         JelloTheme.fillRoundedCard(graphics, plusX, btnY, plusX + stepW, btnY + btnH, 4,
                 hovPlus ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CONTAINER_BG,
                 hovPlus ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
-        graphics.centeredText(this.font, Component.literal("+"), plusX + stepW / 2, btnY + 6, JelloTheme.TEXT);
+        graphics.centeredText(this.font, Component.literal(plusLabel), plusX + stepW / 2, btnY + 6, JelloTheme.TEXT);
     }
 
     private boolean handleStepperCardClick(
@@ -1320,10 +1329,18 @@ public class ModernClickGuiScreen extends Screen {
             int x, int y, int w, int h,
             Runnable onMinus, Runnable onPlus
     ) {
+        return handleStepperCardClick(mouseX, mouseY, x, y, w, h, 46, onMinus, onPlus);
+    }
+
+    private boolean handleStepperCardClick(
+            int mouseX, int mouseY,
+            int x, int y, int w, int h,
+            int valW,
+            Runnable onMinus, Runnable onPlus
+    ) {
         int btnH = 20;
         int btnY = y + (h - btnH) / 2;
         int stepW = 22;
-        int valW = 46;
         int rightEdge = x + w - 10;
 
         int plusX = rightEdge - stepW;
@@ -1357,8 +1374,12 @@ public class ModernClickGuiScreen extends Screen {
         int cardH = 40;
         int cardGap = 6;
 
-        if (handleHudCardClick(mouseX, mouseY, innerX, generalY, innerW, cardH, false, true, "Switch",
-                null,
+        if (handleStepperCardClick(mouseX, mouseY, innerX, generalY, innerW, cardH, 96,
+                () -> {
+                    config.guiTheme = (config.guiTheme - 1 + JelloTheme.THEME_COUNT) % JelloTheme.THEME_COUNT;
+                    JelloTheme.applyTheme(config.guiTheme);
+                    config.save();
+                },
                 () -> {
                     config.guiTheme = (config.guiTheme + 1) % JelloTheme.THEME_COUNT;
                     JelloTheme.applyTheme(config.guiTheme);
