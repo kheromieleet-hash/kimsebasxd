@@ -17,7 +17,7 @@ public abstract class ClientAvatarStateMixin {
     @Inject(method = "updateBob(F)V", at = @At("RETURN"))
     private void onUpdateBob(float movement, CallbackInfo ci) {
         ModConfig config = ModConfig.getInstance();
-        if (config != null && config.dulkirEnabled && config.dulkirAirWalker) {
+        if (config != null && config.vmEnabled && config.vmAirWalker) {
             Minecraft mc = Minecraft.getInstance();
             if (mc != null && mc.player != null && mc.player.avatarState() == (Object) this) {
                 this.bob = (float) Math.min(0.1D, mc.player.getDeltaMovement().horizontalDistance());

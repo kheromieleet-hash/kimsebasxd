@@ -42,12 +42,12 @@ public class ModernInspectorLayoutTest {
         ModConfig cfg = new ModConfig();
         ModernModuleSettings.Actions actions = stubActions();
 
-        List<ModernModuleSettings.Control> dulkir = ModernModuleSettings.getControls("Dulkir", cfg, actions);
-        ModernInspectorLayout.ControlsFlow dulkirFlow = ModernInspectorLayout.computeControlsFlow(10, 20, 650, dulkir);
-        assert dulkirFlow.items().size() == dulkir.size();
-        assert dulkirFlow.items().get(0).y() == dulkirFlow.items().get(1).y() : "First 2 controls must sit side-by-side";
-        assert dulkirFlow.items().get(0).x() < dulkirFlow.items().get(1).x();
-        assert dulkirFlow.totalHeight() <= 150 : "Dulkir 2-col layout should fit cleanly without excessive height, got " + dulkirFlow.totalHeight();
+        List<ModernModuleSettings.Control> invTweaks = ModernModuleSettings.getControls("Inventory Tweaks", cfg, actions);
+        ModernInspectorLayout.ControlsFlow invTweaksFlow = ModernInspectorLayout.computeControlsFlow(10, 20, 650, invTweaks);
+        assert invTweaksFlow.items().size() == invTweaks.size();
+        assert invTweaksFlow.items().get(0).y() == invTweaksFlow.items().get(1).y() : "First 2 controls must sit side-by-side";
+        assert invTweaksFlow.items().get(0).x() < invTweaksFlow.items().get(1).x();
+        assert invTweaksFlow.totalHeight() <= 150 : "Inventory Tweaks 2-col layout should fit cleanly without excessive height, got " + invTweaksFlow.totalHeight();
 
         List<ModernModuleSettings.Control> crafter = ModernModuleSettings.getControls("Auto Crafter", cfg, actions);
         ModernInspectorLayout.ControlsFlow crafterFlow = ModernInspectorLayout.computeControlsFlow(10, 20, 650, crafter);
@@ -169,22 +169,22 @@ public class ModernInspectorLayoutTest {
                 : "Null controls must return 0 card extra height";
         assert ModernModuleGridLayout.computeCardExtraHeight(cardW, 0, List.of()) == 0;
 
-        List<ModernModuleSettings.Control> dulkirControls = ModernModuleSettings.getControls("Dulkir", cfg, actions);
-        ModernInspectorLayout.ControlsFlow dulkirNarrowFlow =
-                ModernInspectorLayout.computeControlsFlow(0, 0, cardControlsW, dulkirControls);
+        List<ModernModuleSettings.Control> vmControls = ModernModuleSettings.getControls("Viewmodel", cfg, actions);
+        ModernInspectorLayout.ControlsFlow vmNarrowFlow =
+                ModernInspectorLayout.computeControlsFlow(0, 0, cardControlsW, vmControls);
 
-        int dulkirExtraH = ModernModuleGridLayout.computeCardExtraHeight(cardW, 28, dulkirControls);
-        assert dulkirExtraH == 1 + 28 + 1 + dulkirNarrowFlow.totalHeight() + 6
-                : "Card extra height mismatch: expected " + (1 + 28 + 1 + dulkirNarrowFlow.totalHeight() + 6) + ", got " + dulkirExtraH;
-        assert dulkirExtraH == 1 + 28 + 1 + dulkirNarrowFlow.totalHeight() + ModernModuleGridLayout.ACCORDION_BOTTOM_PAD;
-        assert ModernModuleGridLayout.computeCardExtraHeight(cardW, 18, dulkirControls)
-                == 1 + 18 + 1 + dulkirNarrowFlow.totalHeight() + ModernModuleGridLayout.ACCORDION_BOTTOM_PAD;
-        assert ModernModuleGridLayout.computeCardExtraHeight(cardW, 0, dulkirControls)
-                == 1 + 0 + 1 + dulkirNarrowFlow.totalHeight() + ModernModuleGridLayout.ACCORDION_BOTTOM_PAD;
+        int vmExtraH = ModernModuleGridLayout.computeCardExtraHeight(cardW, 28, vmControls);
+        assert vmExtraH == 1 + 28 + 1 + vmNarrowFlow.totalHeight() + 6
+                : "Card extra height mismatch: expected " + (1 + 28 + 1 + vmNarrowFlow.totalHeight() + 6) + ", got " + vmExtraH;
+        assert vmExtraH == 1 + 28 + 1 + vmNarrowFlow.totalHeight() + ModernModuleGridLayout.ACCORDION_BOTTOM_PAD;
+        assert ModernModuleGridLayout.computeCardExtraHeight(cardW, 18, vmControls)
+                == 1 + 18 + 1 + vmNarrowFlow.totalHeight() + ModernModuleGridLayout.ACCORDION_BOTTOM_PAD;
+        assert ModernModuleGridLayout.computeCardExtraHeight(cardW, 0, vmControls)
+                == 1 + 0 + 1 + vmNarrowFlow.totalHeight() + ModernModuleGridLayout.ACCORDION_BOTTOM_PAD;
 
         // Single-column layout without horizontal overflow for all configurable modules inside 162px card
         List<String> configurableModules = List.of(
-                "Dulkir", "Viewmodel", "Inventory HUD+", "Fullbright", "Keybinds HUD",
+                "Viewmodel", "Inventory HUD+", "Fullbright", "Keybinds HUD",
                 "Fast Place", "Auto Break", "FastBreak", "Inventory Tweaks",
                 "Auto Replenish", "Fast Use", "Auto Tool", "Auto Crafter",
                 "Better Chat", "Client Chat", "Backtrack", "Disabler", "Exploit Guard",

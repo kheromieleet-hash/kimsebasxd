@@ -1,7 +1,7 @@
 ================================================================================
 SESTIA CLIENT - TUM MODULLER VE OZELLIKLER REHBERI
-Surum: v1.0.37 (VersionCode: 37) | Minecraft: 26.3 Fabric
-Toplam Kayitli Modul: 38 (+ 4 Yerlesik Sistem Ozelligi)
+Surum: v1.0.38 (VersionCode: 38) | Minecraft: 26.3 Fabric
+Toplam Kayitli Modul: 37 (+ 5 Yerlesik Sistem Ozelligi)
 ================================================================================
 
 --------------------------------------------------------------------------------
@@ -96,7 +96,7 @@ Toplam Kayitli Modul: 38 (+ 4 Yerlesik Sistem Ozelligi)
 
 
 --------------------------------------------------------------------------------
-[2] RENDER KATEGORISI (12 Modul)
+[2] RENDER KATEGORISI (11 Modul)
 --------------------------------------------------------------------------------
 
 15. Chunk Borders
@@ -104,64 +104,58 @@ Toplam Kayitli Modul: 38 (+ 4 Yerlesik Sistem Ozelligi)
     yukseklik halkalarini 3D cizgilerle gosterir.
     Ayarlar: Sub-Grid (2x2 alt bolme izgarasini goster/gizle).
 
-16. Dulkir
-    Ne ise yarar: Birinci sahis el, tutulan esya ve karakter gorunumunu
-    ozellestirir (boyut, X/Y/Z konum, sallama hizi ve animasyon iyilestirmeleri).
-    Ayarlar: Item Scale, Player Scale, Pos X/Y/Z, Swing Duration,
-    Cancel Re-Equip, Rotationless Drink, AirWalker, Reset Defaults.
-
-17. Fullbright
+16. Fullbright
     Ne ise yarar: Karanlik magara ve mekanlari aydinlatir.
     Ayarlar: Mode (Natural / Gamma / Ultra), Brightness (20% - 100%),
     3D Shading, No Dark Corners.
 
-18. HUD Info
+17. HUD Info
     Ne ise yarar: Ekranda canli FPS, TPS, Ping, Hiz, Yon ve Overworld/Nether
     koordinat bilgilerini gosterir.
     Ayarlar: Ek ayar yok (Ac/Kapa).
 
-19. Inventory HUD+
+18. Inventory HUD+
     Ne ise yarar: Oyun ekraninda canli envanter, zirh dayanakliligi ve iksir
     etki surelerini gosterir.
     Ayarlar: Inventory/Armor/Potions HUD, Mini/Vertical Mode, Inv Scale,
     Bg Opacity, Open Settings, Move HUD.
 
-20. Item ESP
+19. Item ESP
     Ne ise yarar: Yerdeki dusmus esyalara uzaktan gorunen parlama (glow) ekler.
     Ayarlar: Ek ayar yok (Ac/Kapa).
 
-21. Keybinds HUD
+20. Keybinds HUD
     Ne ise yarar: Acik modulleri ve atanmis tus kisayollarini ekranda tablo
     olarak gosterir.
     Ayarlar: Only Active, Auto-Hide, Reset Position.
 
-22. Light Overlay
+21. Light Overlay
     Ne ise yarar: Etrafindaki yurunebilir karanlik bloklari tarar; Kirmizi X
     her zaman mob dogabilen (Block=0, Sky=0), Sari X sadece gece/firtinada
     mob dogabilen (Block=0, Sky>0) bloklari isaretler.
     Ayarlar: Range (8 - 24 blok, varsayilan: 16), Only Always (sadece kirmizi).
 
-23. TNT Timer
+22. TNT Timer
     Ne ise yarar: Ateslenmis TNT, TNT Minecart ve Creeper uzerinde patlamaya
     kalan tam sure/tick sayacini gosterir.
     Ayarlar: Ek ayar yok (Ac/Kapa).
 
-24. Trajectories
+23. Trajectories
     Ne ise yarar: Yay (sarj gucune gore), dolu Crossbow (ok/fisek), Trident,
     Ender Pearl, Splash/Lingering iksir ve kartopu/yumurta/XP sisesi atis
     egrisini ve varis blok/varlik kutusunu onceden cizer.
     Ayarlar: Show Passive (Kartopu/Yumurta/XP), Box Outline (Varis kutusu).
 
-25. TrueSight
+24. TrueSight
     Ne ise yarar: Gorunmez iksirli oyunculari, moblari ve varliklari gorunur yapar.
     Ayarlar: Ek ayar yok (Ac/Kapa).
 
-26. Viewmodel (NoFrills Portu)
-    Ne ise yarar: Eldeki esya ve bos elin konum, boyut, donus ve swing
-    animasyonlarini ayri eksenlerde (X/Y/Z) ozellestirir; acikken el/esya
-    donusumlerinde Dulkir yerine gecer.
+25. Viewmodel
+    Ne ise yarar: Birinci sahis el, tutulan esya ve karakter gorunumunu
+    ozellestirir (NoFrills donusumleri + Item Scale, Player Scale ve AirWalker).
     Ayarlar: No Haste, No Equip, No Bow Swing, No Swing Reset, Apply To Hand,
-    Swing Speed (Off / 1-100t), Offset X/Y/Z (-2.00..2.00),
+    AirWalker, Swing Speed (Off / 1-100t), Item Scale (0.10x - 2.00x),
+    Player Scale (0.10x - 2.00x), Offset X/Y/Z (-2.00..2.00),
     Scale X/Y/Z (0.00..5.00), Rotation X/Y/Z (-180..180°),
     Swing X/Y/Z (0.00..2.00), Reset Defaults.
 

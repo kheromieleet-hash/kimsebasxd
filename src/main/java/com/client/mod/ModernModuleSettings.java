@@ -154,7 +154,6 @@ public final class ModernModuleSettings {
             return List.of();
         }
         return switch (modName) {
-            case "Dulkir" -> buildDulkirControls(cfg, actions);
             case "Viewmodel" -> buildViewmodelControls(cfg, actions);
             case "Inventory HUD+" -> buildInventoryHudControls(cfg, actions);
             case "Fullbright" -> buildFullbrightControls(cfg, actions);
@@ -239,43 +238,6 @@ public final class ModernModuleSettings {
             );
             default -> List.of();
         };
-    }
-
-    private static List<Control> buildDulkirControls(ModConfig cfg, Actions actions) {
-        return List.of(
-                new SliderControl("itemScale", "Item Scale",
-                        () -> (cfg.itemScale - 0.10f) / 1.90f,
-                        pct -> cfg.itemScale = roundToStep(0.10f + pct * 1.90f, 20.0f),
-                        () -> String.format(Locale.ROOT, "%.2fx", cfg.itemScale),
-                        false),
-                new SliderControl("playerScale", "Player Scale",
-                        () -> (cfg.playerScale - 0.10f) / 1.90f,
-                        pct -> cfg.playerScale = roundToStep(0.10f + pct * 1.90f, 20.0f),
-                        () -> String.format(Locale.ROOT, "%.2fx", cfg.playerScale),
-                        false),
-                intSlider("posX", "Pos X", -150, 150, "", () -> cfg.posX, v -> cfg.posX = v),
-                intSlider("posY", "Pos Y", -150, 150, "", () -> cfg.posY, v -> cfg.posY = v),
-                intSlider("posZ", "Pos Z", -150, 50, "", () -> cfg.posZ, v -> cfg.posZ = v),
-                intSlider("swingDuration", "Swing Duration", 2, 20, "t", () -> cfg.swingDuration, v -> cfg.swingDuration = v),
-                toggle("Cancel Re-Equip", () -> cfg.cancelReEquip, v -> cfg.cancelReEquip = v, actions, false),
-                toggle("Rotationless Drink", () -> cfg.rotationlessDrink, v -> cfg.rotationlessDrink = v, actions, false),
-                toggle("AirWalker", () -> cfg.dulkirAirWalker, v -> cfg.dulkirAirWalker = v, actions, false),
-                new ActionControl(() -> "Reset Defaults", () -> {
-                    cfg.itemScale = 1.0f;
-                    cfg.playerScale = 1.0f;
-                    cfg.posX = 0;
-                    cfg.posY = 0;
-                    cfg.posZ = 0;
-                    cfg.rotationX = 0;
-                    cfg.rotationY = 0;
-                    cfg.rotationZ = 0;
-                    cfg.swingDuration = 6;
-                    cfg.cancelReEquip = false;
-                    cfg.rotationlessDrink = true;
-                    cfg.dulkirAirWalker = false;
-                    actions.persist(false);
-                })
-        );
     }
 
     private static List<Control> buildInventoryHudControls(ModConfig cfg, Actions actions) {
@@ -448,11 +410,14 @@ public final class ModernModuleSettings {
                 toggle("No Bow Swing", () -> cfg.vmNoBowSwing, v -> cfg.vmNoBowSwing = v, actions, false),
                 toggle("No Swing Reset", () -> cfg.vmNoSwingReset, v -> cfg.vmNoSwingReset = v, actions, false),
                 toggle("Apply To Hand", () -> cfg.vmApplyToHand, v -> cfg.vmApplyToHand = v, actions, false),
+                toggle("AirWalker", () -> cfg.vmAirWalker, v -> cfg.vmAirWalker = v, actions, false),
                 new SliderControl("vmSwingSpeed", "Swing Speed",
                         () -> cfg.vmSwingSpeed / 100.0f,
                         pct -> cfg.vmSwingSpeed = clampInt(Math.round(pct * 100.0f), 0, 100),
                         () -> cfg.vmSwingSpeed <= 0 ? "Off" : cfg.vmSwingSpeed + "t",
                         false),
+                floatSlider("itemScale", "Item Scale", 0.10f, 2.00f, 20.0f, "%.2fx", () -> cfg.itemScale, v -> cfg.itemScale = v),
+                floatSlider("playerScale", "Player Scale", 0.10f, 2.00f, 20.0f, "%.2fx", () -> cfg.playerScale, v -> cfg.playerScale = v),
                 floatSlider("vmOffsetX", "Offset X", -2.0f, 2.0f, 100.0f, "%.2f", () -> cfg.vmOffsetX, v -> cfg.vmOffsetX = v),
                 floatSlider("vmOffsetY", "Offset Y", -2.0f, 2.0f, 100.0f, "%.2f", () -> cfg.vmOffsetY, v -> cfg.vmOffsetY = v),
                 floatSlider("vmOffsetZ", "Offset Z", -2.0f, 2.0f, 100.0f, "%.2f", () -> cfg.vmOffsetZ, v -> cfg.vmOffsetZ = v),
@@ -471,6 +436,9 @@ public final class ModernModuleSettings {
                     cfg.vmApplyToHand = false;
                     cfg.vmNoBowSwing = false;
                     cfg.vmNoSwingReset = false;
+                    cfg.vmAirWalker = false;
+                    cfg.itemScale = 1.0f;
+                    cfg.playerScale = 1.0f;
                     cfg.vmSwingSpeed = 0;
                     cfg.vmOffsetX = 0.0f;
                     cfg.vmOffsetY = 0.0f;

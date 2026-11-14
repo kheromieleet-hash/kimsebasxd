@@ -86,7 +86,7 @@ public class ModernModuleGridLayoutTest {
                 new StubModule("Safe Walk", "movement", "Movement"),
                 new StubModule("Auto Sprint", "movement", "Movement"),
                 new StubModule("TrueSight", "render", "Render"),
-                new StubModule("Dulkir", "render", "Render"),
+                new StubModule("Viewmodel", "render", "Render"),
                 new StubModule("Inventory HUD+", "render", "Render"),
                 new StubModule("HUD Info", "render", "Render"),
                 new StubModule("FastBreak", "world", "World"),
@@ -101,11 +101,11 @@ public class ModernModuleGridLayoutTest {
         assert allSorted.size() == unsorted.size();
         assert "Abort Breaking".equals(allSorted.get(0).name());
         assert "Auto Break".equals(allSorted.get(1).name());
-        assert "TrueSight".equals(allSorted.get(allSorted.size() - 1).name());
+        assert "Viewmodel".equals(allSorted.get(allSorted.size() - 1).name());
 
         List<StubModule> renderSorted = ModernModuleGridLayout.filterAndSortModules(
                 unsorted, StubModule::name, StubModule::catId, StubModule::catName, "render", "");
-        assert List.of("Dulkir", "HUD Info", "Inventory HUD+", "TrueSight")
+        assert List.of("HUD Info", "Inventory HUD+", "TrueSight", "Viewmodel")
                 .equals(renderSorted.stream().map(StubModule::name).toList());
 
         List<StubModule> exploitSorted = ModernModuleGridLayout.filterAndSortModules(

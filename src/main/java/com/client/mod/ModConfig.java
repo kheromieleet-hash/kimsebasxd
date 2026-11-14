@@ -41,23 +41,7 @@ public class ModConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     // Module master toggles
-    public boolean dulkirEnabled = true;
     public boolean inventoryHudEnabled = true;
-
-    // DulkirMod AnimationPreset fields
-    public int posX = 0;                     // -150 to 150 (divided by 100f)
-    public int posY = 0;                     // -150 to 150 (divided by 100f)
-    public int posZ = 0;                     // -150 to 50  (divided by 100f)
-    public int rotationX = 0;                // -180 to 180 degrees
-    public int rotationY = 0;                // -180 to 180 degrees
-    public int rotationZ = 0;                // -180 to 180 degrees
-    public float itemScale = 1.0f;           // 0.1f to 2.0f
-    public int swingDuration = 6;            // 2 to 20 ticks (default 6)
-    public boolean cancelReEquip = false;    // default false
-    public boolean rotationlessDrink = true; // default true in DulkirMod
-
-    // Client-side Player Scale
-    public float playerScale = 1.0f;         // 0.1f to 2.0f
 
     // Inventory HUD+ extra scale multiplier
     public float invHudScale = 1.0f;         // 0.50f to 2.00f
@@ -141,16 +125,16 @@ public class ModConfig {
     public boolean autoTool = true;
     public boolean autoToolSwapBack = true;
 
-    // Extra Dulkir Animations
-    public boolean dulkirAirWalker = false;
-
-    // NoFrills Viewmodel
+    // Viewmodel (NoFrills + Item/Player Scale + AirWalker)
     public boolean vmEnabled = false;
     public boolean vmNoHaste = false;
     public boolean vmNoEquip = false;
     public boolean vmApplyToHand = false;
     public boolean vmNoBowSwing = false;
     public boolean vmNoSwingReset = false;
+    public boolean vmAirWalker = false;
+    public float itemScale = 1.0f;      // 0.10 to 2.00
+    public float playerScale = 1.0f;    // 0.10 to 2.00
     public int vmSwingSpeed = 0;        // 0 to 100 (0 = disabled)
     public float vmOffsetX = 0.0f;      // -2.0 to 2.0
     public float vmOffsetY = 0.0f;      // -2.0 to 2.0
@@ -364,19 +348,7 @@ public class ModConfig {
     }
 
     public void copyFrom(ModConfig other) {
-        this.dulkirEnabled = other.dulkirEnabled;
         this.inventoryHudEnabled = other.inventoryHudEnabled;
-        this.posX = other.posX;
-        this.posY = other.posY;
-        this.posZ = other.posZ;
-        this.rotationX = other.rotationX;
-        this.rotationY = other.rotationY;
-        this.rotationZ = other.rotationZ;
-        this.itemScale = other.itemScale;
-        this.swingDuration = other.swingDuration;
-        this.cancelReEquip = other.cancelReEquip;
-        this.rotationlessDrink = other.rotationlessDrink;
-        this.playerScale = other.playerScale;
         this.invHudScale = other.invHudScale;
         this.hudInfoEnabled = other.hudInfoEnabled;
         this.keybindsHudEnabled = other.keybindsHudEnabled;
@@ -428,13 +400,15 @@ public class ModConfig {
         this.safeWalk = other.safeWalk;
         this.autoTool = other.autoTool;
         this.autoToolSwapBack = other.autoToolSwapBack;
-        this.dulkirAirWalker = other.dulkirAirWalker;
         this.vmEnabled = other.vmEnabled;
         this.vmNoHaste = other.vmNoHaste;
         this.vmNoEquip = other.vmNoEquip;
         this.vmApplyToHand = other.vmApplyToHand;
         this.vmNoBowSwing = other.vmNoBowSwing;
         this.vmNoSwingReset = other.vmNoSwingReset;
+        this.vmAirWalker = other.vmAirWalker;
+        this.itemScale = clampFloat(other.itemScale, 0.10f, 2.00f, 1.0f);
+        this.playerScale = clampFloat(other.playerScale, 0.10f, 2.00f, 1.0f);
         this.vmSwingSpeed = clampInt(other.vmSwingSpeed, 0, 100, 0);
         this.vmOffsetX = clampFloat(other.vmOffsetX, -2.0f, 2.0f, 0.0f);
         this.vmOffsetY = clampFloat(other.vmOffsetY, -2.0f, 2.0f, 0.0f);
@@ -537,12 +511,11 @@ public class ModConfig {
     }
 
     public void sanitize() {
-        if (this.itemScale < 0.05f || this.itemScale > 5.0f) this.itemScale = 1.0f;
-        if (this.playerScale < 0.05f || this.playerScale > 5.0f) this.playerScale = 1.0f;
+        this.itemScale = clampFloat(this.itemScale, 0.10f, 2.00f, 1.0f);
+        this.playerScale = clampFloat(this.playerScale, 0.10f, 2.00f, 1.0f);
         if (this.invHudScale < 0.50f || this.invHudScale > 2.50f) this.invHudScale = 1.0f;
         if (this.fullbrightBrightness < 0.20f || this.fullbrightBrightness > 1.0f) this.fullbrightBrightness = 0.70f;
         if (this.fullbrightMode < 0 || this.fullbrightMode > 2) this.fullbrightMode = 0;
-        if (this.swingDuration < 1 || this.swingDuration > 40) this.swingDuration = 6;
         if (this.zoomFactor < 1.5f || this.zoomFactor > 20.0f) this.zoomFactor = 4.0f;
         if (this.lowFireOffset < 0.05f || this.lowFireOffset > 0.8f) this.lowFireOffset = 0.35f;
         if (this.autoCrafterDelay < 0 || this.autoCrafterDelay > 10) this.autoCrafterDelay = 0;

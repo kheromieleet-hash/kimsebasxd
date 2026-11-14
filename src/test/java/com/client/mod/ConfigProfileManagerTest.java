@@ -55,6 +55,9 @@ public class ConfigProfileManagerTest {
         source.backtrackDelay = 180;
         source.chatInfinite = false;
         source.vmEnabled = true;
+        source.vmAirWalker = true;
+        source.itemScale = 0.65f;
+        source.playerScale = 1.40f;
         source.vmOffsetX = 0.45f;
         source.vmScaleY = 1.75f;
         source.vmRotZ = -35.0f;
@@ -89,7 +92,8 @@ public class ConfigProfileManagerTest {
             assert target.fastBreak;
             assert target.backtrack && target.backtrackDelay == 180;
             assert !target.chatInfinite;
-            assert target.vmEnabled && Math.abs(target.vmOffsetX - 0.45f) < 0.001f;
+            assert target.vmEnabled && target.vmAirWalker && Math.abs(target.vmOffsetX - 0.45f) < 0.001f;
+            assert Math.abs(target.itemScale - 0.65f) < 0.001f && Math.abs(target.playerScale - 1.40f) < 0.001f;
             assert Math.abs(target.vmScaleY - 1.75f) < 0.001f && Math.abs(target.vmRotZ + 35.0f) < 0.001f;
             assert target.vmSwingSpeed == 12;
             assert target.moduleKeybinds.getOrDefault("Fullbright", -1) == 70;

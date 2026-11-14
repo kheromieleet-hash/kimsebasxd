@@ -33,10 +33,6 @@ public class ClientMod implements ClientModInitializer {
         ZoomHandler.setZoomKey(zoomKey);
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-            dispatcher.register(LiteralArgumentBuilder.<FabricClientCommandSource>literal("dulkir").executes(ctx -> {
-                openMenuNextTick = true;
-                return 1;
-            }));
             dispatcher.register(LiteralArgumentBuilder.<FabricClientCommandSource>literal("animations").executes(ctx -> {
                 openMenuNextTick = true;
                 return 1;
