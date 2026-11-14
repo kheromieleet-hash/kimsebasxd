@@ -58,7 +58,7 @@ public class ModConfig {
     public int keybindsHudY = 60;
 
     // Fullbright settings
-    public boolean fullbright = true;
+    public boolean fullbright = false;
     public int fullbrightMode = 0;            // 0 = Natural / Night Vision (göz yormayan), 1 = Gamma (slider), 2 = Ultra
     public float fullbrightBrightness = 0.70f;// 0.20f to 1.00f
     public boolean fullbright3DShading = true;// 3D blok derinliğini korur, parlamayı önler
@@ -68,7 +68,7 @@ public class ModConfig {
     // Visual / QoL Features
     public boolean zoomEnabled = true;
     public float zoomFactor = 4.0f;
-    public boolean lowFire = true;
+    public boolean lowFire = false;
     public float lowFireOffset = 0.35f;
     public boolean chatTimestamps = true;    // Istanbul time <HH:mm:ss>
     public boolean compactChat = true;       // Stacks duplicate consecutive messages with (2), (3)
@@ -84,7 +84,7 @@ public class ModConfig {
     public String clientChatMuted = "";
 
     // Native Inventory Tweaks
-    public boolean invTweaksEnabled = true;
+    public boolean invTweaksEnabled = false;
     public boolean invMouseDrag = true;
     public boolean invSorting = true;
     public int invSortingDelay = 1;
@@ -95,10 +95,10 @@ public class ModConfig {
 
     // Jello theme
     public boolean jelloBlur = true;
-    public boolean autoSprint = true;
+    public boolean autoSprint = false;
 
     // Fast Use
-    public boolean fastUseEnabled = true;
+    public boolean fastUseEnabled = false;
     public int fastUseMode = 0;          // 0 = All, 1 = Some
     public boolean fastUseItems = true;
     public boolean fastUseBlocks = true;
@@ -114,7 +114,7 @@ public class ModConfig {
     public boolean autoReplenishSearchHotbar = false;
 
     // Fast Place
-    public boolean fastPlace = true;
+    public boolean fastPlace = false;
     public int fastPlaceDelay = 0; // 0 to 4 ticks
     public boolean fastPlaceAutoRightClick = false;
 
@@ -122,7 +122,7 @@ public class ModConfig {
     public boolean safeWalk = false;
 
     // Auto Tool
-    public boolean autoTool = true;
+    public boolean autoTool = false;
     public boolean autoToolSwapBack = true;
 
     // Viewmodel (NoFrills + Item/Player Scale + AirWalker)
@@ -150,11 +150,11 @@ public class ModConfig {
     public float vmSwingZ = 1.0f;       // 0.0 to 2.0
 
     // TNT & Creeper Timer
-    public boolean tntTimer = true;
+    public boolean tntTimer = false;
 
     // Advanced PvP & Render Modules
-    public boolean trueSight = true;
-    public boolean itemEsp = true;
+    public boolean trueSight = false;
+    public boolean itemEsp = false;
 
     // ClickGUI Style: 0 = Classic Multi-Window, 1 = Modern Single-Panel
     public int clickGuiStyle = 1;
