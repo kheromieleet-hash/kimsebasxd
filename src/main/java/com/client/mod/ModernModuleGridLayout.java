@@ -13,19 +13,19 @@ import java.util.function.Function;
  */
 final class ModernModuleGridLayout {
 
-    static final int CARD_HEIGHT = 44;
-    static final int CARD_CORNER_RADIUS = 7;
-    static final int GRID_PAD_X = 11;
-    static final int GRID_PAD_Y = 10;
-    static final int GRID_GAP_X = 7;
-    static final int GRID_GAP_Y = 7;
+    static final int CARD_HEIGHT = 48;
+    static final int CARD_CORNER_RADIUS = 8;
+    static final int GRID_PAD_X = 12;
+    static final int GRID_PAD_Y = 12;
+    static final int GRID_GAP_X = 8;
+    static final int GRID_GAP_Y = 8;
 
-    static final int CARD_PAD_X = 9;
-    static final int CARD_PADDING_X = 8;
-    static final int TITLE_Y_OFFSET = 7;
-    static final int CONTROL_Y_OFFSET = 22;
+    static final int CARD_PAD_X = 10;
+    static final int CARD_PADDING_X = 10;
+    static final int TITLE_Y_OFFSET = 9;
+    static final int CONTROL_Y_OFFSET = 25;
     static final int CONTROL_HEIGHT = 15;
-    static final int CONTROL_GAP = 4;
+    static final int CONTROL_GAP = 5;
     static final int SWITCH_WIDTH = 28;
     static final int TUNE_WIDTH = 17;
 

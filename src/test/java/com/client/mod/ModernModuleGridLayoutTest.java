@@ -54,7 +54,7 @@ public class ModernModuleGridLayoutTest {
         int expectedRows = 6;
         int expectedTotalH = m.padY() * 2 + expectedRows * m.cardHeight() + (expectedRows - 1) * m.gapY();
         assert m.totalHeight() == expectedTotalH : "Unexpected totalHeight: " + m.totalHeight();
-        assert m.totalHeight() <= 330 : "All 23 modules in 4 columns should stay compact (<=330px), got " + m.totalHeight();
+        assert m.totalHeight() <= 360 : "All 23 modules in 4 columns should stay compact (<=360px), got " + m.totalHeight();
 
         ModernModuleGridLayout.GridMetrics empty = ModernModuleGridLayout.computeGridMetrics(gridW, 0);
         assert empty.totalHeight() == 100 : "Empty grid height fallback should be 100";
@@ -127,9 +127,12 @@ public class ModernModuleGridLayoutTest {
         int fullExtraH = 140;
         ModernModuleGridLayout.GridMetrics metrics = ModernModuleGridLayout.computeGridMetrics(gridW, moduleCount);
         assert metrics.columns() == 4 : "Expected 4 columns at gridW=694";
-        assert metrics.colWidth() == 162 : "Expected colWidth=162 at gridW=694, got " + metrics.colWidth();
-        // 22 modules in 4 cols -> cols 0 & 1 have 6 rows (319px), cols 2 & 3 have 5 rows (268px)
-        assert metrics.totalHeight() == 319 : "Expected base totalHeight=319 for 6 rows, got " + metrics.totalHeight();
+        assert metrics.colWidth() == 161 : "Expected colWidth=161 at gridW=694, got " + metrics.colWidth();
+        // 22 modules in 4 cols -> cols 0 & 1 have 6 rows (352px), cols 2 & 3 have 5 rows (296px)
+        int base6RowH = 352;
+        int base5RowH = 296;
+        int crossoverDiff = base6RowH - base5RowH;
+        assert metrics.totalHeight() == base6RowH : "Expected base totalHeight=" + base6RowH + " for 6 rows, got " + metrics.totalHeight();
 
         // Collapsed states: expandedIndex=-1, expandAnim=0.0f, fullExtraHeight=0, visH <= 6, out-of-range index
         List<ModernModuleGridLayout.GridPlan> collapsedPlans = List.of(
@@ -192,21 +195,21 @@ public class ModernModuleGridLayoutTest {
                 : "First shifted card in col 3 must sit exactly gapY below expanded card bottom";
 
         // Uneven column totalHeight() test:
-        // Col 0 & 1 have 6 rows (319px); col 2 & 3 have 5 rows (268px).
-        // With extra=140 in col 3: col 3 = 268 + 140 = 408 > 319 -> totalHeight == 408
-        assert fullPlan.totalHeight() == 408
-                : "Expected totalHeight=408 when expanded col 3 exceeds col 0 height, got " + fullPlan.totalHeight();
+        // Col 0 & 1 have 6 rows (352px); col 2 & 3 have 5 rows (296px).
+        // With extra=140 in col 3: col 3 = 296 + 140 = 436 > 352 -> totalHeight == 436
+        assert fullPlan.totalHeight() == base5RowH + fullExtraH
+                : "Expected totalHeight=" + (base5RowH + fullExtraH) + " when expanded col 3 exceeds col 0 height, got " + fullPlan.totalHeight();
 
-        // With extra=30 in col 3: col 3 = 268 + 30 = 298 <= 319 -> totalHeight remains 319 (col 0 height)
+        // With extra=30 in col 3: col 3 = 296 + 30 = 326 <= 352 -> totalHeight remains 352 (col 0 height)
         ModernModuleGridLayout.GridPlan smallPlan =
                 ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 3, 30, 1.0f);
         assert smallPlan.accordion() != null && smallPlan.accordion().visibleHeight() == 30;
-        assert smallPlan.totalHeight() == 319
-                : "Expected totalHeight=319 when expanded col 3 (298) stays <= col 0 (319), got " + smallPlan.totalHeight();
+        assert smallPlan.totalHeight() == base6RowH
+                : "Expected totalHeight=" + base6RowH + " when expanded col 3 stays <= col 0, got " + smallPlan.totalHeight();
 
-        // Exact crossover boundary: 268 + 51 = 319 vs 268 + 52 = 320
-        assert ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 3, 51, 1.0f).totalHeight() == 319;
-        assert ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 3, 52, 1.0f).totalHeight() == 320;
+        // Exact crossover boundary
+        assert ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 3, crossoverDiff, 1.0f).totalHeight() == base6RowH;
+        assert ModernModuleGridLayout.computeGridPlan(gridX, startY, gridW, moduleCount, 3, crossoverDiff + 1, 1.0f).totalHeight() == base6RowH + 1;
 
         // Mid-animation expandAnim = 0.5f: scales visibleHeight to 70 and shifts ONLY col 3 && row > 0
         ModernModuleGridLayout.GridPlan halfPlan =
@@ -224,8 +227,8 @@ public class ModernModuleGridLayoutTest {
             assert halfPlan.cardY(startY, i) == metrics.cardY(startY, i) + expectedShift
                     : "Mid-animation shift mismatch at index " + i;
         }
-        assert halfPlan.totalHeight() == 338
-                : "Expected mid-animation totalHeight=338 (268 + 70), got " + halfPlan.totalHeight();
+        assert halfPlan.totalHeight() == base5RowH + 70
+                : "Expected mid-animation totalHeight=" + (base5RowH + 70) + ", got " + halfPlan.totalHeight();
 
         // Expanding a tall column (col 0, row 1 -> index 4) shifts only indices 8, 12, 16, 20 and grows totalHeight
         ModernModuleGridLayout.GridPlan col0Row1Plan =
@@ -238,6 +241,6 @@ public class ModernModuleGridLayoutTest {
             assert col0Row1Plan.cardY(startY, i) == metrics.cardY(startY, i) + (shouldShift ? 30 : 0)
                     : "Col 0 row 1 shift mismatch at index " + i;
         }
-        assert col0Row1Plan.totalHeight() == 349 : "Expected col 0 totalHeight=349 (319 + 30), got " + col0Row1Plan.totalHeight();
+        assert col0Row1Plan.totalHeight() == base6RowH + 30 : "Expected col 0 totalHeight=" + (base6RowH + 30) + ", got " + col0Row1Plan.totalHeight();
     }
 }

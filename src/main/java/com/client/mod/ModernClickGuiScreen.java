@@ -52,6 +52,7 @@ public class ModernClickGuiScreen extends Screen {
     private String selectedCategoryId = "ALL";
     private float indicatorY = -1.0f;
     private final Map<String, Float> switchAnimations = new HashMap<>();
+    private final Map<String, Float> hoverAnimations = new HashMap<>();
 
     // Search state
     private EditBox searchBox;
@@ -114,13 +115,12 @@ public class ModernClickGuiScreen extends Screen {
         }
 
         int searchW = 166;
-        int searchH = 18;
         int searchX = this.windowX + this.windowW - searchW - 44;
-        int searchY = this.windowY + (HEADER_HEIGHT - searchH) / 2 + 2;
+        int searchBoxY = this.windowY + (HEADER_HEIGHT - 22) / 2;
 
         String prevQuery = this.searchQuery;
-        this.searchBox = new EditBox(this.font, searchX + 16, searchY, searchW - 30, searchH, Component.literal("Search"));
-        this.searchBox.setHint(Component.literal("Search modules..."));
+        this.searchBox = new EditBox(this.font, searchX + 24, searchBoxY + 7, searchW - 40, 14, Component.literal("Search"));
+        this.searchBox.setHint(JelloTheme.sans("Search modules..."));
         this.searchBox.setBordered(false);
         this.searchBox.setMaxLength(30);
         this.searchBox.setValue(prevQuery);
@@ -180,11 +180,11 @@ public class ModernClickGuiScreen extends Screen {
         }
 
         // Dim world backdrop
-        graphics.fill(0, 0, this.width, this.height, 0x99000000);
+        graphics.fill(0, 0, this.width, this.height, 0x80000000);
 
-        // Outer window glow + OLED Obsidian glass shell (Pencere 10px)
-        JelloTheme.drawGlowShadow(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, 0x38E53935, 5);
-        JelloTheme.fillRoundedCard(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, JelloTheme.WINDOW_BG, 0x55E53935);
+        // Outer window soft glow + Glassmorphic Obsidian shell (Pencere 10px)
+        JelloTheme.drawGlowShadow(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, 0x2AE53935, 5);
+        JelloTheme.fillRoundedCard(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, JelloTheme.WINDOW_BG, 0x2EFFFFFF);
 
         renderHeader(graphics, mouseX, mouseY);
         renderSidebar(graphics, mouseX, mouseY, dt);
@@ -224,37 +224,40 @@ public class ModernClickGuiScreen extends Screen {
 
         // Brand emblem + Name + Version badge
         ModernIcons.drawBrandEmblem(graphics, headX + 20, headY + HEADER_HEIGHT / 2, JelloTheme.ACCENT, 0xFFFFCDD2);
-        graphics.text(this.font, Component.literal("§lSESTIA"), headX + 31, headY + 18, JelloTheme.TEXT, false);
-        int titleW = this.font.width("SESTIA");
+        Component brandTitle = JelloTheme.sans("SESTIA");
+        graphics.text(this.font, brandTitle, headX + 32, headY + 18, 0xFFFFFFFF, true);
+        int titleW = this.font.width(brandTitle);
 
         String verLabel = "v" + ClientBuildInfo.getVersion();
-        int verX = headX + 38 + titleW;
+        Component verComp = JelloTheme.sans(verLabel);
+        int verX = headX + 39 + titleW;
         int verY = headY + 15;
-        int verW = this.font.width(verLabel) + 10;
-        JelloTheme.fillRoundedCard(graphics, verX, verY, verX + verW, verY + 14, 4, 0x26E53935, 0x44E53935);
-        graphics.centeredText(this.font, Component.literal(verLabel), verX + verW / 2, verY + 3, JelloTheme.TEXT_DIM);
+        int verW = this.font.width(verComp) + 12;
+        JelloTheme.fillRoundedCard(graphics, verX, verY, verX + verW, verY + 14, 4, 0x22E53935, 0x3CE53935);
+        graphics.centeredText(this.font, verComp, verX + verW / 2, verY + 3, JelloTheme.TEXT_DIM);
 
         // Active module count pill
         int activeCount = countActiveModules();
         String activeText = activeCount + " Active";
+        Component activeComp = JelloTheme.sans(activeText);
         int activeX = verX + verW + 8;
-        int activeW = this.font.width(activeText) + 16;
+        int activeW = this.font.width(activeComp) + 18;
         if (activeX + activeW < headX + headW - 230) {
-            JelloTheme.fillRoundedCard(graphics, activeX, verY, activeX + activeW, verY + 14, 4, 0x1810B981, 0x3310B981);
+            JelloTheme.fillRoundedCard(graphics, activeX, verY, activeX + activeW, verY + 14, 4, 0x1A10B981, 0x3310B981);
             JelloTheme.fillCircle(graphics, activeX + 6, verY + 7, 2, 0xFF34D399);
-            graphics.text(this.font, Component.literal(activeText), activeX + 11, verY + 3, 0xFF6EE7B7, false);
+            graphics.text(this.font, activeComp, activeX + 12, verY + 3, 0xFF6EE7B7, false);
         }
 
-        // Search input container + vector icon
+        // Search input container + vector icon (8px gap before input text)
         int searchW = 166;
         int searchH = 22;
         int searchBoxX = headX + headW - searchW - 44;
         int searchBoxY = headY + (HEADER_HEIGHT - searchH) / 2;
         boolean searchFocused = this.searchBox != null && this.searchBox.isFocused();
-        int sBg = searchFocused ? 0xFF161621 : 0xFF111118;
-        int sBorder = searchFocused ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE;
+        int sBg = searchFocused ? 0xD8181B27 : 0xB812141E;
+        int sBorder = searchFocused ? 0x72E53935 : JelloTheme.BORDER_SUBTLE;
         JelloTheme.fillRoundedCard(graphics, searchBoxX, searchBoxY, searchBoxX + searchW, searchBoxY + searchH, 6, sBg, sBorder);
-        ModernIcons.drawSearchIcon(graphics, searchBoxX + 6, searchBoxY + 6, searchFocused ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED);
+        ModernIcons.drawSearchIcon(graphics, searchBoxX + 7, searchBoxY + 6, searchFocused ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED);
 
         if (!this.searchQuery.isEmpty()) {
             int clearCx = searchBoxX + searchW - 10;
@@ -314,7 +317,7 @@ public class ModernClickGuiScreen extends Screen {
                 case SETTINGS -> ModernIcons.drawSlidersIcon(graphics, iconX, iconY, iconColor);
             }
 
-            graphics.text(this.font, Component.literal(tab.label), sideX + 35, itemY + 13, textColor, false);
+            graphics.text(this.font, JelloTheme.sans(tab.label), sideX + 35, itemY + 13, textColor, isCurrent);
         }
 
         // Interaction legend card at bottom of sidebar
@@ -324,10 +327,10 @@ public class ModernClickGuiScreen extends Screen {
             int legH = 56;
             int legY = sideY + sideH - legH - 10;
             JelloTheme.fillRoundedCard(graphics, legX, legY, legX + legW, legY + legH, 6, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
-            graphics.text(this.font, Component.literal("Controls"), legX + 8, legY + 7, JelloTheme.TEXT_DIM, false);
-            graphics.text(this.font, Component.literal("LMB  Toggle"), legX + 8, legY + 21, JelloTheme.TEXT_MUTED, false);
-            graphics.text(this.font, Component.literal("RMB  Settings"), legX + 8, legY + 33, JelloTheme.TEXT_MUTED, false);
-            graphics.text(this.font, Component.literal("ESC  Collapse"), legX + 8, legY + 45, 0xFF64748B, false);
+            graphics.text(this.font, JelloTheme.sans("Controls"), legX + 8, legY + 7, JelloTheme.TEXT_DIM, false);
+            graphics.text(this.font, JelloTheme.sans("LMB  Toggle"), legX + 8, legY + 21, JelloTheme.TEXT_MUTED, false);
+            graphics.text(this.font, JelloTheme.sans("RMB  Settings"), legX + 8, legY + 33, JelloTheme.TEXT_MUTED, false);
+            graphics.text(this.font, JelloTheme.sans("ESC  Collapse"), legX + 8, legY + 45, 0xFF64748B, false);
         }
     }
 
@@ -373,7 +376,7 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     private void renderModulesWorkspace(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, int contentH, float dt) {
-        renderCategoryChipBar(graphics, mouseX, mouseY, contentX, contentY, contentW);
+        renderCategoryChipBar(graphics, mouseX, mouseY, contentX, contentY, contentW, dt);
 
         int bodyY = contentY + CHIP_BAR_HEIGHT;
         int bodyH = contentH - CHIP_BAR_HEIGHT;
@@ -428,7 +431,7 @@ public class ModernClickGuiScreen extends Screen {
         renderScrollbarAt(graphics, contentX + contentW - 6, bodyY + 4, bodyH - 8, this.contentTotalHeight, this.scrollAmount);
     }
 
-    private void renderCategoryChipBar(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW) {
+    private void renderCategoryChipBar(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, float dt) {
         graphics.fill(contentX, contentY + CHIP_BAR_HEIGHT - 1, contentX + contentW, contentY + CHIP_BAR_HEIGHT, JelloTheme.DIVIDER);
 
         List<FilterChip> chips = getFilterChips();
@@ -438,19 +441,24 @@ public class ModernClickGuiScreen extends Screen {
 
         for (FilterChip chip : chips) {
             String text = chip.label + " " + chip.count;
-            int chipW = Math.max(28, this.font.width(text) + 18);
+            int chipW = Math.max(30, this.font.width(JelloTheme.sans(text)) + 18);
             if (curX + chipW > contentX + contentW - 8) {
                 break;
             }
             boolean active = this.searchQuery.isEmpty() && chip.id.equals(this.selectedCategoryId);
             boolean hovered = isInside(mouseX, mouseY, curX, chipY, chipW, chipH);
-            int bg = active ? JelloTheme.ACCENT : (hovered ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
-            int border = active ? JelloTheme.ACCENT_HOVER : (hovered ? 0x5594A3B8 : JelloTheme.BORDER_SUBTLE);
+            float hoverT = animateHover("chip:" + chip.id, hovered, dt);
+            int bg = active
+                    ? JelloTheme.lerpColor(JelloTheme.ACCENT, JelloTheme.ACCENT_HOVER, hoverT)
+                    : JelloTheme.lerpColor(JelloTheme.CARD_INACTIVE, JelloTheme.CARD_INACTIVE_HOVER, hoverT);
+            int border = active
+                    ? 0x66FF5252
+                    : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, 0x4894A3B8, hoverT);
             JelloTheme.fillRoundedCard(graphics, curX, chipY, curX + chipW, chipY + chipH, 4, bg, border);
             // Keep the label inside the pill even with wider glyphs/fonts.
-            String chipText = fitText(text, chipW - 12);
-            graphics.centeredText(this.font, Component.literal(chipText), curX + chipW / 2, chipY + 5,
-                    active ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED);
+            String chipText = fitSansText(text, chipW - 12);
+            graphics.centeredText(this.font, JelloTheme.sans(chipText), curX + chipW / 2, chipY + 5,
+                    active ? JelloTheme.TEXT : JelloTheme.lerpColor(JelloTheme.TEXT_MUTED, JelloTheme.TEXT, hoverT));
             curX += chipW + 5;
         }
     }
@@ -469,9 +477,9 @@ public class ModernClickGuiScreen extends Screen {
         List<ClickGuiScreen.ModuleEntry> modules = resolved.modules();
         if (modules.isEmpty()) {
             int emptyY = gridY + 24;
-            JelloTheme.fillRoundedCard(graphics, gridX + 12, emptyY, gridX + gridW - 12, emptyY + 54, 7, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
+            JelloTheme.fillRoundedCard(graphics, gridX + 12, emptyY, gridX + gridW - 12, emptyY + 54, 8, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
             String msg = this.searchQuery.isEmpty() ? "No modules in this category" : ("No modules matched '" + this.searchQuery + "'");
-            graphics.centeredText(this.font, Component.literal(msg), gridX + gridW / 2, emptyY + 22, JelloTheme.TEXT_MUTED);
+            graphics.centeredText(this.font, JelloTheme.sans(msg), gridX + gridW / 2, emptyY + 22, JelloTheme.TEXT_MUTED);
             return;
         }
 
@@ -529,36 +537,56 @@ public class ModernClickGuiScreen extends Screen {
         boolean isExpanded = controls.hasSettings() && mod.name.equals(this.expandedModule);
         int cardH = ModernModuleGridLayout.CARD_HEIGHT;
         boolean hovered = isInside(mouseX, mouseY, x, y, w, cardH);
+        float hoverT = animateHover("card:" + mod.name, hovered, dt);
+
+        if (active) {
+            JelloTheme.drawGlowShadow(graphics, x, y, x + w, y + cardTotalH, ModernModuleGridLayout.CARD_CORNER_RADIUS,
+                    isExpanded ? 0x36E53935 : 0x24E53935, 3);
+        }
 
         int bg = active
-                ? (hovered ? JelloTheme.CARD_ACTIVE_HOVER : JelloTheme.CARD_ACTIVE)
-                : (hovered ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
+                ? JelloTheme.lerpColor(JelloTheme.CARD_ACTIVE, JelloTheme.CARD_ACTIVE_HOVER, hoverT)
+                : JelloTheme.lerpColor(JelloTheme.CARD_INACTIVE, JelloTheme.CARD_INACTIVE_HOVER, hoverT);
         int border = isExpanded
-                ? JelloTheme.ACCENT
-                : (active ? (hovered ? JelloTheme.ACCENT_HOVER : 0x66E53935) : (hovered ? 0x5594A3B8 : JelloTheme.BORDER_SUBTLE));
+                ? JelloTheme.BORDER_EXPANDED_SOFT
+                : (active
+                    ? JelloTheme.lerpColor(JelloTheme.BORDER_ACTIVE_SOFT, 0x72FF5252, hoverT)
+                    : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, 0x4894A3B8, hoverT));
         JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + cardTotalH, ModernModuleGridLayout.CARD_CORNER_RADIUS, bg, border);
 
-        // Compact 2-Row Bento Tile: Full Title (top) + [Tune] [Bind] [Toggle] (bottom-right)
-        String title = fitText(mod.name, layout.titleMaxW());
-        graphics.text(this.font, Component.literal(title),
+        // Compact 2-Row Bento Tile: Prominent Sans Title (top) + [Tune] [Monospace Bind] [Toggle] (bottom-right)
+        String title = fitSansText(mod.name, layout.titleMaxW());
+        int titleColor = active ? 0xFFFFFFFF : JelloTheme.lerpColor(0xFFE2E8F0, 0xFFFFFFFF, hoverT);
+        graphics.text(this.font, JelloTheme.sans(title),
                 x + ModernModuleGridLayout.CARD_PAD_X,
                 y + ModernModuleGridLayout.TITLE_Y_OFFSET,
-                active ? JelloTheme.TEXT : 0xFFE2E8F0,
-                false);
+                titleColor,
+                active);
 
         if (controls.hasSettings()) {
             boolean tuneHov = isInside(mouseX, mouseY, layout.tuneX(), layout.tuneY(), layout.tuneW(), layout.tuneH());
-            int tuneBg = isExpanded ? 0x44E53935 : (tuneHov ? 0x26FFFFFF : 0xFF1B1B25);
-            int tuneBorder = isExpanded ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE;
+            float tuneT = animateHover("tune:" + mod.name, tuneHov, dt);
+            int tuneBg = isExpanded
+                    ? 0x44E53935
+                    : JelloTheme.lerpColor(0x991C1E2B, 0xCC2C3044, tuneT);
+            int tuneBorder = isExpanded
+                    ? JelloTheme.BORDER_EXPANDED_SOFT
+                    : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, 0x4894A3B8, tuneT);
             JelloTheme.fillRoundedCard(graphics, layout.tuneX(), layout.tuneY(), layout.tuneX() + layout.tuneW(), layout.tuneY() + layout.tuneH(), 4, tuneBg, tuneBorder);
             ModernIcons.drawTuneIcon(graphics, layout.tuneX() + 4, layout.tuneY() + 3,
-                    isExpanded ? JelloTheme.ACCENT_HOVER : (tuneHov ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED));
+                    isExpanded ? JelloTheme.ACCENT_HOVER : JelloTheme.lerpColor(JelloTheme.TEXT_MUTED, JelloTheme.TEXT, tuneT));
         }
 
         boolean bindHovered = isInside(mouseX, mouseY, layout.bindX(), layout.bindY(), layout.bindW(), layout.bindH());
-        int bindBg = controls.isListening() ? 0x55E53935 : (bindHovered ? 0x33E53935 : 0xFF1A1A24);
-        int bindBorder = controls.isListening() ? JelloTheme.ACCENT_HOVER : (bindHovered ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+        float bindT = animateHover("bind:" + mod.name, bindHovered, dt);
+        int bindBg = controls.isListening()
+                ? 0x55E53935
+                : JelloTheme.lerpColor(0x991A1C28, 0x40E53935, bindT);
+        int bindBorder = controls.isListening()
+                ? 0x99FF5252
+                : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, 0x66E53935, bindT);
         JelloTheme.fillRoundedCard(graphics, layout.bindX(), layout.bindY(), layout.bindX() + layout.bindW(), layout.bindY() + layout.bindH(), 4, bindBg, bindBorder);
+        // Keybind badges deliberately retain monospace default pixel font for crisp alignment
         graphics.centeredText(this.font, Component.literal(controls.bindTag()), layout.bindX() + layout.bindW() / 2, layout.bindY() + 4,
                 controls.isListening() ? 0xFFFFDD55 : (cfg.getModuleKey(mod.name) >= 0 ? JelloTheme.TEXT_DIM : JelloTheme.TEXT_MUTED));
 
@@ -597,20 +625,26 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     private int renderSettingsToggleCard(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int x, int y, int w, String title, String desc, boolean active, float dt) {
-        int cardH = 38;
+        int cardH = 40;
         boolean hovered = isInside(mouseX, mouseY, x, y, w, cardH);
+        float hoverT = animateHover("cfg:" + title, hovered, dt);
 
-        int bg = active ? (hovered ? JelloTheme.CARD_ACTIVE_HOVER : JelloTheme.CARD_ACTIVE)
-                : (hovered ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
-        int border = active ? (hovered ? JelloTheme.ACCENT : 0x66E53935)
-                : (hovered ? 0x5594A3B8 : JelloTheme.BORDER_SUBTLE);
-        JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + cardH, 7, bg, border);
+        if (active) {
+            JelloTheme.drawGlowShadow(graphics, x, y, x + w, y + cardH, 8, 0x22E53935, 3);
+        }
+        int bg = active
+                ? JelloTheme.lerpColor(JelloTheme.CARD_ACTIVE, JelloTheme.CARD_ACTIVE_HOVER, hoverT)
+                : JelloTheme.lerpColor(JelloTheme.CARD_INACTIVE, JelloTheme.CARD_INACTIVE_HOVER, hoverT);
+        int border = active
+                ? JelloTheme.lerpColor(JelloTheme.BORDER_ACTIVE_SOFT, 0x72FF5252, hoverT)
+                : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, 0x4894A3B8, hoverT);
+        JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + cardH, 8, bg, border);
 
-        graphics.text(this.font, Component.literal(title), x + 12, y + 6, active ? JelloTheme.TEXT : 0xFFE2E8F0, false);
-        graphics.text(this.font, Component.literal(fitText(desc, w - 58)), x + 12, y + 20, JelloTheme.TEXT_MUTED, false);
+        graphics.text(this.font, JelloTheme.sans(title), x + 12, y + 7, active ? 0xFFFFFFFF : 0xFFE2E8F0, active);
+        graphics.text(this.font, JelloTheme.sans(fitSansText(desc, w - 58)), x + 12, y + 21, JelloTheme.TEXT_MUTED, false);
 
         renderSmoothSwitch(graphics, mouseX, mouseY, x + w - 42, y + (cardH - 16) / 2, 32, 16, "cfg:" + title, active, dt);
-        return y + cardH + 6;
+        return y + cardH + 7;
     }
 
     // ==========================================
@@ -1032,7 +1066,7 @@ public class ModernClickGuiScreen extends Screen {
                 int chipY = contentY + 6;
                 int chipH = 18;
                 for (FilterChip chip : chips) {
-                    int chipW = Math.max(28, this.font.width(chip.label + " " + chip.count) + 18);
+                    int chipW = Math.max(30, this.font.width(JelloTheme.sans(chip.label + " " + chip.count)) + 18);
                     if (curX + chipW > contentX + contentW - 8) break;
                     if (isInside(mouseX, mouseY, curX, chipY, chipW, chipH)) {
                         this.selectedCategoryId = chip.id;
@@ -1570,6 +1604,28 @@ public class ModernClickGuiScreen extends Screen {
         int key = cfg.getModuleKey(modName);
         boolean isMouse = cfg.isModuleKeyMouse(modName);
         return "[" + ClickGuiScreen.getShortBindName(key, isMouse) + "]";
+    }
+
+    private float animateHover(String key, boolean hovered, float dt) {
+        float current = this.hoverAnimations.getOrDefault(key, hovered ? 1.0f : 0.0f);
+        float target = hovered ? 1.0f : 0.0f;
+        float next = current + (target - current) * Mth.clamp(dt * 14.0f, 0.08f, 1.0f);
+        if (Math.abs(target - next) < 0.01f) {
+            next = target;
+        }
+        this.hoverAnimations.put(key, next);
+        return next;
+    }
+
+    private String fitSansText(String text, int maxWidth) {
+        if (text == null || maxWidth <= 8 || this.font.width(JelloTheme.sans(text)) <= maxWidth) {
+            return text == null ? "" : text;
+        }
+        String trimmed = text;
+        while (trimmed.length() > 2 && this.font.width(JelloTheme.sans(trimmed + "...")) > maxWidth) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed + "...";
     }
 
     private String fitText(String text, int maxWidth) {

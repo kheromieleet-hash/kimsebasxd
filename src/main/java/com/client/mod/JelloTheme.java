@@ -4,38 +4,49 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * OLED Obsidian & Crimson Red Theme constants and rounded drawing utilities.
+ * Glassmorphic Obsidian & Crimson Red Theme constants, typography, and rounded drawing utilities.
  */
 public final class JelloTheme {
+    public static final FontDescription SANS_FONT =
+            new FontDescription.Resource(Identifier.fromNamespaceAndPath("inventoryhud", "comfortaa"));
+
     public static final int ACCENT = 0xFFE53935;        // Crimson Red
     public static final int ACCENT_HOVER = 0xFFFF5252;  // Vibrant Scarlet Red
-    public static final int PANEL = 0xF50E0E14;             // OLED Obsidian panel body
-    public static final int HEADER = 0xFA0A0A0F;            // Deep OLED header
-    public static final int BORDER = 0x55E53935;            // Glowing Crimson border outline
+    public static final int PANEL = 0xD80E0F16;             // Translucent obsidian panel body
+    public static final int HEADER = 0x8C12141E;            // Layered translucent header
+    public static final int BORDER = 0x48E53935;            // Soft crimson hairline border
     public static final int ROW_HOVER = 0x22E53935;
     public static final int TEXT = 0xFFF8FAFC;              // Primary high-contrast white
     public static final int TEXT_MUTED = 0xFF94A3B8;        // Crisp slate secondary text
     public static final int TEXT_DIM = 0xFFFCA5A5;          // Warm Soft Red accent text
     public static final int TRACK = 0x33E53935;
-    public static final int SWITCH_OFF = 0xFF22222D;        // Neutral OLED off-track
-    public static final int SWITCH_OFF_HOVER = 0xFF30303E;
+    public static final int SWITCH_OFF = 0xCC242634;        // Translucent neutral off-track
+    public static final int SWITCH_OFF_HOVER = 0xE0323548;
 
-    public static final int WINDOW_BG = 0xF50B0B10;         // Deep OLED Obsidian window
-    public static final int HEADER_BG = 0xFF0E0E15;         // Elevated dark top bar
-    public static final int SIDEBAR_BG = 0xFF09090D;        // Recessed navigation rail
-    public static final int CONTAINER_BG = 0xF0101017;      // Inspector / preview container
-    public static final int CARD_INACTIVE = 0xFF14141C;     // Clean elevated dark card
-    public static final int CARD_INACTIVE_HOVER = 0xFF1B1B26;
-    public static final int CARD_ACTIVE = 0xFF1D1116;       // Deep crimson-tinted active card
-    public static final int CARD_ACTIVE_HOVER = 0xFF27151C;
-    public static final int BORDER_SUBTLE = 0xFF242431;     // Crisp OLED hairline border
-    public static final int DIVIDER = 0xFF1E1E29;           // Subtle structural divider
+    public static final int WINDOW_BG = 0xD40C0D14;         // Layered translucent glass shell
+    public static final int HEADER_BG = 0x72141622;         // Elevated translucent top bar
+    public static final int SIDEBAR_BG = 0x6E08090F;        // Recessed translucent nav rail
+    public static final int CONTAINER_BG = 0xC411131D;      // Translucent container surface
+    public static final int CARD_INACTIVE = 0xB4171924;     // Translucent elevated dark card
+    public static final int CARD_INACTIVE_HOVER = 0xD4212434;
+    public static final int CARD_ACTIVE = 0xC226131A;       // Translucent crimson-tinted active card
+    public static final int CARD_ACTIVE_HOVER = 0xDC321821;
+    public static final int BORDER_SUBTLE = 0x24FFFFFF;     // 1px low-opacity glass hairline
+    public static final int BORDER_ACTIVE_SOFT = 0x4CE53935;// Soft low-opacity active crimson hairline
+    public static final int BORDER_EXPANDED_SOFT = 0x73FF5252;
+    public static final int DIVIDER = 0x1EFFFFFF;           // Subtle translucent structural divider
+
+    public static Component sans(String text) {
+        return Component.literal(text == null ? "" : text).withStyle(style -> style.withFont(SANS_FONT));
+    }
 
     private static float alpha = 1.0f;
 
