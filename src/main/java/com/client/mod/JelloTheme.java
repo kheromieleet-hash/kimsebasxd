@@ -13,31 +13,31 @@ import java.util.Map;
  * Pure OLED Obsidian Black & Vivid Crimson Red Theme constants and rounded drawing utilities.
  */
 public final class JelloTheme {
-    public static final int ACCENT = 0xFFFF1E2D;        // Vivid Crimson Red
-    public static final int ACCENT_HOVER = 0xFFFF424E;  // Bright Vivid Scarlet
-    public static final int PANEL = 0xF208080B;             // Deep OLED black panel body
-    public static final int HEADER = 0xFA09090C;            // Pure black header
-    public static final int BORDER = 0xCCFF1E2D;            // Vivid crimson hairline border
-    public static final int ROW_HOVER = 0x2EFF1E2D;
+    public static final int ACCENT = 0xFFFF1A2B;        // Saturated Vivid Crimson Red
+    public static final int ACCENT_HOVER = 0xFFFF4757;  // Bright Vivid Scarlet
+    public static final int PANEL = 0xF508080C;             // Deep OLED black panel body
+    public static final int HEADER = 0xFC0A0A0E;            // Pure black header
+    public static final int BORDER = 0xE6FF1A2B;            // Crisp vivid crimson hairline border
+    public static final int ROW_HOVER = 0x38FF1A2B;
     public static final int TEXT = 0xFFFFFFFF;              // Crisp pure white
-    public static final int TEXT_MUTED = 0xFF94A3B8;        // Secondary neutral slate
-    public static final int TEXT_DIM = 0xFFFF9EA6;          // Bright coral-red accent text
-    public static final int TRACK = 0x44FF1E2D;
-    public static final int SWITCH_OFF = 0xFF16161D;        // Dark OLED pill off-track
-    public static final int SWITCH_OFF_HOVER = 0xFF22222C;
+    public static final int TEXT_MUTED = 0xFFC8D2E0;        // Bright readable silver-slate
+    public static final int TEXT_DIM = 0xFFFF5A67;          // Vibrant coral-crimson accent text
+    public static final int TRACK = 0x55FF1A2B;
+    public static final int SWITCH_OFF = 0xFF1F2029;        // Crisp dark pill off-track
+    public static final int SWITCH_OFF_HOVER = 0xFF2D2E3B;
 
-    public static final int WINDOW_BG = 0xF4060608;         // Pure OLED Black shell (non-bluish)
-    public static final int HEADER_BG = 0xFA09090C;         // Elevated OLED Black top bar
-    public static final int SIDEBAR_BG = 0xF6050507;        // Pure OLED Black nav rail
-    public static final int CONTAINER_BG = 0xF00B0B0F;      // Dark container surface
-    public static final int CARD_INACTIVE = 0xF00E0E12;     // Solid-feel dark OLED card
-    public static final int CARD_INACTIVE_HOVER = 0xF515151C;
-    public static final int CARD_ACTIVE = 0xF222070B;       // Deep vivid crimson-black active card
-    public static final int CARD_ACTIVE_HOVER = 0xF82E090E;
-    public static final int BORDER_SUBTLE = 0x20FFFFFF;     // Subtle neutral hairline
-    public static final int BORDER_ACTIVE_SOFT = 0xD8FF2838;// Vivid active crimson card border
-    public static final int BORDER_EXPANDED_SOFT = 0xFFFF424E;
-    public static final int DIVIDER = 0x1AFFFFFF;           // Crisp structural divider
+    public static final int WINDOW_BG = 0xF6060609;         // Pure OLED Black shell
+    public static final int HEADER_BG = 0xFC0A0A0E;         // Elevated OLED Black top bar
+    public static final int SIDEBAR_BG = 0xF8060608;        // Pure OLED Black nav rail
+    public static final int CONTAINER_BG = 0xF20C0C11;      // Dark container surface
+    public static final int CARD_INACTIVE = 0xF2111117;     // Crisp dark OLED card
+    public static final int CARD_INACTIVE_HOVER = 0xF81A1A23;
+    public static final int CARD_ACTIVE = 0xF6340910;       // Rich vibrant crimson-black active card
+    public static final int CARD_ACTIVE_HOVER = 0xFA450D17;
+    public static final int BORDER_SUBTLE = 0x44FFFFFF;     // Crisp visible neutral hairline
+    public static final int BORDER_ACTIVE_SOFT = 0xFFFF2E3E;// Full vivid active crimson card border
+    public static final int BORDER_EXPANDED_SOFT = 0xFFFF5260;
+    public static final int DIVIDER = 0x2EFFFFFF;           // Crisp structural divider
 
     private static float alpha = 1.0f;
 

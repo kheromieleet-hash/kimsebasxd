@@ -250,7 +250,7 @@ public class ModernClickGuiScreen extends Screen {
 
         // Soft dark elevation shadow + Pure OLED Obsidian Black shell (no corner glow, flat pure black)
         JelloTheme.drawGlowShadow(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, 0x66000000, 4);
-        JelloTheme.fillRoundedCard(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, JelloTheme.WINDOW_BG, 0x26FFFFFF);
+        JelloTheme.fillRoundedCard(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, JelloTheme.WINDOW_BG, 0x48FFFFFF);
 
         renderHeader(graphics, mouseX, mouseY);
         renderSidebar(graphics, mouseX, mouseY, dt);
@@ -320,8 +320,8 @@ public class ModernClickGuiScreen extends Screen {
         int verX = headX + 34 + titleW + 8;
         int verY = headY + 15;
         int verW = this.font.width(verComp) + 12;
-        JelloTheme.fillRoundedCard(graphics, verX, verY, verX + verW, verY + 14, 4, 0x36FF1E2D, 0xAAFF1E2D);
-        graphics.text(this.font, verComp, verX + 6, verY + 3, JelloTheme.TEXT_DIM, true);
+        JelloTheme.fillRoundedCard(graphics, verX, verY, verX + verW, verY + 14, 4, 0x55FF1A2B, 0xFFFF2E3E);
+        graphics.text(this.font, verComp, verX + 6, verY + 3, 0xFFFFFFFF, true);
 
         // Active module count pill
         int activeCount = countActiveModules();
@@ -330,9 +330,9 @@ public class ModernClickGuiScreen extends Screen {
         int activeX = verX + verW + 8;
         int activeW = this.font.width(activeComp) + 18;
         if (activeX + activeW < headX + headW - SEARCH_BOX_WIDTH - 56) {
-            JelloTheme.fillRoundedCard(graphics, activeX, verY, activeX + activeW, verY + 14, 4, 0x2410B981, 0x4410B981);
-            JelloTheme.fillCircle(graphics, activeX + 6, verY + 7, 2, 0xFF34D399);
-            graphics.text(this.font, activeComp, activeX + 12, verY + 3, 0xFF6EE7B7, false);
+            JelloTheme.fillRoundedCard(graphics, activeX, verY, activeX + activeW, verY + 14, 4, 0x3A10B981, 0xCC10B981);
+            JelloTheme.fillCircle(graphics, activeX + 6, verY + 7, 2, 0xFF4ADE80);
+            graphics.text(this.font, activeComp, activeX + 12, verY + 3, 0xFF86EFAC, false);
         }
 
         // Clean OLED black Search container
