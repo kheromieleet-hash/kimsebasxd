@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 /**
@@ -259,6 +260,20 @@ final class ModernModuleGridLayout {
             String selectedCategoryId,
             String searchQuery
     ) {
+        return filterAndSortModules(
+                all, nameExtractor, catIdExtractor, catNameExtractor, selectedCategoryId, searchQuery, null);
+    }
+
+    /** Filters by search/category (including optional sub-setting matcher) and returns modules sorted A-Z by name. */
+    static <T> List<T> filterAndSortModules(
+            List<T> all,
+            Function<T, String> nameExtractor,
+            Function<T, String> catIdExtractor,
+            Function<T, String> catNameExtractor,
+            String selectedCategoryId,
+            String searchQuery,
+            BiPredicate<T, String> extraMatcher
+    ) {
         if (all == null || all.isEmpty()) {
             return List.of();
         }
@@ -269,7 +284,8 @@ final class ModernModuleGridLayout {
                 String name = nameExtractor.apply(m);
                 String catName = catNameExtractor.apply(m);
                 if ((name != null && name.toLowerCase(Locale.ROOT).contains(q))
-                        || (catName != null && catName.toLowerCase(Locale.ROOT).contains(q))) {
+                        || (catName != null && catName.toLowerCase(Locale.ROOT).contains(q))
+                        || (extraMatcher != null && extraMatcher.test(m, q))) {
                     result.add(m);
                 }
             }

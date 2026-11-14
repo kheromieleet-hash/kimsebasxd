@@ -513,6 +513,41 @@ public final class ModernModuleSettings {
         );
     }
 
+    static boolean matchesSubSetting(String modName, String lowerQuery, ModConfig cfg, Actions actions) {
+        if (modName == null || lowerQuery == null || lowerQuery.isEmpty()) {
+            return false;
+        }
+        List<Control> controls = getControls(modName, cfg, actions);
+        for (Control c : controls) {
+            if (c instanceof ToggleControl t && t.label() != null
+                    && t.label().toLowerCase(Locale.ROOT).contains(lowerQuery)) {
+                return true;
+            }
+            if (c instanceof SliderControl s && s.label() != null
+                    && s.label().toLowerCase(Locale.ROOT).contains(lowerQuery)) {
+                return true;
+            }
+            if (c instanceof CycleControl cy && cy.label() != null
+                    && cy.label().toLowerCase(Locale.ROOT).contains(lowerQuery)) {
+                return true;
+            }
+            if (c instanceof ActionControl a && a.labelSupplier() != null) {
+                String lbl = a.labelSupplier().get();
+                if (lbl != null && lbl.toLowerCase(Locale.ROOT).contains(lowerQuery)) {
+                    return true;
+                }
+            }
+            if (c instanceof ChipsControl ch && ch.options() != null) {
+                for (ChipOption opt : ch.options()) {
+                    if (opt.label() != null && opt.label().toLowerCase(Locale.ROOT).contains(lowerQuery)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     static boolean isInsideSliderValueBox(int mouseX, int mouseY, int cx, int cy, int cw, int valW) {
         int hitW = Math.max(valW + 8, 28);
         int hitX = cx + cw - hitW;

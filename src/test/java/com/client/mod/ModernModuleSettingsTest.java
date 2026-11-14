@@ -403,5 +403,8 @@ public class ModernModuleSettingsTest {
         assert ModernModuleSettings.mapKeyCodeToSliderChar(49, false, true) == 0;
         assert ModernModuleSettings.isInsideSliderValueBox(145, 22, 10, 20, 150, 24);
         assert !ModernModuleSettings.isInsideSliderValueBox(50, 35, 10, 20, 150, 24);
+        assert ModernModuleSettings.matchesSubSetting("Inventory Tweaks", "shulker preview", cfg, actions);
+        assert ModernModuleSettings.matchesSubSetting("Viewmodel", "airwalker", cfg, actions);
+        assert !ModernModuleSettings.matchesSubSetting("Viewmodel", "shulker preview", cfg, actions);
     }
 }

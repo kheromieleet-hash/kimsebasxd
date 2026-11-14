@@ -153,8 +153,15 @@ public class ModernClickGuiScreen extends Screen {
             this.draggingSliderKey = null;
             this.activeSlider = null;
             cancelEditingSlider();
-            if (this.expandedModule != null) {
-                if (findModuleIndex(getVisibleModules(), this.expandedModule) < 0) {
+            List<ClickGuiScreen.ModuleEntry> visible = getVisibleModules();
+            String subMatch = findSubSettingAutoExpandTarget(visible, this.searchQuery);
+            if (subMatch != null) {
+                this.expandedModule = subMatch;
+                this.renderedExpandedModule = subMatch;
+                this.expandAnim = 1.0f;
+                this.ensureExpandedVisible = true;
+            } else if (this.expandedModule != null) {
+                if (findModuleIndex(visible, this.expandedModule) < 0) {
                     clearExpandedImmediate();
                 } else {
                     this.ensureExpandedVisible = true;
@@ -2059,14 +2066,30 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     private List<ClickGuiScreen.ModuleEntry> getVisibleModules() {
+        ModConfig cfg = ModConfig.getInstance();
         return ModernModuleGridLayout.filterAndSortModules(
                 ClickGuiScreen.getAllModules(),
                 m -> m.name,
                 m -> m.category.id,
                 m -> m.category.name,
                 this.selectedCategoryId,
-                this.searchQuery
+                this.searchQuery,
+                (m, q) -> ModernModuleSettings.matchesSubSetting(m.name, q, cfg, this.settingsActions)
         );
+    }
+
+    private String findSubSettingAutoExpandTarget(List<ClickGuiScreen.ModuleEntry> visible, String query) {
+        if (query == null || query.isEmpty() || visible == null || visible.isEmpty()) {
+            return null;
+        }
+        String q = query.toLowerCase(java.util.Locale.ROOT);
+        ModConfig cfg = ModConfig.getInstance();
+        for (ClickGuiScreen.ModuleEntry m : visible) {
+            if (m != null && ModernModuleSettings.matchesSubSetting(m.name, q, cfg, this.settingsActions)) {
+                return m.name;
+            }
+        }
+        return null;
     }
 
     private static int countActiveModules() {
