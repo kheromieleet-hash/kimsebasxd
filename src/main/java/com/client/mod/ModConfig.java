@@ -153,7 +153,6 @@ public class ModConfig {
 
     // ClickGUI Style: 0 = Classic Multi-Window, 1 = Modern Single-Panel
     public int clickGuiStyle = 1;
-    public boolean toggleNotifications = true;
 
     public boolean fastBreak = false;
     public int fastBreakMode = 1; // 0 = Vanilla (0 Delay), 1 = Vulcan (Anti-Cheat Bypass)
@@ -337,12 +336,6 @@ public class ModConfig {
         }
     }
 
-    /** Formats the in-game hotbar overlay notification shown when toggling a module via keybind. */
-    public static String formatToggleNotification(String modName, boolean enabled) {
-        String status = enabled ? "§aEnabled" : "§cDisabled";
-        return "§c[Sestia] §f" + modName + " §7» " + status;
-    }
-
     public ModConfig copy() {
         ModConfig c = new ModConfig();
         c.copyFrom(this);
@@ -419,7 +412,6 @@ public class ModConfig {
         this.trueSight = other.trueSight;
         this.itemEsp = other.itemEsp;
         this.clickGuiStyle = other.clickGuiStyle;
-        this.toggleNotifications = other.toggleNotifications;
         this.fastBreak = other.fastBreak;
         this.fastBreakMode = other.fastBreakMode;
         this.fastBreakSpeed = other.fastBreakSpeed;
@@ -504,6 +496,45 @@ public class ModConfig {
         }
     }
 
+    public void sanitize() {
+        if (this.itemScale < 0.05f || this.itemScale > 5.0f) this.itemScale = 1.0f;
+        if (this.playerScale < 0.05f || this.playerScale > 5.0f) this.playerScale = 1.0f;
+        if (this.invHudScale < 0.50f || this.invHudScale > 2.50f) this.invHudScale = 1.0f;
+        if (this.fullbrightBrightness < 0.20f || this.fullbrightBrightness > 1.0f) this.fullbrightBrightness = 0.70f;
+        if (this.fullbrightMode < 0 || this.fullbrightMode > 2) this.fullbrightMode = 0;
+        if (this.swingDuration < 1 || this.swingDuration > 40) this.swingDuration = 6;
+        if (this.zoomFactor < 1.5f || this.zoomFactor > 20.0f) this.zoomFactor = 4.0f;
+        if (this.lowFireOffset < 0.05f || this.lowFireOffset > 0.8f) this.lowFireOffset = 0.35f;
+        if (this.autoCrafterDelay < 0 || this.autoCrafterDelay > 10) this.autoCrafterDelay = 0;
+        if (this.autoCrafterTargets == null || this.autoCrafterTargets.isEmpty()) {
+            this.autoCrafterTargets = new HashSet<>(Arrays.asList(
+                    "iron_block", "gold_block", "diamond_block", "emerald_block",
+                    "lapis_block", "redstone_block", "coal_block", "copper_block"
+            ));
+        }
+        if (this.fastBreakSpeed < 0.5f || this.fastBreakSpeed > 5.0f) this.fastBreakSpeed = 1.15f;
+        if (this.fastBreakMode < 0 || this.fastBreakMode > 1) this.fastBreakMode = 1;
+        if (this.pingSpoofDelay < 50 || this.pingSpoofDelay > 1000) this.pingSpoofDelay = 150;
+        if (this.noSlowdownMode < 0 || this.noSlowdownMode > 2) this.noSlowdownMode = 0;
+        if (this.exploitGuardMaxParticles < 100 || this.exploitGuardMaxParticles > 2000) this.exploitGuardMaxParticles = 500;
+        if (this.backtrackDelay < 40 || this.backtrackDelay > 300) this.backtrackDelay = 120;
+        if (this.disablerMode < 0 || this.disablerMode > 1) this.disablerMode = 0;
+        if (this.packetMineDelay < 0 || this.packetMineDelay > 5) this.packetMineDelay = 1;
+        if (this.lightOverlayRange < 8 || this.lightOverlayRange > 24) this.lightOverlayRange = 16;
+        if (this.clickGuiStyle < 0 || this.clickGuiStyle > 1) this.clickGuiStyle = 1;
+        if (this.targetVersionName == null) this.targetVersionName = "Auto";
+        this.clientChatUrl = SestiaChatProtocol.normalizeWebSocketUrl(this.clientChatUrl);
+        if (this.clientChatMuted == null) this.clientChatMuted = "";
+        if (this.macros == null) this.macros = new ArrayList<>();
+        if (this.categoryX == null) this.categoryX = new HashMap<>();
+        if (this.categoryY == null) this.categoryY = new HashMap<>();
+        if (this.categoryExpanded == null) this.categoryExpanded = new HashMap<>();
+        if (this.moduleKeybinds == null) this.moduleKeybinds = new HashMap<>();
+        if (this.moduleKeybindIsMouse == null) this.moduleKeybindIsMouse = new HashMap<>();
+        if (this.keybindsHudX < 0 || this.keybindsHudX > 3000) this.keybindsHudX = 8;
+        if (this.keybindsHudY < 0 || this.keybindsHudY > 3000) this.keybindsHudY = 60;
+    }
+
     private static File getConfigFile() {
         return new File(FabricLoader.getInstance().getConfigDir().toFile(), "customclient.json");
     }
@@ -515,39 +546,7 @@ public class ModConfig {
                 ModConfig loaded = GSON.fromJson(reader, ModConfig.class);
                 if (loaded != null) {
                     this.copyFrom(loaded);
-                    if (this.itemScale < 0.05f || this.itemScale > 5.0f) this.itemScale = 1.0f;
-                    if (this.playerScale < 0.05f || this.playerScale > 5.0f) this.playerScale = 1.0f;
-                    if (this.invHudScale < 0.50f || this.invHudScale > 2.50f) this.invHudScale = 1.0f;
-                    if (this.fullbrightBrightness < 0.20f || this.fullbrightBrightness > 1.0f) this.fullbrightBrightness = 0.70f;
-                    if (this.fullbrightMode < 0 || this.fullbrightMode > 2) this.fullbrightMode = 0;
-                    if (this.swingDuration < 1 || this.swingDuration > 40) this.swingDuration = 6;
-                    if (this.zoomFactor < 1.5f || this.zoomFactor > 20.0f) this.zoomFactor = 4.0f;
-                    if (this.lowFireOffset < 0.05f || this.lowFireOffset > 0.8f) this.lowFireOffset = 0.35f;
-                    if (this.autoCrafterDelay < 0 || this.autoCrafterDelay > 10) this.autoCrafterDelay = 0;
-                    if (this.autoCrafterTargets == null || this.autoCrafterTargets.isEmpty()) {
-                        this.autoCrafterTargets = new HashSet<>(Arrays.asList(
-                                "iron_block", "gold_block", "diamond_block", "emerald_block",
-                                "lapis_block", "redstone_block", "coal_block", "copper_block"
-                        ));
-                    }
-                    if (this.fastBreakSpeed < 0.5f || this.fastBreakSpeed > 5.0f) this.fastBreakSpeed = 1.15f;
-                    if (this.fastBreakMode < 0 || this.fastBreakMode > 1) this.fastBreakMode = 1;
-                    if (this.pingSpoofDelay < 50 || this.pingSpoofDelay > 1000) this.pingSpoofDelay = 150;
-                    if (this.noSlowdownMode < 0 || this.noSlowdownMode > 2) this.noSlowdownMode = 0;
-                    if (this.exploitGuardMaxParticles < 100 || this.exploitGuardMaxParticles > 2000) this.exploitGuardMaxParticles = 500;
-                    if (this.backtrackDelay < 40 || this.backtrackDelay > 300) this.backtrackDelay = 120;
-                    if (this.disablerMode < 0 || this.disablerMode > 1) this.disablerMode = 0;
-                    if (this.packetMineDelay < 0 || this.packetMineDelay > 5) this.packetMineDelay = 1;
-                    if (this.lightOverlayRange < 8 || this.lightOverlayRange > 24) this.lightOverlayRange = 16;
-                    if (this.clickGuiStyle < 0 || this.clickGuiStyle > 1) this.clickGuiStyle = 1;
-                    if (this.targetVersionName == null) this.targetVersionName = "Auto";
-                    this.clientChatUrl = SestiaChatProtocol.normalizeWebSocketUrl(this.clientChatUrl);
-                    if (this.clientChatMuted == null) this.clientChatMuted = "";
-                    if (this.categoryX == null) this.categoryX = new HashMap<>();
-                    if (this.categoryY == null) this.categoryY = new HashMap<>();
-                    if (this.categoryExpanded == null) this.categoryExpanded = new HashMap<>();
-                    if (this.moduleKeybinds == null) this.moduleKeybinds = new HashMap<>();
-                    if (this.moduleKeybindIsMouse == null) this.moduleKeybindIsMouse = new HashMap<>();
+                    this.sanitize();
                     if (this.moduleKeybinds.isEmpty()) {
                         this.moduleKeybinds.put("Zoom", 67); // C
                         this.moduleKeybindIsMouse.put("Zoom", false);
@@ -555,8 +554,6 @@ public class ModConfig {
                         this.moduleKeybindIsMouse.put("Fullbright", false);
                         this.keybindsHudEnabled = true;
                     }
-                    if (this.keybindsHudX < 0 || this.keybindsHudX > 3000) this.keybindsHudX = 8;
-                    if (this.keybindsHudY < 0 || this.keybindsHudY > 3000) this.keybindsHudY = 60;
                     if (this.configVersion < 2) {
                         this.configVersion = 2;
                         this.clientChatEnabled = true;

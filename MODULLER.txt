@@ -1,6 +1,6 @@
 ================================================================================
 SESTIA CLIENT - TUM MODULLER VE OZELLIKLER REHBERI
-Surum: v1.0.35 (VersionCode: 35) | Minecraft: 26.3 Fabric
+Surum: v1.0.36 (VersionCode: 36) | Minecraft: 26.3 Fabric
 Toplam Kayitli Modul: 37 (+ 4 Yerlesik Sistem Ozelligi)
 ================================================================================
 
@@ -258,6 +258,8 @@ Toplam Kayitli Modul: 37 (+ 4 Yerlesik Sistem Ozelligi)
 - Low Fire: Ekrandaki yanma/ates efektini asagi indirerek gorusu acar.
 - Version Switcher (Multiplayer ekraninda): Baglanilan sunucuya farkli
   Minecraft protokol surumu gondererek surum degistirmeyi saglar.
-- Sohbet Makrolari & Toggle Bildirimi: Tek tusla sohbet komutu/mesaji
-  gonderme ve modulleri tusla acip kapatinca hotbar uzeri "[Sestia]" bildirimi.
+- Sohbet Makrolari: Tek tusla sohbet komutu veya mesaj gonderme (Macros sekmesi).
+- Ayar Profilleri (Settings sekmesi): Acik modulleri, slider/mod ayarlarini,
+  tus atamalarini, makrolari ve HUD ayarlarini JSON dosyasi olarak kaydetme,
+  yukleme, paylasim kodu (SESTIA1:...) / JSON olarak disa ve ice aktarma.
 ================================================================================

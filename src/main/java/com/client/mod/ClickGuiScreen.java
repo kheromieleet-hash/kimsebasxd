@@ -2022,14 +2022,8 @@ public class ClickGuiScreen {
 
         try {
             Minecraft mc = Minecraft.getInstance();
-            if (mc != null) {
-                if (mc.getSoundManager() != null) {
-                    mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, next ? 1.0f : 0.8f));
-                }
-                if (ModConfig.getInstance().toggleNotifications && mc.gui != null && mc.gui.hud != null) {
-                    Component msg = Component.literal(ModConfig.formatToggleNotification(mod.name, next));
-                    mc.gui.hud.setOverlayMessage(msg, false);
-                }
+            if (mc != null && mc.getSoundManager() != null) {
+                mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, next ? 1.0f : 0.8f));
             }
         } catch (Throwable ignored) {
         }
