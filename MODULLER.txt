@@ -1,7 +1,7 @@
 ================================================================================
 SESTIA CLIENT - TUM MODULLER VE OZELLIKLER REHBERI
-Surum: v1.0.36 (VersionCode: 36) | Minecraft: 26.3 Fabric
-Toplam Kayitli Modul: 37 (+ 4 Yerlesik Sistem Ozelligi)
+Surum: v1.0.37 (VersionCode: 37) | Minecraft: 26.3 Fabric
+Toplam Kayitli Modul: 38 (+ 4 Yerlesik Sistem Ozelligi)
 ================================================================================
 
 --------------------------------------------------------------------------------
@@ -96,7 +96,7 @@ Toplam Kayitli Modul: 37 (+ 4 Yerlesik Sistem Ozelligi)
 
 
 --------------------------------------------------------------------------------
-[2] RENDER KATEGORISI (11 Modul)
+[2] RENDER KATEGORISI (12 Modul)
 --------------------------------------------------------------------------------
 
 15. Chunk Borders
@@ -155,6 +155,15 @@ Toplam Kayitli Modul: 37 (+ 4 Yerlesik Sistem Ozelligi)
 25. TrueSight
     Ne ise yarar: Gorunmez iksirli oyunculari, moblari ve varliklari gorunur yapar.
     Ayarlar: Ek ayar yok (Ac/Kapa).
+
+26. Viewmodel (NoFrills Portu)
+    Ne ise yarar: Eldeki esya ve bos elin konum, boyut, donus ve swing
+    animasyonlarini ayri eksenlerde (X/Y/Z) ozellestirir; acikken el/esya
+    donusumlerinde Dulkir yerine gecer.
+    Ayarlar: No Haste, No Equip, No Bow Swing, No Swing Reset, Apply To Hand,
+    Swing Speed (Off / 1-100t), Offset X/Y/Z (-2.00..2.00),
+    Scale X/Y/Z (0.00..5.00), Rotation X/Y/Z (-180..180°),
+    Swing X/Y/Z (0.00..2.00), Reset Defaults.
 
 
 --------------------------------------------------------------------------------
