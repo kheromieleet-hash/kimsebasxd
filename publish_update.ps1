@@ -127,6 +127,13 @@ if (Test-Path $customFontSrc) {
     Copy-Item "$customFontSrc\*" $fontStage -Recurse -Force
 }
 
+$sestiaAssetsSrc = Join-Path $repoRoot "src\main\resources\assets\sestia"
+if (Test-Path $sestiaAssetsSrc) {
+    $sestiaStage = Join-Path $coreStage "assets\sestia"
+    if (-not (Test-Path $sestiaStage)) { New-Item -ItemType Directory -Path $sestiaStage -Force | Out-Null }
+    Copy-Item "$sestiaAssetsSrc\*" $sestiaStage -Recurse -Force
+}
+
 # Copy fresh compiled com/client/mod & dlovin classes + mixin configs + pack.mcmeta
 $modClassesDest = Join-Path $coreStage "com\client\mod"
 New-Item -ItemType Directory -Path $modClassesDest -Force | Out-Null
