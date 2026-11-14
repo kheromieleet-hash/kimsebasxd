@@ -1172,7 +1172,7 @@ public class ModernClickGuiScreen extends Screen {
         int cardH = 40;
         int cardGap = 6;
 
-        int totalContentH = 14 + 34 + (cardH + cardGap) * 5 + 10 + 30 + (cardH + cardGap) * 3 + 10 + 30 + (cardH + cardGap) + 12;
+        int totalContentH = 14 + 34 + (cardH + cardGap) * 5 + 10 + 30 + (cardH + cardGap) * 3 + 10 + 30 + (cardH + cardGap) * 3 + 12;
         this.contentTotalHeight = Math.max(contentH, totalContentH);
         this.scrollAmount = Mth.clamp(this.scrollAmount, 0.0, Math.max(0, this.contentTotalHeight - contentH));
         int scroll = (int) Math.round(this.scrollAmount);
@@ -1241,6 +1241,16 @@ public class ModernClickGuiScreen extends Screen {
                 "Shulker Preview",
                 "Show shulker box contents tooltip when hovering in inventory",
                 config.invShulkerPreview, true, false, "");
+
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, generalY + (cardH + cardGap), innerW, cardH,
+                "Zoom",
+                "Hold Zoom key (default C) + scroll wheel to adjust magnification",
+                config.zoomEnabled, true, false, "");
+
+        drawStepperCard(graphics, mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 2, innerW, cardH,
+                "Zoom Factor",
+                "Camera zoom magnification level (1.5x - 20.0x)",
+                String.format(java.util.Locale.ROOT, "%.1fx", config.zoomFactor));
     }
 
     private void drawStepperCard(
@@ -1385,8 +1395,23 @@ public class ModernClickGuiScreen extends Screen {
         }
 
         int generalY = notifierY + (cardH + cardGap) * 3 + 10 + 30;
-        return handleHudCardClick(mouseX, mouseY, innerX, generalY, innerW, cardH, true, false, "",
-                () -> { config.invShulkerPreview = !config.invShulkerPreview; config.save(); }, null);
+        if (handleHudCardClick(mouseX, mouseY, innerX, generalY, innerW, cardH, true, false, "",
+                () -> { config.invShulkerPreview = !config.invShulkerPreview; config.save(); }, null)) {
+            return true;
+        }
+        if (handleHudCardClick(mouseX, mouseY, innerX, generalY + (cardH + cardGap), innerW, cardH, true, false, "",
+                () -> { config.zoomEnabled = !config.zoomEnabled; config.save(); }, null)) {
+            return true;
+        }
+        return handleStepperCardClick(mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 2, innerW, cardH,
+                () -> {
+                    config.zoomFactor = Math.max(1.5f, Math.round((config.zoomFactor - 0.5f) * 2.0f) / 2.0f);
+                    config.save();
+                },
+                () -> {
+                    config.zoomFactor = Math.min(20.0f, Math.round((config.zoomFactor + 0.5f) * 2.0f) / 2.0f);
+                    config.save();
+                });
     }
 
     private boolean handleHudCardClick(
