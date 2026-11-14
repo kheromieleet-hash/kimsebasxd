@@ -1095,9 +1095,6 @@ public class ClickGuiScreen {
                 rowY += 22;
                 drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
                         "Disable In Creative: " + (config.invDisableInCreative ? "ON" : "OFF"), config.invDisableInCreative);
-                rowY += 22;
-                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
-                        "Shulker Preview: " + (config.invShulkerPreview ? "ON" : "OFF"), config.invShulkerPreview);
             }
             case "Fast Place" -> {
                 drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
@@ -1310,7 +1307,7 @@ public class ClickGuiScreen {
     private static int getSubSettingsRowCount(String modName) {
         int specific = switch (modName) {
             case "Inventory HUD+" -> 8;
-            case "Inventory Tweaks" -> 7;
+            case "Inventory Tweaks" -> 6;
             case "Auto Replenish" -> 6;
             case "Fullbright", "Packet Mine" -> 4;
             case "Fast Use" -> 1;
@@ -2104,11 +2101,6 @@ public class ClickGuiScreen {
                     }
                     case 5 -> {
                         config.invDisableInCreative = !config.invDisableInCreative;
-                        config.save();
-                        playClickSound();
-                    }
-                    case 6 -> {
-                        config.invShulkerPreview = !config.invShulkerPreview;
                         config.save();
                         playClickSound();
                     }

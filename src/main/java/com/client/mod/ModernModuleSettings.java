@@ -356,8 +356,7 @@ public final class ModernModuleSettings {
                         () -> cfg.invSortingDelay, v -> cfg.invSortingDelay = v),
                 toggle("Protect Hotbar", () -> cfg.invProtectHotbar, v -> cfg.invProtectHotbar = v, actions, false),
                 toggle("Xcarry (2x2)", () -> cfg.invXcarry, v -> cfg.invXcarry = v, actions, false),
-                toggle("Skip In Creative", () -> cfg.invDisableInCreative, v -> cfg.invDisableInCreative = v, actions, false),
-                toggle("Shulker Preview", () -> cfg.invShulkerPreview, v -> cfg.invShulkerPreview = v, actions, false)
+                toggle("Skip In Creative", () -> cfg.invDisableInCreative, v -> cfg.invDisableInCreative = v, actions, false)
         );
     }
 

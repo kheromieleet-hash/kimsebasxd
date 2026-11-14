@@ -265,7 +265,7 @@ public class InventoryTweaksHandler {
 
     public static boolean renderShulkerTooltip(GuiGraphicsExtractor graphics, Slot hoveredSlot, ItemStack carried, int mouseX, int mouseY) {
         ModConfig config = ModConfig.getInstance();
-        if (!config.invTweaksEnabled || !config.invShulkerPreview) {
+        if (!config.invShulkerPreview) {
             return false;
         }
         if (hoveredSlot == null || !hoveredSlot.hasItem()) {
