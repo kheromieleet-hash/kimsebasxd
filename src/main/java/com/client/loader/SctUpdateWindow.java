@@ -305,22 +305,10 @@ public final class SctUpdateWindow implements SctUpdateListener {
                 g.setColor(INNER_BORDER);
                 g.draw(new RoundRectangle2D.Double(1.5, 1.5, w - 3.0, h - 3.0, 7, 7));
 
-                // Simple Minecraft grass-block style icon (green top + dark dirt/stone base)
-                int iconX = 18;
-                int iconY = 18;
-                int iconS = 22;
-                g.setColor(new Color(0x5E, 0x3D, 0x28));
-                g.fillRoundRect(iconX, iconY, iconS, iconS, 3, 3);
-                g.setColor(MC_GREEN_TOP);
-                g.fillRoundRect(iconX, iconY, iconS, 8, 3, 3);
-                g.fillRect(iconX, iconY + 4, iconS, 4);
-                g.setColor(new Color(0x2B, 0x2B, 0x2B));
-                g.drawRoundRect(iconX, iconY, iconS, iconS, 3, 3);
-
-                // Title + Version
+                // Title + Version (no logo, clean left alignment with progress track)
                 g.setFont(titleFont);
                 g.setColor(TEXT_PRIMARY);
-                g.drawString(fitText(statusTitle, w - 120, g.getFontMetrics()), 50, 31);
+                g.drawString(fitText(statusTitle, w - 88, g.getFontMetrics()), 18, 31);
 
                 g.setFont(monoFont);
                 g.setColor(TEXT_MUTED);
