@@ -1180,17 +1180,47 @@ public class ModernClickGuiScreen extends Screen {
         int cardH = 40;
         int cardGap = 6;
 
-        int totalContentH = 14 + 34 + (cardH + cardGap) * 5 + 10 + 30 + (cardH + cardGap) * 3 + 10 + 30 + (cardH + cardGap) * 5 + 12;
+        int totalContentH = 14 + 34 + (cardH + cardGap) * 5 + 10 + 30 + (cardH + cardGap) * 5 + 10 + 30 + (cardH + cardGap) * 3 + 12;
         this.contentTotalHeight = Math.max(contentH, totalContentH);
         this.scrollAmount = Mth.clamp(this.scrollAmount, 0.0, Math.max(0, this.contentTotalHeight - contentH));
         int scroll = (int) Math.round(this.scrollAmount);
 
         int innerY = contentY + 14 - scroll;
 
-        graphics.text(this.font, Component.literal("§lSETTINGS — BETTER CHAT"), innerX, innerY, JelloTheme.TEXT, false);
-        graphics.text(this.font, Component.literal("Toggle individual Better Chat features on or off"), innerX, innerY + 13, JelloTheme.TEXT_MUTED, false);
+        graphics.text(this.font, Component.literal("§lSETTINGS — GENERAL"), innerX, innerY, JelloTheme.TEXT, false);
+        graphics.text(this.font, Component.literal("Inventory & quality-of-life toggles"), innerX, innerY + 13, JelloTheme.TEXT_MUTED, false);
 
-        int listY = innerY + 34;
+        int generalY = innerY + 34;
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, generalY, innerW, cardH,
+                "Shulker Preview",
+                "Show shulker box contents tooltip when hovering in inventory",
+                config.invShulkerPreview, true, false, "");
+
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, generalY + (cardH + cardGap), innerW, cardH,
+                "Zoom",
+                "Hold Zoom key (default C) + scroll wheel to adjust magnification",
+                config.zoomEnabled, true, false, "");
+
+        drawStepperCard(graphics, mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 2, innerW, cardH,
+                "Zoom Factor",
+                "Camera zoom magnification level (1.5x - 20.0x)",
+                String.format(java.util.Locale.ROOT, "%.1fx", config.zoomFactor));
+
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 3, innerW, cardH,
+                "Custom Crosshair",
+                "Use Sestia custom crosshair texture (reloads resource packs)",
+                config.customCrosshair, true, false, "");
+
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 4, innerW, cardH,
+                "Custom Font",
+                "Use Sestia custom Minecraft UI font (reloads resource packs)",
+                config.customFont, true, false, "");
+
+        int chatHeaderY = generalY + (cardH + cardGap) * 5 + 10;
+        graphics.text(this.font, Component.literal("§lBETTER CHAT"), innerX, chatHeaderY, JelloTheme.TEXT, false);
+        graphics.text(this.font, Component.literal("Toggle individual Better Chat features on or off"), innerX, chatHeaderY + 13, JelloTheme.TEXT_MUTED, false);
+
+        int listY = chatHeaderY + 30;
 
         drawHudResetCard(graphics, mouseX, mouseY, innerX, listY, innerW, cardH,
                 "Infinite History",
@@ -1239,36 +1269,6 @@ public class ModernClickGuiScreen extends Screen {
                 "Max Items",
                 "Maximum number of simultaneous item alerts shown",
                 Integer.toString(config.itemNotifierMaxItems));
-
-        int generalHeaderY = notifierY + (cardH + cardGap) * 3 + 10;
-        graphics.text(this.font, Component.literal("§lGENERAL"), innerX, generalHeaderY, JelloTheme.TEXT, false);
-        graphics.text(this.font, Component.literal("Inventory & quality-of-life toggles"), innerX, generalHeaderY + 13, JelloTheme.TEXT_MUTED, false);
-
-        int generalY = generalHeaderY + 30;
-        drawHudResetCard(graphics, mouseX, mouseY, innerX, generalY, innerW, cardH,
-                "Shulker Preview",
-                "Show shulker box contents tooltip when hovering in inventory",
-                config.invShulkerPreview, true, false, "");
-
-        drawHudResetCard(graphics, mouseX, mouseY, innerX, generalY + (cardH + cardGap), innerW, cardH,
-                "Zoom",
-                "Hold Zoom key (default C) + scroll wheel to adjust magnification",
-                config.zoomEnabled, true, false, "");
-
-        drawStepperCard(graphics, mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 2, innerW, cardH,
-                "Zoom Factor",
-                "Camera zoom magnification level (1.5x - 20.0x)",
-                String.format(java.util.Locale.ROOT, "%.1fx", config.zoomFactor));
-
-        drawHudResetCard(graphics, mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 3, innerW, cardH,
-                "Custom Crosshair",
-                "Use Sestia custom crosshair texture (reloads resource packs)",
-                config.customCrosshair, true, false, "");
-
-        drawHudResetCard(graphics, mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 4, innerW, cardH,
-                "Custom Font",
-                "Use Sestia custom Minecraft UI font (reloads resource packs)",
-                config.customFont, true, false, "");
     }
 
     private void drawStepperCard(
@@ -1346,10 +1346,47 @@ public class ModernClickGuiScreen extends Screen {
         int innerW = contentW - pad * 2;
         int scroll = (int) Math.round(this.scrollAmount);
         int innerY = contentY + 14 - scroll;
-        int listY = innerY + 34;
+        int generalY = innerY + 34;
         int cardH = 40;
         int cardGap = 6;
 
+        if (handleHudCardClick(mouseX, mouseY, innerX, generalY, innerW, cardH, true, false, "",
+                () -> { config.invShulkerPreview = !config.invShulkerPreview; config.save(); }, null)) {
+            return true;
+        }
+        if (handleHudCardClick(mouseX, mouseY, innerX, generalY + (cardH + cardGap), innerW, cardH, true, false, "",
+                () -> { config.zoomEnabled = !config.zoomEnabled; config.save(); }, null)) {
+            return true;
+        }
+        if (handleStepperCardClick(mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 2, innerW, cardH,
+                () -> {
+                    config.zoomFactor = Math.max(1.5f, Math.round((config.zoomFactor - 0.5f) * 2.0f) / 2.0f);
+                    config.save();
+                },
+                () -> {
+                    config.zoomFactor = Math.min(20.0f, Math.round((config.zoomFactor + 0.5f) * 2.0f) / 2.0f);
+                    config.save();
+                })) {
+            return true;
+        }
+        if (handleHudCardClick(mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 3, innerW, cardH, true, false, "",
+                () -> {
+                    config.customCrosshair = !config.customCrosshair;
+                    config.save();
+                    Minecraft.getInstance().reloadResourcePacks();
+                }, null)) {
+            return true;
+        }
+        if (handleHudCardClick(mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 4, innerW, cardH, true, false, "",
+                () -> {
+                    config.customFont = !config.customFont;
+                    config.save();
+                    Minecraft.getInstance().reloadResourcePacks();
+                }, null)) {
+            return true;
+        }
+
+        int listY = generalY + (cardH + cardGap) * 5 + 10 + 30;
         if (handleHudCardClick(mouseX, mouseY, innerX, listY, innerW, cardH, true, false, "",
                 () -> { config.chatInfinite = !config.chatInfinite; config.save(); }, null)) {
             return true;
@@ -1400,7 +1437,7 @@ public class ModernClickGuiScreen extends Screen {
             return true;
         }
 
-        if (handleStepperCardClick(mouseX, mouseY, innerX, notifierY + (cardH + cardGap) * 2, innerW, cardH,
+        return handleStepperCardClick(mouseX, mouseY, innerX, notifierY + (cardH + cardGap) * 2, innerW, cardH,
                 () -> {
                     config.itemNotifierMaxItems = Math.max(1, config.itemNotifierMaxItems - 1);
                     config.save();
@@ -1408,44 +1445,7 @@ public class ModernClickGuiScreen extends Screen {
                 () -> {
                     config.itemNotifierMaxItems = Math.min(10, config.itemNotifierMaxItems + 1);
                     config.save();
-                })) {
-            return true;
-        }
-
-        int generalY = notifierY + (cardH + cardGap) * 3 + 10 + 30;
-        if (handleHudCardClick(mouseX, mouseY, innerX, generalY, innerW, cardH, true, false, "",
-                () -> { config.invShulkerPreview = !config.invShulkerPreview; config.save(); }, null)) {
-            return true;
-        }
-        if (handleHudCardClick(mouseX, mouseY, innerX, generalY + (cardH + cardGap), innerW, cardH, true, false, "",
-                () -> { config.zoomEnabled = !config.zoomEnabled; config.save(); }, null)) {
-            return true;
-        }
-        if (handleStepperCardClick(mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 2, innerW, cardH,
-                () -> {
-                    config.zoomFactor = Math.max(1.5f, Math.round((config.zoomFactor - 0.5f) * 2.0f) / 2.0f);
-                    config.save();
-                },
-                () -> {
-                    config.zoomFactor = Math.min(20.0f, Math.round((config.zoomFactor + 0.5f) * 2.0f) / 2.0f);
-                    config.save();
-                })) {
-            return true;
-        }
-        if (handleHudCardClick(mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 3, innerW, cardH, true, false, "",
-                () -> {
-                    config.customCrosshair = !config.customCrosshair;
-                    config.save();
-                    Minecraft.getInstance().reloadResourcePacks();
-                }, null)) {
-            return true;
-        }
-        return handleHudCardClick(mouseX, mouseY, innerX, generalY + (cardH + cardGap) * 4, innerW, cardH, true, false, "",
-                () -> {
-                    config.customFont = !config.customFont;
-                    config.save();
-                    Minecraft.getInstance().reloadResourcePacks();
-                }, null);
+                });
     }
 
     private boolean handleHudCardClick(
