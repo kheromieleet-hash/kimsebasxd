@@ -50,7 +50,6 @@ public class ClientMod implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             ZoomHandler.update();
             AutoReplenishHandler.tick(client);
-            UpdateNoticeManager.onClientTick(client);
             boolean inWorld = client.player != null;
             if (inWorld && !wasInWorld) {
                 wasInWorld = true;
