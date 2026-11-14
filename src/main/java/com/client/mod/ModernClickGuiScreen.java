@@ -69,6 +69,7 @@ public class ModernClickGuiScreen extends Screen {
     private String renderedExpandedModule = null;
     private float expandAnim = 0.0f;
     private boolean ensureExpandedVisible = false;
+    private boolean expandedBySearch = false;
 
     // Slider drag state
     private String draggingSliderKey = null;
@@ -160,6 +161,9 @@ public class ModernClickGuiScreen extends Screen {
                 this.renderedExpandedModule = subMatch;
                 this.expandAnim = 1.0f;
                 this.ensureExpandedVisible = true;
+                this.expandedBySearch = true;
+            } else if (this.searchQuery.isEmpty() && this.expandedBySearch) {
+                closeExpandedModule();
             } else if (this.expandedModule != null) {
                 if (findModuleIndex(visible, this.expandedModule) < 0) {
                     clearExpandedImmediate();
@@ -2012,6 +2016,7 @@ public class ModernClickGuiScreen extends Screen {
             }
             this.expandedModule = modName;
             this.renderedExpandedModule = modName;
+            this.expandedBySearch = false;
             this.draggingSliderKey = null;
             this.activeSlider = null;
             cancelEditingSlider();
@@ -2022,6 +2027,7 @@ public class ModernClickGuiScreen extends Screen {
 
     private void closeExpandedModule() {
         this.expandedModule = null;
+        this.expandedBySearch = false;
         this.ensureExpandedVisible = false;
         this.draggingSliderKey = null;
         this.activeSlider = null;
@@ -2031,6 +2037,7 @@ public class ModernClickGuiScreen extends Screen {
     private void clearExpandedImmediate() {
         this.expandedModule = null;
         this.renderedExpandedModule = null;
+        this.expandedBySearch = false;
         this.expandAnim = 0.0f;
         this.ensureExpandedVisible = false;
         this.draggingSliderKey = null;
