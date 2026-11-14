@@ -74,8 +74,8 @@ public class KeybindsHudRenderer {
         if (mc.player == null || mc.level == null) {
             return;
         }
-        // Don't double render if ClickGuiScreen is already rendering it with drag handles
-        if (mc.gui != null && ClickGuiScreen.isTargetScreen(mc.gui.screen())) {
+        // Don't double render if ClickGuiScreen or HudLayoutEditorScreen is open
+        if (mc.gui != null && (ClickGuiScreen.isTargetScreen(mc.gui.screen()) || mc.gui.screen() instanceof HudLayoutEditorScreen)) {
             return;
         }
 

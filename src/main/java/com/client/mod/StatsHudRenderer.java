@@ -76,6 +76,9 @@ public class StatsHudRenderer {
         if (mc.player == null || mc.level == null) {
             return;
         }
+        if (mc.gui != null && mc.gui.screen() instanceof HudLayoutEditorScreen) {
+            return;
+        }
 
         int screenW = graphics.guiWidth();
         int screenH = graphics.guiHeight();

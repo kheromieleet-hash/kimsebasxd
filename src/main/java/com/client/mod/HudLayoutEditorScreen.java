@@ -29,6 +29,7 @@ public class HudLayoutEditorScreen extends Screen {
     private HudTarget dragging = HudTarget.NONE;
     private int dragOffsetX = 0;
     private int dragOffsetY = 0;
+    private boolean wasLeftMouseDown = true;
 
     public HudLayoutEditorScreen(Screen parent) {
         super(Component.literal("HUD Layout Editor"));
@@ -48,26 +49,36 @@ public class HudLayoutEditorScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        ModConfig config = ModConfig.getInstance();
+        Minecraft mc = Minecraft.getInstance();
+        long winHandle = (mc != null && mc.getWindow() != null) ? mc.getWindow().handle() : 0L;
+        boolean leftDown = winHandle != 0L
+                && GLFW.glfwGetMouseButton(winHandle, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
+
+        if (leftDown && !this.wasLeftMouseDown && this.dragging == HudTarget.NONE) {
+            this.wasLeftMouseDown = true;
+            if (handlePressAt(mouseX, mouseY)) {
+                return;
+            }
+        } else if (!leftDown && this.dragging != HudTarget.NONE) {
+            this.dragging = HudTarget.NONE;
+            config.save();
+        }
+        this.wasLeftMouseDown = leftDown;
+
+        if (this.dragging != HudTarget.NONE) {
+            updateDraggedPosition(config, mouseX, mouseY);
+        }
+
         // Dimmed backdrop
-        graphics.fill(0, 0, this.width, this.height, 0x8807090E);
+        graphics.fill(0, 0, this.width, this.height, 0x7807090E);
 
         // 3x3 dashed alignment grid (1/3 & 2/3 guides)
         drawDashedGrid(graphics);
 
-        ModConfig config = ModConfig.getInstance();
-
         int[] kbBounds = getKeybindsBounds(config);
         int[] statsBounds = StatsHudRenderer.resolveStatsBounds(this.font, this.width, this.height, config);
         int[] posBounds = StatsHudRenderer.resolvePositionBounds(this.font, this.width, this.height, config);
-
-        // Render live Keybinds HUD preview underneath its drag handle
-        KeybindsHudRenderer.renderBox(
-                graphics, this.font,
-                kbBounds[0], kbBounds[1],
-                mouseX, mouseY,
-                this.dragging == HudTarget.KEYBINDS || isInside(mouseX, mouseY, kbBounds),
-                true
-        );
 
         drawDraggableBox(
                 graphics, mouseX, mouseY,
@@ -75,7 +86,7 @@ public class HudLayoutEditorScreen extends Screen {
                 "Keybinds",
                 config.keybindsHudEnabled,
                 this.dragging == HudTarget.KEYBINDS,
-                0x36FF1E2D, 0xCCFF4B5C
+                0x55FF1E2D, 0xFFFF4B5C
         );
 
         drawDraggableBox(
@@ -131,81 +142,94 @@ public class HudLayoutEditorScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean wasHandled) {
-        if (event.button() == 0) {
-            int mouseX = (int) event.x();
-            int mouseY = (int) event.y();
-            ModConfig config = ModConfig.getInstance();
-
-            if (isInside(mouseX, mouseY, getResetButtonBounds())) {
-                resetAllHudPositions(config);
+        if (MouseButtonMapping.isLeftClick(event.button()) || event.button() == 0) {
+            this.wasLeftMouseDown = true;
+            if (handlePressAt((int) event.x(), (int) event.y())) {
                 return true;
             }
-            if (isInside(mouseX, mouseY, getDoneButtonBounds())) {
-                onClose();
-                return true;
-            }
-
-            int[] kb = getKeybindsBounds(config);
-            if (isInside(mouseX, mouseY, kb)) {
-                this.dragging = HudTarget.KEYBINDS;
-                this.dragOffsetX = mouseX - kb[0];
-                this.dragOffsetY = mouseY - kb[1];
-                return true;
-            }
-
-            int[] stats = StatsHudRenderer.resolveStatsBounds(this.font, this.width, this.height, config);
-            if (isInside(mouseX, mouseY, stats)) {
-                this.dragging = HudTarget.STATS;
-                this.dragOffsetX = mouseX - stats[0];
-                this.dragOffsetY = mouseY - stats[1];
-                return true;
-            }
-
-            int[] pos = StatsHudRenderer.resolvePositionBounds(this.font, this.width, this.height, config);
-            if (isInside(mouseX, mouseY, pos)) {
-                this.dragging = HudTarget.POSITION;
-                this.dragOffsetX = mouseX - pos[0];
-                this.dragOffsetY = mouseY - pos[1];
+            if (this.dragging != HudTarget.NONE) {
                 return true;
             }
         }
         return super.mouseClicked(event, wasHandled);
     }
 
+    /**
+     * Handles a left-click press at {@code (mouseX, mouseY)}.
+     * Returns {@code true} if the screen closed immediately (e.g. Done button).
+     */
+    private boolean handlePressAt(int mouseX, int mouseY) {
+        ModConfig config = ModConfig.getInstance();
+
+        if (isInside(mouseX, mouseY, getResetButtonBounds())) {
+            resetAllHudPositions(config);
+            return false;
+        }
+        if (isInside(mouseX, mouseY, getDoneButtonBounds())) {
+            onClose();
+            return true;
+        }
+
+        int[] kb = getKeybindsBounds(config);
+        if (isInside(mouseX, mouseY, kb)) {
+            this.dragging = HudTarget.KEYBINDS;
+            this.dragOffsetX = mouseX - kb[0];
+            this.dragOffsetY = mouseY - kb[1];
+            return false;
+        }
+
+        int[] stats = StatsHudRenderer.resolveStatsBounds(this.font, this.width, this.height, config);
+        if (isInside(mouseX, mouseY, stats)) {
+            this.dragging = HudTarget.STATS;
+            this.dragOffsetX = mouseX - stats[0];
+            this.dragOffsetY = mouseY - stats[1];
+            return false;
+        }
+
+        int[] pos = StatsHudRenderer.resolvePositionBounds(this.font, this.width, this.height, config);
+        if (isInside(mouseX, mouseY, pos)) {
+            this.dragging = HudTarget.POSITION;
+            this.dragOffsetX = mouseX - pos[0];
+            this.dragOffsetY = mouseY - pos[1];
+            return false;
+        }
+        return false;
+    }
+
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
-        if (event.button() == 0 && this.dragging != HudTarget.NONE) {
-            int mouseX = (int) event.x();
-            int mouseY = (int) event.y();
-            ModConfig config = ModConfig.getInstance();
-
-            switch (this.dragging) {
-                case KEYBINDS -> {
-                    int[] b = getKeybindsBounds(config);
-                    config.keybindsHudX = Mth.clamp(mouseX - this.dragOffsetX, 2, Math.max(2, this.width - b[2] - 2));
-                    config.keybindsHudY = Mth.clamp(mouseY - this.dragOffsetY, 2, Math.max(2, this.height - b[3] - 2));
-                }
-                case STATS -> {
-                    int[] b = StatsHudRenderer.resolveStatsBounds(this.font, this.width, this.height, config);
-                    config.statsHudX = Mth.clamp(mouseX - this.dragOffsetX, 2, Math.max(2, this.width - b[2] - 2));
-                    config.statsHudY = Mth.clamp(mouseY - this.dragOffsetY, 2, Math.max(2, this.height - b[3] - 2));
-                }
-                case POSITION -> {
-                    int[] b = StatsHudRenderer.resolvePositionBounds(this.font, this.width, this.height, config);
-                    config.posHudX = Mth.clamp(mouseX - this.dragOffsetX, 2, Math.max(2, this.width - b[2] - 2));
-                    config.posHudY = Mth.clamp(mouseY - this.dragOffsetY, 2, Math.max(2, this.height - b[3] - 2));
-                }
-                case NONE -> {
-                }
-            }
+        if ((MouseButtonMapping.isLeftClick(event.button()) || event.button() == 0) && this.dragging != HudTarget.NONE) {
+            updateDraggedPosition(ModConfig.getInstance(), (int) event.x(), (int) event.y());
             return true;
         }
         return super.mouseDragged(event, dragX, dragY);
     }
 
+    private void updateDraggedPosition(ModConfig config, int mouseX, int mouseY) {
+        switch (this.dragging) {
+            case KEYBINDS -> {
+                int[] b = getKeybindsBounds(config);
+                config.keybindsHudX = Mth.clamp(mouseX - this.dragOffsetX, 2, Math.max(2, this.width - b[2] - 2));
+                config.keybindsHudY = Mth.clamp(mouseY - this.dragOffsetY, 2, Math.max(2, this.height - b[3] - 2));
+            }
+            case STATS -> {
+                int[] b = StatsHudRenderer.resolveStatsBounds(this.font, this.width, this.height, config);
+                config.statsHudX = Mth.clamp(mouseX - this.dragOffsetX, 2, Math.max(2, this.width - b[2] - 2));
+                config.statsHudY = Mth.clamp(mouseY - this.dragOffsetY, 2, Math.max(2, this.height - b[3] - 2));
+            }
+            case POSITION -> {
+                int[] b = StatsHudRenderer.resolvePositionBounds(this.font, this.width, this.height, config);
+                config.posHudX = Mth.clamp(mouseX - this.dragOffsetX, 2, Math.max(2, this.width - b[2] - 2));
+                config.posHudY = Mth.clamp(mouseY - this.dragOffsetY, 2, Math.max(2, this.height - b[3] - 2));
+            }
+            case NONE -> {
+            }
+        }
+    }
+
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
-        if (event.button() == 0 && this.dragging != HudTarget.NONE) {
+        if ((MouseButtonMapping.isLeftClick(event.button()) || event.button() == 0) && this.dragging != HudTarget.NONE) {
             this.dragging = HudTarget.NONE;
             ModConfig.getInstance().save();
             return true;
