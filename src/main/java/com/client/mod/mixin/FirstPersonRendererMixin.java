@@ -1,5 +1,6 @@
 package com.client.mod.mixin;
 
+import com.client.mod.FreecamHandler;
 import com.client.mod.ModConfig;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
@@ -19,6 +20,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(FirstPersonHandsAndItemsRenderer.class)
 public class FirstPersonRendererMixin {
+    @Inject(method = "submitHandsWithItems", at = @At("HEAD"), cancellable = true)
+    private void onSubmitHandsWithItems(float f, PoseStack poseStack, SubmitNodeCollector collector, PlayerRenderState playerState, FirstPersonHandsAndItemsRenderState handState, CallbackInfo ci) {
+        if (FreecamHandler.isActive()) {
+            ci.cancel();
+        }
+    }
+
     @Inject(
             method = "submitArmWithItem(Lnet/minecraft/client/renderer/state/level/PlayerRenderState;Lnet/minecraft/client/renderer/state/level/FirstPersonHandsAndItemsRenderState;FFLnet/minecraft/world/InteractionHand;FLnet/minecraft/world/item/ItemStack;FLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;I)V",
             at = @At(

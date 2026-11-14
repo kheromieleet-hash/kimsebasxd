@@ -243,6 +243,13 @@ public final class ModernModuleSettings {
                     toggle("Show Passive", () -> cfg.trajectoriesShowPassive, v -> cfg.trajectoriesShowPassive = v, actions, false),
                     toggle("Box Outline", () -> cfg.trajectoriesBoxOutline, v -> cfg.trajectoriesBoxOutline = v, actions, false)
             );
+            case "Freecam" -> List.of(
+                    floatSlider("freecamSpeed", "Speed", 0.2f, 5.0f, 20.0f, "%.2fx",
+                            () -> cfg.freecamSpeed, v -> cfg.freecamSpeed = v),
+                    toggle("Scroll Speed", () -> cfg.freecamScrollSpeed, v -> cfg.freecamScrollSpeed = v, actions, false),
+                    toggle("Toggle on Damage", () -> cfg.freecamToggleOnDamage, v -> cfg.freecamToggleOnDamage = v, actions, false),
+                    toggle("Allow Interact", () -> cfg.freecamAllowInteract, v -> cfg.freecamAllowInteract = v, actions, false)
+            );
             default -> List.of();
         };
     }

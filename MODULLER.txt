@@ -109,6 +109,12 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     Ayarlar: Mode (Natural / Gamma / Ultra), Brightness (20% - 100%),
     3D Shading, No Dark Corners.
 
+16b. Freecam
+    Ne ise yarar: Karakteri yerinde sabit birakarak kamerayi serbestce ucurur
+    (Meteor Client akici sanal kamera + LiquidBounce guvenli durum/etkilesim).
+    Ayarlar: Speed (0.2x - 5.0x), Scroll Speed (fare tekerlegi ile hiz),
+    Toggle on Damage (hasar alinca kapat), Allow Interact (etkilesime izin ver).
+
 17. HUD Info
     Ne ise yarar: Ekranda canli FPS, TPS, Ping, Hiz, Yon ve Overworld/Nether
     koordinat bilgilerini gosterir.

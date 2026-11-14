@@ -211,6 +211,13 @@ public class ModConfig {
     public boolean trajectoriesShowPassive = true;
     public boolean trajectoriesBoxOutline = true;
 
+    // Freecam (Meteor + LiquidBounce hybrid)
+    public boolean freecamEnabled = false;
+    public float freecamSpeed = 1.0f;
+    public boolean freecamScrollSpeed = true;
+    public boolean freecamToggleOnDamage = true;
+    public boolean freecamAllowInteract = false;
+
     // Protocol & Version Switcher (LiquidBounce style)
     public int targetProtocol = -1; // -1 = Auto / Default (26.3 Native, Protocol 777)
     public String targetVersionName = "Auto";
@@ -512,6 +519,11 @@ public class ModConfig {
         this.autoCrafterEnabled = other.autoCrafterEnabled;
         this.autoCrafterDelay = other.autoCrafterDelay;
         this.autoCrafterCloseWhenDone = other.autoCrafterCloseWhenDone;
+        this.freecamEnabled = other.freecamEnabled;
+        this.freecamSpeed = other.freecamSpeed;
+        this.freecamScrollSpeed = other.freecamScrollSpeed;
+        this.freecamToggleOnDamage = other.freecamToggleOnDamage;
+        this.freecamAllowInteract = other.freecamAllowInteract;
         this.autoCrafterTargets = new HashSet<>();
         if (other.autoCrafterTargets != null) {
             this.autoCrafterTargets.addAll(other.autoCrafterTargets);
@@ -555,6 +567,7 @@ public class ModConfig {
         this.playerScale = clampFloat(this.playerScale, 0.10f, 2.00f, 1.0f);
         if (this.invHudScale < 0.50f || this.invHudScale > 2.50f) this.invHudScale = 1.0f;
         if (this.zoomFactor < 1.5f || this.zoomFactor > 20.0f) this.zoomFactor = 4.0f;
+        this.freecamSpeed = clampFloat(this.freecamSpeed, 0.2f, 5.0f, 1.0f);
         if (this.autoCrafterDelay < 0 || this.autoCrafterDelay > 10) this.autoCrafterDelay = 0;
         if (this.autoCrafterTargets == null) {
             resetDefaultAutoCraftTargets();

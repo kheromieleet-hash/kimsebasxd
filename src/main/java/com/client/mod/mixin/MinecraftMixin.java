@@ -66,8 +66,19 @@ public abstract class MinecraftMixin {
     @Unique
     private boolean wasAutoBreaking = false;
 
+    @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
+    private void onStartAttackFreecam(CallbackInfoReturnable<Boolean> cir) {
+        if (com.client.mod.FreecamHandler.isActive() && !ModConfig.getInstance().freecamAllowInteract) {
+            cir.setReturnValue(false);
+        }
+    }
+
     @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
     private void onStartUseItemGhostHand(CallbackInfo ci) {
+        if (com.client.mod.FreecamHandler.isActive() && !ModConfig.getInstance().freecamAllowInteract) {
+            ci.cancel();
+            return;
+        }
         if (!com.client.mod.ModConfig.getInstance().ghostHand) {
             return;
         }

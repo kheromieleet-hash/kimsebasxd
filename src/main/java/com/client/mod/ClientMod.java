@@ -30,6 +30,7 @@ public class ClientMod implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             ZoomHandler.update();
+            FreecamHandler.tick(client);
             AutoReplenishHandler.tick(client);
             ItemNotifierHudRenderer.tick(client);
             boolean inWorld = client.player != null;

@@ -161,6 +161,21 @@ public class ClickGuiScreen {
                 }
         ));
 
+        // 3b. Freecam (Render)
+        MODULES.add(new ModuleEntry(
+                "Freecam", Category.RENDER,
+                () -> config.freecamEnabled,
+                val -> {
+                    config.freecamEnabled = val;
+                    if (!val) {
+                        FreecamHandler.disable(Minecraft.getInstance());
+                    } else {
+                        FreecamHandler.enable(Minecraft.getInstance());
+                    }
+                    config.save();
+                }
+        ));
+
         // 4. HUD Info (FPS/Pos) (Render)
         MODULES.add(new ModuleEntry(
                 "HUD Info", Category.RENDER,

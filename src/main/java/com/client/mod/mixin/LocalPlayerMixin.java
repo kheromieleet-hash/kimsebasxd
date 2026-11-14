@@ -1,22 +1,42 @@
 package com.client.mod.mixin;
 
 import com.client.mod.ExploitPacketRules;
+import com.client.mod.FreecamHandler;
 import com.client.mod.ModConfig;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(LocalPlayer.class)
 public abstract class LocalPlayerMixin {
+
+    @Redirect(
+            method = "aiStep",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/player/ClientInput;tick()V"
+            )
+    )
+    private void onClientInputTick(ClientInput input) {
+        Minecraft mc = Minecraft.getInstance();
+        if ((Object) this == mc.player && FreecamHandler.isActive()) {
+            input.keyPresses = Input.EMPTY;
+            return;
+        }
+        input.tick();
+    }
 
     @Inject(method = "itemUseSpeedMultiplier", at = @At("HEAD"), cancellable = true)
     private void onItemUseSpeedMultiplier(CallbackInfoReturnable<Float> cir) {
