@@ -1005,7 +1005,7 @@ public class ModernClickGuiScreen extends Screen {
 
         graphics.text(this.font, Component.literal("IMPORT CODE"), layout.boxX(), y + 101, JelloTheme.TEXT_MUTED, false);
         renderProfileInputFrame(graphics, this.profileCodeBox, layout.boxX(), layout.importCodeBoxY(), layout.boxW());
-        renderProfileButton(graphics, mouseX, mouseY, layout.boxX(), layout.importBtnY(), layout.boxW(), layout.btnH(), "Import Share Code", false);
+        renderProfileButton(graphics, mouseX, mouseY, layout.boxX(), layout.importBtnY(), layout.boxW(), layout.btnH(), "Import", false);
 
         int footerY = layout.importBtnY() + layout.btnH() + 8;
         if (this.profileStatusText != null && System.currentTimeMillis() < this.profileStatusUntilMs) {
