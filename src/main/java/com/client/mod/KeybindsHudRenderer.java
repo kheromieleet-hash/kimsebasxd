@@ -91,9 +91,8 @@ public class KeybindsHudRenderer {
         ModConfig config = ModConfig.getInstance();
         List<BoundDisplayItem> items = getBoundItems();
         int width = calculateWidth(font, items);
-        boolean collapsed = config.keybindsHudCollapsed;
         int rows = items.isEmpty() ? 1 : items.size();
-        int bodyH = collapsed ? HEADER_HEIGHT : (HEADER_HEIGHT + rows * ROW_HEIGHT + 4);
+        int bodyH = HEADER_HEIGHT + rows * ROW_HEIGHT + 4;
 
         int screenW = graphics.guiWidth();
         int screenH = graphics.guiHeight();
@@ -111,24 +110,12 @@ public class KeybindsHudRenderer {
         JelloTheme.fill(graphics, x + 1, y + HEADER_HEIGHT - 1, x + halfW, y + HEADER_HEIGHT, JelloTheme.ACCENT);
         JelloTheme.fill(graphics, x + halfW, y + HEADER_HEIGHT - 1, x + width - 1, y + HEADER_HEIGHT, JelloTheme.ACCENT_HOVER);
 
-        // 3. Header title with crisp vector keyboard icon (no tofu glyph)
-        ModernIcons.drawKeyboardIcon(graphics, x + 5, y + 3, JelloTheme.ACCENT);
-        JelloTheme.text(graphics, font, "§fKeybinds", x + 17, y + 4, 0xFFFFFFFF);
-
-        // 4. Header interactive buttons (Collapse [-]/[+] and Close [x])
-        int closeX = x + width - 14;
-        boolean closeHov = isGuiOpen && mouseX >= closeX && mouseX <= closeX + 11 && mouseY >= y + 1 && mouseY <= y + 14;
-        ModernIcons.drawCloseIcon(graphics, closeX + 5, y + 7, closeHov ? 0xFFFF5252 : 0x88FFFFFF);
-
-        int collX = x + width - 26;
-        boolean collHov = isGuiOpen && mouseX >= collX && mouseX <= collX + 11 && mouseY >= y + 1 && mouseY <= y + 14;
-        String collSymbol = collapsed ? "+" : "-";
-        JelloTheme.text(graphics, font, collSymbol, collX + 3, y + 4, collHov ? 0xFFFFFFFF : 0x88FFFFFF);
-
-        // If collapsed, don't draw rows
-        if (collapsed) {
-            return;
-        }
+        // 3. Centered header title with crisp vector keyboard icon
+        int titleW = font.width("Keybinds");
+        int groupW = 12 + titleW;
+        int groupX = x + (width - groupW) / 2;
+        ModernIcons.drawKeyboardIcon(graphics, groupX, y + 3, JelloTheme.ACCENT);
+        JelloTheme.text(graphics, font, "§fKeybinds", groupX + 12, y + 4, 0xFFFFFFFF);
 
         // 7. Rows
         int curY = y + HEADER_HEIGHT + 3;

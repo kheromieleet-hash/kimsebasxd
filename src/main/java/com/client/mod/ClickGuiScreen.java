@@ -1582,23 +1582,6 @@ public class ClickGuiScreen {
             int khY = config.keybindsHudY;
             int khW = KeybindsHudRenderer.calculateWidth(mc.font, KeybindsHudRenderer.getBoundItems());
             if (mouseX >= khX && mouseX <= khX + khW && mouseY >= khY && mouseY <= khY + KeybindsHudRenderer.HEADER_HEIGHT) {
-                // 1. Check Close [×] button
-                int closeX = khX + khW - 14;
-                if (mouseX >= closeX && mouseX <= khX + khW - 2) {
-                    config.keybindsHudEnabled = false;
-                    config.save();
-                    playClickSound();
-                    return true;
-                }
-                // 2. Check Collapse [−]/[+] button
-                int collX = khX + khW - 26;
-                if (mouseX >= collX && mouseX <= khX + khW - 14) {
-                    config.keybindsHudCollapsed = !config.keybindsHudCollapsed;
-                    config.save();
-                    playClickSound();
-                    return true;
-                }
-                // 3. Otherwise, drag
                 isDraggingKeybindsHud = true;
                 dragKeybindsOffsetX = mouseX - khX;
                 dragKeybindsOffsetY = mouseY - khY;
