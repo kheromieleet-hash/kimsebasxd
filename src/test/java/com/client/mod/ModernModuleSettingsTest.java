@@ -400,6 +400,13 @@ public class ModernModuleSettingsTest {
         assert "-0.59".equals(ModernModuleSettings.sanitizeSliderInputString("abc-0,5.9x", 16))
                 : "Expected sanitized '-0.59', got " + ModernModuleSettings.sanitizeSliderInputString("abc-0,5.9x", 16);
         assert "5".equals(ModernModuleSettings.appendSliderInputChar("1.00", true, '5', 16));
+        assert ModernModuleSettings.mapKeyCodeToSliderChar(48, false, false) == '0';
+        assert ModernModuleSettings.mapKeyCodeToSliderChar(57, false, false) == '9';
+        assert ModernModuleSettings.mapKeyCodeToSliderChar(325, false, false) == '5';
+        assert ModernModuleSettings.mapKeyCodeToSliderChar(330, false, false) == '.';
+        assert ModernModuleSettings.mapKeyCodeToSliderChar(333, false, false) == '-';
+        assert ModernModuleSettings.mapKeyCodeToSliderChar(49, true, false) == 0;
+        assert ModernModuleSettings.mapKeyCodeToSliderChar(49, false, true) == 0;
         assert ModernModuleSettings.isInsideSliderValueBox(145, 22, 10, 20, 150, 24);
         assert !ModernModuleSettings.isInsideSliderValueBox(50, 35, 10, 20, 150, 24);
     }

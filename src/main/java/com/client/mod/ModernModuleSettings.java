@@ -553,6 +553,30 @@ public final class ModernModuleSettings {
         return out;
     }
 
+    /**
+     * Maps layout-invariant GLFW numeric/numpad key codes to slider input characters
+     * as a fallback for systems where {@code charTyped} does not fire reliably.
+     * Returns {@code 0} when the key is not a layout-invariant numeric/decimal/minus key.
+     */
+    static char mapKeyCodeToSliderChar(int keyCode, boolean shiftDown, boolean ctrlOrAltDown) {
+        if (ctrlOrAltDown) {
+            return 0;
+        }
+        if (!shiftDown && keyCode >= 48 && keyCode <= 57) {
+            return (char) ('0' + (keyCode - 48));
+        }
+        if (keyCode >= 320 && keyCode <= 329) {
+            return (char) ('0' + (keyCode - 320));
+        }
+        if (keyCode == 330) { // GLFW_KEY_KP_DECIMAL
+            return '.';
+        }
+        if (keyCode == 333) { // GLFW_KEY_KP_SUBTRACT
+            return '-';
+        }
+        return 0;
+    }
+
     private static String numericFormat(String fmt) {
         if (fmt == null || fmt.isEmpty()) {
             return "%.2f";

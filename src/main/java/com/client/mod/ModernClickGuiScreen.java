@@ -84,6 +84,8 @@ public class ModernClickGuiScreen extends Screen {
     private int editingBoxY = 0;
     private int editingBoxW = 0;
     private int editingBoxH = 0;
+    private char lastSliderKeyChar = 0;
+    private long lastSliderKeyTimeMs = 0L;
 
     private long lastFrameNanos = 0L;
 
@@ -1141,15 +1143,30 @@ public class ModernClickGuiScreen extends Screen {
         if (MouseButtonMapping.isLeftClick(button) && !this.searchQuery.isEmpty() && isInside(mouseX, mouseY, searchBoxX + SEARCH_BOX_WIDTH - 18, searchBoxY, 18, SEARCH_BOX_HEIGHT)) {
             if (this.searchBox != null) {
                 this.searchBox.setValue("");
+                this.searchBox.setFocused(true);
+                this.setFocused(this.searchBox);
             }
             this.searchQuery = "";
             playClickSound();
             return true;
         }
 
+        // Clicking anywhere inside the visual search container (including icon/padding) focuses searchBox
+        if (MouseButtonMapping.isLeftClick(button)
+                && this.searchBox != null
+                && isInside(mouseX, mouseY, searchBoxX, searchBoxY, SEARCH_BOX_WIDTH, SEARCH_BOX_HEIGHT)) {
+            super.mouseClicked(event, wasHandled);
+            this.searchBox.setFocused(true);
+            this.setFocused(this.searchBox);
+            return true;
+        }
+
         // Unfocus secondary boxes when clicking outside them
         if (this.searchBox != null && !isInside(mouseX, mouseY, searchBoxX, searchBoxY, SEARCH_BOX_WIDTH, SEARCH_BOX_HEIGHT)) {
             this.searchBox.setFocused(false);
+            if (this.getFocused() == this.searchBox) {
+                this.setFocused(null);
+            }
         }
         unfocusProfileInputIfOutside(this.profileNameBox, mouseX, mouseY);
         unfocusProfileInputIfOutside(this.profileCodeBox, mouseX, mouseY);
@@ -1842,6 +1859,18 @@ public class ModernClickGuiScreen extends Screen {
                 this.editingSliderSelectAll = false;
                 return true;
             }
+            boolean shiftDown = (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0;
+            boolean altDown = (event.modifiers() & GLFW.GLFW_MOD_ALT) != 0;
+            char mappedChar = ModernModuleSettings.mapKeyCodeToSliderChar(key, shiftDown, ctrlDown || altDown);
+            if (mappedChar != 0) {
+                String updated = ModernModuleSettings.appendSliderInputChar(
+                        this.editingSliderText, this.editingSliderSelectAll, mappedChar, 16);
+                this.editingSliderSelectAll = false;
+                this.editingSliderText = updated;
+                this.lastSliderKeyChar = mappedChar;
+                this.lastSliderKeyTimeMs = System.currentTimeMillis();
+                return true;
+            }
             return true;
         }
 
@@ -1877,6 +1906,11 @@ public class ModernClickGuiScreen extends Screen {
     public boolean charTyped(CharacterEvent event) {
         if (this.editingSlider != null) {
             char ch = (char) event.codepoint();
+            if (ch != 0 && ch == this.lastSliderKeyChar
+                    && (System.currentTimeMillis() - this.lastSliderKeyTimeMs) < 80L) {
+                this.lastSliderKeyChar = 0;
+                return true;
+            }
             String updated = ModernModuleSettings.appendSliderInputChar(
                     this.editingSliderText, this.editingSliderSelectAll, ch, 16);
             boolean validChar = (ch >= '0' && ch <= '9') || ch == '.' || ch == ',' || ch == '-';
