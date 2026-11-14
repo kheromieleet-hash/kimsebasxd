@@ -558,6 +558,12 @@ public class ModConfig {
         if (this.autoCrafterDelay < 0 || this.autoCrafterDelay > 10) this.autoCrafterDelay = 0;
         if (this.autoCrafterTargets == null) {
             resetDefaultAutoCraftTargets();
+        } else {
+            // Strip legacy non-item group IDs so invisible groups cannot trigger unwanted crafts
+            this.autoCrafterTargets.remove("raw_blocks");
+            this.autoCrafterTargets.remove("nuggets");
+            this.autoCrafterTargets.remove("decraft");
+            this.autoCrafterTargets.remove("food_paper");
         }
         if (this.fastBreakSpeed < 0.5f || this.fastBreakSpeed > 5.0f) this.fastBreakSpeed = 1.15f;
         if (this.fastBreakMode < 0 || this.fastBreakMode > 1) this.fastBreakMode = 1;

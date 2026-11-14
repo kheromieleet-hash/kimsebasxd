@@ -64,23 +64,26 @@ public class AutoCrafterHandler {
             return;
         }
 
-        // 1. If result slot has item, shift-click it to inventory
+        // 1. If result slot has a targeted item, shift-click it to inventory
         if (craftingMenu.getSlot(0).hasItem()) {
             ItemStack before = craftingMenu.getSlot(0).getItem().copy();
-            mc.gameMode.handleContainerInput(craftingMenu.containerId, 0, 0, ContainerInput.QUICK_MOVE, player);
+            String slot0Id = BuiltInRegistries.ITEM.getKey(before.getItem()).getPath();
+            if (isExplicitTargetEnabled(slot0Id, config)) {
+                mc.gameMode.handleContainerInput(craftingMenu.containerId, 0, 0, ContainerInput.QUICK_MOVE, player);
 
-            // Check if slot 0 item was not taken (inventory is full)
-            if (craftingMenu.getSlot(0).hasItem() && ItemStack.isSameItemSameComponents(before, craftingMenu.getSlot(0).getItem())) {
-                // 10 ticklik bekleme kaldirildi, envanter doluysa 1 tick sonra tekrar kontrol edilir
-                cooldown = 1;
-                return;
-            }
+                // Check if slot 0 item was not taken (inventory is full)
+                if (craftingMenu.getSlot(0).hasItem() && ItemStack.isSameItemSameComponents(before, craftingMenu.getSlot(0).getItem())) {
+                    // 10 ticklik bekleme kaldirildi, envanter doluysa 1 tick sonra tekrar kontrol edilir
+                    cooldown = 1;
+                    return;
+                }
 
-            craftedSomethingThisOpen = true;
+                craftedSomethingThisOpen = true;
 
-            if (config.autoCrafterDelay > 0) {
-                cooldown = config.autoCrafterDelay;
-                return;
+                if (config.autoCrafterDelay > 0) {
+                    cooldown = config.autoCrafterDelay;
+                    return;
+                }
             }
         }
 
@@ -151,30 +154,17 @@ public class AutoCrafterHandler {
     }
 
     private static boolean matchesTarget(RecipeDisplayEntry entry, String resultId, ModConfig config) {
-        if (config.isAutoCraftTargetEnabled(resultId)) {
-            if (wouldLoopSingleIngredient(entry, config)) {
-                return false;
-            }
-            return true;
+        if (!isExplicitTargetEnabled(resultId, config)) {
+            return false;
         }
-        for (CraftTarget target : TARGETS) {
-            if (!config.isAutoCraftTargetEnabled(target.id())) continue;
+        return !wouldLoopSingleIngredient(entry, config);
+    }
 
-            if (target.id().equals("nuggets")) {
-                if (target.itemIds().contains(resultId) && isFromNugget(entry)) {
-                    return true;
-                }
-            } else if (target.id().equals("decraft")) {
-                if (target.itemIds().contains(resultId) && isFromBlock(entry)) {
-                    return true;
-                }
-            } else {
-                if (target.itemIds().contains(resultId)) {
-                    return true;
-                }
-            }
+    static boolean isExplicitTargetEnabled(String resultId, ModConfig config) {
+        if (resultId == null || resultId.isEmpty() || config == null) {
+            return false;
         }
-        return false;
+        return config.isAutoCraftTargetEnabled(resultId);
     }
 
     private static boolean wouldLoopSingleIngredient(RecipeDisplayEntry entry, ModConfig config) {
@@ -189,17 +179,5 @@ public class AutoCrafterHandler {
                 return config.isAutoCraftTargetEnabled(path);
             });
         }).orElse(false);
-    }
-
-    private static boolean isFromNugget(RecipeDisplayEntry entry) {
-        return entry.craftingRequirements().map(reqs ->
-                reqs.stream().anyMatch(ing -> ing.items().anyMatch(h -> h.getRegisteredName().contains("nugget")))
-        ).orElse(false);
-    }
-
-    private static boolean isFromBlock(RecipeDisplayEntry entry) {
-        return entry.craftingRequirements().map(reqs ->
-                reqs.stream().anyMatch(ing -> ing.items().anyMatch(h -> h.getRegisteredName().contains("_block")))
-        ).orElse(false);
     }
 }
