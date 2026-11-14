@@ -1,10 +1,7 @@
 package com.client.mod;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.KeyMapping;
@@ -13,7 +10,6 @@ public class ClientMod implements ClientModInitializer {
     public static final String MOD_ID = "inventoryhud";
     public static KeyMapping zoomKey;
 
-    private static boolean openMenuNextTick = false;
     private static boolean wasRightShiftDown = false;
     private static boolean wasAutoSprinting = false;
     private static boolean wasInWorld = false;
@@ -31,17 +27,6 @@ public class ClientMod implements ClientModInitializer {
                 KeyMapping.Category.MISC
         ));
         ZoomHandler.setZoomKey(zoomKey);
-
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-            dispatcher.register(LiteralArgumentBuilder.<FabricClientCommandSource>literal("animations").executes(ctx -> {
-                openMenuNextTick = true;
-                return 1;
-            }));
-            dispatcher.register(LiteralArgumentBuilder.<FabricClientCommandSource>literal("client").executes(ctx -> {
-                openMenuNextTick = true;
-                return 1;
-            }));
-        });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             ZoomHandler.update();
@@ -65,11 +50,6 @@ public class ClientMod implements ClientModInitializer {
                 if (client.options != null) {
                     client.options.keySprint.setDown(false);
                 }
-            }
-
-            if (openMenuNextTick) {
-                openMenuNextTick = false;
-                client.gui.setScreen(new ModernClickGuiScreen());
             }
 
             if (client.getWindow() != null) {

@@ -1,6 +1,7 @@
 package com.client.mod;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
 
 import java.net.URI;
@@ -8,7 +9,12 @@ import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.time.Duration;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
@@ -49,6 +55,7 @@ public final class SestiaChatClient {
     private static final Object SEND_LOCK = new Object();
     private static final AtomicInteger GENERATION = new AtomicInteger(0);
     private static final Deque<String> PENDING_OUTBOX = new ArrayDeque<>();
+    private static final Set<String> KNOWN_USERS = Collections.synchronizedSet(new LinkedHashSet<>());
 
     private static CompletableFuture<Void> sendChain = CompletableFuture.completedFuture(null);
 
@@ -119,6 +126,34 @@ public final class SestiaChatClient {
 
     public static void disconnect() {
         disconnect(false);
+    }
+
+    public static List<String> getSuggestedPlayers() {
+        Set<String> names = new LinkedHashSet<>();
+        String self = activeNick != null ? activeNick : "";
+        synchronized (KNOWN_USERS) {
+            for (String user : KNOWN_USERS) {
+                if (user != null && !user.isBlank() && !user.equalsIgnoreCase(self)) {
+                    names.add(user);
+                }
+            }
+        }
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc != null && mc.getConnection() != null) {
+                String mcSelf = (mc.getUser() != null && mc.getUser().getName() != null) ? mc.getUser().getName() : self;
+                for (PlayerInfo info : mc.getConnection().getOnlinePlayers()) {
+                    if (info != null && info.getProfile() != null && info.getProfile().name() != null) {
+                        String n = info.getProfile().name();
+                        if (!n.isBlank() && !n.equalsIgnoreCase(self) && !n.equalsIgnoreCase(mcSelf)) {
+                            names.add(n);
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return new ArrayList<>(names);
     }
 
     public static boolean handleOutgoingChat(String rawMessage) {
@@ -429,15 +464,24 @@ public final class SestiaChatClient {
                 activeNick = ev.from();
                 lastOnlineCount = ev.onlineCount();
                 lastActivityAt = System.currentTimeMillis();
+                if (ev.users() != null && !ev.users().isEmpty()) {
+                    KNOWN_USERS.addAll(ev.users());
+                }
                 postChat("§8[§cSestiaChat§8] §aConnected to global chat! §8(§7Online: §f" + lastOnlineCount + "§8)");
                 flushPendingOutbox();
             }
             case CHAT -> {
+                if (!ev.from().isBlank()) {
+                    KNOWN_USERS.add(ev.from());
+                }
                 if (!SestiaChatProtocol.isMuted(ev.from(), cfg.clientChatMuted)) {
                     postChat("§8[§cSestiaChat§8] §f" + ev.from() + "§7: §r" + ev.text());
                 }
             }
             case DM -> {
+                if (!ev.from().isBlank()) {
+                    KNOWN_USERS.add(ev.from());
+                }
                 if (!cfg.clientChatAllowDms) {
                     return;
                 }
@@ -449,6 +493,10 @@ public final class SestiaChatClient {
             }
             case LIST -> {
                 lastOnlineCount = ev.users().size();
+                synchronized (KNOWN_USERS) {
+                    KNOWN_USERS.clear();
+                    KNOWN_USERS.addAll(ev.users());
+                }
                 String names = ev.users().isEmpty() ? "(none)" : String.join(", ", ev.users());
                 postChat("§8[§cSestiaChat§8] §7Online (§f" + lastOnlineCount + "§7): §f" + names);
             }

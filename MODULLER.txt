@@ -118,7 +118,7 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     Ne ise yarar: Oyun ekraninda canli envanter, zirh dayanakliligi ve iksir
     etki surelerini gosterir.
     Ayarlar: Inventory/Armor/Potions HUD, Mini/Vertical Mode, Inv Scale,
-    Bg Opacity, Open Settings, Move HUD.
+    Bg Opacity, Move HUD.
 
 19. Item ESP
     Ne ise yarar: Yerdeki dusmus esyalara uzaktan gorunen parlama (glow) ekler.
@@ -243,7 +243,7 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     Durable Objects WebSocket uzerinden oda/sifre olmadan sunucular arasi tek
     ortak global sohbet ve ozel mesaj (.c msg) saglar. Sestia Client ile oyuna
     giren herkes otomatik baglanir; mesajlar Minecraft sunucusuna gitmez.
-    Komutlar (.c oneki ile):
+    Komutlar (.c oneki ile, chate "." yazildiginda otomatik oneri + Tab tamamlama):
     - .c <mesaj> : Ortak global sohbete mesaj gonderir
     - .c msg|dm|w <nick> <mesaj> : Ozel mesaj (DM) gonderir
     - .c list : Cevrimici Sestia kullanicilarini listeler

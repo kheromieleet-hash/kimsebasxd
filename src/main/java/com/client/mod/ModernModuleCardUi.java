@@ -3,7 +3,6 @@ package com.client.mod;
 import dlovin.inventoryhud.InventoryHUDCommon;
 import dlovin.inventoryhud.gui.InGameConfigScreen;
 import dlovin.inventoryhud.gui.InventoryGui;
-import dlovin.inventoryhud.gui.config.InventoryConfigScreen;
 import dlovin.inventoryhud.platform.ConfigAccess;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -180,17 +179,6 @@ final class ModernModuleCardUi {
                 ModConfig.getInstance().save();
                 if (reloadChunks) {
                     ModConfig.reloadChunks();
-                }
-            }
-
-            @Override
-            public void openInventorySettings() {
-                try {
-                    Minecraft mc = Minecraft.getInstance();
-                    if (mc != null && mc.gui != null) {
-                        mc.gui.setScreen(new InventoryConfigScreen(true));
-                    }
-                } catch (Throwable ignored) {
                 }
             }
 

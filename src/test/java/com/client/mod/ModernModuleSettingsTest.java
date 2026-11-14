@@ -29,7 +29,6 @@ public class ModernModuleSettingsTest {
     private static final class RecordingActions implements ModernModuleSettings.Actions {
         int persistCalls = 0;
         int chunkReloads = 0;
-        int invSettingsOpened = 0;
         int invMoveOpened = 0;
         final StubInventory inv = new StubInventory();
 
@@ -41,7 +40,6 @@ public class ModernModuleSettingsTest {
             }
         }
 
-        @Override public void openInventorySettings() { invSettingsOpened++; }
         @Override public void openInventoryMove() { invMoveOpened++; }
         @Override public ModernModuleSettings.InventoryBridge inventory() { return inv; }
     }
@@ -175,12 +173,19 @@ public class ModernModuleSettingsTest {
         RecordingActions actions = new RecordingActions();
 
         List<ModernModuleSettings.Control> invControls = ModernModuleSettings.getControls("Inventory HUD+", cfg, actions);
+        assert invControls.size() == 8 : "Inventory HUD+ should have 5 toggles, 2 sliders, and 1 Move HUD action";
+        for (ModernModuleSettings.Control c : invControls) {
+            if (c instanceof ModernModuleSettings.ActionControl ac) {
+                assert !"Open Settings...".equals(ac.labelSupplier().get()) : "Open Settings... must be removed";
+            }
+        }
         ModernModuleSettings.SliderControl alphaSlider = (ModernModuleSettings.SliderControl) invControls.get(6);
         alphaSlider.pctSetter().accept(0.8f);
         assert actions.inv.getBgAlpha() == 80;
-        ((ModernModuleSettings.ActionControl) invControls.get(7)).onClick().run();
-        ((ModernModuleSettings.ActionControl) invControls.get(8)).onClick().run();
-        assert actions.invSettingsOpened == 1 && actions.invMoveOpened == 1;
+        ModernModuleSettings.ActionControl moveAction = (ModernModuleSettings.ActionControl) invControls.get(7);
+        assert "Move HUD...".equals(moveAction.labelSupplier().get());
+        moveAction.onClick().run();
+        assert actions.invMoveOpened == 1;
     }
 
     private static void testNewExploitModulesControls() {

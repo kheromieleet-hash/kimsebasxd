@@ -4,7 +4,6 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dlovin.inventoryhud.InventoryHUDCommon;
 import dlovin.inventoryhud.gui.InGameConfigScreen;
 import dlovin.inventoryhud.gui.InventoryGui;
-import dlovin.inventoryhud.gui.config.InventoryConfigScreen;
 import dlovin.inventoryhud.platform.ConfigAccess;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -1053,8 +1052,6 @@ public class ClickGuiScreen {
                         "Bg Opacity: " + bgAlpha + "%",
                         bgAlpha / 100.0f);
                 rowY += 22;
-                drawActionButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW, "Open Full Settings...");
-                rowY += 22;
                 drawActionButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW, "Move HUD Positions...");
             }
             case "Fullbright" -> {
@@ -1362,7 +1359,7 @@ public class ClickGuiScreen {
 
     private static int getSubSettingsRowCount(String modName) {
         int specific = switch (modName) {
-            case "Inventory HUD+" -> 9;
+            case "Inventory HUD+" -> 8;
             case "Inventory Tweaks" -> 7;
             case "Auto Replenish" -> 6;
             case "Fullbright", "Packet Mine", "Client Chat" -> 4;
@@ -2090,10 +2087,6 @@ public class ClickGuiScreen {
                             case 5 -> startSliderDrag(mouseX, innerX, innerW, "invHudScale");
                             case 6 -> startSliderDrag(mouseX, innerX, innerW, "invBgAlpha");
                             case 7 -> {
-                                playClickSound();
-                                Minecraft.getInstance().gui.setScreen(new InventoryConfigScreen(true));
-                            }
-                            case 8 -> {
                                 playClickSound();
                                 Minecraft.getInstance().gui.setScreen(new InGameConfigScreen(0, true));
                             }
