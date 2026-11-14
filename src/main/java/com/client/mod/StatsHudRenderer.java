@@ -84,7 +84,7 @@ public class StatsHudRenderer {
         int screenH = graphics.guiHeight();
         int lineSpacing = 11;
 
-        List<Component> statsLines = buildStatsLines(mc, config);
+        List<Component> statsLines = config.hudTelemetryEnabled ? buildStatsLines(mc, config) : List.of();
         if (!statsLines.isEmpty()) {
             int statsW = measureMaxWidth(mc.font, statsLines);
             int statsH = statsLines.size() * lineSpacing;
@@ -95,7 +95,7 @@ public class StatsHudRenderer {
             }
         }
 
-        List<Component> posLines = buildPositionLines(mc, config);
+        List<Component> posLines = config.hudPositionEnabled ? buildPositionLines(mc, config) : List.of();
         if (!posLines.isEmpty()) {
             int posW = measureMaxWidth(mc.font, posLines);
             int posH = posLines.size() * lineSpacing;

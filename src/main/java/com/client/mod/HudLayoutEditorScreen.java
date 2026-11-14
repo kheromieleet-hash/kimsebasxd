@@ -84,7 +84,7 @@ public class HudLayoutEditorScreen extends Screen {
                 graphics, mouseX, mouseY,
                 statsBounds[0], statsBounds[1], statsBounds[2], statsBounds[3],
                 "Telemetry",
-                config.hudInfoEnabled,
+                config.hudInfoEnabled && config.hudTelemetryEnabled,
                 this.dragging == HudTarget.STATS,
                 0x4436D37C, 0xDD4CF094
         );
@@ -93,7 +93,7 @@ public class HudLayoutEditorScreen extends Screen {
                 graphics, mouseX, mouseY,
                 posBounds[0], posBounds[1], posBounds[2], posBounds[3],
                 "Position",
-                config.hudInfoEnabled,
+                config.hudInfoEnabled && config.hudPositionEnabled,
                 this.dragging == HudTarget.POSITION,
                 0x484F6BFF, 0xDD7B92FF
         );
@@ -170,6 +170,11 @@ public class HudLayoutEditorScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean wasHandled) {
+        if (MouseButtonMapping.isRightClick(event.button())) {
+            if (handleRightClickAt((int) event.x(), (int) event.y())) {
+                return true;
+            }
+        }
         if (MouseButtonMapping.isLeftClick(event.button()) || event.button() == 0) {
             if (handlePressAt((int) event.x(), (int) event.y())) {
                 return true;
@@ -179,6 +184,83 @@ public class HudLayoutEditorScreen extends Screen {
             }
         }
         return super.mouseClicked(event, wasHandled);
+    }
+
+    private boolean handleRightClickAt(int mouseX, int mouseY) {
+        ModConfig config = ModConfig.getInstance();
+
+        if (isInside(mouseX, mouseY, getKeybindsBounds(config))) {
+            config.keybindsHudEnabled = !config.keybindsHudEnabled;
+            config.save();
+            return true;
+        }
+        if (isInside(mouseX, mouseY, StatsHudRenderer.resolveStatsBounds(this.font, this.width, this.height, config))) {
+            if (!config.hudInfoEnabled) {
+                config.hudInfoEnabled = true;
+                config.hudTelemetryEnabled = true;
+            } else {
+                config.hudTelemetryEnabled = !config.hudTelemetryEnabled;
+            }
+            config.save();
+            return true;
+        }
+        if (isInside(mouseX, mouseY, StatsHudRenderer.resolvePositionBounds(this.font, this.width, this.height, config))) {
+            if (!config.hudInfoEnabled) {
+                config.hudInfoEnabled = true;
+                config.hudPositionEnabled = true;
+            } else {
+                config.hudPositionEnabled = !config.hudPositionEnabled;
+            }
+            config.save();
+            return true;
+        }
+        int[] inv = getInventoryBounds(config);
+        if (inv != null && isInside(mouseX, mouseY, inv)) {
+            toggleInventoryComponent(config, HudTarget.INVENTORY);
+            return true;
+        }
+        int[] pot = getPotionsBounds();
+        if (pot != null && isInside(mouseX, mouseY, pot)) {
+            toggleInventoryComponent(config, HudTarget.POTIONS);
+            return true;
+        }
+        int[] arm = getArmorBounds();
+        if (arm != null && isInside(mouseX, mouseY, arm)) {
+            toggleInventoryComponent(config, HudTarget.ARMOR);
+            return true;
+        }
+        return false;
+    }
+
+    private static void toggleInventoryComponent(ModConfig config, HudTarget target) {
+        try {
+            ConfigAccess invCfg = InventoryHUDCommon.getConfig();
+            if (!config.inventoryHudEnabled) {
+                config.inventoryHudEnabled = true;
+                config.save();
+            }
+            switch (target) {
+                case INVENTORY -> {
+                    boolean next = !InventoryHUDCommon.isActive;
+                    InventoryHUDCommon.isActive = next;
+                    if (invCfg != null) invCfg.setByDefault(next);
+                }
+                case POTIONS -> {
+                    boolean next = !InventoryHUDCommon.potionHUD;
+                    InventoryHUDCommon.potionHUD = next;
+                    if (invCfg != null) invCfg.setPotions(next);
+                }
+                case ARMOR -> {
+                    boolean next = !InventoryHUDCommon.armorHUD;
+                    InventoryHUDCommon.armorHUD = next;
+                    if (invCfg != null) invCfg.setArmorDamage(next);
+                }
+                default -> {
+                }
+            }
+            saveInventoryHudConfig();
+        } catch (Throwable ignored) {
+        }
     }
 
     private boolean handlePressAt(int mouseX, int mouseY) {

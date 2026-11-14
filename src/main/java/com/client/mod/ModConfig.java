@@ -48,6 +48,8 @@ public class ModConfig {
 
     // Top-Left (FPS, TPS, Ping, Speed) & Bottom-Right (Direction, Nether/Overworld, Pos) HUD
     public boolean hudInfoEnabled = true;
+    public boolean hudTelemetryEnabled = true;
+    public boolean hudPositionEnabled = true;
     public boolean hudShowFps = true;
     public boolean hudShowTps = true;
     public boolean hudShowPing = true;
@@ -362,6 +364,8 @@ public class ModConfig {
         this.inventoryHudEnabled = other.inventoryHudEnabled;
         this.invHudScale = other.invHudScale;
         this.hudInfoEnabled = other.hudInfoEnabled;
+        this.hudTelemetryEnabled = other.hudTelemetryEnabled;
+        this.hudPositionEnabled = other.hudPositionEnabled;
         this.hudShowFps = other.hudShowFps;
         this.hudShowTps = other.hudShowTps;
         this.hudShowPing = other.hudShowPing;
