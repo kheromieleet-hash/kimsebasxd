@@ -8,8 +8,10 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
@@ -300,18 +302,24 @@ public class ModernClickGuiScreen extends Screen {
         JelloTheme.fillRoundedTop(graphics, headX + 1, headY + 1, headX + headW - 1, headY + HEADER_HEIGHT, 9, JelloTheme.HEADER_BG);
         graphics.fill(headX + 1, headY + HEADER_HEIGHT, headX + headW - 1, headY + HEADER_HEIGHT + 1, JelloTheme.DIVIDER);
 
-        // Brand emblem + Name + Version badge (classic crisp default font)
-        ModernIcons.drawBrandEmblem(graphics, headX + 20, headY + HEADER_HEIGHT / 2, JelloTheme.ACCENT, 0xFFFFFFFF);
-        graphics.text(this.font, Component.literal("§lSESTIA"), headX + 32, headY + 18, 0xFFFFFFFF, true);
-        int titleW = this.font.width("SESTIA");
+        // Brand icon + Name + Version badge (classic crisp default font)
+        graphics.blit(
+                RenderPipelines.GUI_TEXTURED,
+                Identifier.fromNamespaceAndPath("sestia", "icons/icon_32x32.png"),
+                headX + 12, headY + (HEADER_HEIGHT - 16) / 2,
+                0.0f, 0.0f, 16, 16, 16, 16
+        );
+        Component titleComp = Component.literal("§lSESTIA");
+        graphics.text(this.font, titleComp, headX + 34, headY + 18, 0xFFFFFFFF, true);
+        int titleW = this.font.width(titleComp);
 
         String verLabel = "v" + ClientBuildInfo.getVersion();
         Component verComp = Component.literal(verLabel);
-        int verX = headX + 40 + titleW;
+        int verX = headX + 34 + titleW + 8;
         int verY = headY + 15;
         int verW = this.font.width(verComp) + 12;
         JelloTheme.fillRoundedCard(graphics, verX, verY, verX + verW, verY + 14, 4, 0x36FF1E2D, 0xAAFF1E2D);
-        graphics.centeredText(this.font, verComp, verX + verW / 2, verY + 3, JelloTheme.TEXT_DIM);
+        graphics.text(this.font, verComp, verX + 6, verY + 3, JelloTheme.TEXT_DIM, true);
 
         // Active module count pill
         int activeCount = countActiveModules();
