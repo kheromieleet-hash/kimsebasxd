@@ -10,34 +10,246 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Pure OLED Obsidian Black & Vivid Crimson Red Theme constants and rounded drawing utilities.
+ * Multi-theme palette manager (Sestia OLED, Transparent, Light, Monokai Pro, Dark) and rounded drawing utilities.
  */
 public final class JelloTheme {
-    public static final int ACCENT = 0xFFFF1A2B;        // Saturated Vivid Crimson Red
-    public static final int ACCENT_HOVER = 0xFFFF4757;  // Bright Vivid Scarlet
-    public static final int PANEL = 0xF508080C;             // Deep OLED black panel body
-    public static final int HEADER = 0xFC0A0A0E;            // Pure black header
-    public static final int BORDER = 0xE6FF1A2B;            // Crisp vivid crimson hairline border
-    public static final int ROW_HOVER = 0x38FF1A2B;
-    public static final int TEXT = 0xFFFFFFFF;              // Crisp pure white
-    public static final int TEXT_MUTED = 0xFFC8D2E0;        // Bright readable silver-slate
-    public static final int TEXT_DIM = 0xFFFF5A67;          // Vibrant coral-crimson accent text
-    public static final int TRACK = 0x55FF1A2B;
-    public static final int SWITCH_OFF = 0xFF1F2029;        // Crisp dark pill off-track
-    public static final int SWITCH_OFF_HOVER = 0xFF2D2E3B;
+    public static final int THEME_SESTIA = 0;
+    public static final int THEME_TRANSPARENT = 1;
+    public static final int THEME_LIGHT = 2;
+    public static final int THEME_MONOKAI_PRO = 3;
+    public static final int THEME_DARK = 4;
+    public static final int THEME_COUNT = 5;
 
-    public static final int WINDOW_BG = 0xF6060609;         // Pure OLED Black shell
-    public static final int HEADER_BG = 0xFC0A0A0E;         // Elevated OLED Black top bar
-    public static final int SIDEBAR_BG = 0xF8060608;        // Pure OLED Black nav rail
-    public static final int CONTAINER_BG = 0xF20C0C11;      // Dark container surface
-    public static final int CARD_INACTIVE = 0xF2111117;     // Crisp dark OLED card
-    public static final int CARD_INACTIVE_HOVER = 0xF81A1A23;
-    public static final int CARD_ACTIVE = 0xF6340910;       // Rich vibrant crimson-black active card
-    public static final int CARD_ACTIVE_HOVER = 0xFA450D17;
-    public static final int BORDER_SUBTLE = 0x44FFFFFF;     // Crisp visible neutral hairline
-    public static final int BORDER_ACTIVE_SOFT = 0xFFFF2E3E;// Full vivid active crimson card border
-    public static final int BORDER_EXPANDED_SOFT = 0xFFFF5260;
-    public static final int DIVIDER = 0x2EFFFFFF;           // Crisp structural divider
+    public static int ACCENT = 0xFFFF1A2B;
+    public static int ACCENT_HOVER = 0xFFFF4757;
+    public static int PANEL = 0xF508080C;
+    public static int HEADER = 0xFC0A0A0E;
+    public static int BORDER = 0xE6FF1A2B;
+    public static int ROW_HOVER = 0x38FF1A2B;
+    public static int TEXT = 0xFFFFFFFF;
+    public static int TEXT_MUTED = 0xFFC8D2E0;
+    public static int TEXT_DIM = 0xFFFF5A67;
+    public static int TRACK = 0x55FF1A2B;
+    public static int SWITCH_ON = 0xFFFF1A2B;
+    public static int SWITCH_ON_HOVER = 0xFFFF4757;
+    public static int SWITCH_OFF = 0xFF1F2029;
+    public static int SWITCH_OFF_HOVER = 0xFF2D2E3B;
+    public static int SLIDER_BAR = 0xFFFF1A2B;
+    public static int SLIDER_BAR_HOVER = 0xFFFF4757;
+    public static int SLIDER_TRACK = 0xFF1F2029;
+    public static int SCROLLBAR_TRACK = 0x33000000;
+    public static int SCROLLBAR_THUMB = 0xFFFF1A2B;
+    public static int SCROLLBAR_THUMB_HOVER = 0xFFFF4757;
+    public static int BACKDROP_DIM = 0x80000000;
+    public static int WINDOW_BORDER = 0x48FFFFFF;
+
+    public static int WINDOW_BG = 0xF6060609;
+    public static int HEADER_BG = 0xFC0A0A0E;
+    public static int SIDEBAR_BG = 0xF8060608;
+    public static int CONTAINER_BG = 0xF20C0C11;
+    public static int CARD_INACTIVE = 0xF2111117;
+    public static int CARD_INACTIVE_HOVER = 0xF81A1A23;
+    public static int CARD_ACTIVE = 0xF6340910;
+    public static int CARD_ACTIVE_HOVER = 0xFA450D17;
+    public static int BORDER_SUBTLE = 0x44FFFFFF;
+    public static int BORDER_ACTIVE_SOFT = 0xFFFF2E3E;
+    public static int BORDER_EXPANDED_SOFT = 0xFFFF5260;
+    public static int DIVIDER = 0x2EFFFFFF;
+
+    public static String getThemeName(int index) {
+        return switch (index) {
+            case THEME_TRANSPARENT -> "Transparent";
+            case THEME_LIGHT -> "Light";
+            case THEME_MONOKAI_PRO -> "Monokai Pro";
+            case THEME_DARK -> "Dark";
+            default -> "Sestia OLED";
+        };
+    }
+
+    public static void applyTheme(int index) {
+        switch (index) {
+            case THEME_TRANSPARENT -> {
+                ACCENT = 0xFFB84242;
+                ACCENT_HOVER = 0xFFBD5C5C;
+                PANEL = 0x24A7A7A7;
+                HEADER = 0x28A7A7A7;
+                BORDER = 0x88B84242;
+                ROW_HOVER = 0x28B86060;
+                TEXT = 0xFFDCDCDC;
+                TEXT_MUTED = 0xFFBEBEBE;
+                TEXT_DIM = 0xFFEA6060;
+                TRACK = 0x38A74545;
+                SWITCH_ON = 0xFF5AAF5A;
+                SWITCH_ON_HOVER = 0xFF69BD69;
+                SWITCH_OFF = 0xFFA74545;
+                SWITCH_OFF_HOVER = 0xFFBD5C5C;
+                SLIDER_BAR = 0xFFA74545;
+                SLIDER_BAR_HOVER = 0xFFBD5C5C;
+                SLIDER_TRACK = 0x44A0A0A0;
+                SCROLLBAR_TRACK = 0x32A0A0A0;
+                SCROLLBAR_THUMB = 0x64A0A0A0;
+                SCROLLBAR_THUMB_HOVER = 0x99C8C8C8;
+                BACKDROP_DIM = 0x38000000;
+                WINDOW_BORDER = 0x3CA0A0A0;
+                WINDOW_BG = 0x22B6B6B6;
+                HEADER_BG = 0x26A7A7A7;
+                SIDEBAR_BG = 0x20A7A7A7;
+                CONTAINER_BG = 0x20B1B1B1;
+                CARD_INACTIVE = 0x1EB1B1B1;
+                CARD_INACTIVE_HOVER = 0x2E909090;
+                CARD_ACTIVE = 0x36B84242;
+                CARD_ACTIVE_HOVER = 0x48B86060;
+                BORDER_SUBTLE = 0x3CA0A0A0;
+                BORDER_ACTIVE_SOFT = 0xCCEA6060;
+                BORDER_EXPANDED_SOFT = 0xFFD19898;
+                DIVIDER = 0x2EA0A0A0;
+            }
+            case THEME_LIGHT -> {
+                ACCENT = 0xFFB84242;
+                ACCENT_HOVER = 0xFF9E3434;
+                PANEL = 0xF5A7A7A7;
+                HEADER = 0xF8A7A7A7;
+                BORDER = 0xCCB84242;
+                ROW_HOVER = 0x28612C2C;
+                TEXT = 0xFF232323;
+                TEXT_MUTED = 0xFF343434;
+                TEXT_DIM = 0xFFB84242;
+                TRACK = 0x44A74545;
+                SWITCH_ON = 0xFF5AAF5A;
+                SWITCH_ON_HOVER = 0xFF69BD69;
+                SWITCH_OFF = 0xFFA74545;
+                SWITCH_OFF_HOVER = 0xFFBD5C5C;
+                SLIDER_BAR = 0xFFA74545;
+                SLIDER_BAR_HOVER = 0xFFBD5C5C;
+                SLIDER_TRACK = 0xFF8C8C8C;
+                SCROLLBAR_TRACK = 0x32000000;
+                SCROLLBAR_THUMB = 0x64000000;
+                SCROLLBAR_THUMB_HOVER = 0x99000000;
+                BACKDROP_DIM = 0x55000000;
+                WINDOW_BORDER = 0x55000000;
+                WINDOW_BG = 0xF6B6B6B6;
+                HEADER_BG = 0xF8A7A7A7;
+                SIDEBAR_BG = 0xF6A7A7A7;
+                CONTAINER_BG = 0xF2B1B1B1;
+                CARD_INACTIVE = 0xF4B1B1B1;
+                CARD_INACTIVE_HOVER = 0xF8909090;
+                CARD_ACTIVE = 0xF4C4A4A4;
+                CARD_ACTIVE_HOVER = 0xF8B88C8C;
+                BORDER_SUBTLE = 0x44000000;
+                BORDER_ACTIVE_SOFT = 0xFFB84242;
+                BORDER_EXPANDED_SOFT = 0xFF6D3434;
+                DIVIDER = 0x28000000;
+            }
+            case THEME_MONOKAI_PRO -> {
+                ACCENT = 0xFFA7ED76;
+                ACCENT_HOVER = 0xFF66DEFF;
+                PANEL = 0xF5211F22;
+                HEADER = 0xFC1A191B;
+                BORDER = 0xCCA7ED76;
+                ROW_HOVER = 0x3293D962;
+                TEXT = 0xFFE48561;
+                TEXT_MUTED = 0xFFB4B4B4;
+                TEXT_DIM = 0xFFFF5B7B;
+                TRACK = 0x44A5A1FF;
+                SWITCH_ON = 0xFFDCD350;
+                SWITCH_ON_HOVER = 0xFFEBE155;
+                SWITCH_OFF = 0xFFA5A1FF;
+                SWITCH_OFF_HOVER = 0xFFB4B1FF;
+                SLIDER_BAR = 0xFFA5A1FF;
+                SLIDER_BAR_HOVER = 0xFFB4B1FF;
+                SLIDER_TRACK = 0xFF222222;
+                SCROLLBAR_TRACK = 0x32D1CE5E;
+                SCROLLBAR_THUMB = 0x99D1CE5E;
+                SCROLLBAR_THUMB_HOVER = 0xFFD1CE5E;
+                BACKDROP_DIM = 0x70000000;
+                WINDOW_BORDER = 0x44A7ED76;
+                WINDOW_BG = 0xF61A191B;
+                HEADER_BG = 0xFC1A191B;
+                SIDEBAR_BG = 0xF8211F22;
+                CONTAINER_BG = 0xF2211F22;
+                CARD_INACTIVE = 0xF22C292D;
+                CARD_INACTIVE_HOVER = 0xF83E3B3F;
+                CARD_ACTIVE = 0xF5293624;
+                CARD_ACTIVE_HOVER = 0xFA34472D;
+                BORDER_SUBTLE = 0x38FFFFFF;
+                BORDER_ACTIVE_SOFT = 0xFFA7ED76;
+                BORDER_EXPANDED_SOFT = 0xFF66DEFF;
+                DIVIDER = 0x28FFFFFF;
+            }
+            case THEME_DARK -> {
+                ACCENT = 0xFFFA6464;
+                ACCENT_HOVER = 0xFFBF8D8D;
+                PANEL = 0xF5282828;
+                HEADER = 0xFC242424;
+                BORDER = 0xCCFA6464;
+                ROW_HOVER = 0x30FA6464;
+                TEXT = 0xFFBEBEBE;
+                TEXT_MUTED = 0xFF969696;
+                TEXT_DIM = 0xFFFA6464;
+                TRACK = 0x44963232;
+                SWITCH_ON = 0xFF328232;
+                SWITCH_ON_HOVER = 0xFF55A355;
+                SWITCH_OFF = 0xFF963232;
+                SWITCH_OFF_HOVER = 0xFFB14A4A;
+                SLIDER_BAR = 0xFF963232;
+                SLIDER_BAR_HOVER = 0xFFB14A4A;
+                SLIDER_TRACK = 0xFF222222;
+                SCROLLBAR_TRACK = 0x32000000;
+                SCROLLBAR_THUMB = 0x64000000;
+                SCROLLBAR_THUMB_HOVER = 0x99000000;
+                BACKDROP_DIM = 0x70000000;
+                WINDOW_BORDER = 0x38FFFFFF;
+                WINDOW_BG = 0xF6242424;
+                HEADER_BG = 0xFC242424;
+                SIDEBAR_BG = 0xF8282828;
+                CONTAINER_BG = 0xF2282828;
+                CARD_INACTIVE = 0xF22D2D2D;
+                CARD_INACTIVE_HOVER = 0xF83E3E3E;
+                CARD_ACTIVE = 0xF43C2626;
+                CARD_ACTIVE_HOVER = 0xF84D3030;
+                BORDER_SUBTLE = 0x34FFFFFF;
+                BORDER_ACTIVE_SOFT = 0xFFFA6464;
+                BORDER_EXPANDED_SOFT = 0xFFB47878;
+                DIVIDER = 0x24FFFFFF;
+            }
+            default -> {
+                ACCENT = 0xFFFF1A2B;
+                ACCENT_HOVER = 0xFFFF4757;
+                PANEL = 0xF508080C;
+                HEADER = 0xFC0A0A0E;
+                BORDER = 0xE6FF1A2B;
+                ROW_HOVER = 0x38FF1A2B;
+                TEXT = 0xFFFFFFFF;
+                TEXT_MUTED = 0xFFC8D2E0;
+                TEXT_DIM = 0xFFFF5A67;
+                TRACK = 0x55FF1A2B;
+                SWITCH_ON = 0xFFFF1A2B;
+                SWITCH_ON_HOVER = 0xFFFF4757;
+                SWITCH_OFF = 0xFF1F2029;
+                SWITCH_OFF_HOVER = 0xFF2D2E3B;
+                SLIDER_BAR = 0xFFFF1A2B;
+                SLIDER_BAR_HOVER = 0xFFFF4757;
+                SLIDER_TRACK = 0xFF1F2029;
+                SCROLLBAR_TRACK = 0x33000000;
+                SCROLLBAR_THUMB = 0xFFFF1A2B;
+                SCROLLBAR_THUMB_HOVER = 0xFFFF4757;
+                BACKDROP_DIM = 0x80000000;
+                WINDOW_BORDER = 0x48FFFFFF;
+                WINDOW_BG = 0xF6060609;
+                HEADER_BG = 0xFC0A0A0E;
+                SIDEBAR_BG = 0xF8060608;
+                CONTAINER_BG = 0xF20C0C11;
+                CARD_INACTIVE = 0xF2111117;
+                CARD_INACTIVE_HOVER = 0xF81A1A23;
+                CARD_ACTIVE = 0xF6340910;
+                CARD_ACTIVE_HOVER = 0xFA450D17;
+                BORDER_SUBTLE = 0x44FFFFFF;
+                BORDER_ACTIVE_SOFT = 0xFFFF2E3E;
+                BORDER_EXPANDED_SOFT = 0xFFFF5260;
+                DIVIDER = 0x2EFFFFFF;
+            }
+        }
+    }
 
     private static float alpha = 1.0f;
 
