@@ -73,6 +73,13 @@ public class ModConfig {
     public int keybindsHudX = 8;
     public int keybindsHudY = 60;
 
+    // Item Pickup / Drop Notifier HUD
+    public boolean itemNotifierEnabled = false;
+    public float itemNotifierDuration = 3.0f;
+    public int itemNotifierMaxItems = 5;
+    public int itemNotifierX = -1;
+    public int itemNotifierY = -1;
+
     // Fullbright settings
     public boolean fullbright = false;
     public int fullbrightMode = 0;            // 0 = Natural / Night Vision (göz yormayan), 1 = Gamma (slider), 2 = Ultra
@@ -383,6 +390,11 @@ public class ModConfig {
         this.posHudY = other.posHudY;
         this.clockHudX = other.clockHudX;
         this.clockHudY = other.clockHudY;
+        this.itemNotifierEnabled = other.itemNotifierEnabled;
+        this.itemNotifierDuration = other.itemNotifierDuration;
+        this.itemNotifierMaxItems = other.itemNotifierMaxItems;
+        this.itemNotifierX = other.itemNotifierX;
+        this.itemNotifierY = other.itemNotifierY;
         this.keybindsHudEnabled = other.keybindsHudEnabled;
         this.keybindsHudOnlyActive = other.keybindsHudOnlyActive;
         this.keybindsHudAutoHide = other.keybindsHudAutoHide;
@@ -583,6 +595,10 @@ public class ModConfig {
         if (this.posHudX < -1 || this.posHudX > 4000) this.posHudX = -1;
         if (this.posHudY < -1 || this.posHudY > 4000) this.posHudY = -1;
         if (this.clockHudX < -1 || this.clockHudX > 4000) this.clockHudX = -1;
+        this.itemNotifierDuration = clampFloat(this.itemNotifierDuration, 1.0f, 10.0f, 3.0f);
+        if (this.itemNotifierMaxItems < 1 || this.itemNotifierMaxItems > 10) this.itemNotifierMaxItems = 5;
+        if (this.itemNotifierX < -1 || this.itemNotifierX > 4000) this.itemNotifierX = -1;
+        if (this.itemNotifierY < -1 || this.itemNotifierY > 4000) this.itemNotifierY = -1;
         if (this.clockHudY < -1 || this.clockHudY > 4000) this.clockHudY = -1;
         this.vmSwingSpeed = clampInt(this.vmSwingSpeed, 0, 100, 0);
         this.vmOffsetX = clampFloat(this.vmOffsetX, -2.0f, 2.0f, 0.0f);

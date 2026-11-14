@@ -1022,6 +1022,14 @@ public class ModernClickGuiScreen extends Screen {
                 "Inventory HUD+",
                 "Inventory, Potions & Armor overlays (edit in HUD Editor)",
                 config.inventoryHudEnabled, true, false, "");
+
+        String itemNotifierDesc = (config.itemNotifierX < 0 || config.itemNotifierY < 0)
+                ? "Auto-placed near hotbar (drag in HUD Editor)"
+                : ("Pos: " + config.itemNotifierX + ", " + config.itemNotifierY + "  |  Item Pickup/Drop");
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, listY + (cardH + cardGap) * 5, innerW, cardH,
+                "Item Notifier",
+                itemNotifierDesc,
+                config.itemNotifierEnabled, true, true, "Reset");
     }
 
     private void drawHudResetCard(
@@ -1128,9 +1136,21 @@ public class ModernClickGuiScreen extends Screen {
             return true;
         }
         // Card 4: Inventory HUD+ (Toggle only; positions edited in Open HUD Editor)
-        return handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap) * 4, innerW, cardH, true, false, "",
+        if (handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap) * 4, innerW, cardH, true, false, "",
                 () -> { config.inventoryHudEnabled = !config.inventoryHudEnabled; config.save(); },
-                null);
+                null)) {
+            return true;
+        }
+        // Card 5: Item Notifier (Toggle + Reset)
+        return handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap) * 5, innerW, cardH, true, true, "Reset",
+                () -> {
+                    config.itemNotifierEnabled = !config.itemNotifierEnabled;
+                    if (!config.itemNotifierEnabled) {
+                        ItemNotifierHudRenderer.reset();
+                    }
+                    config.save();
+                },
+                () -> { config.itemNotifierX = -1; config.itemNotifierY = -1; config.save(); });
     }
 
     private boolean handleHudCardClick(

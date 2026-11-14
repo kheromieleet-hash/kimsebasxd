@@ -1,5 +1,6 @@
 package com.client.mod.mixin;
 
+import com.client.mod.ItemNotifierHudRenderer;
 import com.client.mod.KeybindsHudRenderer;
 import com.client.mod.StatsHudRenderer;
 import net.minecraft.client.DeltaTracker;
@@ -21,6 +22,7 @@ public class HudOverlayMixin {
         if (!this.isHidden) {
             StatsHudRenderer.render(graphics);
             KeybindsHudRenderer.render(graphics);
+            ItemNotifierHudRenderer.render(graphics);
         }
     }
 }
