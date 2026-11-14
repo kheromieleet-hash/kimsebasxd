@@ -328,9 +328,18 @@ final class ModernModuleCardUi {
                     : (hovered ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
             int border = active ? JelloTheme.ACCENT : (hovered ? 0x5594A3B8 : JelloTheme.BORDER_SUBTLE);
             JelloTheme.fillRoundedCard(graphics, cx, cy, cx + chipW, cy + ModernModuleSettings.CHIP_HEIGHT, 4, bg, border);
-            String label = fitText(font, opt.label(), chipW - 8);
-            graphics.centeredText(font, Component.literal(label), cx + chipW / 2, cy + 5,
-                    active ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED);
+            if (opt.icon() != null && !opt.icon().isEmpty()) {
+                int iconX = cx + (chipW - 16) / 2;
+                int iconY = cy + (ModernModuleSettings.CHIP_HEIGHT - 16) / 2;
+                graphics.item(opt.icon(), iconX, iconY);
+                if (hovered) {
+                    graphics.setTooltipForNextFrame(font, opt.icon(), mouseX, mouseY);
+                }
+            } else {
+                String label = fitText(font, opt.label(), chipW - 8);
+                graphics.centeredText(font, Component.literal(label), cx + chipW / 2, cy + 5,
+                        active ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED);
+            }
         }
     }
 

@@ -1,5 +1,11 @@
 package com.client.mod;
 
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -118,9 +124,14 @@ public final class ModernModuleSettings {
     public record ChipOption(
             String id,
             String label,
+            ItemStack icon,
             BooleanSupplier activeGetter,
             Runnable onToggle
-    ) {}
+    ) {
+        public ChipOption(String id, String label, BooleanSupplier activeGetter, Runnable onToggle) {
+            this(id, label, ItemStack.EMPTY, activeGetter, onToggle);
+        }
+    }
 
     public record ChipsControl(List<ChipOption> options) implements Control {
         @Override
@@ -347,10 +358,12 @@ public final class ModernModuleSettings {
 
         List<ChipOption> chips = new ArrayList<>(selectedIds.size());
         for (String id : selectedIds) {
-            String label = resolveItemShortLabel(id);
+            ItemStack icon = resolveItemStack(id);
+            String label = !icon.isEmpty() ? icon.getHoverName().getString() : resolveItemShortLabel(id);
             chips.add(new ChipOption(
                     id,
                     label,
+                    icon,
                     () -> cfg.isAutoCraftTargetEnabled(id),
                     () -> {
                         cfg.toggleAutoCraftTarget(id);
@@ -376,6 +389,20 @@ public final class ModernModuleSettings {
             controls.add(new ChipsControl(chips));
         }
         return controls;
+    }
+
+    private static ItemStack resolveItemStack(String itemId) {
+        try {
+            Identifier key = Identifier.withDefaultNamespace(itemId);
+            if (BuiltInRegistries.ITEM.containsKey(key)) {
+                Item item = BuiltInRegistries.ITEM.getValue(key);
+                if (item != null && item != Items.AIR) {
+                    return new ItemStack(item);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return ItemStack.EMPTY;
     }
 
     private static String resolveItemShortLabel(String itemId) {
