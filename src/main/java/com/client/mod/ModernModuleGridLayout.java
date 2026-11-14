@@ -14,7 +14,7 @@ import java.util.function.Function;
 final class ModernModuleGridLayout {
 
     static final int CARD_HEIGHT = 48;
-    static final int CARD_CORNER_RADIUS = 8;
+    static final int CARD_CORNER_RADIUS = 10;
     static final int GRID_PAD_X = 12;
     static final int GRID_PAD_Y = 12;
     static final int GRID_GAP_X = 8;

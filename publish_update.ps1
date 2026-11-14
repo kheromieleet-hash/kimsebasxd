@@ -120,6 +120,13 @@ if (Test-Path $iasLangSrc) {
     Copy-Item "$iasLangSrc\*" $iasStage -Recurse -Force
 }
 
+$customFontSrc = Join-Path $repoRoot "src\main\resources\assets\inventoryhud\font"
+if (Test-Path $customFontSrc) {
+    $fontStage = Join-Path $coreStage "assets\inventoryhud\font"
+    if (-not (Test-Path $fontStage)) { New-Item -ItemType Directory -Path $fontStage -Force | Out-Null }
+    Copy-Item "$customFontSrc\*" $fontStage -Recurse -Force
+}
+
 # Copy fresh compiled com/client/mod & dlovin classes + mixin configs + pack.mcmeta
 $modClassesDest = Join-Path $coreStage "com\client\mod"
 New-Item -ItemType Directory -Path $modClassesDest -Force | Out-Null

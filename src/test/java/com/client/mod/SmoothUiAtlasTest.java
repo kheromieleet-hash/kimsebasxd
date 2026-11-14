@@ -52,6 +52,15 @@ public class SmoothUiAtlasTest {
             assertInBounds(reg);
             assertHasSolidAndAntiAliasedPixels(pixels, reg, "icon " + kind + " scale=" + guiScale);
         }
+
+        SmoothUiAtlas.Region glow = layout.glow();
+        assertInBounds(glow);
+        int gCx = glow.u() + glow.w() / 2;
+        int gCy = glow.v() + glow.h() / 2;
+        int glowCenterAlpha = (pixels[gCy * SmoothUiAtlas.ATLAS_W + gCx] >>> 24) & 0xFF;
+        int glowCornerAlpha = (pixels[glow.v() * SmoothUiAtlas.ATLAS_W + glow.u()] >>> 24) & 0xFF;
+        assert glowCenterAlpha >= 240 : "Expected strong center alpha for radial glow, got " + glowCenterAlpha;
+        assert glowCornerAlpha == 0 : "Expected zero corner alpha to prevent quad clipping, got " + glowCornerAlpha;
     }
 
     private static void assertInBounds(SmoothUiAtlas.Region r) {
