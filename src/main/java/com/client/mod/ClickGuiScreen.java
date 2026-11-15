@@ -213,7 +213,11 @@ public class ClickGuiScreen {
                 val -> {
                     config.fastPlace = val;
                     if (!val) {
+                        config.fastPlaceAutoRightClickResume = config.fastPlaceAutoRightClick;
                         config.fastPlaceAutoRightClick = false;
+                    } else if (config.fastPlaceAutoRightClickResume) {
+                        config.fastPlaceAutoRightClick = true;
+                        config.fastPlaceAutoRightClickResume = false;
                     }
                     config.save();
                 }

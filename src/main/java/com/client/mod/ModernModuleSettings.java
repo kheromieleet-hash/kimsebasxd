@@ -172,7 +172,12 @@ public final class ModernModuleSettings {
             case "Keybinds HUD" -> buildKeybindsHudControls(cfg, actions);
             case "HUD Info" -> buildHudInfoControls(cfg, actions);
             case "Fast Place" -> List.of(
-                    toggle("Auto Right Click", () -> cfg.fastPlaceAutoRightClick, v -> cfg.fastPlaceAutoRightClick = v, actions, false),
+                    toggle("Auto Right Click", () -> cfg.fastPlaceAutoRightClick, v -> {
+                        cfg.fastPlaceAutoRightClick = v;
+                        if (!v) {
+                            cfg.fastPlaceAutoRightClickResume = false;
+                        }
+                    }, actions, false),
                     intSlider("fastPlaceDelay", "Fast Place Delay", 0, 4, "t",
                             () -> cfg.fastPlaceDelay, v -> cfg.fastPlaceDelay = v)
             );

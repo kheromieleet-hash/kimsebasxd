@@ -136,6 +136,7 @@ public class ModConfig {
     public boolean fastPlace = false;
     public int fastPlaceDelay = 0; // 0 to 4 ticks
     public boolean fastPlaceAutoRightClick = false;
+    public boolean fastPlaceAutoRightClickResume = false;
 
     // Safe Walk
     public boolean safeWalk = false;
@@ -596,6 +597,7 @@ public class ModConfig {
         this.fastPlace = other.fastPlace;
         this.fastPlaceDelay = other.fastPlaceDelay;
         this.fastPlaceAutoRightClick = other.fastPlaceAutoRightClick;
+        this.fastPlaceAutoRightClickResume = other.fastPlaceAutoRightClickResume;
         this.safeWalk = other.safeWalk;
         this.autoTool = other.autoTool;
         this.autoToolSwapBack = other.autoToolSwapBack;
