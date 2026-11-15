@@ -75,6 +75,7 @@ public abstract class ChatComponentMixin implements IChatComponentHelper {
         ModConfig config = ModConfig.getInstance();
         String rawText = message.getString();
         com.client.mod.AutoLoginHandler.onChatMessage(rawText);
+        com.client.mod.WheatFarmBotHandler.onChatMessage(rawText);
 
         // Anti-Clear: Drop empty/whitespace messages sent by server /clearchat routines
         if (config != null && config.chatAntiClear && rawText.trim().isEmpty()) {

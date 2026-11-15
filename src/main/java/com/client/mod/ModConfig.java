@@ -366,6 +366,7 @@ public class ModConfig {
     public boolean wheatFarmWalk = true;
     public boolean wheatFarmFly = false;
     public boolean wheatFarmStickWand = true;
+    public boolean wheatFarmFailsafe = true;
     public int wheatFarmDelay = 7; // 3 to 20 ticks
     public float wheatFarmTurnSpeed = 12.0f; // 5 to 30 deg/tick
 
@@ -664,6 +665,7 @@ public class ModConfig {
         this.wheatFarmWalk = other.wheatFarmWalk;
         this.wheatFarmFly = other.wheatFarmFly;
         this.wheatFarmStickWand = other.wheatFarmStickWand;
+        this.wheatFarmFailsafe = other.wheatFarmFailsafe;
         this.wheatFarmDelay = other.wheatFarmDelay;
         this.wheatFarmTurnSpeed = other.wheatFarmTurnSpeed;
         this.noPauseOnLostFocus = other.noPauseOnLostFocus;

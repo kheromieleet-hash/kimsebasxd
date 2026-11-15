@@ -498,6 +498,7 @@ public final class ModernModuleSettings {
                 toggle("Stick Wand", () -> cfg.wheatFarmStickWand, v -> cfg.wheatFarmStickWand = v, actions, false),
                 toggle("Walk To Blocks", () -> cfg.wheatFarmWalk, v -> cfg.wheatFarmWalk = v, actions, false),
                 toggle("Fly Mode", () -> cfg.wheatFarmFly, v -> cfg.wheatFarmFly = v, actions, false),
+                toggle("Failsafe Alert", () -> cfg.wheatFarmFailsafe, v -> cfg.wheatFarmFailsafe = v, actions, false),
                 intSlider("wheatFarmDelay", "Action Delay", 3, 20, "t",
                         () -> cfg.wheatFarmDelay, v -> cfg.wheatFarmDelay = v),
                 floatSlider("wheatFarmTurnSpeed", "Turn Speed", 5.0f, 30.0f, 1.0f, "°",

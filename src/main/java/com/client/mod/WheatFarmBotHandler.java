@@ -2,14 +2,17 @@ package com.client.mod;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ClipContext;
@@ -36,6 +39,8 @@ import java.util.concurrent.ThreadLocalRandom;
 public final class WheatFarmBotHandler {
     private static final double INTERACT_RANGE = 3.35;
     private static final double PAUSE_BEFORE_OVERSHOOT_HORIZ = 1.15;
+    private static final double FAILSAFE_PLAYER_RANGE_SQ = 14.0 * 14.0;
+    private static final double FAILSAFE_TELEPORT_DIST_SQ = 6.0 * 6.0;
 
     private enum TaskType {
         TILL,
@@ -46,11 +51,12 @@ public final class WheatFarmBotHandler {
 
     private static boolean holdingMoveKeys = false;
     private static int actionCooldown = 0;
-    private static int missingWarnCooldown = 0;
     private static long lastStickRightMs = 0L;
     private static BlockPos jitterForPos = null;
     private static double jitterX = 0.0;
     private static double jitterZ = 0.0;
+    private static Vec3 lastPlayerPos = null;
+    private static int alarmTicksRemaining = 0;
 
     private WheatFarmBotHandler() {
     }
@@ -104,16 +110,47 @@ public final class WheatFarmBotHandler {
     public static void onLeftWorld() {
         releaseMovementKeys(Minecraft.getInstance());
         actionCooldown = 0;
-        missingWarnCooldown = 0;
         jitterForPos = null;
+        lastPlayerPos = null;
+        alarmTicksRemaining = 0;
+    }
+
+    public static void onChatMessage(String rawText) {
+        if (rawText == null || rawText.isEmpty()) {
+            return;
+        }
+        ModConfig cfg = ModConfig.getInstance();
+        Minecraft mc = Minecraft.getInstance();
+        if (cfg == null || !cfg.wheatFarmEnabled || !cfg.wheatFarmFailsafe || mc == null || mc.player == null) {
+            return;
+        }
+        String clean = rawText.replaceAll("§.", "").toLowerCase(Locale.ROOT);
+        if (clean.contains("[sestia]")) {
+            return;
+        }
+        String selfName = mc.player.getName().getString().toLowerCase(Locale.ROOT);
+        boolean mentioned = !selfName.isEmpty() && clean.contains(selfName);
+        boolean checkKeyword = clean.contains("macro")
+                || clean.contains("makro")
+                || clean.contains("afk check")
+                || clean.contains("bot check")
+                || clean.contains("burada misin")
+                || clean.contains("burada mısın")
+                || clean.contains("are you there");
+        if (mentioned || checkKeyword) {
+            triggerFailsafe(mc, "Sohbette isim/kontrol mesaji algilandi! Bot durduruldu.");
+        }
     }
 
     public static void tick(Minecraft mc) {
+        tickAlarmSound(mc);
+
         ModConfig cfg = ModConfig.getInstance();
         if (cfg == null || !cfg.wheatFarmEnabled || mc == null || mc.player == null || mc.level == null || mc.gameMode == null) {
             releaseMovementKeys(mc);
             actionCooldown = 0;
             jitterForPos = null;
+            lastPlayerPos = null;
             return;
         }
         if (mc.gui != null && mc.gui.screen() != null) {
@@ -128,11 +165,12 @@ public final class WheatFarmBotHandler {
             return;
         }
 
+        if (cfg.wheatFarmFailsafe && checkFailsafe(mc)) {
+            return;
+        }
+
         if (actionCooldown > 0) {
             actionCooldown--;
-        }
-        if (missingWarnCooldown > 0) {
-            missingWarnCooldown--;
         }
 
         int hoeSlot = findHotbarHoe(mc.player.getInventory());
@@ -143,13 +181,16 @@ public final class WheatFarmBotHandler {
         FarmTask task = findNextSerpentineTask(mc, cfg, hoeSlot != -1, hasSeeds);
         if (task == null) {
             releaseMovementKeys(mc);
+            lastPlayerPos = null;
             if (countRemainingTasks(mc.level, cfg) == 0) {
                 notify(mc, "§a[Sestia] §fWheat farm area complete!");
+                if (mc.getSoundManager() != null) {
+                    mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.PLAYER_LEVELUP, 1.0f, 1.0f));
+                }
                 cfg.wheatFarmEnabled = false;
                 cfg.save();
-            } else if (missingWarnCooldown == 0) {
-                notify(mc, "§e[Sestia] §fWaiting for Hoe in hotbar or Wheat Seeds in offhand/hotbar...");
-                missingWarnCooldown = 60;
+            } else {
+                triggerFailsafe(mc, "Capa veya Bugday Tohumu eksik! Bot durduruldu.");
             }
             return;
         }
@@ -548,6 +589,52 @@ public final class WheatFarmBotHandler {
             }
         }
         return null;
+    }
+
+    private static boolean checkFailsafe(Minecraft mc) {
+        Vec3 currentPos = mc.player.position();
+        if (lastPlayerPos != null && currentPos.distanceToSqr(lastPlayerPos) > FAILSAFE_TELEPORT_DIST_SQ) {
+            triggerFailsafe(mc, "Ani isinlanma / konum degisikligi algilandi! Bot durduruldu.");
+            return true;
+        }
+        lastPlayerPos = currentPos;
+
+        if (mc.getConnection() != null) {
+            for (Player other : mc.level.players()) {
+                if (other == mc.player || other.isSpectator()) {
+                    continue;
+                }
+                if (mc.getConnection().getPlayerInfo(other.getUUID()) == null) {
+                    continue;
+                }
+                if (other.distanceToSqr(mc.player) <= FAILSAFE_PLAYER_RANGE_SQ) {
+                    triggerFailsafe(mc, "Yakinda oyuncu algilandi (" + other.getName().getString() + ")! Bot durduruldu.");
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static void triggerFailsafe(Minecraft mc, String reason) {
+        ModConfig cfg = ModConfig.getInstance();
+        cfg.wheatFarmEnabled = false;
+        cfg.save();
+        releaseMovementKeys(mc);
+        lastPlayerPos = null;
+        alarmTicksRemaining = 40;
+        notify(mc, "§c§l[Sestia] [FAILSAFE] §f" + reason);
+    }
+
+    private static void tickAlarmSound(Minecraft mc) {
+        if (alarmTicksRemaining <= 0) {
+            return;
+        }
+        if (mc != null && mc.getSoundManager() != null && alarmTicksRemaining % 4 == 0) {
+            float pitch = (alarmTicksRemaining % 8 == 0) ? 1.55f : 1.15f;
+            mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), pitch, 1.0f));
+        }
+        alarmTicksRemaining--;
     }
 
     private static void notify(Minecraft mc, String msg) {
