@@ -28,6 +28,7 @@ public class HudLayoutEditorScreen extends Screen {
         STATS,
         POSITION,
         CLOCK,
+        FALL_INFO,
         ITEM_NOTIFIER,
         INVENTORY,
         POTIONS,
@@ -108,6 +109,16 @@ public class HudLayoutEditorScreen extends Screen {
                 config.hudInfoEnabled && config.hudShowClock,
                 this.dragging == HudTarget.CLOCK,
                 0x48F59E0B, 0xDDFBBF24
+        );
+
+        int[] fallBounds = StatsHudRenderer.resolveFallBounds(this.font, this.width, this.height, config);
+        drawDraggableBox(
+                graphics, mouseX, mouseY,
+                fallBounds[0], fallBounds[1], fallBounds[2], fallBounds[3],
+                "Fall Info",
+                config.hudInfoEnabled && (config.hudShowFallDistance || config.hudShowFallDamage),
+                this.dragging == HudTarget.FALL_INFO,
+                0x48EC4899, 0xDDF472B6
         );
 
         int[] itemNotifierBounds = ItemNotifierHudRenderer.resolveBounds(this.font, this.width, this.height, config);
@@ -246,6 +257,19 @@ public class HudLayoutEditorScreen extends Screen {
             config.save();
             return true;
         }
+        if (isInside(mouseX, mouseY, StatsHudRenderer.resolveFallBounds(this.font, this.width, this.height, config))) {
+            boolean currentlyOn = config.hudInfoEnabled && (config.hudShowFallDistance || config.hudShowFallDamage);
+            if (currentlyOn) {
+                config.hudShowFallDistance = false;
+                config.hudShowFallDamage = false;
+            } else {
+                config.hudInfoEnabled = true;
+                config.hudShowFallDistance = true;
+                config.hudShowFallDamage = true;
+            }
+            config.save();
+            return true;
+        }
         if (isInside(mouseX, mouseY, ItemNotifierHudRenderer.resolveBounds(this.font, this.width, this.height, config))) {
             config.itemNotifierEnabled = !config.itemNotifierEnabled;
             if (!config.itemNotifierEnabled) {
@@ -347,6 +371,14 @@ public class HudLayoutEditorScreen extends Screen {
             return false;
         }
 
+        int[] fall = StatsHudRenderer.resolveFallBounds(this.font, this.width, this.height, config);
+        if (isInside(mouseX, mouseY, fall)) {
+            this.dragging = HudTarget.FALL_INFO;
+            this.dragOffsetX = mouseX - fall[0];
+            this.dragOffsetY = mouseY - fall[1];
+            return false;
+        }
+
         int[] itemNotifier = ItemNotifierHudRenderer.resolveBounds(this.font, this.width, this.height, config);
         if (isInside(mouseX, mouseY, itemNotifier)) {
             this.dragging = HudTarget.ITEM_NOTIFIER;
@@ -411,6 +443,11 @@ public class HudLayoutEditorScreen extends Screen {
                 int[] b = StatsHudRenderer.resolveClockBounds(this.font, this.width, this.height, config);
                 config.clockHudX = Mth.clamp(mouseX - this.dragOffsetX, 2, Math.max(2, this.width - b[2] - 2));
                 config.clockHudY = Mth.clamp(mouseY - this.dragOffsetY, 2, Math.max(2, this.height - b[3] - 2));
+            }
+            case FALL_INFO -> {
+                int[] b = StatsHudRenderer.resolveFallBounds(this.font, this.width, this.height, config);
+                config.fallHudX = Mth.clamp(mouseX - this.dragOffsetX, 2, Math.max(2, this.width - b[2] - 2));
+                config.fallHudY = Mth.clamp(mouseY - this.dragOffsetY, 2, Math.max(2, this.height - b[3] - 2));
             }
             case ITEM_NOTIFIER -> {
                 int[] b = ItemNotifierHudRenderer.resolveBounds(this.font, this.width, this.height, config);
@@ -480,6 +517,8 @@ public class HudLayoutEditorScreen extends Screen {
         config.posHudY = -1;
         config.clockHudX = -1;
         config.clockHudY = -1;
+        config.fallHudX = -1;
+        config.fallHudY = -1;
         config.itemNotifierX = -1;
         config.itemNotifierY = -1;
         config.save();

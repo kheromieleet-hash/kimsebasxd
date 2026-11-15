@@ -58,12 +58,16 @@ public class ModConfig {
     public boolean hudShowNether = true;
     public boolean hudShowPos = true;
     public boolean hudShowClock = true;
+    public boolean hudShowFallDistance = true;
+    public boolean hudShowFallDamage = true;
     public int statsHudX = 4;
     public int statsHudY = 4;
     public int posHudX = -1;
     public int posHudY = -1;
     public int clockHudX = -1;
     public int clockHudY = -1;
+    public int fallHudX = -1;
+    public int fallHudY = -1;
 
     // Keybinds HUD Table
     public boolean keybindsHudEnabled = true;
@@ -471,12 +475,16 @@ public class ModConfig {
         this.hudShowNether = other.hudShowNether;
         this.hudShowPos = other.hudShowPos;
         this.hudShowClock = other.hudShowClock;
+        this.hudShowFallDistance = other.hudShowFallDistance;
+        this.hudShowFallDamage = other.hudShowFallDamage;
         this.statsHudX = other.statsHudX;
         this.statsHudY = other.statsHudY;
         this.posHudX = other.posHudX;
         this.posHudY = other.posHudY;
         this.clockHudX = other.clockHudX;
         this.clockHudY = other.clockHudY;
+        this.fallHudX = other.fallHudX;
+        this.fallHudY = other.fallHudY;
         this.itemNotifierEnabled = other.itemNotifierEnabled;
         this.itemNotifierDuration = other.itemNotifierDuration;
         this.itemNotifierMaxItems = other.itemNotifierMaxItems;
