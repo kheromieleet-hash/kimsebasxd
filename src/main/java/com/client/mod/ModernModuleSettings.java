@@ -193,6 +193,7 @@ public final class ModernModuleSettings {
             case "Auto Sell" -> buildAutoSellControls(cfg, actions);
             case "Auto Drop" -> buildAutoDropControls(cfg, actions);
             case "Auto Login" -> buildAutoLoginControls(cfg, actions);
+            case "Anti Vanish" -> buildAntiVanishControls(cfg, actions);
             case "Backtrack" -> List.of(
                     intSlider("backtrackDelay", "Max Delay", 40, 300, "ms",
                             () -> cfg.backtrackDelay, v -> cfg.backtrackDelay = v)
@@ -499,6 +500,15 @@ public final class ModernModuleSettings {
                             net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
                             mc.gui.setScreen(new AutoLoginConfigScreen(mc.gui.screen()));
                         })
+        );
+    }
+
+    private static List<Control> buildAntiVanishControls(ModConfig cfg, Actions actions) {
+        return List.of(
+                toggle("Tab Check", () -> cfg.antiVanishTabCheck, v -> cfg.antiVanishTabCheck = v, actions, false),
+                toggle("Command Check", () -> cfg.antiVanishCommandCheck, v -> cfg.antiVanishCommandCheck = v, actions, false),
+                intSlider("antiVanishInterval", "Check Interval", 5, 60, "s",
+                        () -> cfg.antiVanishInterval, v -> cfg.antiVanishInterval = v)
         );
     }
 

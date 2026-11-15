@@ -249,10 +249,17 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
 
 
 --------------------------------------------------------------------------------
-[6] MISC KATEGORISI (3 Modul)
+[6] MISC KATEGORISI (4 Modul)
 --------------------------------------------------------------------------------
 
-36. Auto Login
+36. Anti Vanish
+    Ne ise yarar: Sunucudaki vanish (gorunmezlik) kullanan yetkili veya
+    oyunculari tespit edip sohbetten uyarir.
+    Ayarlar: Tab Check (cikis mesaji olmadan Tab'dan kaybolanlari yakala),
+    Command Check (/w tamamlama paketinden gizli oyunculari tara),
+    Check Interval (5 - 60s).
+
+37. Auto Login
     Ne ise yarar: AuthMe / Login eklentili sunucularda sohbetten /login veya
     /register istendiginde (veya istege bagli sunucuya giriste) sifreyi
     otomatik gonderir.

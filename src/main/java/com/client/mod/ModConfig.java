@@ -340,6 +340,12 @@ public class ModConfig {
     public boolean autoLoginAutoRegister = true;
     public boolean autoLoginOnJoin = false;
 
+    // Anti Vanish
+    public boolean antiVanishEnabled = false;
+    public boolean antiVanishTabCheck = true;
+    public boolean antiVanishCommandCheck = true;
+    public int antiVanishInterval = 15; // 5 to 60 seconds
+
     // Right-Shift ClickGUI Tab position & state
     public int guiTheme = 0; // 0=Sestia OLED, 1=Transparent, 2=Light, 3=Monokai Pro, 4=Dark
     public int guiWindowX = 480;
@@ -605,6 +611,10 @@ public class ModConfig {
         this.autoLoginDelay = other.autoLoginDelay;
         this.autoLoginAutoRegister = other.autoLoginAutoRegister;
         this.autoLoginOnJoin = other.autoLoginOnJoin;
+        this.antiVanishEnabled = other.antiVanishEnabled;
+        this.antiVanishTabCheck = other.antiVanishTabCheck;
+        this.antiVanishCommandCheck = other.antiVanishCommandCheck;
+        this.antiVanishInterval = other.antiVanishInterval;
         this.guiTheme = other.guiTheme;
         this.guiWindowX = other.guiWindowX;
         this.guiWindowY = other.guiWindowY;
@@ -670,6 +680,7 @@ public class ModConfig {
         }
         if (this.autoLoginPassword == null) this.autoLoginPassword = "";
         if (this.autoLoginDelay < 0 || this.autoLoginDelay > 60) this.autoLoginDelay = 20;
+        if (this.antiVanishInterval < 5 || this.antiVanishInterval > 60) this.antiVanishInterval = 15;
         if (this.fastBreakSpeed < 0.5f || this.fastBreakSpeed > 5.0f) this.fastBreakSpeed = 1.15f;
         if (this.fastBreakMode < 0 || this.fastBreakMode > 1) this.fastBreakMode = 1;
         if (this.pingSpoofDelay < 50 || this.pingSpoofDelay > 1000) this.pingSpoofDelay = 150;

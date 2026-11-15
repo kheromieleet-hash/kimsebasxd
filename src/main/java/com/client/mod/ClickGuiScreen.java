@@ -306,6 +306,16 @@ public class ClickGuiScreen {
                 }
         ));
 
+        // Anti Vanish (Misc)
+        MODULES.add(new ModuleEntry(
+                "Anti Vanish", Category.MISC,
+                () -> config.antiVanishEnabled,
+                val -> {
+                    config.antiVanishEnabled = val;
+                    config.save();
+                }
+        ));
+
         // 13. Auto Sprint (Movement)
         MODULES.add(new ModuleEntry(
                 "Auto Sprint", Category.MOVEMENT,
