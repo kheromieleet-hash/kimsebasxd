@@ -28,6 +28,10 @@ public class ClientMod implements ClientModInitializer {
         ));
         ZoomHandler.setZoomKey(zoomKey);
 
+        ClientTickEvents.START_CLIENT_TICK.register(client -> {
+            WheatFarmBotHandler.tick(client);
+        });
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             ZoomHandler.update();
             FreecamHandler.tick(client);
@@ -35,7 +39,6 @@ public class ClientMod implements ClientModInitializer {
             AutoSellHandler.tick(client);
             AutoDropHandler.tick(client);
             AutoLoginHandler.tick(client);
-            WheatFarmBotHandler.tick(client);
             ItemSuckerHandler.tick(client);
             ItemNotifierHudRenderer.tick(client);
             boolean inWorld = client.player != null;

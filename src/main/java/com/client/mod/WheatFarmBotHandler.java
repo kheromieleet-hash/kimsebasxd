@@ -60,6 +60,9 @@ public final class WheatFarmBotHandler {
     private static int isFlyRetryTicks = 0;
     private static int isFlyAttempts = 0;
     private static int takeoffTicks = 0;
+    private static BlockPos aimedAtPos = null;
+    private static int aimedTicks = 0;
+    private static boolean yawPixelFlip = false;
 
     private WheatFarmBotHandler() {
     }
@@ -157,6 +160,8 @@ public final class WheatFarmBotHandler {
             isFlyRetryTicks = 0;
             isFlyAttempts = 0;
             takeoffTicks = 0;
+            aimedAtPos = null;
+            aimedTicks = 0;
             return;
         }
         if (mc.gui != null && mc.gui.screen() != null) {
@@ -316,14 +321,14 @@ public final class WheatFarmBotHandler {
 
         // Wait until within interaction reach & aimed closely enough
         if (dist > INTERACT_RANGE) {
+            aimedAtPos = null;
+            aimedTicks = 0;
             return;
         }
         float pitchDiff = desiredPitch - mc.player.getXRot();
-        if (Math.abs(yawDiff) > 5.0f || Math.abs(pitchDiff) > 5.0f) {
-            return;
-        }
-
-        if (actionCooldown > 0) {
+        if (Math.abs(yawDiff) > 4.5f || Math.abs(pitchDiff) > 4.5f) {
+            aimedAtPos = null;
+            aimedTicks = 0;
             return;
         }
 
@@ -338,6 +343,19 @@ public final class WheatFarmBotHandler {
                 mc.player
         ));
         if (ray.getType() != HitResult.Type.BLOCK || !ray.getBlockPos().equals(task.pos)) {
+            aimedAtPos = null;
+            aimedTicks = 0;
+            return;
+        }
+
+        // Wait 1 full tick after crosshair lands on the block so PosRot packet reaches server BEFORE UseItemOn
+        if (!task.pos.equals(aimedAtPos)) {
+            aimedAtPos = task.pos;
+            aimedTicks = 1;
+            return;
+        }
+        aimedTicks++;
+        if (aimedTicks < 2 || actionCooldown > 0) {
             return;
         }
 
@@ -347,8 +365,8 @@ public final class WheatFarmBotHandler {
             mc.player.swing(useHand, held.getInteractAnimation(), false);
         }
 
-        int baseDelay = Mth.clamp(cfg.wheatFarmDelay, 2, 20);
-        actionCooldown = baseDelay + ThreadLocalRandom.current().nextInt(2);
+        int baseDelay = Mth.clamp(cfg.wheatFarmDelay, 3, 20);
+        actionCooldown = baseDelay + ThreadLocalRandom.current().nextInt(3);
     }
 
     private static void updateBlockJitter(BlockPos pos) {
@@ -376,8 +394,15 @@ public final class WheatFarmBotHandler {
         double d = sens * 0.6 + 0.2;
         float gcd = (float) (d * d * d * 1.2);
         if (gcd > 1.0e-4f) {
-            yawStep = Math.round(yawStep / gcd) * gcd;
-            pitchStep = Math.round(pitchStep / gcd) * gcd;
+            int yawPixels = Math.round(yawStep / gcd);
+            int pitchPixels = Math.round(pitchStep / gcd);
+            // Never rotate pitch with exact 0 horizontal mouse pixels (prevents robotic 0-deltaYaw detection while keeping net yaw drift 0)
+            if (pitchPixels != 0 && yawPixels == 0) {
+                yawPixelFlip = !yawPixelFlip;
+                yawPixels = yawPixelFlip ? 1 : -1;
+            }
+            yawStep = yawPixels * gcd;
+            pitchStep = pitchPixels * gcd;
         }
 
         player.setYRot(player.getYRot() + yawStep);
