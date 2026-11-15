@@ -172,7 +172,7 @@ public final class WheatFarmBotHandler {
         mc.player.setYRot(nextYaw);
         mc.player.setXRot(nextPitch);
 
-        if (Math.abs(yawDiff) > 4.5f || Math.abs(pitchDiff) > 4.5f) {
+        if (Math.abs(yawDiff) > 3.0f || Math.abs(pitchDiff) > 3.0f) {
             return;
         }
 
@@ -187,7 +187,7 @@ public final class WheatFarmBotHandler {
             }
             if (mc.player.getInventory().getSelectedSlot() != requiredSlot) {
                 mc.player.getInventory().setSelectedSlot(requiredSlot);
-                actionCooldown = Math.max(actionCooldown, 2);
+                actionCooldown = Math.max(actionCooldown, 3);
                 return;
             }
             useHand = InteractionHand.MAIN_HAND;
@@ -215,8 +215,9 @@ public final class WheatFarmBotHandler {
             mc.player.swing(useHand, held.getInteractAnimation(), false);
         }
 
-        int baseDelay = Mth.clamp(cfg.wheatFarmDelay, 2, 12);
-        actionCooldown = baseDelay + ThreadLocalRandom.current().nextInt(3);
+        int baseDelay = Mth.clamp(cfg.wheatFarmDelay, 3, 20);
+        int extraTill = (task.type == TaskType.TILL) ? 2 : 0;
+        actionCooldown = baseDelay + extraTill + ThreadLocalRandom.current().nextInt(4);
     }
 
     private static void steerToward(Minecraft mc, Vec3 target, float turnSpeed) {
@@ -228,14 +229,21 @@ public final class WheatFarmBotHandler {
         double dz = target.z - pos.z;
         float desiredYaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
         float yawDiff = Mth.wrapDegrees(desiredYaw - mc.player.getYRot());
-        float maxStep = Mth.clamp(turnSpeed, 5.0f, 45.0f);
+        float maxStep = Mth.clamp(turnSpeed, 5.0f, 30.0f);
         mc.player.setYRot(mc.player.getYRot() + Mth.clamp(yawDiff, -maxStep, maxStep));
 
-        float desiredPitch = Mth.clamp(mc.player.getXRot() + Mth.clamp(12.0f - mc.player.getXRot(), -6.0f, 6.0f), -89.0f, 89.0f);
+        float desiredPitch = Mth.clamp(mc.player.getXRot() + Mth.clamp(12.0f - mc.player.getXRot(), -5.0f, 5.0f), -89.0f, 89.0f);
         mc.player.setXRot(desiredPitch);
 
         mc.options.keyUp.setDown(Math.abs(yawDiff) < 55.0f);
-        mc.options.keyJump.setDown(mc.player.horizontalCollision);
+        if (mc.player.getAbilities().flying) {
+            double dy = target.y - pos.y;
+            mc.options.keyJump.setDown(dy > 0.6);
+            mc.options.keyShift.setDown(dy < -2.2);
+        } else {
+            mc.options.keyJump.setDown(mc.player.horizontalCollision);
+            mc.options.keyShift.setDown(false);
+        }
         holdingMoveKeys = true;
     }
 
@@ -246,6 +254,7 @@ public final class WheatFarmBotHandler {
         }
         mc.options.keyUp.setDown(false);
         mc.options.keyJump.setDown(false);
+        mc.options.keyShift.setDown(false);
         holdingMoveKeys = false;
     }
 

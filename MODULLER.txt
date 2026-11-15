@@ -196,8 +196,8 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     sag tik ile 2. koseyi sectikten sonra .farm start komutuyla ilk tiklanan
     koseden baslayarak sirali (zigzag/serpentine) rota boyunca insan gibi
     yuruyup capalar ve offhand veya hotbardaki bugday tohumlarini eker.
-    Ayarlar: Stick Wand, Walk To Blocks, Action Delay (2 - 12t), Turn Speed (8 - 35°/t),
-    Set Pos 1 / Set Pos 2 butonlari. Komutlar: .farm start, .farm stop, .farm status, .farm clear.
+    Ayarlar: Stick Wand, Walk To Blocks, Action Delay (3 - 20t), Turn Speed (5 - 30°/t),
+    Set Pos 1 / Set Pos 2 butonlari (ucarken de calisir). Komutlar: .farm start, .farm stop, .farm status, .farm clear.
 
 
 --------------------------------------------------------------------------------

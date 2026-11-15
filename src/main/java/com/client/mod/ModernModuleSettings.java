@@ -497,9 +497,9 @@ public final class ModernModuleSettings {
         return List.of(
                 toggle("Stick Wand", () -> cfg.wheatFarmStickWand, v -> cfg.wheatFarmStickWand = v, actions, false),
                 toggle("Walk To Blocks", () -> cfg.wheatFarmWalk, v -> cfg.wheatFarmWalk = v, actions, false),
-                intSlider("wheatFarmDelay", "Action Delay", 2, 12, "t",
+                intSlider("wheatFarmDelay", "Action Delay", 3, 20, "t",
                         () -> cfg.wheatFarmDelay, v -> cfg.wheatFarmDelay = v),
-                floatSlider("wheatFarmTurnSpeed", "Turn Speed", 8.0f, 35.0f, 1.0f, "°",
+                floatSlider("wheatFarmTurnSpeed", "Turn Speed", 5.0f, 30.0f, 1.0f, "°",
                         () -> cfg.wheatFarmTurnSpeed, v -> cfg.wheatFarmTurnSpeed = v),
                 new ActionControl(
                         () -> cfg.wheatFarmPos1Set

@@ -365,8 +365,8 @@ public class ModConfig {
     public int wheatFarmZ2 = 0;
     public boolean wheatFarmWalk = true;
     public boolean wheatFarmStickWand = true;
-    public int wheatFarmDelay = 4; // 2 to 12 ticks
-    public float wheatFarmTurnSpeed = 18.0f; // 8 to 35 deg/tick
+    public int wheatFarmDelay = 7; // 3 to 20 ticks
+    public float wheatFarmTurnSpeed = 12.0f; // 5 to 30 deg/tick
 
     // No Pause On Lost Focus (Meteor Utils)
     public boolean noPauseOnLostFocus = false;
@@ -740,8 +740,8 @@ public class ModConfig {
         if (this.newVelocityVertical < 0 || this.newVelocityVertical > 100) this.newVelocityVertical = 0;
         if (this.newVelocityChance < 0 || this.newVelocityChance > 100) this.newVelocityChance = 100;
         this.betterPlaceRange = clampFloat(this.betterPlaceRange, 2.0f, 6.0f, 4.5f);
-        if (this.wheatFarmDelay < 2 || this.wheatFarmDelay > 12) this.wheatFarmDelay = 4;
-        this.wheatFarmTurnSpeed = clampFloat(this.wheatFarmTurnSpeed, 8.0f, 35.0f, 18.0f);
+        if (this.wheatFarmDelay < 3 || this.wheatFarmDelay > 20) this.wheatFarmDelay = 7;
+        this.wheatFarmTurnSpeed = clampFloat(this.wheatFarmTurnSpeed, 5.0f, 30.0f, 12.0f);
         if (this.itemSuckerMode < 0 || this.itemSuckerMode > 1) this.itemSuckerMode = 0;
         this.itemSuckerRange = clampFloat(this.itemSuckerRange, 2.0f, 16.0f, 6.0f);
         this.itemSuckerSpeed = clampFloat(this.itemSuckerSpeed, 0.15f, 1.00f, 0.35f);
