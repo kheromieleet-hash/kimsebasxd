@@ -43,6 +43,8 @@ public final class WheatFarmBotHandler {
 
     private static boolean holdingMoveKeys = false;
     private static boolean walkingToTarget = false;
+    private static BlockPos walkOntoPos = null;
+    private static int walkOntoTicks = 0;
     private static int actionCooldown = 0;
     private static int missingWarnCooldown = 0;
     private static long lastStickRightMs = 0L;
@@ -99,6 +101,8 @@ public final class WheatFarmBotHandler {
     public static void onLeftWorld() {
         releaseMovementKeys(Minecraft.getInstance());
         walkingToTarget = false;
+        walkOntoPos = null;
+        walkOntoTicks = 0;
         actionCooldown = 0;
         missingWarnCooldown = 0;
     }
@@ -108,6 +112,8 @@ public final class WheatFarmBotHandler {
         if (cfg == null || !cfg.wheatFarmEnabled || mc == null || mc.player == null || mc.level == null || mc.gameMode == null) {
             releaseMovementKeys(mc);
             walkingToTarget = false;
+            walkOntoPos = null;
+            walkOntoTicks = 0;
             actionCooldown = 0;
             return;
         }
@@ -129,6 +135,26 @@ public final class WheatFarmBotHandler {
         }
         if (missingWarnCooldown > 0) {
             missingWarnCooldown--;
+        }
+
+        // Step onto the block we just planted before moving on to the next block
+        if (walkOntoPos != null) {
+            if (!cfg.wheatFarmWalk || walkOntoTicks++ > 35) {
+                walkOntoPos = null;
+                walkOntoTicks = 0;
+                releaseMovementKeys(mc);
+            } else {
+                Vec3 stepTarget = new Vec3(walkOntoPos.getX() + 0.5, walkOntoPos.getY() + 1.0, walkOntoPos.getZ() + 0.5);
+                double stepHoriz = Math.hypot(stepTarget.x - mc.player.getX(), stepTarget.z - mc.player.getZ());
+                if (stepHoriz <= 0.45) {
+                    walkOntoPos = null;
+                    walkOntoTicks = 0;
+                    releaseMovementKeys(mc);
+                } else {
+                    steerToward(mc, mc.player.getEyePosition(1.0f), stepTarget, cfg.wheatFarmTurnSpeed);
+                    return;
+                }
+            }
         }
 
         int hoeSlot = findHotbarHoe(mc.player.getInventory());
@@ -224,8 +250,14 @@ public final class WheatFarmBotHandler {
 
         ItemStack held = mc.player.getItemInHand(useHand);
         InteractionResult res = mc.gameMode.useItemOn(mc.player, useHand, hitResult);
-        if (res instanceof InteractionResult.Success success && success.swingSource() == InteractionResult.SwingSource.PREDICTED) {
-            mc.player.swing(useHand, held.getInteractAnimation(), false);
+        if (res instanceof InteractionResult.Success success) {
+            if (success.swingSource() == InteractionResult.SwingSource.PREDICTED) {
+                mc.player.swing(useHand, held.getInteractAnimation(), false);
+            }
+            if (task.type == TaskType.PLANT && cfg.wheatFarmWalk) {
+                walkOntoPos = task.pos;
+                walkOntoTicks = 0;
+            }
         }
 
         int baseDelay = Mth.clamp(cfg.wheatFarmDelay, 3, 20);
