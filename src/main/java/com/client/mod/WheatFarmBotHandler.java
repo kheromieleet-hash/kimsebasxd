@@ -37,7 +37,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * - Works both on foot and while flying
  */
 public final class WheatFarmBotHandler {
-    private static final double INTERACT_RANGE = 3.65;
+    private static final double INTERACT_RANGE = 3.85;
     private static final double PAUSE_BEFORE_OVERSHOOT_HORIZ = 1.65;
     private static final double FAILSAFE_PLAYER_RANGE_SQ = 14.0 * 14.0;
     private static final double FAILSAFE_TELEPORT_DIST_SQ = 6.0 * 6.0;
@@ -223,7 +223,7 @@ public final class WheatFarmBotHandler {
 
         // Auto-takeoff & enable flight if Fly Mode is active and server allows flying (mayfly)
         if (cfg.wheatFarmFly && mc.player.getAbilities().mayfly && !mc.player.getAbilities().flying) {
-            if (mc.player.onGround()) {
+            if (mc.player.onGround() || mc.player.getY() < task.pos.getY() + 1.35) {
                 mc.options.keyJump.setDown(true);
                 mc.options.keyUp.setDown(false);
                 mc.options.keyShift.setDown(false);
@@ -239,8 +239,8 @@ public final class WheatFarmBotHandler {
             boolean shouldWalk = dist > INTERACT_RANGE || horizDist > PAUSE_BEFORE_OVERSHOOT_HORIZ;
             mc.options.keyUp.setDown(shouldWalk && Math.abs(yawDiff) < 42.0f);
             if (mc.player.getAbilities().flying) {
-                double hoverMinY = task.pos.getY() + 1.15;
-                double hoverMaxY = task.pos.getY() + 1.65;
+                double hoverMinY = task.pos.getY() + 1.45;
+                double hoverMaxY = task.pos.getY() + 2.05;
                 mc.options.keyJump.setDown(mc.player.getY() < hoverMinY);
                 mc.options.keyShift.setDown(mc.player.getY() > hoverMaxY);
             } else {
@@ -252,18 +252,13 @@ public final class WheatFarmBotHandler {
             releaseMovementKeys(mc);
         }
 
-        // Wait until within interaction reach & aimed closely enough
-        if (dist > INTERACT_RANGE) {
-            return;
-        }
-        float pitchDiff = targetAngles[1] - mc.player.getXRot();
-        if (Math.abs(yawDiff) > 5.5f || Math.abs(pitchDiff) > 5.5f) {
-            return;
-        }
-
-        // 3. Select hand & slot (Offhand seeds supported without swapping main hand!)
+        // 3. Immediately select hoe (or seeds) in hotbar even while approaching
         InteractionHand useHand;
         if (task.type == TaskType.PLANT && offhandSeeds) {
+            if (hoeSlot != -1 && mc.player.getInventory().getSelectedSlot() != hoeSlot) {
+                mc.player.getInventory().setSelectedSlot(hoeSlot);
+                actionCooldown = Math.max(actionCooldown, 2);
+            }
             useHand = InteractionHand.OFF_HAND;
         } else {
             int requiredSlot = task.type == TaskType.TILL ? hoeSlot : hotbarSeedSlot;
@@ -276,6 +271,15 @@ public final class WheatFarmBotHandler {
                 return;
             }
             useHand = InteractionHand.MAIN_HAND;
+        }
+
+        // Wait until within interaction reach & aimed closely enough
+        if (dist > INTERACT_RANGE) {
+            return;
+        }
+        float pitchDiff = targetAngles[1] - mc.player.getXRot();
+        if (Math.abs(yawDiff) > 5.5f || Math.abs(pitchDiff) > 5.5f) {
+            return;
         }
 
         if (actionCooldown > 0) {
