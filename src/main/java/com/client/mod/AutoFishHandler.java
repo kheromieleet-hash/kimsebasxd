@@ -212,16 +212,54 @@ public final class AutoFishHandler {
             innerCounts.merge(span.key(), 1, Integer::sum);
         }
 
-        // Most frequent inner glyph is the Blue background slot
-        GlyphKey blueKey = null;
-        int blueCount = 0;
+        // Find the top two cell glyph candidates (count >= 2) and their [minIdx..maxIdx] spans
+        List<Map.Entry<GlyphKey, Integer>> candidates = new ArrayList<>();
         for (Map.Entry<GlyphKey, Integer> entry : innerCounts.entrySet()) {
-            if (entry.getValue() > blueCount) {
-                blueCount = entry.getValue();
-                blueKey = entry.getKey();
+            if (entry.getValue() >= 2) {
+                candidates.add(entry);
             }
         }
-        if (blueKey == null || blueCount < 5) {
+        if (candidates.isEmpty()) {
+            return;
+        }
+        candidates.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
+
+        GlyphKey blueKey;
+        GlyphKey greenKey = null;
+        if (candidates.size() >= 2) {
+            GlyphKey k1 = candidates.get(0).getKey();
+            int c1 = candidates.get(0).getValue();
+            int span1 = computeIndexSpan(inner, k1);
+
+            GlyphKey k2 = candidates.get(1).getKey();
+            int c2 = candidates.get(1).getValue();
+            int span2 = computeIndexSpan(inner, k2);
+
+            // Green target zone is a single contiguous block (3..7 slots, span <= 8),
+            // whereas Blue background wraps around it or has the larger span/count.
+            if (span1 > span2 && span2 <= 8) {
+                blueKey = k1;
+                greenKey = k2;
+            } else if (span2 > span1 && span1 <= 8) {
+                blueKey = k2;
+                greenKey = k1;
+            } else if (c1 >= c2) {
+                blueKey = k1;
+                greenKey = k2;
+            } else {
+                blueKey = k2;
+                greenKey = k1;
+            }
+        } else {
+            blueKey = candidates.get(0).getKey();
+            if (cachedGreenKey != null && !cachedGreenKey.equals(blueKey)) {
+                greenKey = cachedGreenKey;
+            }
+        }
+
+        int blueCount = innerCounts.getOrDefault(blueKey, 0);
+        int greenCount = greenKey != null ? innerCounts.getOrDefault(greenKey, 0) : 0;
+        if (blueCount < 4) {
             return;
         }
 
@@ -232,23 +270,6 @@ public final class AutoFishHandler {
         lastBarPacketMs = now;
         minigameWasActive = true;
         recastCountdownTicks = 0;
-
-        // Second most frequent inner glyph (>= 2) is the Green target zone
-        GlyphKey greenKey = null;
-        int greenCount = 0;
-        for (Map.Entry<GlyphKey, Integer> entry : innerCounts.entrySet()) {
-            if (entry.getKey().equals(blueKey)) {
-                continue;
-            }
-            if (entry.getValue() > greenCount && entry.getValue() >= 2) {
-                greenCount = entry.getValue();
-                greenKey = entry.getKey();
-            }
-        }
-        if (greenKey == null && cachedGreenKey != null) {
-            greenKey = cachedGreenKey;
-            greenCount = innerCounts.getOrDefault(cachedGreenKey, 0);
-        }
 
         if (greenKey != null && greenCount >= 2) {
             float gMinX = Float.POSITIVE_INFINITY;
@@ -323,5 +344,17 @@ public final class AutoFishHandler {
         } else {
             wasInGreen = false;
         }
+    }
+
+    private static int computeIndexSpan(List<GlyphSpan> inner, GlyphKey key) {
+        int min = Integer.MAX_VALUE;
+        int max = Integer.MIN_VALUE;
+        for (int i = 0; i < inner.size(); i++) {
+            if (inner.get(i).key().equals(key)) {
+                min = Math.min(min, i);
+                max = Math.max(max, i);
+            }
+        }
+        return min <= max ? (max - min + 1) : 0;
     }
 }
