@@ -190,6 +190,7 @@ public final class ModernModuleSettings {
                     toggle("Swap Back", () -> cfg.autoToolSwapBack, v -> cfg.autoToolSwapBack = v, actions, false)
             );
             case "Auto Crafter" -> buildAutoCrafterControls(cfg, actions);
+            case "Auto Sell" -> buildAutoSellControls(cfg, actions);
             case "Backtrack" -> List.of(
                     intSlider("backtrackDelay", "Max Delay", 40, 300, "ms",
                             () -> cfg.backtrackDelay, v -> cfg.backtrackDelay = v)
@@ -391,6 +392,48 @@ public final class ModernModuleSettings {
                 () -> {
                     net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
                     mc.gui.setScreen(new AutoCrafterItemPickerScreen(mc.gui.screen()));
+                }));
+        if (!chips.isEmpty()) {
+            controls.add(new ChipsControl(chips));
+        }
+        return controls;
+    }
+
+    private static List<Control> buildAutoSellControls(ModConfig cfg, Actions actions) {
+        List<String> selectedIds = new ArrayList<>();
+        if (cfg.autoSellTargets != null) {
+            selectedIds.addAll(cfg.autoSellTargets);
+            selectedIds.sort(String.CASE_INSENSITIVE_ORDER);
+        }
+
+        List<ChipOption> chips = new ArrayList<>(selectedIds.size());
+        for (String id : selectedIds) {
+            ItemStack icon = resolveItemStack(id);
+            String label = !icon.isEmpty() ? icon.getHoverName().getString() : resolveItemShortLabel(id);
+            chips.add(new ChipOption(
+                    id,
+                    label,
+                    icon,
+                    () -> cfg.isAutoSellTargetEnabled(id),
+                    () -> {
+                        cfg.toggleAutoSellTarget(id);
+                        actions.persist(false);
+                    }
+            ));
+        }
+
+        List<Control> controls = new ArrayList<>();
+        controls.add(intSlider("autoSellDelay", "Delay", 1, 60, "s",
+                () -> cfg.autoSellDelay, v -> cfg.autoSellDelay = v));
+        controls.add(toggle("Safety Pause", () -> cfg.autoSellSafetyPause, v -> cfg.autoSellSafetyPause = v, actions, false));
+        controls.add(new ActionControl(
+                () -> {
+                    int n = cfg.autoSellTargets != null ? cfg.autoSellTargets.size() : 0;
+                    return "Select Items (" + n + ")...";
+                },
+                () -> {
+                    net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+                    mc.gui.setScreen(new AutoSellItemPickerScreen(mc.gui.screen()));
                 }));
         if (!chips.isEmpty()) {
             controls.add(new ChipsControl(chips));

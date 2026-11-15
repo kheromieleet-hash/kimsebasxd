@@ -284,6 +284,30 @@ public class ModConfig {
         ));
     }
 
+    // Auto Sell
+    public boolean autoSellEnabled = false;
+    public int autoSellDelay = 5; // 1 to 60 seconds
+    public boolean autoSellSafetyPause = true;
+    public Set<String> autoSellTargets = new HashSet<>();
+
+    public boolean isAutoSellTargetEnabled(String targetId) {
+        if (autoSellTargets == null) {
+            autoSellTargets = new HashSet<>();
+        }
+        return autoSellTargets.contains(targetId);
+    }
+
+    public void toggleAutoSellTarget(String targetId) {
+        if (autoSellTargets == null) {
+            autoSellTargets = new HashSet<>();
+        }
+        if (autoSellTargets.contains(targetId)) {
+            autoSellTargets.remove(targetId);
+        } else {
+            autoSellTargets.add(targetId);
+        }
+    }
+
     // Right-Shift ClickGUI Tab position & state
     public int guiTheme = 0; // 0=Sestia OLED, 1=Transparent, 2=Light, 3=Monokai Pro, 4=Dark
     public int guiWindowX = 480;
@@ -529,6 +553,13 @@ public class ModConfig {
         if (other.autoCrafterTargets != null) {
             this.autoCrafterTargets.addAll(other.autoCrafterTargets);
         }
+        this.autoSellEnabled = other.autoSellEnabled;
+        this.autoSellDelay = other.autoSellDelay;
+        this.autoSellSafetyPause = other.autoSellSafetyPause;
+        this.autoSellTargets = new HashSet<>();
+        if (other.autoSellTargets != null) {
+            this.autoSellTargets.addAll(other.autoSellTargets);
+        }
         this.guiTheme = other.guiTheme;
         this.guiWindowX = other.guiWindowX;
         this.guiWindowY = other.guiWindowY;
@@ -583,6 +614,10 @@ public class ModConfig {
             this.autoCrafterTargets.remove("nuggets");
             this.autoCrafterTargets.remove("decraft");
             this.autoCrafterTargets.remove("food_paper");
+        }
+        if (this.autoSellDelay < 1 || this.autoSellDelay > 60) this.autoSellDelay = 5;
+        if (this.autoSellTargets == null) {
+            this.autoSellTargets = new HashSet<>();
         }
         if (this.fastBreakSpeed < 0.5f || this.fastBreakSpeed > 5.0f) this.fastBreakSpeed = 1.15f;
         if (this.fastBreakMode < 0 || this.fastBreakMode > 1) this.fastBreakMode = 1;

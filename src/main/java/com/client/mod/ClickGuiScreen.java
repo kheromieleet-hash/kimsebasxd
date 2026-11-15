@@ -276,6 +276,16 @@ public class ClickGuiScreen {
                 }
         ));
 
+        // Auto Sell (Player)
+        MODULES.add(new ModuleEntry(
+                "Auto Sell", Category.PLAYER,
+                () -> config.autoSellEnabled,
+                val -> {
+                    config.autoSellEnabled = val;
+                    config.save();
+                }
+        ));
+
         // 13. Auto Sprint (Movement)
         MODULES.add(new ModuleEntry(
                 "Auto Sprint", Category.MOVEMENT,
