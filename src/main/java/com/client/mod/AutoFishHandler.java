@@ -179,15 +179,9 @@ public final class AutoFishHandler {
 
     private static void scheduleRecastIfNeeded() {
         ModConfig cfg = ModConfig.getInstance();
-        Minecraft mc = Minecraft.getInstance();
         if (cfg != null && cfg.autoFishEnabled && cfg.autoFishRecast) {
-            if (mc != null && mc.player != null) {
-                // Proactively do a gentle look-around between catches so the AFK camera warning never triggers
-                startLookAround(mc.player, 16, 14.0f, true);
-            } else {
-                int base = Math.max(8, Math.min(40, cfg.autoFishRecastDelay));
-                recastCountdownTicks = base + ThreadLocalRandom.current().nextInt(5);
-            }
+            int base = Math.max(8, Math.min(40, cfg.autoFishRecastDelay));
+            recastCountdownTicks = base + ThreadLocalRandom.current().nextInt(5);
         }
     }
 
