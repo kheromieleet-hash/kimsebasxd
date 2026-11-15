@@ -368,9 +368,10 @@ public class ModConfig {
     public boolean wheatFarmStickWand = true;
     public boolean wheatFarmFailsafe = true;
     public boolean wheatFarmFlyMigrated = false;
+    public boolean wheatFarmSafeMigrated = false;
     public Set<String> wheatFarmWhitelist = new HashSet<>();
-    public int wheatFarmDelay = 2; // 1 to 20 ticks
-    public float wheatFarmTurnSpeed = 24.0f; // 5 to 30 deg/tick
+    public int wheatFarmDelay = 4; // 2 to 20 ticks
+    public float wheatFarmTurnSpeed = 16.0f; // 5 to 30 deg/tick
 
     public boolean isWheatFarmWhitelisted(String name) {
         if (name == null || name.isBlank() || wheatFarmWhitelist == null) {
@@ -693,6 +694,7 @@ public class ModConfig {
         this.wheatFarmStickWand = other.wheatFarmStickWand;
         this.wheatFarmFailsafe = other.wheatFarmFailsafe;
         this.wheatFarmFlyMigrated = other.wheatFarmFlyMigrated;
+        this.wheatFarmSafeMigrated = other.wheatFarmSafeMigrated;
         this.wheatFarmWhitelist = new HashSet<>();
         if (other.wheatFarmWhitelist != null) {
             this.wheatFarmWhitelist.addAll(other.wheatFarmWhitelist);
@@ -781,12 +783,17 @@ public class ModConfig {
         if (!this.wheatFarmFlyMigrated) {
             this.wheatFarmFly = true;
             this.wheatFarmWalk = true;
-            this.wheatFarmDelay = 2;
-            this.wheatFarmTurnSpeed = 24.0f;
             this.wheatFarmFlyMigrated = true;
         }
-        if (this.wheatFarmDelay < 1 || this.wheatFarmDelay > 20) this.wheatFarmDelay = 2;
-        this.wheatFarmTurnSpeed = clampFloat(this.wheatFarmTurnSpeed, 5.0f, 30.0f, 24.0f);
+        if (!this.wheatFarmSafeMigrated) {
+            this.wheatFarmFly = true;
+            this.wheatFarmWalk = true;
+            this.wheatFarmDelay = 4;
+            this.wheatFarmTurnSpeed = 16.0f;
+            this.wheatFarmSafeMigrated = true;
+        }
+        if (this.wheatFarmDelay < 2 || this.wheatFarmDelay > 20) this.wheatFarmDelay = 4;
+        this.wheatFarmTurnSpeed = clampFloat(this.wheatFarmTurnSpeed, 5.0f, 30.0f, 16.0f);
         if (this.itemSuckerMode < 0 || this.itemSuckerMode > 1) this.itemSuckerMode = 0;
         this.itemSuckerRange = clampFloat(this.itemSuckerRange, 2.0f, 16.0f, 6.0f);
         this.itemSuckerSpeed = clampFloat(this.itemSuckerSpeed, 0.15f, 1.00f, 0.35f);

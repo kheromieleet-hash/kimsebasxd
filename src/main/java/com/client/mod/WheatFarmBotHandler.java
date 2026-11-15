@@ -59,6 +59,7 @@ public final class WheatFarmBotHandler {
     private static int alarmTicksRemaining = 0;
     private static int isFlyRetryTicks = 0;
     private static int isFlyAttempts = 0;
+    private static int takeoffTicks = 0;
 
     private WheatFarmBotHandler() {
     }
@@ -155,6 +156,7 @@ public final class WheatFarmBotHandler {
             lastPlayerPos = null;
             isFlyRetryTicks = 0;
             isFlyAttempts = 0;
+            takeoffTicks = 0;
             return;
         }
         if (mc.gui != null && mc.gui.screen() != null) {
@@ -210,6 +212,8 @@ public final class WheatFarmBotHandler {
         if (task.type == TaskType.PLANT && offhandSeeds) {
             if (hoeSlot != -1 && mc.player.getInventory().getSelectedSlot() != hoeSlot) {
                 mc.player.getInventory().setSelectedSlot(hoeSlot);
+                actionCooldown = Math.max(actionCooldown, 2);
+                return;
             }
             useHand = InteractionHand.OFF_HAND;
         } else {
@@ -219,14 +223,15 @@ public final class WheatFarmBotHandler {
             }
             if (mc.player.getInventory().getSelectedSlot() != requiredSlot) {
                 mc.player.getInventory().setSelectedSlot(requiredSlot);
-                actionCooldown = Math.max(actionCooldown, 1);
+                actionCooldown = Math.max(actionCooldown, 2);
+                return;
             }
             useHand = InteractionHand.MAIN_HAND;
         }
 
-        // 1. Ease-out mouse-like camera rotation toward target block (every tick, even while walking/flying!)
+        // 1. Ease-out mouse-like camera rotation toward target block (quantized to real mouse GCD)
         float[] targetAngles = computeAngles(eyePos, targetCenter);
-        float yawDiff = easeRotatePlayer(mc.player, targetAngles[0], targetAngles[1], cfg.wheatFarmTurnSpeed);
+        float yawDiff = easeRotatePlayer(mc, mc.player, targetAngles[0], targetAngles[1], cfg.wheatFarmTurnSpeed);
 
         // Automatically run /is fly if Fly Mode is active and server hasn't granted flight yet
         if (isFlyRetryTicks > 0) {
@@ -246,43 +251,40 @@ public final class WheatFarmBotHandler {
             }
         }
 
-        // Auto-takeoff & enable flight if Fly Mode is active and server allows flying (mayfly)
+        // Natural double-jump takeoff using pure key inputs (no setDeltaMovement!)
         if (cfg.wheatFarmFly && mc.player.getAbilities().mayfly && !mc.player.getAbilities().flying) {
-            if (mc.player.onGround()) {
-                mc.player.jumpFromGround();
-                mc.options.keyJump.setDown(true);
-                mc.options.keyUp.setDown(false);
-                mc.options.keyShift.setDown(false);
-                holdingMoveKeys = true;
-                return;
+            takeoffTicks++;
+            int phase = takeoffTicks % 8;
+            // Tick 1-2: hold jump (jump off ground), Tick 3-4: release jump, Tick 5-7: hold jump again (double-jump fly!)
+            boolean pressJump = (phase == 1 || phase == 2 || phase == 5 || phase == 6 || phase == 7);
+            mc.options.keyJump.setDown(pressJump);
+            mc.options.keyUp.setDown(false);
+            mc.options.keyShift.setDown(false);
+            holdingMoveKeys = true;
+            if (!mc.player.onGround() && phase == 6) {
+                mc.player.getAbilities().flying = true;
+                mc.player.onUpdateAbilities();
             }
-            mc.player.getAbilities().flying = true;
-            mc.player.onUpdateAbilities();
-            Vec3 dm = mc.player.getDeltaMovement();
-            if (dm.y < 0.38) {
-                mc.player.setDeltaMovement(dm.x, 0.42, dm.z);
-            }
+            return;
+        } else {
+            takeoffTicks = 0;
         }
 
-        // 2. Fluid walk/fly-while-working movement (controlled forward pace so player never overshoots)
+        // 2. Pure keyboard movement (tap W while flying so speed stays controlled without setDeltaMovement)
         if (cfg.wheatFarmWalk || cfg.wheatFarmFly) {
             boolean shouldWalk = dist > INTERACT_RANGE || horizDist > PAUSE_BEFORE_OVERSHOOT_HORIZ;
-            mc.options.keyUp.setDown(shouldWalk && Math.abs(yawDiff) < 48.0f);
             if (mc.player.getAbilities().flying) {
                 double hoverMinY = task.pos.getY() + 1.35;
-                double hoverMaxY = task.pos.getY() + 1.90;
+                double hoverMaxY = task.pos.getY() + 1.95;
                 mc.options.keyJump.setDown(mc.player.getY() < hoverMinY);
                 mc.options.keyShift.setDown(mc.player.getY() > hoverMaxY);
 
                 Vec3 dm = mc.player.getDeltaMovement();
                 double hSpeed = Math.hypot(dm.x, dm.z);
-                if (!shouldWalk) {
-                    mc.player.setDeltaMovement(dm.x * 0.50, dm.y, dm.z * 0.50);
-                } else if (horizDist < 3.6 && hSpeed > 0.23) {
-                    double scale = 0.23 / hSpeed;
-                    mc.player.setDeltaMovement(dm.x * scale, dm.y, dm.z * scale);
-                }
+                boolean tapForward = shouldWalk && Math.abs(yawDiff) < 42.0f && (horizDist > 2.8 || hSpeed < 0.17);
+                mc.options.keyUp.setDown(tapForward);
             } else {
+                mc.options.keyUp.setDown(shouldWalk && Math.abs(yawDiff) < 42.0f);
                 mc.options.keyJump.setDown(shouldWalk && mc.player.horizontalCollision);
                 mc.options.keyShift.setDown(false);
             }
@@ -296,7 +298,7 @@ public final class WheatFarmBotHandler {
             return;
         }
         float pitchDiff = targetAngles[1] - mc.player.getXRot();
-        if (Math.abs(yawDiff) > 9.5f || Math.abs(pitchDiff) > 9.5f) {
+        if (Math.abs(yawDiff) > 5.0f || Math.abs(pitchDiff) > 5.0f) {
             return;
         }
 
@@ -304,30 +306,28 @@ public final class WheatFarmBotHandler {
             return;
         }
 
-        // 4. Raycast line-of-sight & interact naturally at max human speed
+        // 4. Raycast strictly along player's real view vector (never send synthetic BlockHitResult)
+        Vec3 lookVec = mc.player.getViewVector(1.0f);
+        Vec3 reachEnd = eyePos.add(lookVec.scale(INTERACT_RANGE));
         BlockHitResult ray = mc.level.clip(new ClipContext(
                 eyePos,
-                targetCenter,
+                reachEnd,
                 ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE,
                 mc.player
         ));
-        BlockHitResult hitResult = (ray.getType() == HitResult.Type.BLOCK && ray.getBlockPos().equals(task.pos))
-                ? ray
-                : new BlockHitResult(targetCenter, Direction.UP, task.pos, false);
+        if (ray.getType() != HitResult.Type.BLOCK || !ray.getBlockPos().equals(task.pos)) {
+            return;
+        }
 
         ItemStack held = mc.player.getItemInHand(useHand);
-        InteractionResult res = mc.gameMode.useItemOn(mc.player, useHand, hitResult);
+        InteractionResult res = mc.gameMode.useItemOn(mc.player, useHand, ray);
         if (res instanceof InteractionResult.Success success && success.swingSource() == InteractionResult.SwingSource.PREDICTED) {
             mc.player.swing(useHand, held.getInteractAnimation(), false);
         }
 
-        int baseDelay = Mth.clamp(cfg.wheatFarmDelay, 1, 20);
-        if (task.type == TaskType.TILL) {
-            actionCooldown = Math.max(1, baseDelay - 1);
-        } else {
-            actionCooldown = baseDelay + ThreadLocalRandom.current().nextInt(2);
-        }
+        int baseDelay = Mth.clamp(cfg.wheatFarmDelay, 2, 20);
+        actionCooldown = baseDelay + ThreadLocalRandom.current().nextInt(2);
     }
 
     private static void updateBlockJitter(BlockPos pos) {
@@ -339,20 +339,29 @@ public final class WheatFarmBotHandler {
         }
     }
 
-    private static float easeRotatePlayer(LocalPlayer player, float targetYaw, float targetPitch, float turnSpeedSetting) {
+    private static float easeRotatePlayer(Minecraft mc, LocalPlayer player, float targetYaw, float targetPitch, float turnSpeedSetting) {
         float yawDiff = Mth.wrapDegrees(targetYaw - player.getYRot());
         float pitchDiff = Mth.clamp(targetPitch, -89.5f, 89.5f) - player.getXRot();
 
         // Ease-out curve: fast when far, decelerates smoothly near target like a human hand
-        float factor = Mth.clamp(turnSpeedSetting / 32.0f, 0.22f, 0.65f);
-        float maxStep = Mth.clamp(turnSpeedSetting, 5.0f, 30.0f);
+        float factor = Mth.clamp(turnSpeedSetting / 38.0f, 0.16f, 0.50f);
+        float maxStep = Mth.clamp(turnSpeedSetting, 5.0f, 26.0f);
 
-        float yawStep = Math.abs(yawDiff) < 0.2f ? yawDiff : Mth.clamp(yawDiff * factor, -maxStep, maxStep);
-        float pitchStep = Math.abs(pitchDiff) < 0.2f ? pitchDiff : Mth.clamp(pitchDiff * (factor * 0.90f), -maxStep * 0.85f, maxStep * 0.85f);
+        float yawStep = Math.abs(yawDiff) < 0.15f ? 0.0f : Mth.clamp(yawDiff * factor, -maxStep, maxStep);
+        float pitchStep = Math.abs(pitchDiff) < 0.15f ? 0.0f : Mth.clamp(pitchDiff * (factor * 0.85f), -maxStep * 0.75f, maxStep * 0.75f);
 
         // Subtle micro-jitter when actively turning
-        if (Math.abs(yawDiff) > 1.5f) {
-            yawStep += (float) ThreadLocalRandom.current().nextDouble(-0.18, 0.18);
+        if (Math.abs(yawDiff) > 2.0f) {
+            yawStep += (float) ThreadLocalRandom.current().nextDouble(-0.14, 0.14);
+        }
+
+        // Quantize to real Minecraft mouse sensitivity GCD step
+        double sens = (mc != null && mc.options != null) ? mc.options.sensitivity().get() : 0.5;
+        double d = sens * 0.6 + 0.2;
+        float gcd = (float) (d * d * d * 1.2);
+        if (gcd > 1.0e-4f) {
+            yawStep = Math.round(yawStep / gcd) * gcd;
+            pitchStep = Math.round(pitchStep / gcd) * gcd;
         }
 
         player.setYRot(player.getYRot() + yawStep);
