@@ -201,11 +201,24 @@ public final class WheatFarmBotHandler {
             return;
         }
 
-        updateBlockJitter(task.pos);
         Vec3 eyePos = mc.player.getEyePosition(1.0f);
-        Vec3 targetCenter = new Vec3(task.pos.getX() + 0.5 + jitterX, task.pos.getY() + 0.90, task.pos.getZ() + 0.5 + jitterZ);
+        Vec3 targetCenter = new Vec3(task.pos.getX() + 0.5, task.pos.getY() + 0.90, task.pos.getZ() + 0.5);
         double dist = Math.sqrt(targetCenter.distanceToSqr(eyePos));
         double horizDist = Math.hypot(targetCenter.x - mc.player.getX(), targetCenter.z - mc.player.getZ());
+
+        int[] rowDir = computeRowDirection(cfg, task.pos);
+        int dirX = rowDir[0];
+        int dirZ = rowDir[1];
+        double latError = (dirX == 0)
+                ? Math.abs((task.pos.getX() + 0.5) - mc.player.getX())
+                : Math.abs((task.pos.getZ() + 0.5) - mc.player.getZ());
+        double forwardDist = ((task.pos.getX() + 0.5) - mc.player.getX()) * dirX
+                + ((task.pos.getZ() + 0.5) - mc.player.getZ()) * dirZ;
+        boolean inRowColumn = latError <= 0.65;
+
+        double aheadX = (dirX == 0) ? (task.pos.getX() + 0.5) : (mc.player.getX() + dirX * 4.5);
+        double aheadZ = (dirZ == 0) ? (task.pos.getZ() + 0.5) : (mc.player.getZ() + dirZ * 4.5);
+        Vec3 aheadCenterline = new Vec3(aheadX, targetCenter.y, aheadZ);
 
         // 0. Immediately select hoe (or seeds) in hotbar as soon as bot runs
         InteractionHand useHand;
@@ -229,9 +242,12 @@ public final class WheatFarmBotHandler {
             useHand = InteractionHand.MAIN_HAND;
         }
 
-        // 1. Ease-out mouse-like camera rotation toward target block (quantized to real mouse GCD)
-        float[] targetAngles = computeAngles(eyePos, targetCenter);
-        float yawDiff = easeRotatePlayer(mc, mc.player, targetAngles[0], targetAngles[1], cfg.wheatFarmTurnSpeed);
+        // 1. Lock Yaw straight along the row centerline (4.5 blocks ahead) so player stays centered on the block and never turns left/right
+        float[] rawAngles = computeAngles(eyePos, targetCenter);
+        float[] aheadAngles = computeAngles(eyePos, aheadCenterline);
+        float desiredYaw = inRowColumn ? aheadAngles[0] : rawAngles[0];
+        float desiredPitch = rawAngles[1];
+        float yawDiff = easeRotatePlayer(mc, mc.player, desiredYaw, desiredPitch, cfg.wheatFarmTurnSpeed);
 
         // Automatically run /is fly if Fly Mode is active and server hasn't granted flight yet
         if (isFlyRetryTicks > 0) {
@@ -270,9 +286,12 @@ public final class WheatFarmBotHandler {
             takeoffTicks = 0;
         }
 
-        // 2. Pure keyboard movement (tap W while flying so speed stays controlled without setDeltaMovement)
+        // 2. Pure forward movement along the row without turning left/right
         if (cfg.wheatFarmWalk || cfg.wheatFarmFly) {
-            boolean shouldWalk = dist > INTERACT_RANGE || horizDist > PAUSE_BEFORE_OVERSHOOT_HORIZ;
+            boolean needForward = inRowColumn
+                    ? (forwardDist > PAUSE_BEFORE_OVERSHOOT_HORIZ)
+                    : (dist > INTERACT_RANGE || horizDist > PAUSE_BEFORE_OVERSHOOT_HORIZ);
+            boolean needBack = inRowColumn && forwardDist < 0.65;
             if (mc.player.getAbilities().flying) {
                 double hoverMinY = task.pos.getY() + 1.35;
                 double hoverMaxY = task.pos.getY() + 1.95;
@@ -281,11 +300,13 @@ public final class WheatFarmBotHandler {
 
                 Vec3 dm = mc.player.getDeltaMovement();
                 double hSpeed = Math.hypot(dm.x, dm.z);
-                boolean tapForward = shouldWalk && Math.abs(yawDiff) < 42.0f && (horizDist > 2.8 || hSpeed < 0.17);
+                boolean tapForward = needForward && Math.abs(yawDiff) < 15.0f && (horizDist > 2.8 || hSpeed < 0.16);
                 mc.options.keyUp.setDown(tapForward);
+                mc.options.keyDown.setDown(needBack && hSpeed < 0.14);
             } else {
-                mc.options.keyUp.setDown(shouldWalk && Math.abs(yawDiff) < 42.0f);
-                mc.options.keyJump.setDown(shouldWalk && mc.player.horizontalCollision);
+                mc.options.keyUp.setDown(needForward && Math.abs(yawDiff) < 25.0f);
+                mc.options.keyDown.setDown(needBack);
+                mc.options.keyJump.setDown(needForward && mc.player.horizontalCollision);
                 mc.options.keyShift.setDown(false);
             }
             holdingMoveKeys = true;
@@ -297,7 +318,7 @@ public final class WheatFarmBotHandler {
         if (dist > INTERACT_RANGE) {
             return;
         }
-        float pitchDiff = targetAngles[1] - mc.player.getXRot();
+        float pitchDiff = desiredPitch - mc.player.getXRot();
         if (Math.abs(yawDiff) > 5.0f || Math.abs(pitchDiff) > 5.0f) {
             return;
         }
@@ -350,11 +371,6 @@ public final class WheatFarmBotHandler {
         float yawStep = Math.abs(yawDiff) < 0.15f ? 0.0f : Mth.clamp(yawDiff * factor, -maxStep, maxStep);
         float pitchStep = Math.abs(pitchDiff) < 0.15f ? 0.0f : Mth.clamp(pitchDiff * (factor * 0.85f), -maxStep * 0.75f, maxStep * 0.75f);
 
-        // Subtle micro-jitter when actively turning
-        if (Math.abs(yawDiff) > 2.0f) {
-            yawStep += (float) ThreadLocalRandom.current().nextDouble(-0.14, 0.14);
-        }
-
         // Quantize to real Minecraft mouse sensitivity GCD step
         double sens = (mc != null && mc.options != null) ? mc.options.sensitivity().get() : 0.5;
         double d = sens * 0.6 + 0.2;
@@ -375,9 +391,26 @@ public final class WheatFarmBotHandler {
             return;
         }
         mc.options.keyUp.setDown(false);
+        mc.options.keyDown.setDown(false);
         mc.options.keyJump.setDown(false);
         mc.options.keyShift.setDown(false);
         holdingMoveKeys = false;
+    }
+
+    private static int[] computeRowDirection(ModConfig cfg, BlockPos pos) {
+        int stepX = cfg.wheatFarmX2 >= cfg.wheatFarmX1 ? 1 : -1;
+        int stepZ = cfg.wheatFarmZ2 >= cfg.wheatFarmZ1 ? 1 : -1;
+        int spanX = Math.abs(cfg.wheatFarmX2 - cfg.wheatFarmX1);
+        int spanZ = Math.abs(cfg.wheatFarmZ2 - cfg.wheatFarmZ1);
+        if (spanZ >= spanX) {
+            int row = Math.abs(pos.getX() - cfg.wheatFarmX1);
+            int zDir = (row % 2 == 0) ? stepZ : -stepZ;
+            return new int[]{0, zDir};
+        } else {
+            int row = Math.abs(pos.getZ() - cfg.wheatFarmZ1);
+            int xDir = (row % 2 == 0) ? stepX : -stepX;
+            return new int[]{xDir, 0};
+        }
     }
 
     private static float[] computeAngles(Vec3 from, Vec3 to) {
