@@ -30,7 +30,10 @@ public final class DotCommandSuggester {
             new Entry(".farm start", "start", "Start Auto Wheat Farm"),
             new Entry(".farm stop", "stop", "Stop Auto Wheat Farm"),
             new Entry(".farm status", "status", "Show Auto Wheat Farm area & progress"),
-            new Entry(".farm clear", "clear", "Clear Auto Wheat Farm area")
+            new Entry(".farm clear", "clear", "Clear Auto Wheat Farm area"),
+            new Entry(".farm allow", "allow", "Allow player near farm without failsafe: .farm allow <player>"),
+            new Entry(".farm remove", "remove", "Remove player from failsafe whitelist: .farm remove <player>"),
+            new Entry(".farm list", "list", "List failsafe whitelisted players")
     );
 
     private DotCommandSuggester() {

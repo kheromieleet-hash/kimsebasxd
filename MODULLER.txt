@@ -196,11 +196,13 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     sag tik ile 2. koseyi sectikten sonra .farm start komutuyla ilk tiklanan
     koseden baslayarak sirali (zigzag/serpentine) rota boyunca insan gibi
     yuruyup capalar ve offhand veya hotbardaki bugday tohumlarini eker.
-    Ayarlar: Stick Wand, Walk To Blocks, Fly Mode (ucarak yukseklik koruma),
-    Failsafe Alert (ani isinlanma, yakinda oyuncu, sohbette isim/kontrol veya
-    esya bitmesinde sesli uyari verip botu durdurur), Action Delay (3 - 20t),
+    Ayarlar: Stick Wand, Walk To Blocks, Fly Mode (ucarak yukseklik koruma ve
+    gerekirse otomatik /is fly komutu), Failsafe Alert (ani isinlanma, yakinda
+    oyuncu, sohbette isim/kontrol veya esya bitmesinde sesli uyari verip botu
+    durdurur; whitelist oyuncularinda tetiklenmez), Action Delay (3 - 20t),
     Turn Speed (5 - 30°/t), Set Pos 1 / Set Pos 2 butonlari.
-    Komutlar: .farm start, .farm stop, .farm status, .farm clear.
+    Komutlar: .farm start, .farm stop, .farm status, .farm clear,
+    .farm allow <oyuncu>, .farm remove <oyuncu>, .farm list.
 
 
 --------------------------------------------------------------------------------

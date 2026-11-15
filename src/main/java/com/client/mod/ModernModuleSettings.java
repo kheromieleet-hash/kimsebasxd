@@ -494,7 +494,7 @@ public final class ModernModuleSettings {
     }
 
     private static List<Control> buildWheatFarmControls(ModConfig cfg, Actions actions) {
-        return List.of(
+        List<Control> controls = new ArrayList<>(List.of(
                 toggle("Stick Wand", () -> cfg.wheatFarmStickWand, v -> cfg.wheatFarmStickWand = v, actions, false),
                 toggle("Walk To Blocks", () -> cfg.wheatFarmWalk, v -> cfg.wheatFarmWalk = v, actions, false),
                 toggle("Fly Mode", () -> cfg.wheatFarmFly, v -> cfg.wheatFarmFly = v, actions, false),
@@ -533,7 +533,20 @@ public final class ModernModuleSettings {
                                 actions.persist(false);
                             }
                         })
-        );
+        ));
+        if (cfg.wheatFarmWhitelist != null && !cfg.wheatFarmWhitelist.isEmpty()) {
+            List<ChipOption> chips = new ArrayList<>();
+            for (String name : cfg.wheatFarmWhitelist) {
+                chips.add(new ChipOption("wl_" + name, "× " + name,
+                        () -> cfg.isWheatFarmWhitelisted(name),
+                        () -> {
+                            cfg.removeWheatFarmWhitelist(name);
+                            actions.persist(false);
+                        }));
+            }
+            controls.add(new ChipsControl(chips));
+        }
+        return controls;
     }
 
     private static List<Control> buildNewVelocityControls(ModConfig cfg, Actions actions) {

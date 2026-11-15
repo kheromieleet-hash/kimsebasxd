@@ -367,8 +367,33 @@ public class ModConfig {
     public boolean wheatFarmFly = true;
     public boolean wheatFarmStickWand = true;
     public boolean wheatFarmFailsafe = true;
+    public Set<String> wheatFarmWhitelist = new HashSet<>();
     public int wheatFarmDelay = 7; // 3 to 20 ticks
     public float wheatFarmTurnSpeed = 12.0f; // 5 to 30 deg/tick
+
+    public boolean isWheatFarmWhitelisted(String name) {
+        if (name == null || name.isBlank() || wheatFarmWhitelist == null) {
+            return false;
+        }
+        return wheatFarmWhitelist.contains(name.trim().toLowerCase(java.util.Locale.ROOT));
+    }
+
+    public boolean addWheatFarmWhitelist(String name) {
+        if (name == null || name.isBlank()) {
+            return false;
+        }
+        if (wheatFarmWhitelist == null) {
+            wheatFarmWhitelist = new HashSet<>();
+        }
+        return wheatFarmWhitelist.add(name.trim().toLowerCase(java.util.Locale.ROOT));
+    }
+
+    public boolean removeWheatFarmWhitelist(String name) {
+        if (name == null || name.isBlank() || wheatFarmWhitelist == null) {
+            return false;
+        }
+        return wheatFarmWhitelist.remove(name.trim().toLowerCase(java.util.Locale.ROOT));
+    }
 
     // No Pause On Lost Focus (Meteor Utils)
     public boolean noPauseOnLostFocus = false;
@@ -666,6 +691,10 @@ public class ModConfig {
         this.wheatFarmFly = other.wheatFarmFly;
         this.wheatFarmStickWand = other.wheatFarmStickWand;
         this.wheatFarmFailsafe = other.wheatFarmFailsafe;
+        this.wheatFarmWhitelist = new HashSet<>();
+        if (other.wheatFarmWhitelist != null) {
+            this.wheatFarmWhitelist.addAll(other.wheatFarmWhitelist);
+        }
         this.wheatFarmDelay = other.wheatFarmDelay;
         this.wheatFarmTurnSpeed = other.wheatFarmTurnSpeed;
         this.noPauseOnLostFocus = other.noPauseOnLostFocus;
@@ -744,6 +773,9 @@ public class ModConfig {
         if (this.newVelocityVertical < 0 || this.newVelocityVertical > 100) this.newVelocityVertical = 0;
         if (this.newVelocityChance < 0 || this.newVelocityChance > 100) this.newVelocityChance = 100;
         this.betterPlaceRange = clampFloat(this.betterPlaceRange, 2.0f, 6.0f, 4.5f);
+        if (this.wheatFarmWhitelist == null) {
+            this.wheatFarmWhitelist = new HashSet<>();
+        }
         if (this.wheatFarmDelay < 3 || this.wheatFarmDelay > 20) this.wheatFarmDelay = 7;
         this.wheatFarmTurnSpeed = clampFloat(this.wheatFarmTurnSpeed, 5.0f, 30.0f, 12.0f);
         if (this.itemSuckerMode < 0 || this.itemSuckerMode > 1) this.itemSuckerMode = 0;
