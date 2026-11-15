@@ -37,8 +37,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * - Works both on foot and while flying
  */
 public final class WheatFarmBotHandler {
-    private static final double INTERACT_RANGE = 3.35;
-    private static final double PAUSE_BEFORE_OVERSHOOT_HORIZ = 1.15;
+    private static final double INTERACT_RANGE = 3.65;
+    private static final double PAUSE_BEFORE_OVERSHOOT_HORIZ = 1.65;
     private static final double FAILSAFE_PLAYER_RANGE_SQ = 14.0 * 14.0;
     private static final double FAILSAFE_TELEPORT_DIST_SQ = 6.0 * 6.0;
 
@@ -201,7 +201,7 @@ public final class WheatFarmBotHandler {
 
         updateBlockJitter(task.pos);
         Vec3 eyePos = mc.player.getEyePosition(1.0f);
-        Vec3 targetCenter = new Vec3(task.pos.getX() + 0.5 + jitterX, task.pos.getY() + 0.99, task.pos.getZ() + 0.5 + jitterZ);
+        Vec3 targetCenter = new Vec3(task.pos.getX() + 0.5 + jitterX, task.pos.getY() + 0.90, task.pos.getZ() + 0.5 + jitterZ);
         double dist = Math.sqrt(targetCenter.distanceToSqr(eyePos));
         double horizDist = Math.hypot(targetCenter.x - mc.player.getX(), targetCenter.z - mc.player.getZ());
 
@@ -239,8 +239,8 @@ public final class WheatFarmBotHandler {
             boolean shouldWalk = dist > INTERACT_RANGE || horizDist > PAUSE_BEFORE_OVERSHOOT_HORIZ;
             mc.options.keyUp.setDown(shouldWalk && Math.abs(yawDiff) < 42.0f);
             if (mc.player.getAbilities().flying) {
-                double hoverMinY = task.pos.getY() + 1.65;
-                double hoverMaxY = task.pos.getY() + 2.35;
+                double hoverMinY = task.pos.getY() + 1.15;
+                double hoverMaxY = task.pos.getY() + 1.65;
                 mc.options.keyJump.setDown(mc.player.getY() < hoverMinY);
                 mc.options.keyShift.setDown(mc.player.getY() > hoverMaxY);
             } else {
@@ -257,7 +257,7 @@ public final class WheatFarmBotHandler {
             return;
         }
         float pitchDiff = targetAngles[1] - mc.player.getXRot();
-        if (Math.abs(yawDiff) > 4.0f || Math.abs(pitchDiff) > 4.0f) {
+        if (Math.abs(yawDiff) > 5.5f || Math.abs(pitchDiff) > 5.5f) {
             return;
         }
 
