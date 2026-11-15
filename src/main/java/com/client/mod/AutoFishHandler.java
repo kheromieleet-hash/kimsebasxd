@@ -2,12 +2,16 @@ package com.client.mod;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.StringSplitter;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.Items;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -56,6 +60,9 @@ public final class AutoFishHandler {
     private static float lookSwingPitch = 4.5f;
     private static boolean recastAfterLook = false;
     private static boolean yawPixelFlip = false;
+    private static boolean wasInVerificationScreen = false;
+    private static long lastWindowsAlertMs = 0L;
+    private static int verificationBellTicks = 0;
 
     private AutoFishHandler() {
     }
@@ -77,6 +84,8 @@ public final class AutoFishHandler {
         hasAnchor = false;
         lookAroundTicks = 0;
         recastAfterLook = false;
+        wasInVerificationScreen = false;
+        verificationBellTicks = 0;
     }
 
     public static void onChatMessage(String rawText) {
@@ -139,7 +148,13 @@ public final class AutoFishHandler {
         }
         if (mc.gui != null && mc.gui.screen() != null) {
             pendingRightClick = false;
+            checkVerificationScreenAlert(mc, mc.gui.screen());
             return;
+        }
+        if (wasInVerificationScreen) {
+            wasInVerificationScreen = false;
+            verificationBellTicks = 0;
+            scheduleRecastIfNeeded();
         }
 
         if (!isHoldingFishingRod(mc.player)) {
@@ -183,6 +198,78 @@ public final class AutoFishHandler {
             int base = Math.max(8, Math.min(40, cfg.autoFishRecastDelay));
             recastCountdownTicks = base + ThreadLocalRandom.current().nextInt(5);
         }
+    }
+
+    private static void checkVerificationScreenAlert(Minecraft mc, Screen screen) {
+        if (screen == null || screen.getTitle() == null) {
+            return;
+        }
+        String rawTitle = screen.getTitle().getString();
+        if (rawTitle == null || rawTitle.isEmpty()) {
+            return;
+        }
+        String normTitle = normalizeChatForLookup(rawTitle);
+        boolean isVerification = normTitle.contains("dogrulama") || normTitle.contains("captcha");
+        if (!isVerification) {
+            return;
+        }
+
+        if (!wasInVerificationScreen) {
+            wasInVerificationScreen = true;
+            verificationBellTicks = 0;
+            triggerWindowsVerificationNotification(mc, rawTitle.replaceAll("§.", "").trim());
+        } else {
+            verificationBellTicks++;
+            if (verificationBellTicks % 60 == 0) {
+                playInGameBell(mc);
+            }
+        }
+    }
+
+    private static void playInGameBell(Minecraft mc) {
+        try {
+            if (mc != null && mc.getSoundManager() != null) {
+                mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_BELL.value(), 1.0f, 1.4f));
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void triggerWindowsVerificationNotification(Minecraft mc, String cleanTitle) {
+        playInGameBell(mc);
+        try {
+            if (mc != null && mc.getWindow() != null) {
+                GLFW.glfwRequestWindowAttention(mc.getWindow().handle());
+            }
+        } catch (Throwable ignored) {
+        }
+
+        long now = System.currentTimeMillis();
+        if (now - lastWindowsAlertMs < 4000L) {
+            return;
+        }
+        lastWindowsAlertMs = now;
+
+        String safeSubtitle = cleanTitle.replace("'", "").replace("\"", "").replace("`", "");
+        Thread alertThread = new Thread(() -> {
+            try {
+                String psScript =
+                        "Add-Type -AssemblyName System.Windows.Forms,System.Drawing; "
+                        + "[System.Media.SystemSounds]::Exclamation.Play(); "
+                        + "$n = New-Object System.Windows.Forms.NotifyIcon; "
+                        + "$n.Icon = [System.Drawing.SystemIcons]::Warning; "
+                        + "$n.Visible = $true; "
+                        + "$n.ShowBalloonTip(5000, 'Sestia AutoFish - DOGRULAMA!', 'Dogrulama ekrani acildi: " + safeSubtitle + "', [System.Windows.Forms.ToolTipIcon]::Warning); "
+                        + "Start-Sleep -Milliseconds 5200; "
+                        + "$n.Dispose()";
+                new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", psScript)
+                        .redirectErrorStream(true)
+                        .start();
+            } catch (Throwable ignored) {
+            }
+        }, "Sestia-WinVerifyAlert");
+        alertThread.setDaemon(true);
+        alertThread.start();
     }
 
     private static void startLookAround(LocalPlayer player, int durationTicks, float maxYawDeg, boolean recastWhenDone) {

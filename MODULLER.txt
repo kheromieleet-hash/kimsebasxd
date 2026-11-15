@@ -207,7 +207,9 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
 31. Auto Fish
     Ne ise yarar: Balik tutma minigame barinda (Title / Subtitle / Actionbar)
     hareket eden imlec yesil bolgeye girdigi anda otomatik sag tiklar ve balik
-    tutulduktan sonra oltayi tekrar suya atar (varsayilan acik).
+    tutulduktan sonra oltayi tekrar suya atar (varsayilan acik). Ayrica "DOGRULAMA"
+    ekrani acildiginda Windows masaustu bildirimi + sesli uyari + gorev cubugu
+    parlamasi gonderir, dogrulamayi tamamladiginda oltayi otomatik tekrar atar.
     Ayarlar: Auto Recast, Click Delay (1 - 15t), Recast Delay (8 - 40t).
 
 
