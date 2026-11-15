@@ -32,6 +32,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public final class WheatFarmBotHandler {
     private static final double INTERACT_RANGE = 3.4;
+    private static final double WALK_STOP_RANGE = 2.6;
 
     private enum TaskType {
         TILL,
@@ -41,6 +42,7 @@ public final class WheatFarmBotHandler {
     private record FarmTask(BlockPos pos, TaskType type) {}
 
     private static boolean holdingMoveKeys = false;
+    private static boolean walkingToTarget = false;
     private static int actionCooldown = 0;
     private static int missingWarnCooldown = 0;
     private static long lastStickRightMs = 0L;
@@ -96,6 +98,7 @@ public final class WheatFarmBotHandler {
 
     public static void onLeftWorld() {
         releaseMovementKeys(Minecraft.getInstance());
+        walkingToTarget = false;
         actionCooldown = 0;
         missingWarnCooldown = 0;
     }
@@ -104,11 +107,13 @@ public final class WheatFarmBotHandler {
         ModConfig cfg = ModConfig.getInstance();
         if (cfg == null || !cfg.wheatFarmEnabled || mc == null || mc.player == null || mc.level == null || mc.gameMode == null) {
             releaseMovementKeys(mc);
+            walkingToTarget = false;
             actionCooldown = 0;
             return;
         }
         if (mc.gui != null && mc.gui.screen() != null) {
             releaseMovementKeys(mc);
+            walkingToTarget = false;
             return;
         }
         if (!cfg.wheatFarmPos1Set || !cfg.wheatFarmPos2Set) {
@@ -148,14 +153,22 @@ public final class WheatFarmBotHandler {
         Vec3 eyePos = mc.player.getEyePosition(1.0f);
         Vec3 targetCenter = new Vec3(task.pos.getX() + 0.5, task.pos.getY() + 0.99, task.pos.getZ() + 0.5);
         double dist = Math.sqrt(targetCenter.distanceToSqr(eyePos));
+        double horizDist = Math.hypot(targetCenter.x - mc.player.getX(), targetCenter.z - mc.player.getZ());
 
-        // 1. Walk closer if out of natural human reach
+        // 1. Walk closer with hysteresis so we stop in front of the block without overshooting
         if (dist > INTERACT_RANGE) {
+            walkingToTarget = true;
+        } else if (dist <= WALK_STOP_RANGE || horizDist <= 1.25) {
+            walkingToTarget = false;
+        }
+
+        if (walkingToTarget) {
             if (!cfg.wheatFarmWalk) {
+                walkingToTarget = false;
                 releaseMovementKeys(mc);
                 return;
             }
-            steerToward(mc, targetCenter, cfg.wheatFarmTurnSpeed);
+            steerToward(mc, eyePos, targetCenter, cfg.wheatFarmTurnSpeed);
             return;
         }
 
@@ -220,24 +233,24 @@ public final class WheatFarmBotHandler {
         actionCooldown = baseDelay + extraTill + ThreadLocalRandom.current().nextInt(4);
     }
 
-    private static void steerToward(Minecraft mc, Vec3 target, float turnSpeed) {
+    private static void steerToward(Minecraft mc, Vec3 eyePos, Vec3 target, float turnSpeed) {
         if (mc.options == null || mc.player == null) {
             return;
         }
-        Vec3 pos = mc.player.position();
-        double dx = target.x - pos.x;
-        double dz = target.z - pos.z;
-        float desiredYaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
-        float yawDiff = Mth.wrapDegrees(desiredYaw - mc.player.getYRot());
+        float[] targetAngles = computeAngles(eyePos, target);
+        float yawDiff = Mth.wrapDegrees(targetAngles[0] - mc.player.getYRot());
         float maxStep = Mth.clamp(turnSpeed, 5.0f, 30.0f);
         mc.player.setYRot(mc.player.getYRot() + Mth.clamp(yawDiff, -maxStep, maxStep));
 
-        float desiredPitch = Mth.clamp(mc.player.getXRot() + Mth.clamp(12.0f - mc.player.getXRot(), -5.0f, 5.0f), -89.0f, 89.0f);
-        mc.player.setXRot(desiredPitch);
+        // Keep head smoothly aimed toward the block (no sudden upward snap)
+        float clampedTargetPitch = Mth.clamp(targetAngles[1], 18.0f, 65.0f);
+        float pitchDiff = clampedTargetPitch - mc.player.getXRot();
+        float maxPitchStep = Math.min(3.5f, maxStep * 0.4f);
+        mc.player.setXRot(Mth.clamp(mc.player.getXRot() + Mth.clamp(pitchDiff, -maxPitchStep, maxPitchStep), -89.0f, 89.0f));
 
-        mc.options.keyUp.setDown(Math.abs(yawDiff) < 55.0f);
+        mc.options.keyUp.setDown(Math.abs(yawDiff) < 30.0f);
         if (mc.player.getAbilities().flying) {
-            double dy = target.y - pos.y;
+            double dy = target.y - mc.player.getY();
             mc.options.keyJump.setDown(dy > 0.6);
             mc.options.keyShift.setDown(dy < -2.2);
         } else {
