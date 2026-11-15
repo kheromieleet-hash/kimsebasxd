@@ -468,6 +468,7 @@ final class ModernModuleCardUi {
             case "Anti Vanish" -> "Detect vanished staff/players via Tab & command leaks";
             case "Auto Sprint" -> "Keep sprinting automatically when moving";
             case "Safe Walk" -> "Prevent falling off block edges like sneaking";
+            case "Item Sucker" -> "Magnetically move toward & collect nearby dropped items";
             case "Better Chat" -> "Infinite chat history, anti-clear & copy";
             case "No Pitch Limit" -> "Unlock vertical camera pitch limits";
             case "Abort Breaking" -> "Prevent block-break reset glitches";

@@ -36,6 +36,7 @@ public class ClientMod implements ClientModInitializer {
             AutoDropHandler.tick(client);
             AutoLoginHandler.tick(client);
             AntiVanishHandler.tick(client);
+            ItemSuckerHandler.tick(client);
             ItemNotifierHudRenderer.tick(client);
             boolean inWorld = client.player != null;
             if (inWorld && !wasInWorld) {

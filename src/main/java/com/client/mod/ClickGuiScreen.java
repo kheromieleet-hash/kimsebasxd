@@ -336,6 +336,16 @@ public class ClickGuiScreen {
                 }
         ));
 
+        // Item Sucker (Movement)
+        MODULES.add(new ModuleEntry(
+                "Item Sucker", Category.MOVEMENT,
+                () -> config.itemSuckerEnabled,
+                val -> {
+                    config.itemSuckerEnabled = val;
+                    config.save();
+                }
+        ));
+
         // TrueSight (Render)
         MODULES.add(new ModuleEntry(
                 "TrueSight", Category.RENDER,

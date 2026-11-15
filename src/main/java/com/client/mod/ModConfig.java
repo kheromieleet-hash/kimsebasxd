@@ -354,6 +354,14 @@ public class ModConfig {
     public int newVelocityChance = 100; // 0 to 100%
     public boolean newVelocityExplosions = true;
 
+    // Item Sucker (Movement)
+    public boolean itemSuckerEnabled = false;
+    public int itemSuckerMode = 0; // 0=Move, 1=TP
+    public float itemSuckerRange = 6.0f; // 2.0f to 16.0f
+    public float itemSuckerSpeed = 0.35f; // 0.15f to 1.00f
+    public boolean itemSuckerOnlyPickable = true;
+    public boolean itemSuckerOnlyOnGround = false;
+
     // Right-Shift ClickGUI Tab position & state
     public int guiTheme = 0; // 0=Sestia OLED, 1=Transparent, 2=Light, 3=Monokai Pro, 4=Dark
     public int guiWindowX = 480;
@@ -629,6 +637,12 @@ public class ModConfig {
         this.newVelocityVertical = other.newVelocityVertical;
         this.newVelocityChance = other.newVelocityChance;
         this.newVelocityExplosions = other.newVelocityExplosions;
+        this.itemSuckerEnabled = other.itemSuckerEnabled;
+        this.itemSuckerMode = other.itemSuckerMode;
+        this.itemSuckerRange = other.itemSuckerRange;
+        this.itemSuckerSpeed = other.itemSuckerSpeed;
+        this.itemSuckerOnlyPickable = other.itemSuckerOnlyPickable;
+        this.itemSuckerOnlyOnGround = other.itemSuckerOnlyOnGround;
         this.guiTheme = other.guiTheme;
         this.guiWindowX = other.guiWindowX;
         this.guiWindowY = other.guiWindowY;
@@ -699,6 +713,9 @@ public class ModConfig {
         if (this.newVelocityHorizontal < 0 || this.newVelocityHorizontal > 100) this.newVelocityHorizontal = 0;
         if (this.newVelocityVertical < 0 || this.newVelocityVertical > 100) this.newVelocityVertical = 0;
         if (this.newVelocityChance < 0 || this.newVelocityChance > 100) this.newVelocityChance = 100;
+        if (this.itemSuckerMode < 0 || this.itemSuckerMode > 1) this.itemSuckerMode = 0;
+        this.itemSuckerRange = clampFloat(this.itemSuckerRange, 2.0f, 16.0f, 6.0f);
+        this.itemSuckerSpeed = clampFloat(this.itemSuckerSpeed, 0.15f, 1.00f, 0.35f);
         if (this.fastBreakSpeed < 0.5f || this.fastBreakSpeed > 5.0f) this.fastBreakSpeed = 1.15f;
         if (this.fastBreakMode < 0 || this.fastBreakMode > 1) this.fastBreakMode = 1;
         if (this.pingSpoofDelay < 50 || this.pingSpoofDelay > 1000) this.pingSpoofDelay = 150;

@@ -195,6 +195,7 @@ public final class ModernModuleSettings {
             case "Auto Login" -> buildAutoLoginControls(cfg, actions);
             case "Anti Vanish" -> buildAntiVanishControls(cfg, actions);
             case "New Velocity" -> buildNewVelocityControls(cfg, actions);
+            case "Item Sucker" -> buildItemSuckerControls(cfg, actions);
             case "Backtrack" -> List.of(
                     intSlider("backtrackDelay", "Max Delay", 40, 300, "ms",
                             () -> cfg.backtrackDelay, v -> cfg.backtrackDelay = v)
@@ -532,6 +533,23 @@ public final class ModernModuleSettings {
                 intSlider("newVelocityChance", "Chance", 0, 100, "%",
                         () -> cfg.newVelocityChance, v -> cfg.newVelocityChance = v),
                 toggle("Explosions", () -> cfg.newVelocityExplosions, v -> cfg.newVelocityExplosions = v, actions, false)
+        );
+    }
+
+    private static List<Control> buildItemSuckerControls(ModConfig cfg, Actions actions) {
+        return List.of(
+                new CycleControl("Mode",
+                        () -> cfg.itemSuckerMode == 1 ? "TP" : "Move",
+                        () -> {
+                            cfg.itemSuckerMode = (cfg.itemSuckerMode + 1) % 2;
+                            actions.persist(false);
+                        }),
+                floatSlider("itemSuckerRange", "Range", 2.0f, 16.0f, 0.5f, "%.1fm",
+                        () -> cfg.itemSuckerRange, v -> cfg.itemSuckerRange = v),
+                floatSlider("itemSuckerSpeed", "Move Speed", 0.15f, 1.00f, 0.05f, "%.2f",
+                        () -> cfg.itemSuckerSpeed, v -> cfg.itemSuckerSpeed = v),
+                toggle("Only Pickable", () -> cfg.itemSuckerOnlyPickable, v -> cfg.itemSuckerOnlyPickable = v, actions, false),
+                toggle("Only On Ground", () -> cfg.itemSuckerOnlyOnGround, v -> cfg.itemSuckerOnlyOnGround = v, actions, false)
         );
     }
 
