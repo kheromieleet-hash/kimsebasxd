@@ -464,7 +464,6 @@ final class ModernModuleCardUi {
             case "Auto Crafter" -> "Automatically compact ores & items into blocks";
             case "Auto Sell" -> "Run /sell all when selected items enter inventory";
             case "Auto Drop" -> "Automatically throw selected junk items from inventory";
-            case "Auto Login" -> "Auto-run /login & /register when prompted on servers";
             case "Auto Sprint" -> "Keep sprinting automatically when moving";
             case "Safe Walk" -> "Prevent falling off block edges like sneaking";
             case "Item Sucker" -> "Magnetically move toward & collect nearby dropped items";

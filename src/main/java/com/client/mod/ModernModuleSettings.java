@@ -192,7 +192,6 @@ public final class ModernModuleSettings {
             case "Auto Crafter" -> buildAutoCrafterControls(cfg, actions);
             case "Auto Sell" -> buildAutoSellControls(cfg, actions);
             case "Auto Drop" -> buildAutoDropControls(cfg, actions);
-            case "Auto Login" -> buildAutoLoginControls(cfg, actions);
             case "New Velocity" -> buildNewVelocityControls(cfg, actions);
             case "Item Sucker" -> buildItemSuckerControls(cfg, actions);
             case "Backtrack" -> List.of(
@@ -486,24 +485,6 @@ public final class ModernModuleSettings {
             controls.add(new ChipsControl(chips));
         }
         return controls;
-    }
-
-    private static List<Control> buildAutoLoginControls(ModConfig cfg, Actions actions) {
-        return List.of(
-                intSlider("autoLoginDelay", "Delay", 0, 60, "t",
-                        () -> cfg.autoLoginDelay, v -> cfg.autoLoginDelay = v),
-                toggle("Auto Register", () -> cfg.autoLoginAutoRegister, v -> cfg.autoLoginAutoRegister = v, actions, false),
-                toggle("Send On Join", () -> cfg.autoLoginOnJoin, v -> cfg.autoLoginOnJoin = v, actions, false),
-                new ActionControl(
-                        () -> {
-                            boolean set = cfg.autoLoginPassword != null && !cfg.autoLoginPassword.trim().isEmpty();
-                            return "Set Password (" + (set ? "Configured" : "Not Set") + ")";
-                        },
-                        () -> {
-                            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
-                            mc.gui.setScreen(new AutoLoginConfigScreen(mc.gui.screen()));
-                        })
-        );
     }
 
     private static List<Control> buildNewVelocityControls(ModConfig cfg, Actions actions) {

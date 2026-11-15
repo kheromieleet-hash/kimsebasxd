@@ -6,9 +6,11 @@ import java.util.Locale;
 
 /**
  * Automatically executes /login <password> or /register <password> <password>
- * when prompted in server chat (or immediately on join if enabled).
+ * when prompted in server chat, using the password saved for the active Account Switcher username.
  */
 public final class AutoLoginHandler {
+    private static final int DEFAULT_DELAY_TICKS = 15;
+
     private static boolean sessionDone = false;
     private static String pendingCommand = null;
     private static int pendingTicks = -1;
@@ -20,12 +22,6 @@ public final class AutoLoginHandler {
         sessionDone = false;
         pendingCommand = null;
         pendingTicks = -1;
-
-        ModConfig config = ModConfig.getInstance();
-        if (config.autoLoginEnabled && config.autoLoginOnJoin && hasPassword(config)) {
-            pendingCommand = "login " + config.autoLoginPassword.trim();
-            pendingTicks = Math.max(0, config.autoLoginDelay);
-        }
     }
 
     public static void onLeftWorld() {
@@ -38,17 +34,17 @@ public final class AutoLoginHandler {
         if (rawText == null || rawText.isEmpty()) {
             return;
         }
-        ModConfig config = ModConfig.getInstance();
-        if (!config.autoLoginEnabled || sessionDone || pendingCommand != null || !hasPassword(config)) {
+        Minecraft mc = Minecraft.getInstance();
+        String pass = resolveCurrentPassword(mc, ModConfig.getInstance());
+        if (sessionDone || pendingCommand != null || pass == null) {
             return;
         }
 
         String clean = rawText.replaceAll("§.", "").toLowerCase(Locale.ROOT);
-        String pass = config.autoLoginPassword.trim();
 
-        if (config.autoLoginAutoRegister && (clean.contains("/register") || clean.contains("/reg "))) {
+        if (clean.contains("/register") || clean.contains("/reg ")) {
             pendingCommand = "register " + pass + " " + pass;
-            pendingTicks = Math.max(0, config.autoLoginDelay);
+            pendingTicks = DEFAULT_DELAY_TICKS;
             return;
         }
 
@@ -58,13 +54,12 @@ public final class AutoLoginHandler {
                 || clean.contains("giris yap")
                 || clean.contains("giriş yap")) {
             pendingCommand = "login " + pass;
-            pendingTicks = Math.max(0, config.autoLoginDelay);
+            pendingTicks = DEFAULT_DELAY_TICKS;
         }
     }
 
     public static void tick(Minecraft mc) {
-        ModConfig config = ModConfig.getInstance();
-        if (!config.autoLoginEnabled || mc == null || mc.player == null || mc.player.connection == null) {
+        if (mc == null || mc.player == null || mc.player.connection == null) {
             return;
         }
         if (pendingCommand == null) {
@@ -80,7 +75,18 @@ public final class AutoLoginHandler {
         sessionDone = true;
     }
 
-    private static boolean hasPassword(ModConfig config) {
-        return config.autoLoginPassword != null && !config.autoLoginPassword.trim().isEmpty();
+    private static String resolveCurrentPassword(Minecraft mc, ModConfig config) {
+        if (mc == null || mc.getUser() == null || config == null || config.accountPasswords == null) {
+            return null;
+        }
+        String name = mc.getUser().getName();
+        if (name == null || name.isBlank()) {
+            return null;
+        }
+        String pass = config.accountPasswords.get(name.toLowerCase(Locale.ROOT));
+        if (pass == null || pass.trim().isEmpty()) {
+            return null;
+        }
+        return pass.trim();
     }
 }

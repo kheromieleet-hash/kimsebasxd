@@ -337,12 +337,8 @@ public class ModConfig {
         }
     }
 
-    // Auto Login
-    public boolean autoLoginEnabled = false;
-    public String autoLoginPassword = "";
-    public int autoLoginDelay = 20; // 0 to 60 ticks
-    public boolean autoLoginAutoRegister = true;
-    public boolean autoLoginOnJoin = false;
+    // Account Switcher per-account auto-login passwords (lowercase username -> password)
+    public Map<String, String> accountPasswords = new HashMap<>();
 
     // New Velocity (Combat)
     public boolean newVelocityEnabled = false;
@@ -624,11 +620,7 @@ public class ModConfig {
         if (other.autoDropTargets != null) {
             this.autoDropTargets.addAll(other.autoDropTargets);
         }
-        this.autoLoginEnabled = other.autoLoginEnabled;
-        this.autoLoginPassword = other.autoLoginPassword != null ? other.autoLoginPassword : "";
-        this.autoLoginDelay = other.autoLoginDelay;
-        this.autoLoginAutoRegister = other.autoLoginAutoRegister;
-        this.autoLoginOnJoin = other.autoLoginOnJoin;
+        this.accountPasswords = other.accountPasswords != null ? new HashMap<>(other.accountPasswords) : new HashMap<>();
         this.newVelocityEnabled = other.newVelocityEnabled;
         this.newVelocityMode = other.newVelocityMode;
         this.newVelocityHorizontal = other.newVelocityHorizontal;
@@ -704,8 +696,7 @@ public class ModConfig {
         if (this.autoDropTargets == null) {
             this.autoDropTargets = new HashSet<>();
         }
-        if (this.autoLoginPassword == null) this.autoLoginPassword = "";
-        if (this.autoLoginDelay < 0 || this.autoLoginDelay > 60) this.autoLoginDelay = 20;
+        if (this.accountPasswords == null) this.accountPasswords = new HashMap<>();
         if (this.newVelocityMode < 0 || this.newVelocityMode > 2) this.newVelocityMode = 0;
         if (this.newVelocityHorizontal < 0 || this.newVelocityHorizontal > 100) this.newVelocityHorizontal = 0;
         if (this.newVelocityVertical < 0 || this.newVelocityVertical > 100) this.newVelocityVertical = 0;

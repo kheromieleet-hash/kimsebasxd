@@ -12,6 +12,7 @@ import org.lwjgl.glfw.GLFW;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -23,10 +24,12 @@ public final class SestiaAddAccountScreen extends Screen {
     private final Consumer<Object> handler;
 
     private EditBox nameEdit;
+    private EditBox passwordEdit;
     private Button typeButton;
     private Button doneButton;
     private boolean microsoftMode = false;
     private String draftName = "";
+    private String draftPassword = "";
 
     public SestiaAddAccountScreen(Screen parent, Consumer<Object> handler) {
         super(Component.literal("Add Account"));
@@ -61,8 +64,9 @@ public final class SestiaAddAccountScreen extends Screen {
     @Override
     protected void init() {
         int centerX = this.width / 2 - 100;
-        int editY = 66;
-        int typeY = Math.max(118, this.height / 4 + 72);
+        int editY = 60;
+        int passY = 102;
+        int typeY = Math.max(138, this.height / 4 + 88);
 
         this.nameEdit = new EditBox(this.font, centerX, editY, 200, 20, Component.literal("Username"));
         this.nameEdit.setMaxLength(16);
@@ -75,11 +79,22 @@ public final class SestiaAddAccountScreen extends Screen {
         this.addRenderableWidget(this.nameEdit);
         this.setInitialFocus(this.nameEdit);
 
+        this.passwordEdit = new EditBox(this.font, centerX, passY, 200, 20, Component.literal("Server Password"));
+        this.passwordEdit.setMaxLength(64);
+        this.passwordEdit.setHint(Component.literal("Optional (/login & /register)"));
+        this.passwordEdit.setValue(this.draftPassword);
+        this.passwordEdit.setEditable(!this.microsoftMode);
+        this.passwordEdit.setResponder(text -> this.draftPassword = text != null ? text : "");
+        this.addRenderableWidget(this.passwordEdit);
+
         this.typeButton = Button.builder(typeLabel(), btn -> {
             this.microsoftMode = !this.microsoftMode;
             btn.setMessage(typeLabel());
             if (this.nameEdit != null) {
                 this.nameEdit.setEditable(!this.microsoftMode);
+            }
+            if (this.passwordEdit != null) {
+                this.passwordEdit.setEditable(!this.microsoftMode);
             }
             updateButtonStates();
         }).bounds(centerX, typeY, 200, 20).build();
@@ -129,6 +144,16 @@ public final class SestiaAddAccountScreen extends Screen {
         if (name.isEmpty()) {
             return;
         }
+        String password = this.passwordEdit != null ? this.passwordEdit.getValue().trim() : "";
+        ModConfig config = ModConfig.getInstance();
+        String key = name.toLowerCase(Locale.ROOT);
+        if (!password.isEmpty()) {
+            config.accountPasswords.put(key, password);
+        } else {
+            config.accountPasswords.remove(key);
+        }
+        config.save();
+
         try {
             Class<?> offlineCls = Class.forName("ru.vidtu.ias.account.OfflineAccount");
             UUID uuid = (UUID) offlineCls.getMethod("uuid", String.class).invoke(null, name);
@@ -164,6 +189,7 @@ public final class SestiaAddAccountScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         graphics.centeredText(this.font, this.title, this.width / 2, 17, 0xFFFFFFFF);
         int labelColor = this.microsoftMode ? 0xFF6E6E6E : 0xFFA0A0A0;
-        graphics.text(this.font, Component.literal("Username"), this.width / 2 - 100, 53, labelColor, false);
+        graphics.text(this.font, Component.literal("Username"), this.width / 2 - 100, 48, labelColor, false);
+        graphics.text(this.font, Component.literal("Server Password (Auto-Login)"), this.width / 2 - 100, 90, labelColor, false);
     }
 }

@@ -257,17 +257,10 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
 
 
 --------------------------------------------------------------------------------
-[6] MISC KATEGORISI (3 Modul)
+[6] MISC KATEGORISI (2 Modul)
 --------------------------------------------------------------------------------
 
-36. Auto Login
-    Ne ise yarar: AuthMe / Login eklentili sunucularda sohbetten /login veya
-    /register istendiginde (veya istege bagli sunucuya giriste) sifreyi
-    otomatik gonderir.
-    Ayarlar: Delay (0 - 60t), Auto Register (/register <sifre> <sifre>),
-    Send On Join (sohbet beklemeden giriste gonder), Set Password (sifre giris ekrani).
-
-38. Better Chat
+36. Better Chat
     Ne ise yarar: Sohbeti gelistirir.
     Ayarlar: Infinite History (16.384 satira kadar gecmis), Anti Clear
     (sunucu temizleme bosluklarini gizler), Click to Copy (tikla kopyala),
@@ -309,6 +302,9 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
 - Low Fire: Ekrandaki yanma/ates efektini asagi indirerek gorusu acar.
 - Version Switcher (Multiplayer ekraninda): Baglanilan sunucuya farkli
   Minecraft protokol surumu gondererek surum degistirmeyi saglar.
+- Account Switcher + Auto-Login: Offline hesap eklerken kullanici adinin altina
+  istege bagli sunucu sifresi girilebilir; o hesapla sunucuya girildiginde /login
+  veya /register istendiginde kaydedilen sifreyi otomatik gonderir.
 - Sohbet Makrolari: Tek tusla sohbet komutu veya mesaj gonderme (Macros sekmesi).
 - Ayar Profilleri (Settings sekmesi): Acik modulleri, slider/mod ayarlarini,
   tus atamalarini, makrolari ve HUD ayarlarini yerel profil olarak kaydetme/yukleme,
