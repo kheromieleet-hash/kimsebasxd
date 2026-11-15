@@ -94,6 +94,8 @@ public class ModConfig {
     public boolean chatInfinite = true;      // Expands chat history from 100 to 16,384 lines
     public boolean chatAntiClear = true;     // Prevents server-side clear chat wipes & blank lines
     public boolean chatClickCopy = true;     // Right-click or Shift+Left click to copy message to clipboard
+    public boolean chatMentionAlert = true;  // Windows notification & sound when mentioned in chat
+    public boolean chatMentionAlertMigrated = true;
 
     // Cloudflare Client Chat
     public int configVersion = 0;
@@ -568,6 +570,8 @@ public class ModConfig {
         this.chatInfinite = other.chatInfinite;
         this.chatAntiClear = other.chatAntiClear;
         this.chatClickCopy = other.chatClickCopy;
+        this.chatMentionAlert = other.chatMentionAlert;
+        this.chatMentionAlertMigrated = other.chatMentionAlertMigrated;
         this.invTweaksEnabled = other.invTweaksEnabled;
         this.invMouseDrag = other.invMouseDrag;
         this.invSorting = other.invSorting;
@@ -832,6 +836,10 @@ public class ModConfig {
             this.autoFishClickDelay = 5;
             this.autoFishRecastDelay = 15;
             this.autoFishMigrated = true;
+        }
+        if (!this.chatMentionAlertMigrated) {
+            this.chatMentionAlert = true;
+            this.chatMentionAlertMigrated = true;
         }
         if (this.autoFishClickDelay < 1 || this.autoFishClickDelay > 15) this.autoFishClickDelay = 5;
         if (this.autoFishRecastDelay < 8 || this.autoFishRecastDelay > 40) this.autoFishRecastDelay = 15;

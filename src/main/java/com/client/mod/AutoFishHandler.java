@@ -117,10 +117,12 @@ public final class AutoFishHandler {
     }
 
     public static void onTitlePacket(Component text) {
+        ChatMentionNotifier.onTitleOrActionBar(text);
         processBarComponent(text);
     }
 
     public static void onSubtitlePacket(Component text) {
+        ChatMentionNotifier.onTitleOrActionBar(text);
         // Only inspect subtitle as a bar if title hasn't active-locked recently
         if (System.currentTimeMillis() - lastBarPacketMs > 600L) {
             processBarComponent(text);
@@ -128,6 +130,7 @@ public final class AutoFishHandler {
     }
 
     public static void onActionBarPacket(Component text) {
+        ChatMentionNotifier.onTitleOrActionBar(text);
         if (System.currentTimeMillis() - lastBarPacketMs > 600L) {
             processBarComponent(text);
         }

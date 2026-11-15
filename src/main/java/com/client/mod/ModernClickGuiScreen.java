@@ -1217,7 +1217,7 @@ public class ModernClickGuiScreen extends Screen {
         int cardH = 40;
         int cardGap = 6;
 
-        int totalContentH = 14 + 34 + (cardH + cardGap) * 6 + 10 + 30 + (cardH + cardGap) * 5 + 10 + 30 + (cardH + cardGap) * 3 + 12;
+        int totalContentH = 14 + 34 + (cardH + cardGap) * 6 + 10 + 30 + (cardH + cardGap) * 6 + 10 + 30 + (cardH + cardGap) * 3 + 12;
         this.contentTotalHeight = Math.max(contentH, totalContentH);
         this.scrollAmount = Mth.clamp(this.scrollAmount, 0.0, Math.max(0, this.contentTotalHeight - contentH));
         int scroll = (int) Math.round(this.scrollAmount);
@@ -1289,7 +1289,12 @@ public class ModernClickGuiScreen extends Screen {
                 "Stacks duplicate consecutive messages with (2), (3)...",
                 config.compactChat, true, false, "");
 
-        int notifierHeaderY = listY + (cardH + cardGap) * 5 + 10;
+        drawHudResetCard(graphics, mouseX, mouseY, innerX, listY + (cardH + cardGap) * 5, innerW, cardH,
+                "Mention Windows Alert",
+                "Sends Windows desktop notification & sound when someone mentions your name",
+                config.chatMentionAlert, true, false, "");
+
+        int notifierHeaderY = listY + (cardH + cardGap) * 6 + 10;
         graphics.text(this.font, Component.literal("§lITEM NOTIFIER"), innerX, notifierHeaderY, JelloTheme.TEXT, false);
         graphics.text(this.font, Component.literal("Pickup/drop HUD alerts (drag position in Open HUD Editor)"), innerX, notifierHeaderY + 13, JelloTheme.TEXT_MUTED, false);
 
@@ -1479,8 +1484,12 @@ public class ModernClickGuiScreen extends Screen {
                 () -> { config.compactChat = !config.compactChat; config.save(); }, null)) {
             return true;
         }
+        if (handleHudCardClick(mouseX, mouseY, innerX, listY + (cardH + cardGap) * 5, innerW, cardH, true, false, "",
+                () -> { config.chatMentionAlert = !config.chatMentionAlert; config.save(); }, null)) {
+            return true;
+        }
 
-        int notifierY = listY + (cardH + cardGap) * 5 + 10 + 30;
+        int notifierY = listY + (cardH + cardGap) * 6 + 10 + 30;
         if (handleHudCardClick(mouseX, mouseY, innerX, notifierY, innerW, cardH, true, true, "Reset",
                 () -> {
                     config.itemNotifierEnabled = !config.itemNotifierEnabled;
