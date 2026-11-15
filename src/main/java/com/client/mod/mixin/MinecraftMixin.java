@@ -10,13 +10,20 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -79,18 +86,55 @@ public abstract class MinecraftMixin {
             ci.cancel();
             return;
         }
-        if (!com.client.mod.ModConfig.getInstance().ghostHand) {
+        if (com.client.mod.ModConfig.getInstance().ghostHand
+                && this.gameMode != null && this.player != null && this.level != null
+                && !this.gameMode.isDestroying() && !this.player.isHandsBusy()
+                && com.client.mod.GhostHandHandler.tryInteractThroughBlocks(this.player, this.level, this.gameMode, this.hitResult)) {
+            this.rightClickDelay = 4;
+            ci.cancel();
             return;
         }
-        if (this.gameMode == null || this.player == null || this.level == null) {
+        tryBetterPlaceAir(ci);
+    }
+
+    @Unique
+    private void tryBetterPlaceAir(CallbackInfo ci) {
+        ModConfig cfg = ModConfig.getInstance();
+        if (cfg == null || !cfg.betterPlace || this.gameMode == null || this.player == null || this.level == null) {
             return;
         }
         if (this.gameMode.isDestroying() || this.player.isHandsBusy()) {
             return;
         }
-        if (com.client.mod.GhostHandHandler.tryInteractThroughBlocks(this.player, this.level, this.gameMode, this.hitResult)) {
-            this.rightClickDelay = 4;
-            ci.cancel();
+        if (this.hitResult != null && this.hitResult.getType() != HitResult.Type.MISS) {
+            return;
+        }
+        for (InteractionHand hand : InteractionHand.values()) {
+            ItemStack stack = this.player.getItemInHand(hand);
+            if (stack.isEmpty() || !(stack.getItem() instanceof BlockItem)) {
+                continue;
+            }
+            Vec3 eyePos = this.player.getEyePosition(1.0f);
+            Vec3 look = this.player.getViewVector(1.0f);
+            double range = Math.max(2.0, Math.min(6.0, cfg.betterPlaceRange));
+            BlockPos targetPos = BlockPos.containing(eyePos.add(look.scale(range)));
+            if (!this.level.getBlockState(targetPos).canBeReplaced()) {
+                continue;
+            }
+            if (!this.player.isShiftKeyDown() && this.player.getBoundingBox().intersects(new AABB(targetPos))) {
+                continue;
+            }
+            Direction face = Direction.getApproximateNearest(-look.x, -look.y, -look.z);
+            BlockHitResult fakeHit = new BlockHitResult(Vec3.atCenterOf(targetPos), face, targetPos, false);
+            InteractionResult res = this.gameMode.useItemOn(this.player, hand, fakeHit);
+            if (res instanceof InteractionResult.Success success) {
+                if (success.swingSource() == InteractionResult.SwingSource.PREDICTED) {
+                    this.player.swing(hand, stack.getInteractAnimation(), false);
+                }
+                this.rightClickDelay = cfg.fastUseEnabled ? Math.max(0, Math.min(4, cfg.fastUseCooldown)) : 4;
+                ci.cancel();
+                return;
+            }
         }
     }
 

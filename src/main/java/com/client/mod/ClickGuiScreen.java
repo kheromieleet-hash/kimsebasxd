@@ -216,6 +216,26 @@ public class ClickGuiScreen {
                 }
         ));
 
+        // Better Place (World)
+        MODULES.add(new ModuleEntry(
+                "Better Place", Category.WORLD,
+                () -> config.betterPlace,
+                val -> {
+                    config.betterPlace = val;
+                    config.save();
+                }
+        ));
+
+        // No Strip (Player)
+        MODULES.add(new ModuleEntry(
+                "No Strip", Category.PLAYER,
+                () -> config.noStrip,
+                val -> {
+                    config.noStrip = val;
+                    config.save();
+                }
+        ));
+
         // 7. Auto Break (World)
         MODULES.add(new ModuleEntry(
                 "Auto Break", Category.WORLD,

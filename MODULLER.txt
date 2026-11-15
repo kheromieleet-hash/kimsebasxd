@@ -182,7 +182,12 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     kapatir.
     Ayarlar: Auto Right Click (Otomatik sag tik), Fast Place Delay (0 - 4t).
 
-28. FastBreak
+28. Better Place
+    Ne ise yarar: Bloklari havaya ve normalde konulamayan aci/mesafelerden
+    koymaya olanak tanir.
+    Ayarlar: Place Range (2.0 - 6.0b).
+
+29. FastBreak
     Ne ise yarar: Blok kirma gecikmesini azaltir ve kirma hizini artirir.
     Ayarlar: Mode (Vulcan / Vanilla, varsayilan: Vulcan), Break Speed
     (Vulcan'da max guvenli 1.15x, Vanilla'da 0.5x - 5.0x).
@@ -203,6 +208,10 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     otomatik olarak yere atar.
     Ayarlar: Delay (0 - 20t), Exclude Hotbar (hotbar slotlarini korur),
     Select Items (tum Minecraft esyalarini ikonlu arayuzden secme).
+
+31. No Strip
+    Ne ise yarar: Baltayla odun veya bambu bloklarini yanlislikla soymayi engeller.
+    Ayarlar: Allow Sneaking (Shift basiliyken soymaya izin verir).
 
 31. Auto Sell
     Ne ise yarar: Secili esyalardan herhangi biri envantere geldiginde belirli

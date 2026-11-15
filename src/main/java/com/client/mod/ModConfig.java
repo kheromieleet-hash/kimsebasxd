@@ -348,6 +348,12 @@ public class ModConfig {
     public int newVelocityChance = 100; // 0 to 100%
     public boolean newVelocityExplosions = true;
 
+    // No Strip & Better Place (Numby Hack)
+    public boolean noStrip = false;
+    public boolean noStripAllowSneak = true;
+    public boolean betterPlace = false;
+    public float betterPlaceRange = 4.5f;
+
     // Item Sucker (Movement)
     public boolean itemSuckerEnabled = false;
     public int itemSuckerMode = 0; // 0=Move, 1=TP
@@ -627,6 +633,10 @@ public class ModConfig {
         this.newVelocityVertical = other.newVelocityVertical;
         this.newVelocityChance = other.newVelocityChance;
         this.newVelocityExplosions = other.newVelocityExplosions;
+        this.noStrip = other.noStrip;
+        this.noStripAllowSneak = other.noStripAllowSneak;
+        this.betterPlace = other.betterPlace;
+        this.betterPlaceRange = other.betterPlaceRange;
         this.itemSuckerEnabled = other.itemSuckerEnabled;
         this.itemSuckerMode = other.itemSuckerMode;
         this.itemSuckerRange = other.itemSuckerRange;
@@ -701,6 +711,7 @@ public class ModConfig {
         if (this.newVelocityHorizontal < 0 || this.newVelocityHorizontal > 100) this.newVelocityHorizontal = 0;
         if (this.newVelocityVertical < 0 || this.newVelocityVertical > 100) this.newVelocityVertical = 0;
         if (this.newVelocityChance < 0 || this.newVelocityChance > 100) this.newVelocityChance = 100;
+        this.betterPlaceRange = clampFloat(this.betterPlaceRange, 2.0f, 6.0f, 4.5f);
         if (this.itemSuckerMode < 0 || this.itemSuckerMode > 1) this.itemSuckerMode = 0;
         this.itemSuckerRange = clampFloat(this.itemSuckerRange, 2.0f, 16.0f, 6.0f);
         this.itemSuckerSpeed = clampFloat(this.itemSuckerSpeed, 0.15f, 1.00f, 0.35f);

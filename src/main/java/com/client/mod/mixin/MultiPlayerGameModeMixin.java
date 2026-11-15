@@ -6,9 +6,18 @@ import com.client.mod.PacketMineHandler;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.multiplayer.prediction.PredictiveAction;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -110,5 +119,27 @@ public abstract class MultiPlayerGameModeMixin implements PacketMineHandler.Stop
     @Inject(method = "tick", at = @At("HEAD"))
     private void onTickPacketMine(CallbackInfo ci) {
         PacketMineHandler.tick((MultiPlayerGameMode) (Object) this, this.isDestroying, this.destroyProgress);
+    }
+
+    @Inject(method = "useItemOn", at = @At("HEAD"), cancellable = true)
+    private void onUseItemOnNoStrip(LocalPlayer player, InteractionHand hand, BlockHitResult hitResult, CallbackInfoReturnable<InteractionResult> cir) {
+        ModConfig config = ModConfig.getInstance();
+        if (config == null || !config.noStrip || player == null || hitResult == null) {
+            return;
+        }
+        if (config.noStripAllowSneak && player.isShiftKeyDown()) {
+            return;
+        }
+        ItemStack stack = player.getItemInHand(hand);
+        if (stack.isEmpty() || !stack.is(ItemTags.AXES)) {
+            return;
+        }
+        BlockState state = player.level().getBlockState(hitResult.getBlockPos());
+        if (state.is(BlockTags.LOGS) || state.is(BlockTags.BAMBOO_BLOCKS)) {
+            String path = BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath();
+            if (!path.startsWith("stripped_")) {
+                cir.setReturnValue(InteractionResult.PASS);
+            }
+        }
     }
 }

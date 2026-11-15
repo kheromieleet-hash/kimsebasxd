@@ -192,6 +192,13 @@ public final class ModernModuleSettings {
             case "Auto Crafter" -> buildAutoCrafterControls(cfg, actions);
             case "Auto Sell" -> buildAutoSellControls(cfg, actions);
             case "Auto Drop" -> buildAutoDropControls(cfg, actions);
+            case "No Strip" -> List.of(
+                    toggle("Allow Sneaking", () -> cfg.noStripAllowSneak, v -> cfg.noStripAllowSneak = v, actions, false)
+            );
+            case "Better Place" -> List.of(
+                    floatSlider("betterPlaceRange", "Place Range", 2.0f, 6.0f, 0.25f, "b",
+                            () -> cfg.betterPlaceRange, v -> cfg.betterPlaceRange = v)
+            );
             case "New Velocity" -> buildNewVelocityControls(cfg, actions);
             case "Item Sucker" -> buildItemSuckerControls(cfg, actions);
             case "Backtrack" -> List.of(
