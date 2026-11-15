@@ -62,6 +62,7 @@ public final class SestiaChatClient {
     private static volatile WebSocket activeSocket = null;
     private static volatile boolean loggedIn = false;
     private static volatile boolean connecting = false;
+    private static volatile boolean silentAutoReconnect = false;
     private static volatile String activeNick = "Player";
     private static volatile int lastOnlineCount = 0;
     private static volatile long lastActivityAt = 0L;
@@ -121,6 +122,7 @@ public final class SestiaChatClient {
             return;
         }
         reconnectAttempts = 0;
+        silentAutoReconnect = false;
         connectAsync(0);
     }
 
@@ -345,7 +347,10 @@ public final class SestiaChatClient {
             if (gen != GENERATION.get() || !ModConfig.getInstance().clientChatEnabled) {
                 return;
             }
-            if (reconnectAttempts == 0 && reason != null && !reason.isBlank()) {
+            if (reconnectAttempts == 0) {
+                silentAutoReconnect = true;
+            } else if (reconnectAttempts == 3 && reason != null && !reason.isBlank()) {
+                silentAutoReconnect = false;
                 postChat("§8[§cSestiaChat§8] §cDisconnected (" + reason + "), reconnecting...");
             }
             long waitMs = SestiaChatProtocol.computeBackoffMs(reconnectAttempts);
@@ -366,6 +371,7 @@ public final class SestiaChatClient {
             }
             connecting = false;
             loggedIn = false;
+            silentAutoReconnect = false;
             reconnectAttempts = 0;
             lastActivityAt = 0L;
             synchronized (PENDING_OUTBOX) {
@@ -420,7 +426,11 @@ public final class SestiaChatClient {
                 if (ev.users() != null && !ev.users().isEmpty()) {
                     KNOWN_USERS.addAll(ev.users());
                 }
-                postChat("§8[§cSestiaChat§8] §aConnected to global chat! §8(§7Online: §f" + lastOnlineCount + "§8)");
+                boolean wasSilent = silentAutoReconnect;
+                silentAutoReconnect = false;
+                if (!wasSilent) {
+                    postChat("§8[§cSestiaChat§8] §aConnected to global chat! §8(§7Online: §f" + lastOnlineCount + "§8)");
+                }
                 flushPendingOutbox();
             }
             case CHAT -> {
