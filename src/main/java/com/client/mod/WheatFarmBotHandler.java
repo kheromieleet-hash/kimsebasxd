@@ -164,23 +164,26 @@ public final class WheatFarmBotHandler {
         float[] targetAngles = computeAngles(eyePos, targetCenter);
         float yawDiff = easeRotatePlayer(mc.player, targetAngles[0], targetAngles[1], cfg.wheatFarmTurnSpeed);
 
-        // 2. Fluid walk-while-working movement (only pauses if about to step past an unfinished block)
-        if (cfg.wheatFarmWalk) {
+        // Auto-enable flight if Fly Mode is active and player can fly
+        if (cfg.wheatFarmFly && mc.player.getAbilities().mayfly && !mc.player.getAbilities().flying) {
+            mc.player.getAbilities().flying = true;
+            mc.player.onUpdateAbilities();
+        }
+
+        // 2. Fluid walk/fly-while-working movement
+        if (cfg.wheatFarmWalk || cfg.wheatFarmFly) {
             boolean shouldWalk = dist > INTERACT_RANGE || horizDist > PAUSE_BEFORE_OVERSHOOT_HORIZ;
-            if (shouldWalk) {
-                mc.options.keyUp.setDown(Math.abs(yawDiff) < 42.0f);
-                if (mc.player.getAbilities().flying) {
-                    double dy = targetCenter.y - mc.player.getY();
-                    mc.options.keyJump.setDown(dy > 0.55);
-                    mc.options.keyShift.setDown(dy < -2.35);
-                } else {
-                    mc.options.keyJump.setDown(mc.player.horizontalCollision);
-                    mc.options.keyShift.setDown(false);
-                }
-                holdingMoveKeys = true;
+            mc.options.keyUp.setDown(shouldWalk && Math.abs(yawDiff) < 42.0f);
+            if (mc.player.getAbilities().flying) {
+                double hoverMinY = task.pos.getY() + 1.65;
+                double hoverMaxY = task.pos.getY() + 2.35;
+                mc.options.keyJump.setDown(mc.player.getY() < hoverMinY);
+                mc.options.keyShift.setDown(mc.player.getY() > hoverMaxY);
             } else {
-                releaseMovementKeys(mc);
+                mc.options.keyJump.setDown(shouldWalk && mc.player.horizontalCollision);
+                mc.options.keyShift.setDown(false);
             }
+            holdingMoveKeys = true;
         } else {
             releaseMovementKeys(mc);
         }

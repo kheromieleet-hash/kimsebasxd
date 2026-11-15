@@ -364,6 +364,7 @@ public class ModConfig {
     public int wheatFarmY2 = 0;
     public int wheatFarmZ2 = 0;
     public boolean wheatFarmWalk = true;
+    public boolean wheatFarmFly = false;
     public boolean wheatFarmStickWand = true;
     public int wheatFarmDelay = 7; // 3 to 20 ticks
     public float wheatFarmTurnSpeed = 12.0f; // 5 to 30 deg/tick
@@ -661,6 +662,7 @@ public class ModConfig {
         this.wheatFarmY2 = other.wheatFarmY2;
         this.wheatFarmZ2 = other.wheatFarmZ2;
         this.wheatFarmWalk = other.wheatFarmWalk;
+        this.wheatFarmFly = other.wheatFarmFly;
         this.wheatFarmStickWand = other.wheatFarmStickWand;
         this.wheatFarmDelay = other.wheatFarmDelay;
         this.wheatFarmTurnSpeed = other.wheatFarmTurnSpeed;
