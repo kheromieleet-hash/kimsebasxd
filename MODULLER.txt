@@ -266,12 +266,28 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     Ayarlar: Delay (0 - 60t), Auto Register (/register <sifre> <sifre>),
     Send On Join (sohbet beklemeden giriste gonder), Set Password (sifre giris ekrani).
 
-37. Better Chat
+38. Better Chat
     Ne ise yarar: Sohbeti gelistirir.
     Ayarlar: Infinite History (16.384 satira kadar gecmis), Anti Clear
     (sunucu temizleme bosluklarini gizler), Click to Copy (tikla kopyala),
     Timestamps (Istanbul saati <HH:mm:ss>), Compact Chat (tekrar eden
     mesajlari (2), (3) seklinde birlestirir).
+
+
+--------------------------------------------------------------------------------
+[7] COMBAT KATEGORISI (2 Modul)
+--------------------------------------------------------------------------------
+
+39. Backtrack
+    Ne ise yarar: PvP sirasinda rakibin hareket paketlerini kisa sure tutarak
+    gecikmeli pozisyonuna vurabilmeyi saglar.
+    Ayarlar: Max Delay (40 - 300ms).
+
+40. New Velocity
+    Ne ise yarar: Alinan geri tepmeyi (knockback) azaltir veya Jump Reset ile
+    dogal sekilde sifirlar.
+    Ayarlar: Mode (Normal / Jump Reset / Grim), Horizontal (0 - 100%),
+    Vertical (0 - 100%), Chance (0 - 100%), Explosions (patlama itmesini azalt).
 
 
 --------------------------------------------------------------------------------

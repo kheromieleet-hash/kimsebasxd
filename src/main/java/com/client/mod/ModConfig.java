@@ -346,6 +346,14 @@ public class ModConfig {
     public boolean antiVanishCommandCheck = true;
     public int antiVanishInterval = 15; // 5 to 60 seconds
 
+    // New Velocity (Combat)
+    public boolean newVelocityEnabled = false;
+    public int newVelocityMode = 0; // 0=Normal, 1=Jump Reset, 2=Grim
+    public int newVelocityHorizontal = 0; // 0 to 100%
+    public int newVelocityVertical = 0; // 0 to 100%
+    public int newVelocityChance = 100; // 0 to 100%
+    public boolean newVelocityExplosions = true;
+
     // Right-Shift ClickGUI Tab position & state
     public int guiTheme = 0; // 0=Sestia OLED, 1=Transparent, 2=Light, 3=Monokai Pro, 4=Dark
     public int guiWindowX = 480;
@@ -615,6 +623,12 @@ public class ModConfig {
         this.antiVanishTabCheck = other.antiVanishTabCheck;
         this.antiVanishCommandCheck = other.antiVanishCommandCheck;
         this.antiVanishInterval = other.antiVanishInterval;
+        this.newVelocityEnabled = other.newVelocityEnabled;
+        this.newVelocityMode = other.newVelocityMode;
+        this.newVelocityHorizontal = other.newVelocityHorizontal;
+        this.newVelocityVertical = other.newVelocityVertical;
+        this.newVelocityChance = other.newVelocityChance;
+        this.newVelocityExplosions = other.newVelocityExplosions;
         this.guiTheme = other.guiTheme;
         this.guiWindowX = other.guiWindowX;
         this.guiWindowY = other.guiWindowY;
@@ -681,6 +695,10 @@ public class ModConfig {
         if (this.autoLoginPassword == null) this.autoLoginPassword = "";
         if (this.autoLoginDelay < 0 || this.autoLoginDelay > 60) this.autoLoginDelay = 20;
         if (this.antiVanishInterval < 5 || this.antiVanishInterval > 60) this.antiVanishInterval = 15;
+        if (this.newVelocityMode < 0 || this.newVelocityMode > 2) this.newVelocityMode = 0;
+        if (this.newVelocityHorizontal < 0 || this.newVelocityHorizontal > 100) this.newVelocityHorizontal = 0;
+        if (this.newVelocityVertical < 0 || this.newVelocityVertical > 100) this.newVelocityVertical = 0;
+        if (this.newVelocityChance < 0 || this.newVelocityChance > 100) this.newVelocityChance = 100;
         if (this.fastBreakSpeed < 0.5f || this.fastBreakSpeed > 5.0f) this.fastBreakSpeed = 1.15f;
         if (this.fastBreakMode < 0 || this.fastBreakMode > 1) this.fastBreakMode = 1;
         if (this.pingSpoofDelay < 50 || this.pingSpoofDelay > 1000) this.pingSpoofDelay = 150;

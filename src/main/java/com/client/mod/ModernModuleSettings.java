@@ -194,6 +194,7 @@ public final class ModernModuleSettings {
             case "Auto Drop" -> buildAutoDropControls(cfg, actions);
             case "Auto Login" -> buildAutoLoginControls(cfg, actions);
             case "Anti Vanish" -> buildAntiVanishControls(cfg, actions);
+            case "New Velocity" -> buildNewVelocityControls(cfg, actions);
             case "Backtrack" -> List.of(
                     intSlider("backtrackDelay", "Max Delay", 40, 300, "ms",
                             () -> cfg.backtrackDelay, v -> cfg.backtrackDelay = v)
@@ -509,6 +510,28 @@ public final class ModernModuleSettings {
                 toggle("Command Check", () -> cfg.antiVanishCommandCheck, v -> cfg.antiVanishCommandCheck = v, actions, false),
                 intSlider("antiVanishInterval", "Check Interval", 5, 60, "s",
                         () -> cfg.antiVanishInterval, v -> cfg.antiVanishInterval = v)
+        );
+    }
+
+    private static List<Control> buildNewVelocityControls(ModConfig cfg, Actions actions) {
+        return List.of(
+                new CycleControl("Mode",
+                        () -> switch (cfg.newVelocityMode) {
+                            case 1 -> "Jump Reset";
+                            case 2 -> "Grim";
+                            default -> "Normal";
+                        },
+                        () -> {
+                            cfg.newVelocityMode = (cfg.newVelocityMode + 1) % 3;
+                            actions.persist(false);
+                        }),
+                intSlider("newVelocityHorizontal", "Horizontal", 0, 100, "%",
+                        () -> cfg.newVelocityHorizontal, v -> cfg.newVelocityHorizontal = v),
+                intSlider("newVelocityVertical", "Vertical", 0, 100, "%",
+                        () -> cfg.newVelocityVertical, v -> cfg.newVelocityVertical = v),
+                intSlider("newVelocityChance", "Chance", 0, 100, "%",
+                        () -> cfg.newVelocityChance, v -> cfg.newVelocityChance = v),
+                toggle("Explosions", () -> cfg.newVelocityExplosions, v -> cfg.newVelocityExplosions = v, actions, false)
         );
     }
 

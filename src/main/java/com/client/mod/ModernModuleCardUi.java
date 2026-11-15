@@ -474,6 +474,7 @@ final class ModernModuleCardUi {
             case "Anti Hunger" -> "Filter sprint packets to reduce hunger drain";
             case "Anti Levitation" -> "Ignore shulker levitation float effect";
             case "Backtrack" -> "Briefly hold opponent move packets for hits";
+            case "New Velocity" -> "Reduce or jump-reset incoming knockback";
             case "Disabler" -> "Vulcan & Grim packet alignment rules";
             case "Exploit Guard" -> "Drop abusive particle, knockback & URL packets";
             case "Ghost Hand" -> "Open chests & containers through solid walls";

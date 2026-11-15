@@ -42,6 +42,9 @@ public abstract class ClientPlayPacketListenerMixin {
     @Unique
     private boolean customclient$replayingBacktrack = false;
 
+    @Unique
+    private Vec3 customclient$preVelocity = null;
+
     @Inject(method = "handleCommandSuggestions", at = @At("HEAD"), cancellable = true)
     private void onHandleCommandSuggestions(ClientboundCommandSuggestionsPacket packet, CallbackInfo ci) {
         if (AntiVanishHandler.handleCommandSuggestions(packet)) {
@@ -74,6 +77,10 @@ public abstract class ClientPlayPacketListenerMixin {
     @Inject(method = "handleExplosion", at = @At("HEAD"), cancellable = true)
     private void onHandleExplosion(ClientboundExplodePacket packet, CallbackInfo ci) {
         ModConfig cfg = ModConfig.getInstance();
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null) {
+            customclient$preVelocity = mc.player.getDeltaMovement();
+        }
         if (!cfg.exploitGuard) {
             return;
         }
@@ -94,9 +101,30 @@ public abstract class ClientPlayPacketListenerMixin {
         }
     }
 
+    @Inject(method = "handleExplosion", at = @At("TAIL"))
+    private void onHandleExplosionTail(ClientboundExplodePacket packet, CallbackInfo ci) {
+        ModConfig cfg = ModConfig.getInstance();
+        Minecraft mc = Minecraft.getInstance();
+        if (!cfg.newVelocityEnabled || !cfg.newVelocityExplosions || mc.player == null || packet.playerKnockback().isEmpty()) {
+            return;
+        }
+        if (java.util.concurrent.ThreadLocalRandom.current().nextInt(100) >= cfg.newVelocityChance) {
+            return;
+        }
+        Vec3 pre = customclient$preVelocity != null ? customclient$preVelocity : Vec3.ZERO;
+        Vec3 kb = packet.playerKnockback().get();
+        double h = cfg.newVelocityHorizontal / 100.0;
+        double v = cfg.newVelocityVertical / 100.0;
+        mc.player.setDeltaMovement(pre.x + kb.x * h, pre.y + kb.y * v, pre.z + kb.z * h);
+    }
+
     @Inject(method = "handleSetEntityMotion", at = @At("HEAD"), cancellable = true)
     private void onHandleSetEntityMotion(ClientboundSetEntityMotionPacket packet, CallbackInfo ci) {
         ModConfig cfg = ModConfig.getInstance();
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null && packet.id() == mc.player.getId()) {
+            customclient$preVelocity = mc.player.getDeltaMovement();
+        }
         if (!cfg.exploitGuard) {
             return;
         }
@@ -104,6 +132,33 @@ public abstract class ClientPlayPacketListenerMixin {
         if (motion != null && ExploitPacketRules.isDangerousVelocityPacket(motion.x, motion.y, motion.z)) {
             ci.cancel();
         }
+    }
+
+    @Inject(method = "handleSetEntityMotion", at = @At("TAIL"))
+    private void onHandleSetEntityMotionTail(ClientboundSetEntityMotionPacket packet, CallbackInfo ci) {
+        ModConfig cfg = ModConfig.getInstance();
+        Minecraft mc = Minecraft.getInstance();
+        if (!cfg.newVelocityEnabled || mc.player == null || packet.id() != mc.player.getId()) {
+            return;
+        }
+        if (java.util.concurrent.ThreadLocalRandom.current().nextInt(100) >= cfg.newVelocityChance) {
+            return;
+        }
+        Vec3 pre = customclient$preVelocity != null ? customclient$preVelocity : Vec3.ZERO;
+        Vec3 kb = packet.movement();
+        if (cfg.newVelocityMode == 1) {
+            if (mc.player.onGround() && kb.horizontalDistanceSqr() > 0.0004) {
+                mc.player.jumpFromGround();
+            }
+            return;
+        }
+        double h = cfg.newVelocityMode == 2 ? (cfg.newVelocityHorizontal * 0.6 / 100.0) : (cfg.newVelocityHorizontal / 100.0);
+        double v = cfg.newVelocityVertical / 100.0;
+        mc.player.setDeltaMovement(
+                pre.x + (kb.x - pre.x) * h,
+                pre.y + (kb.y - pre.y) * v,
+                pre.z + (kb.z - pre.z) * h
+        );
     }
 
     @Inject(

@@ -406,12 +406,22 @@ public class ClickGuiScreen {
                 }
         ));
 
-        // 23. Backtrack (Exploit)
+        // 23. Backtrack (Combat)
         MODULES.add(new ModuleEntry(
-                "Backtrack", Category.EXPLOIT,
+                "Backtrack", Category.COMBAT,
                 () -> config.backtrack,
                 val -> {
                     config.backtrack = val;
+                    config.save();
+                }
+        ));
+
+        // New Velocity (Combat)
+        MODULES.add(new ModuleEntry(
+                "New Velocity", Category.COMBAT,
+                () -> config.newVelocityEnabled,
+                val -> {
+                    config.newVelocityEnabled = val;
                     config.save();
                 }
         ));

@@ -2679,6 +2679,7 @@ public class ModernClickGuiScreen extends Screen {
         chips.add(new FilterChip("ALL", "All", all.size()));
 
         ClickGuiScreen.Category[] cats = {
+                ClickGuiScreen.Category.COMBAT,
                 ClickGuiScreen.Category.RENDER,
                 ClickGuiScreen.Category.PLAYER,
                 ClickGuiScreen.Category.WORLD,
