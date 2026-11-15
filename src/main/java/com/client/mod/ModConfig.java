@@ -355,9 +355,10 @@ public class ModConfig {
 
     // Auto Farm Land (Nora Tweaks)
     public boolean autoFarmLandEnabled = false;
-    public float autoFarmLandRange = 4.0f;
-    public int autoFarmLandDelay = 1; // 0 to 10 ticks
+    public float autoFarmLandRange = 3.5f;
+    public int autoFarmLandDelay = 3; // 0 to 10 ticks
     public boolean autoFarmLandRequireWater = false;
+    public boolean autoFarmLandRotate = true;
 
     // No Pause On Lost Focus (Meteor Utils)
     public boolean noPauseOnLostFocus = false;
@@ -646,6 +647,7 @@ public class ModConfig {
         this.autoFarmLandRange = other.autoFarmLandRange;
         this.autoFarmLandDelay = other.autoFarmLandDelay;
         this.autoFarmLandRequireWater = other.autoFarmLandRequireWater;
+        this.autoFarmLandRotate = other.autoFarmLandRotate;
         this.noPauseOnLostFocus = other.noPauseOnLostFocus;
         this.itemSuckerEnabled = other.itemSuckerEnabled;
         this.itemSuckerMode = other.itemSuckerMode;
@@ -722,8 +724,8 @@ public class ModConfig {
         if (this.newVelocityVertical < 0 || this.newVelocityVertical > 100) this.newVelocityVertical = 0;
         if (this.newVelocityChance < 0 || this.newVelocityChance > 100) this.newVelocityChance = 100;
         this.betterPlaceRange = clampFloat(this.betterPlaceRange, 2.0f, 6.0f, 4.5f);
-        this.autoFarmLandRange = clampFloat(this.autoFarmLandRange, 2.0f, 5.0f, 4.0f);
-        if (this.autoFarmLandDelay < 0 || this.autoFarmLandDelay > 10) this.autoFarmLandDelay = 1;
+        this.autoFarmLandRange = clampFloat(this.autoFarmLandRange, 2.0f, 5.0f, 3.5f);
+        if (this.autoFarmLandDelay < 0 || this.autoFarmLandDelay > 10) this.autoFarmLandDelay = 3;
         if (this.itemSuckerMode < 0 || this.itemSuckerMode > 1) this.itemSuckerMode = 0;
         this.itemSuckerRange = clampFloat(this.itemSuckerRange, 2.0f, 16.0f, 6.0f);
         this.itemSuckerSpeed = clampFloat(this.itemSuckerSpeed, 0.15f, 1.00f, 0.35f);

@@ -204,7 +204,8 @@ public final class ModernModuleSettings {
                             () -> cfg.autoFarmLandRange, v -> cfg.autoFarmLandRange = v),
                     intSlider("autoFarmLandDelay", "Delay", 0, 10, "t",
                             () -> cfg.autoFarmLandDelay, v -> cfg.autoFarmLandDelay = v),
-                    toggle("Require Water", () -> cfg.autoFarmLandRequireWater, v -> cfg.autoFarmLandRequireWater = v, actions, false)
+                    toggle("Require Water", () -> cfg.autoFarmLandRequireWater, v -> cfg.autoFarmLandRequireWater = v, actions, false),
+                    toggle("Rotate", () -> cfg.autoFarmLandRotate, v -> cfg.autoFarmLandRotate = v, actions, false)
             );
             case "New Velocity" -> buildNewVelocityControls(cfg, actions);
             case "Item Sucker" -> buildItemSuckerControls(cfg, actions);

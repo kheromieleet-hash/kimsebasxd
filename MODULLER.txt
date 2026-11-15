@@ -194,8 +194,9 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
 30. Auto Farm Land
     Ne ise yarar: Elinde capa (Hoe) tutarken erisim mesafesindeki uygun toprak
     ve cimen bloklarini otomatik olarak Farmland'e cevirir.
-    Ayarlar: Range (2.0 - 5.0b), Delay (0 - 10t), Require Water (sadece yakininda
-    su olan bloklari capalar).
+    Ayarlar: Range (2.0 - 5.0b, varsayilan 3.5b), Delay (0 - 10t, varsayilan 3t),
+    Require Water (sadece yakininda su olan bloklari capalar), Rotate (Vulcan
+    uyumlu hedef bloga bakma ve gorus hatti kontrolu).
 
 
 --------------------------------------------------------------------------------
