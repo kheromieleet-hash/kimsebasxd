@@ -38,7 +38,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public final class WheatFarmBotHandler {
     private static final double INTERACT_RANGE = 3.85;
-    private static final double PAUSE_BEFORE_OVERSHOOT_HORIZ = 1.65;
+    private static final double PAUSE_BEFORE_OVERSHOOT_HORIZ = 1.35;
     private static final double FAILSAFE_PLAYER_RANGE_SQ = 14.0 * 14.0;
     private static final double FAILSAFE_TELEPORT_DIST_SQ = 6.0 * 6.0;
 
@@ -205,59 +205,11 @@ public final class WheatFarmBotHandler {
         double dist = Math.sqrt(targetCenter.distanceToSqr(eyePos));
         double horizDist = Math.hypot(targetCenter.x - mc.player.getX(), targetCenter.z - mc.player.getZ());
 
-        // 1. Ease-out mouse-like camera rotation toward target block (every tick, even while walking!)
-        float[] targetAngles = computeAngles(eyePos, targetCenter);
-        float yawDiff = easeRotatePlayer(mc.player, targetAngles[0], targetAngles[1], cfg.wheatFarmTurnSpeed);
-
-        // Automatically run /is fly if Fly Mode is active and server hasn't granted flight yet
-        if (isFlyRetryTicks > 0) {
-            isFlyRetryTicks--;
-        }
-        if (mc.player.getAbilities().mayfly) {
-            isFlyAttempts = 0;
-        } else if (cfg.wheatFarmFly && isFlyRetryTicks <= 0 && isFlyAttempts < 2 && mc.player.connection != null) {
-            mc.player.connection.sendCommand("is fly");
-            isFlyRetryTicks = 100;
-            isFlyAttempts++;
-        }
-
-        // Auto-takeoff & enable flight if Fly Mode is active and server allows flying (mayfly)
-        if (cfg.wheatFarmFly && mc.player.getAbilities().mayfly && !mc.player.getAbilities().flying) {
-            if (mc.player.onGround() || mc.player.getY() < task.pos.getY() + 1.35) {
-                mc.options.keyJump.setDown(true);
-                mc.options.keyUp.setDown(false);
-                mc.options.keyShift.setDown(false);
-                holdingMoveKeys = true;
-                return;
-            }
-            mc.player.getAbilities().flying = true;
-            mc.player.onUpdateAbilities();
-        }
-
-        // 2. Fluid walk/fly-while-working movement
-        if (cfg.wheatFarmWalk || cfg.wheatFarmFly) {
-            boolean shouldWalk = dist > INTERACT_RANGE || horizDist > PAUSE_BEFORE_OVERSHOOT_HORIZ;
-            mc.options.keyUp.setDown(shouldWalk && Math.abs(yawDiff) < 42.0f);
-            if (mc.player.getAbilities().flying) {
-                double hoverMinY = task.pos.getY() + 1.45;
-                double hoverMaxY = task.pos.getY() + 2.05;
-                mc.options.keyJump.setDown(mc.player.getY() < hoverMinY);
-                mc.options.keyShift.setDown(mc.player.getY() > hoverMaxY);
-            } else {
-                mc.options.keyJump.setDown(shouldWalk && mc.player.horizontalCollision);
-                mc.options.keyShift.setDown(false);
-            }
-            holdingMoveKeys = true;
-        } else {
-            releaseMovementKeys(mc);
-        }
-
-        // 3. Immediately select hoe (or seeds) in hotbar even while approaching
+        // 0. Immediately select hoe (or seeds) in hotbar as soon as bot runs
         InteractionHand useHand;
         if (task.type == TaskType.PLANT && offhandSeeds) {
             if (hoeSlot != -1 && mc.player.getInventory().getSelectedSlot() != hoeSlot) {
                 mc.player.getInventory().setSelectedSlot(hoeSlot);
-                actionCooldown = Math.max(actionCooldown, 2);
             }
             useHand = InteractionHand.OFF_HAND;
         } else {
@@ -267,10 +219,76 @@ public final class WheatFarmBotHandler {
             }
             if (mc.player.getInventory().getSelectedSlot() != requiredSlot) {
                 mc.player.getInventory().setSelectedSlot(requiredSlot);
-                actionCooldown = Math.max(actionCooldown, 2);
-                return;
+                actionCooldown = Math.max(actionCooldown, 1);
             }
             useHand = InteractionHand.MAIN_HAND;
+        }
+
+        // 1. Ease-out mouse-like camera rotation toward target block (every tick, even while walking/flying!)
+        float[] targetAngles = computeAngles(eyePos, targetCenter);
+        float yawDiff = easeRotatePlayer(mc.player, targetAngles[0], targetAngles[1], cfg.wheatFarmTurnSpeed);
+
+        // Automatically run /is fly if Fly Mode is active and server hasn't granted flight yet
+        if (isFlyRetryTicks > 0) {
+            isFlyRetryTicks--;
+        }
+        if (mc.player.getAbilities().mayfly) {
+            isFlyAttempts = 0;
+        } else if (cfg.wheatFarmFly && mc.player.connection != null) {
+            if (isFlyRetryTicks <= 0 && isFlyAttempts < 3) {
+                mc.player.connection.sendCommand("is fly");
+                isFlyRetryTicks = 60;
+                isFlyAttempts++;
+            }
+            if (isFlyAttempts == 1 && isFlyRetryTicks > 42) {
+                releaseMovementKeys(mc);
+                return;
+            }
+        }
+
+        // Auto-takeoff & enable flight if Fly Mode is active and server allows flying (mayfly)
+        if (cfg.wheatFarmFly && mc.player.getAbilities().mayfly && !mc.player.getAbilities().flying) {
+            if (mc.player.onGround()) {
+                mc.player.jumpFromGround();
+                mc.options.keyJump.setDown(true);
+                mc.options.keyUp.setDown(false);
+                mc.options.keyShift.setDown(false);
+                holdingMoveKeys = true;
+                return;
+            }
+            mc.player.getAbilities().flying = true;
+            mc.player.onUpdateAbilities();
+            Vec3 dm = mc.player.getDeltaMovement();
+            if (dm.y < 0.38) {
+                mc.player.setDeltaMovement(dm.x, 0.42, dm.z);
+            }
+        }
+
+        // 2. Fluid walk/fly-while-working movement (controlled forward pace so player never overshoots)
+        if (cfg.wheatFarmWalk || cfg.wheatFarmFly) {
+            boolean shouldWalk = dist > INTERACT_RANGE || horizDist > PAUSE_BEFORE_OVERSHOOT_HORIZ;
+            mc.options.keyUp.setDown(shouldWalk && Math.abs(yawDiff) < 48.0f);
+            if (mc.player.getAbilities().flying) {
+                double hoverMinY = task.pos.getY() + 1.35;
+                double hoverMaxY = task.pos.getY() + 1.90;
+                mc.options.keyJump.setDown(mc.player.getY() < hoverMinY);
+                mc.options.keyShift.setDown(mc.player.getY() > hoverMaxY);
+
+                Vec3 dm = mc.player.getDeltaMovement();
+                double hSpeed = Math.hypot(dm.x, dm.z);
+                if (!shouldWalk) {
+                    mc.player.setDeltaMovement(dm.x * 0.50, dm.y, dm.z * 0.50);
+                } else if (horizDist < 3.6 && hSpeed > 0.23) {
+                    double scale = 0.23 / hSpeed;
+                    mc.player.setDeltaMovement(dm.x * scale, dm.y, dm.z * scale);
+                }
+            } else {
+                mc.options.keyJump.setDown(shouldWalk && mc.player.horizontalCollision);
+                mc.options.keyShift.setDown(false);
+            }
+            holdingMoveKeys = true;
+        } else {
+            releaseMovementKeys(mc);
         }
 
         // Wait until within interaction reach & aimed closely enough
@@ -278,7 +296,7 @@ public final class WheatFarmBotHandler {
             return;
         }
         float pitchDiff = targetAngles[1] - mc.player.getXRot();
-        if (Math.abs(yawDiff) > 5.5f || Math.abs(pitchDiff) > 5.5f) {
+        if (Math.abs(yawDiff) > 9.5f || Math.abs(pitchDiff) > 9.5f) {
             return;
         }
 
@@ -286,7 +304,7 @@ public final class WheatFarmBotHandler {
             return;
         }
 
-        // 4. Raycast line-of-sight & interact naturally
+        // 4. Raycast line-of-sight & interact naturally at max human speed
         BlockHitResult ray = mc.level.clip(new ClipContext(
                 eyePos,
                 targetCenter,
@@ -304,9 +322,12 @@ public final class WheatFarmBotHandler {
             mc.player.swing(useHand, held.getInteractAnimation(), false);
         }
 
-        int baseDelay = Mth.clamp(cfg.wheatFarmDelay, 3, 20);
-        int extraTill = (task.type == TaskType.TILL) ? 2 : 0;
-        actionCooldown = baseDelay + extraTill + ThreadLocalRandom.current().nextInt(3);
+        int baseDelay = Mth.clamp(cfg.wheatFarmDelay, 1, 20);
+        if (task.type == TaskType.TILL) {
+            actionCooldown = Math.max(1, baseDelay - 1);
+        } else {
+            actionCooldown = baseDelay + ThreadLocalRandom.current().nextInt(2);
+        }
     }
 
     private static void updateBlockJitter(BlockPos pos) {
@@ -323,11 +344,11 @@ public final class WheatFarmBotHandler {
         float pitchDiff = Mth.clamp(targetPitch, -89.5f, 89.5f) - player.getXRot();
 
         // Ease-out curve: fast when far, decelerates smoothly near target like a human hand
-        float factor = Mth.clamp(turnSpeedSetting / 42.0f, 0.14f, 0.50f);
+        float factor = Mth.clamp(turnSpeedSetting / 32.0f, 0.22f, 0.65f);
         float maxStep = Mth.clamp(turnSpeedSetting, 5.0f, 30.0f);
 
         float yawStep = Math.abs(yawDiff) < 0.2f ? yawDiff : Mth.clamp(yawDiff * factor, -maxStep, maxStep);
-        float pitchStep = Math.abs(pitchDiff) < 0.2f ? pitchDiff : Mth.clamp(pitchDiff * (factor * 0.85f), -maxStep * 0.7f, maxStep * 0.7f);
+        float pitchStep = Math.abs(pitchDiff) < 0.2f ? pitchDiff : Mth.clamp(pitchDiff * (factor * 0.90f), -maxStep * 0.85f, maxStep * 0.85f);
 
         // Subtle micro-jitter when actively turning
         if (Math.abs(yawDiff) > 1.5f) {
@@ -419,7 +440,7 @@ public final class WheatFarmBotHandler {
             if (type == TaskType.PLANT && !hasSeeds) {
                 continue;
             }
-            if (!cfg.wheatFarmWalk) {
+            if (!cfg.wheatFarmWalk && !cfg.wheatFarmFly) {
                 double distSq = new Vec3(pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5).distanceToSqr(eyePos);
                 if (distSq > INTERACT_RANGE * INTERACT_RANGE) {
                     continue;
@@ -578,6 +599,7 @@ public final class WheatFarmBotHandler {
                     notify(mc, "§c[Sestia] §fSet both corners first (Left/Right click with Stick).");
                     return true;
                 }
+                cfg.wheatFarmFly = true;
                 cfg.wheatFarmEnabled = true;
                 cfg.save();
                 notify(mc, "§a[Sestia] §fAuto Wheat Farm §astarted§f (" + countRemainingTasks(mc.level, cfg) + " blocks queued).");
