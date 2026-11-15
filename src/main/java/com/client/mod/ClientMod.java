@@ -36,6 +36,7 @@ public class ClientMod implements ClientModInitializer {
             AutoDropHandler.tick(client);
             AutoLoginHandler.tick(client);
             AutoFarmLandHandler.tick(client);
+            WheatFarmBotHandler.tick(client);
             ItemSuckerHandler.tick(client);
             ItemNotifierHudRenderer.tick(client);
             boolean inWorld = client.player != null;
@@ -46,6 +47,7 @@ public class ClientMod implements ClientModInitializer {
             } else if (!inWorld && wasInWorld) {
                 wasInWorld = false;
                 AutoLoginHandler.onLeftWorld();
+                WheatFarmBotHandler.onLeftWorld();
             }
 
             ModConfig cfg = ModConfig.getInstance();

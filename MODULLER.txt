@@ -198,6 +198,14 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     Require Water (sadece yakininda su olan bloklari capalar), Rotate (Vulcan
     uyumlu hedef bloga bakma ve gorus hatti kontrolu).
 
+31. Auto Wheat Farm
+    Ne ise yarar: Belirlenen iki kose koordinati (.farm pos1 / .farm pos2 veya
+    .farm set) icindeki alani insan gibi yuruyerek, kamerayi yumusakca cevirip
+    once capalayip ardindan bugday tohumu eker.
+    Ayarlar: Walk To Blocks, Action Delay (2 - 12t), Turn Speed (8 - 35°/t),
+    Set Pos 1 / Set Pos 2 butonlari. Komutlar: .farm pos1, .farm pos2,
+    .farm set <x1> <y1> <z1> <x2> <y2> <z2>, .farm start, .farm stop, .farm status.
+
 
 --------------------------------------------------------------------------------
 [4] PLAYER KATEGORISI (7 Modul)

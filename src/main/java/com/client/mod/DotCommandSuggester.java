@@ -23,7 +23,14 @@ public final class DotCommandSuggester {
             new Entry(".c msg", "msg", "Send private message: .c msg <player> <message>"),
             new Entry(".c help", "help", "Show Sestia chat command help"),
             new Entry(".coordinates", "", "Copy current X, Y, Z coordinates to clipboard"),
-            new Entry(".coords", "", "Alias for .coordinates")
+            new Entry(".coords", "", "Alias for .coordinates"),
+            new Entry(".farm pos1", "pos1", "Set Auto Wheat Farm corner 1: .farm pos1 [x y z]"),
+            new Entry(".farm pos2", "pos2", "Set Auto Wheat Farm corner 2: .farm pos2 [x y z]"),
+            new Entry(".farm set", "set", "Set both corners: .farm set <x1> <y1> <z1> <x2> <y2> <z2>"),
+            new Entry(".farm start", "start", "Start Auto Wheat Farm"),
+            new Entry(".farm stop", "stop", "Stop Auto Wheat Farm"),
+            new Entry(".farm status", "status", "Show Auto Wheat Farm area & progress"),
+            new Entry(".farm clear", "clear", "Clear Auto Wheat Farm area")
     );
 
     private DotCommandSuggester() {

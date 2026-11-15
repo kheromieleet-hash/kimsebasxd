@@ -360,6 +360,20 @@ public class ModConfig {
     public boolean autoFarmLandRequireWater = false;
     public boolean autoFarmLandRotate = true;
 
+    // Auto Wheat Farm (Area Bot)
+    public boolean wheatFarmEnabled = false;
+    public boolean wheatFarmPos1Set = false;
+    public int wheatFarmX1 = 0;
+    public int wheatFarmY1 = 0;
+    public int wheatFarmZ1 = 0;
+    public boolean wheatFarmPos2Set = false;
+    public int wheatFarmX2 = 0;
+    public int wheatFarmY2 = 0;
+    public int wheatFarmZ2 = 0;
+    public boolean wheatFarmWalk = true;
+    public int wheatFarmDelay = 4; // 2 to 12 ticks
+    public float wheatFarmTurnSpeed = 18.0f; // 8 to 35 deg/tick
+
     // No Pause On Lost Focus (Meteor Utils)
     public boolean noPauseOnLostFocus = false;
 
@@ -648,6 +662,18 @@ public class ModConfig {
         this.autoFarmLandDelay = other.autoFarmLandDelay;
         this.autoFarmLandRequireWater = other.autoFarmLandRequireWater;
         this.autoFarmLandRotate = other.autoFarmLandRotate;
+        this.wheatFarmEnabled = other.wheatFarmEnabled;
+        this.wheatFarmPos1Set = other.wheatFarmPos1Set;
+        this.wheatFarmX1 = other.wheatFarmX1;
+        this.wheatFarmY1 = other.wheatFarmY1;
+        this.wheatFarmZ1 = other.wheatFarmZ1;
+        this.wheatFarmPos2Set = other.wheatFarmPos2Set;
+        this.wheatFarmX2 = other.wheatFarmX2;
+        this.wheatFarmY2 = other.wheatFarmY2;
+        this.wheatFarmZ2 = other.wheatFarmZ2;
+        this.wheatFarmWalk = other.wheatFarmWalk;
+        this.wheatFarmDelay = other.wheatFarmDelay;
+        this.wheatFarmTurnSpeed = other.wheatFarmTurnSpeed;
         this.noPauseOnLostFocus = other.noPauseOnLostFocus;
         this.itemSuckerEnabled = other.itemSuckerEnabled;
         this.itemSuckerMode = other.itemSuckerMode;
@@ -726,6 +752,8 @@ public class ModConfig {
         this.betterPlaceRange = clampFloat(this.betterPlaceRange, 2.0f, 6.0f, 4.5f);
         this.autoFarmLandRange = clampFloat(this.autoFarmLandRange, 2.0f, 5.0f, 3.5f);
         if (this.autoFarmLandDelay < 0 || this.autoFarmLandDelay > 10) this.autoFarmLandDelay = 3;
+        if (this.wheatFarmDelay < 2 || this.wheatFarmDelay > 12) this.wheatFarmDelay = 4;
+        this.wheatFarmTurnSpeed = clampFloat(this.wheatFarmTurnSpeed, 8.0f, 35.0f, 18.0f);
         if (this.itemSuckerMode < 0 || this.itemSuckerMode > 1) this.itemSuckerMode = 0;
         this.itemSuckerRange = clampFloat(this.itemSuckerRange, 2.0f, 16.0f, 6.0f);
         this.itemSuckerSpeed = clampFloat(this.itemSuckerSpeed, 0.15f, 1.00f, 0.35f);

@@ -4,6 +4,7 @@ import com.client.mod.IChatComponentHelper;
 import com.client.mod.ModConfig;
 import com.client.mod.MouseButtonMapping;
 import com.client.mod.SestiaChatClient;
+import com.client.mod.WheatFarmBotHandler;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -43,6 +44,13 @@ public abstract class ChatScreenMixin extends Screen {
                     );
                 }
             }
+            if (addToRecent && this.minecraft != null && this.minecraft.gui != null && this.minecraft.gui.hud != null) {
+                this.minecraft.gui.hud.getChat().addRecentChat(normalized);
+            }
+            ci.cancel();
+            return;
+        }
+        if (WheatFarmBotHandler.handleChatCommand(this.minecraft, trimmed)) {
             if (addToRecent && this.minecraft != null && this.minecraft.gui != null && this.minecraft.gui.hud != null) {
                 this.minecraft.gui.hud.getChat().addRecentChat(normalized);
             }

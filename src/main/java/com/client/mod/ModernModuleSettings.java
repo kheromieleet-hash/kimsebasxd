@@ -207,6 +207,7 @@ public final class ModernModuleSettings {
                     toggle("Require Water", () -> cfg.autoFarmLandRequireWater, v -> cfg.autoFarmLandRequireWater = v, actions, false),
                     toggle("Rotate", () -> cfg.autoFarmLandRotate, v -> cfg.autoFarmLandRotate = v, actions, false)
             );
+            case "Auto Wheat Farm" -> buildWheatFarmControls(cfg, actions);
             case "New Velocity" -> buildNewVelocityControls(cfg, actions);
             case "Item Sucker" -> buildItemSuckerControls(cfg, actions);
             case "Backtrack" -> List.of(
@@ -498,6 +499,46 @@ public final class ModernModuleSettings {
             controls.add(new ChipsControl(chips));
         }
         return controls;
+    }
+
+    private static List<Control> buildWheatFarmControls(ModConfig cfg, Actions actions) {
+        return List.of(
+                toggle("Walk To Blocks", () -> cfg.wheatFarmWalk, v -> cfg.wheatFarmWalk = v, actions, false),
+                intSlider("wheatFarmDelay", "Action Delay", 2, 12, "t",
+                        () -> cfg.wheatFarmDelay, v -> cfg.wheatFarmDelay = v),
+                floatSlider("wheatFarmTurnSpeed", "Turn Speed", 8.0f, 35.0f, 1.0f, "°",
+                        () -> cfg.wheatFarmTurnSpeed, v -> cfg.wheatFarmTurnSpeed = v),
+                new ActionControl(
+                        () -> cfg.wheatFarmPos1Set
+                                ? "Set Pos 1 (" + cfg.wheatFarmX1 + "," + cfg.wheatFarmY1 + "," + cfg.wheatFarmZ1 + ")"
+                                : "Set Pos 1 (Here)",
+                        () -> {
+                            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+                            if (mc.player != null) {
+                                net.minecraft.core.BlockPos p = mc.player.blockPosition().below();
+                                cfg.wheatFarmX1 = p.getX();
+                                cfg.wheatFarmY1 = p.getY();
+                                cfg.wheatFarmZ1 = p.getZ();
+                                cfg.wheatFarmPos1Set = true;
+                                actions.persist(false);
+                            }
+                        }),
+                new ActionControl(
+                        () -> cfg.wheatFarmPos2Set
+                                ? "Set Pos 2 (" + cfg.wheatFarmX2 + "," + cfg.wheatFarmY2 + "," + cfg.wheatFarmZ2 + ")"
+                                : "Set Pos 2 (Here)",
+                        () -> {
+                            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+                            if (mc.player != null) {
+                                net.minecraft.core.BlockPos p = mc.player.blockPosition().below();
+                                cfg.wheatFarmX2 = p.getX();
+                                cfg.wheatFarmY2 = p.getY();
+                                cfg.wheatFarmZ2 = p.getZ();
+                                cfg.wheatFarmPos2Set = true;
+                                actions.persist(false);
+                            }
+                        })
+        );
     }
 
     private static List<Control> buildNewVelocityControls(ModConfig cfg, Actions actions) {

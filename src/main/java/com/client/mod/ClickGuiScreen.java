@@ -266,6 +266,16 @@ public class ClickGuiScreen {
                 }
         ));
 
+        // Auto Wheat Farm (World)
+        MODULES.add(new ModuleEntry(
+                "Auto Wheat Farm", Category.WORLD,
+                () -> config.wheatFarmEnabled,
+                val -> {
+                    config.wheatFarmEnabled = val;
+                    config.save();
+                }
+        ));
+
         // 8. Inventory Tweaks (Player)
         MODULES.add(new ModuleEntry(
                 "Inventory Tweaks", Category.PLAYER,
