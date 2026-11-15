@@ -468,6 +468,7 @@ final class ModernModuleCardUi {
             case "MultiTask" -> "Use both hands simultaneously (e.g. mine while eating)";
             case "No Pause" -> "Prevent pausing the game when Alt+Tabbing (losing focus)";
             case "Better Place" -> "Place blocks in mid-air and from awkward angles";
+            case "Auto Farm Land" -> "Automatically till nearby dirt & grass into farmland with a hoe";
             case "Auto Sprint" -> "Keep sprinting automatically when moving";
             case "Safe Walk" -> "Prevent falling off block edges like sneaking";
             case "Item Sucker" -> "Magnetically move toward & collect nearby dropped items";

@@ -256,6 +256,16 @@ public class ClickGuiScreen {
                 }
         ));
 
+        // Auto Farm Land (World)
+        MODULES.add(new ModuleEntry(
+                "Auto Farm Land", Category.WORLD,
+                () -> config.autoFarmLandEnabled,
+                val -> {
+                    config.autoFarmLandEnabled = val;
+                    config.save();
+                }
+        ));
+
         // 8. Inventory Tweaks (Player)
         MODULES.add(new ModuleEntry(
                 "Inventory Tweaks", Category.PLAYER,
