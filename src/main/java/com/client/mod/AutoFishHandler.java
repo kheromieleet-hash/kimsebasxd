@@ -6,12 +6,14 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.util.Mth;
 import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -44,6 +46,17 @@ public final class AutoFishHandler {
     private static int cachedGreenEndIdx = -1;
     private static boolean wasInGreen = false;
 
+    // Anti-AFK camera look-around state ("ETRAFINA BAKMADIN / KAMERANI OYNAT")
+    private static boolean hasAnchor = false;
+    private static float anchorYaw = 0.0f;
+    private static float anchorPitch = 0.0f;
+    private static int lookAroundTicks = 0;
+    private static int lookAroundTotalTicks = 0;
+    private static float lookSwingYaw = 18.0f;
+    private static float lookSwingPitch = 4.5f;
+    private static boolean recastAfterLook = false;
+    private static boolean yawPixelFlip = false;
+
     private AutoFishHandler() {
     }
 
@@ -61,6 +74,30 @@ public final class AutoFishHandler {
         clickCooldownTicks = 0;
         recastCountdownTicks = 0;
         minigameWasActive = false;
+        hasAnchor = false;
+        lookAroundTicks = 0;
+        recastAfterLook = false;
+    }
+
+    public static void onChatMessage(String rawText) {
+        if (rawText == null || rawText.isEmpty()) {
+            return;
+        }
+        ModConfig cfg = ModConfig.getInstance();
+        Minecraft mc = Minecraft.getInstance();
+        if (cfg == null || !cfg.autoFishEnabled || mc == null || mc.player == null) {
+            return;
+        }
+        if (!isHoldingFishingRod(mc.player)) {
+            return;
+        }
+        String norm = normalizeChatForLookup(rawText);
+        if (norm.contains("etrafina bakmadin")
+                || norm.contains("kamerani oynat")
+                || norm.contains("kamerayi oynat")
+                || (norm.contains("balikci") && (norm.contains("kamera") || norm.contains("etraf")))) {
+            startLookAround(mc.player, 22, 22.0f, true);
+        }
     }
 
     public static void onTitlesCleared() {
@@ -95,6 +132,9 @@ public final class AutoFishHandler {
             clickCooldownTicks = 0;
             recastCountdownTicks = 0;
             minigameWasActive = false;
+            hasAnchor = false;
+            lookAroundTicks = 0;
+            recastAfterLook = false;
             return;
         }
         if (mc.gui != null && mc.gui.screen() != null) {
@@ -102,8 +142,23 @@ public final class AutoFishHandler {
             return;
         }
 
+        if (!isHoldingFishingRod(mc.player)) {
+            hasAnchor = false;
+            lookAroundTicks = 0;
+            recastAfterLook = false;
+        } else if (!hasAnchor && mc.player.fishing != null) {
+            anchorYaw = mc.player.getYRot();
+            anchorPitch = mc.player.getXRot();
+            hasAnchor = true;
+        }
+
         if (clickCooldownTicks > 0) {
             clickCooldownTicks--;
+        }
+
+        if (lookAroundTicks > 0) {
+            tickLookAround(mc, mc.player);
+            return;
         }
 
         long now = System.currentTimeMillis();
@@ -124,10 +179,113 @@ public final class AutoFishHandler {
 
     private static void scheduleRecastIfNeeded() {
         ModConfig cfg = ModConfig.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         if (cfg != null && cfg.autoFishEnabled && cfg.autoFishRecast) {
-            int base = Math.max(8, Math.min(40, cfg.autoFishRecastDelay));
-            recastCountdownTicks = base + ThreadLocalRandom.current().nextInt(5);
+            if (mc != null && mc.player != null) {
+                // Proactively do a gentle look-around between catches so the AFK camera warning never triggers
+                startLookAround(mc.player, 16, 14.0f, true);
+            } else {
+                int base = Math.max(8, Math.min(40, cfg.autoFishRecastDelay));
+                recastCountdownTicks = base + ThreadLocalRandom.current().nextInt(5);
+            }
         }
+    }
+
+    private static void startLookAround(LocalPlayer player, int durationTicks, float maxYawDeg, boolean recastWhenDone) {
+        if (!hasAnchor) {
+            anchorYaw = player.getYRot();
+            anchorPitch = player.getXRot();
+            hasAnchor = true;
+        }
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        float sign = rnd.nextBoolean() ? 1.0f : -1.0f;
+        lookSwingYaw = sign * (maxYawDeg + (float) rnd.nextDouble(-2.5, 2.5));
+        lookSwingPitch = (rnd.nextBoolean() ? 1.0f : -1.0f) * (float) rnd.nextDouble(3.2, 6.0);
+        lookAroundTotalTicks = Math.max(12, durationTicks);
+        lookAroundTicks = lookAroundTotalTicks;
+        recastAfterLook = recastWhenDone;
+    }
+
+    private static void tickLookAround(Minecraft mc, LocalPlayer player) {
+        int elapsed = lookAroundTotalTicks - lookAroundTicks + 1;
+        float progress = (float) elapsed / (float) lookAroundTotalTicks;
+
+        // Smooth full sine wave: swings right/left then opposite side then returns to exact water anchorYaw/anchorPitch
+        float wave = Mth.sin(progress * (float) (Math.PI * 2.0));
+        float desiredYaw = anchorYaw + lookSwingYaw * wave;
+        float desiredPitch = Mth.clamp(anchorPitch + lookSwingPitch * wave, -88.0f, 88.0f);
+
+        float yawDiff = Mth.wrapDegrees(desiredYaw - player.getYRot());
+        float pitchDiff = desiredPitch - player.getXRot();
+
+        float yawStep = Mth.clamp(yawDiff * 0.45f, -12.0f, 12.0f);
+        float pitchStep = Mth.clamp(pitchDiff * 0.45f, -6.0f, 6.0f);
+
+        double sens = (mc != null && mc.options != null) ? mc.options.sensitivity().get() : 0.5;
+        double d = sens * 0.6 + 0.2;
+        float gcd = (float) (d * d * d * 1.2);
+        if (gcd > 1.0e-4f) {
+            int yawPixels = Math.round(yawStep / gcd);
+            int pitchPixels = Math.round(pitchStep / gcd);
+            if (pitchPixels != 0 && yawPixels == 0) {
+                yawPixelFlip = !yawPixelFlip;
+                yawPixels = yawPixelFlip ? 1 : -1;
+            }
+            if (yawPixels != 0 && pitchPixels == 0) {
+                yawPixelFlip = !yawPixelFlip;
+                pitchPixels = yawPixelFlip ? 1 : -1;
+            }
+            yawStep = yawPixels * gcd;
+            pitchStep = pitchPixels * gcd;
+        }
+
+        player.setYRot(player.getYRot() + yawStep);
+        player.setXRot(Mth.clamp(player.getXRot() + pitchStep, -89.5f, 89.5f));
+
+        lookAroundTicks--;
+        if (lookAroundTicks <= 0 && recastAfterLook) {
+            recastAfterLook = false;
+            ModConfig cfg = ModConfig.getInstance();
+            int base = (cfg != null) ? Math.max(6, Math.min(40, cfg.autoFishRecastDelay / 2)) : 8;
+            recastCountdownTicks = base + ThreadLocalRandom.current().nextInt(4);
+        }
+    }
+
+    private static String normalizeChatForLookup(String raw) {
+        String clean = raw.replaceAll("§.", "").toLowerCase(Locale.ROOT);
+        StringBuilder sb = new StringBuilder(clean.length());
+        for (int i = 0; i < clean.length(); i++) {
+            char c = clean.charAt(i);
+            char mapped = switch (c) {
+                case 'ı', 'і', 'ɪ', 'i', 'İ' -> 'i';
+                case 'ü', 'ᴜ' -> 'u';
+                case 'ö', 'ᴏ' -> 'o';
+                case 'ş', 's' -> 's';
+                case 'ç', 'ᴄ' -> 'c';
+                case 'ğ', 'ɢ' -> 'g';
+                case 'ᴀ' -> 'a';
+                case 'ʙ' -> 'b';
+                case 'ᴅ' -> 'd';
+                case 'ᴇ' -> 'e';
+                case 'ғ' -> 'f';
+                case 'ʜ' -> 'h';
+                case 'ᴊ' -> 'j';
+                case 'ᴋ' -> 'k';
+                case 'ʟ' -> 'l';
+                case 'ᴍ' -> 'm';
+                case 'ɴ' -> 'n';
+                case 'ᴘ' -> 'p';
+                case 'ʀ' -> 'r';
+                case 'ᴛ' -> 't';
+                case 'ᴠ' -> 'v';
+                case 'ᴡ' -> 'w';
+                case 'ʏ' -> 'y';
+                case 'ᴢ' -> 'z';
+                default -> c;
+            };
+            sb.append(mapped);
+        }
+        return sb.toString();
     }
 
     private static void resetSession() {
