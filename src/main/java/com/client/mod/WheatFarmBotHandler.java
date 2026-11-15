@@ -493,6 +493,14 @@ public final class WheatFarmBotHandler {
             return false;
         }
         String lower = trimmedInput.toLowerCase(Locale.ROOT);
+        boolean isFriendCmd = lower.equals(".friend") || lower.startsWith(".friend ")
+                || lower.equals(".frined") || lower.startsWith(".frined ");
+        if (isFriendCmd) {
+            if (mc == null || mc.player == null) {
+                return true;
+            }
+            return handleFriendCommand(mc, trimmedInput);
+        }
         if (!lower.equals(".farm") && !lower.startsWith(".farm ")) {
             return false;
         }
@@ -627,6 +635,51 @@ public final class WheatFarmBotHandler {
             }
             default -> notify(mc, "§c[Sestia] §fUnknown .farm subcommand. Try §e.farm help");
         }
+        return true;
+    }
+
+    private static boolean handleFriendCommand(Minecraft mc, String trimmedInput) {
+        ModConfig cfg = ModConfig.getInstance();
+        String[] parts = trimmedInput.split("\\s+");
+        if (parts.length == 1 || parts[1].equalsIgnoreCase("help") || parts[1].equals("?")) {
+            notify(mc, "§a[Sestia] §f.friend komutlari:");
+            notify(mc, "§e.friend <oyuncu> §f- Oyuncuyu friend/whitelist'e ekle");
+            notify(mc, "§e.friend list §f- Friend listesini goster");
+            notify(mc, "§e.friend remove <oyuncu> §f- Oyuncuyu listeden cikar");
+            return true;
+        }
+
+        String arg1 = parts[1].trim();
+        String arg1Lower = arg1.toLowerCase(Locale.ROOT);
+        if (arg1Lower.equals("list") || arg1Lower.equals("liste")) {
+            if (cfg.wheatFarmWhitelist == null || cfg.wheatFarmWhitelist.isEmpty()) {
+                notify(mc, "§e[Sestia] §fFriend listesi bos. Eklemek icin: §e.friend <oyuncu>");
+            } else {
+                notify(mc, "§a[Sestia] §fFriend Listesi (§e" + cfg.wheatFarmWhitelist.size() + "§f): §b"
+                        + String.join("§7, §b", cfg.wheatFarmWhitelist));
+            }
+            return true;
+        }
+        if (arg1Lower.equals("remove") || arg1Lower.equals("del") || arg1Lower.equals("delete") || arg1Lower.equals("rm")) {
+            if (parts.length < 3) {
+                notify(mc, "§c[Sestia] §fKullanim: §e.friend remove <oyuncu>");
+                return true;
+            }
+            String name = parts[2].trim();
+            boolean removed = cfg.removeWheatFarmWhitelist(name);
+            cfg.save();
+            notify(mc, removed
+                    ? "§e[Sestia] §e" + name + " §ffriend listesinden cikarildi."
+                    : "§c[Sestia] §e" + name + " §flistede bulunamadi.");
+            return true;
+        }
+
+        String name = (arg1Lower.equals("add") && parts.length >= 3) ? parts[2].trim() : arg1;
+        boolean added = cfg.addWheatFarmWhitelist(name);
+        cfg.save();
+        notify(mc, added
+                ? "§a[Sestia] §e" + name + " §ffriend listesine eklendi (failsafe tetiklenmez)."
+                : "§e[Sestia] §e" + name + " §fzaten friend listesinde.");
         return true;
     }
 

@@ -33,7 +33,13 @@ public final class DotCommandSuggester {
             new Entry(".farm clear", "clear", "Clear Auto Wheat Farm area"),
             new Entry(".farm allow", "allow", "Allow player near farm without failsafe: .farm allow <player>"),
             new Entry(".farm remove", "remove", "Remove player from failsafe whitelist: .farm remove <player>"),
-            new Entry(".farm list", "list", "List failsafe whitelisted players")
+            new Entry(".farm list", "list", "List failsafe whitelisted players"),
+            new Entry(".friend", "", "Add player to failsafe friend list: .friend <player>"),
+            new Entry(".friend list", "list", "List failsafe friends"),
+            new Entry(".friend remove", "remove", "Remove player from failsafe friend list: .friend remove <player>"),
+            new Entry(".frined", "", "Alias for .friend: .frined <player>"),
+            new Entry(".frined list", "list", "Alias for .friend list"),
+            new Entry(".frined remove", "remove", "Alias for .friend remove")
     );
 
     private DotCommandSuggester() {

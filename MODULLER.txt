@@ -202,7 +202,8 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     durdurur; whitelist oyuncularinda tetiklenmez), Action Delay (3 - 20t),
     Turn Speed (5 - 30°/t), Set Pos 1 / Set Pos 2 butonlari.
     Komutlar: .farm start, .farm stop, .farm status, .farm clear,
-    .farm allow <oyuncu>, .farm remove <oyuncu>, .farm list.
+    .farm allow <oyuncu>, .farm remove <oyuncu>, .farm list,
+    .friend <oyuncu>, .friend list, .friend remove <oyuncu> (.frined da desteklenir).
 
 
 --------------------------------------------------------------------------------
