@@ -426,6 +426,7 @@ public final class ModernModuleSettings {
         controls.add(intSlider("autoSellDelay", "Delay", 1, 60, "s",
                 () -> cfg.autoSellDelay, v -> cfg.autoSellDelay = v));
         controls.add(toggle("Safety Pause", () -> cfg.autoSellSafetyPause, v -> cfg.autoSellSafetyPause = v, actions, false));
+        controls.add(toggle("Only Selected Items", () -> cfg.autoSellOnlySelected, v -> cfg.autoSellOnlySelected = v, actions, false));
         controls.add(new ActionControl(
                 () -> {
                     int n = cfg.autoSellTargets != null ? cfg.autoSellTargets.size() : 0;

@@ -288,6 +288,7 @@ public class ModConfig {
     public boolean autoSellEnabled = false;
     public int autoSellDelay = 5; // 1 to 60 seconds
     public boolean autoSellSafetyPause = true;
+    public boolean autoSellOnlySelected = false;
     public Set<String> autoSellTargets = new HashSet<>();
 
     public boolean isAutoSellTargetEnabled(String targetId) {
@@ -556,6 +557,7 @@ public class ModConfig {
         this.autoSellEnabled = other.autoSellEnabled;
         this.autoSellDelay = other.autoSellDelay;
         this.autoSellSafetyPause = other.autoSellSafetyPause;
+        this.autoSellOnlySelected = other.autoSellOnlySelected;
         this.autoSellTargets = new HashSet<>();
         if (other.autoSellTargets != null) {
             this.autoSellTargets.addAll(other.autoSellTargets);

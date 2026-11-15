@@ -57,7 +57,12 @@ public final class AutoSellHandler {
             return;
         }
 
-        if (!hasAnyTargetItem(mc.player.getInventory(), targets)) {
+        Inventory inv = mc.player.getInventory();
+        if (!hasAnyTargetItem(inv, targets)) {
+            return;
+        }
+
+        if (config.autoSellOnlySelected && hasUnselectedItem(inv, targets)) {
             return;
         }
 
@@ -81,7 +86,7 @@ public final class AutoSellHandler {
     }
 
     private static boolean hasAnyTargetItem(Inventory inv, Set<String> targets) {
-        int size = inv.getContainerSize();
+        int size = Math.min(inv.getContainerSize(), Inventory.INVENTORY_SIZE);
         for (int i = 0; i < size; i++) {
             ItemStack stack = inv.getItem(i);
             if (stack.isEmpty()) {
@@ -89,6 +94,21 @@ public final class AutoSellHandler {
             }
             Identifier key = BuiltInRegistries.ITEM.getKey(stack.getItem());
             if (key != null && targets.contains(key.getPath())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasUnselectedItem(Inventory inv, Set<String> targets) {
+        int size = Math.min(inv.getContainerSize(), Inventory.INVENTORY_SIZE);
+        for (int i = 0; i < size; i++) {
+            ItemStack stack = inv.getItem(i);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            Identifier key = BuiltInRegistries.ITEM.getKey(stack.getItem());
+            if (key == null || !targets.contains(key.getPath())) {
                 return true;
             }
         }

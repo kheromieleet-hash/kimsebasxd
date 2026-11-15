@@ -201,7 +201,9 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     gecikmeyle otomatik /sell all komutunu calistirir.
     Ayarlar: Delay (1 - 60s), Safety Pause (hasar/saldiri/kirma veya esya
     kullanimi sirasinda bekler ve cakisan modulleri gecici duraklatir),
-    Select Items (tum Minecraft esyalarini ikonlu arayuzden secme).
+    Only Selected Items (envanterde secili olmayan baska bir esya varsa
+    satisi durdurur), Select Items (tum Minecraft esyalarini ikonlu
+    arayuzden secme).
 
 30. Auto Replenish
     Ne ise yarar: Elindeki veya offhand'deki esya azalinca envanterden
