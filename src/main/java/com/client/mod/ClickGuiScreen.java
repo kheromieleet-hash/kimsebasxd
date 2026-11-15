@@ -286,6 +286,16 @@ public class ClickGuiScreen {
                 }
         ));
 
+        // Auto Drop (Player)
+        MODULES.add(new ModuleEntry(
+                "Auto Drop", Category.PLAYER,
+                () -> config.autoDropEnabled,
+                val -> {
+                    config.autoDropEnabled = val;
+                    config.save();
+                }
+        ));
+
         // 13. Auto Sprint (Movement)
         MODULES.add(new ModuleEntry(
                 "Auto Sprint", Category.MOVEMENT,

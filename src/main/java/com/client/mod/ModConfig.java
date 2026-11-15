@@ -309,6 +309,30 @@ public class ModConfig {
         }
     }
 
+    // Auto Drop
+    public boolean autoDropEnabled = false;
+    public int autoDropDelay = 2; // 0 to 20 ticks
+    public boolean autoDropExcludeHotbar = true;
+    public Set<String> autoDropTargets = new HashSet<>();
+
+    public boolean isAutoDropTargetEnabled(String targetId) {
+        if (autoDropTargets == null) {
+            autoDropTargets = new HashSet<>();
+        }
+        return autoDropTargets.contains(targetId);
+    }
+
+    public void toggleAutoDropTarget(String targetId) {
+        if (autoDropTargets == null) {
+            autoDropTargets = new HashSet<>();
+        }
+        if (autoDropTargets.contains(targetId)) {
+            autoDropTargets.remove(targetId);
+        } else {
+            autoDropTargets.add(targetId);
+        }
+    }
+
     // Right-Shift ClickGUI Tab position & state
     public int guiTheme = 0; // 0=Sestia OLED, 1=Transparent, 2=Light, 3=Monokai Pro, 4=Dark
     public int guiWindowX = 480;
@@ -562,6 +586,13 @@ public class ModConfig {
         if (other.autoSellTargets != null) {
             this.autoSellTargets.addAll(other.autoSellTargets);
         }
+        this.autoDropEnabled = other.autoDropEnabled;
+        this.autoDropDelay = other.autoDropDelay;
+        this.autoDropExcludeHotbar = other.autoDropExcludeHotbar;
+        this.autoDropTargets = new HashSet<>();
+        if (other.autoDropTargets != null) {
+            this.autoDropTargets.addAll(other.autoDropTargets);
+        }
         this.guiTheme = other.guiTheme;
         this.guiWindowX = other.guiWindowX;
         this.guiWindowY = other.guiWindowY;
@@ -620,6 +651,10 @@ public class ModConfig {
         if (this.autoSellDelay < 1 || this.autoSellDelay > 60) this.autoSellDelay = 5;
         if (this.autoSellTargets == null) {
             this.autoSellTargets = new HashSet<>();
+        }
+        if (this.autoDropDelay < 0 || this.autoDropDelay > 20) this.autoDropDelay = 2;
+        if (this.autoDropTargets == null) {
+            this.autoDropTargets = new HashSet<>();
         }
         if (this.fastBreakSpeed < 0.5f || this.fastBreakSpeed > 5.0f) this.fastBreakSpeed = 1.15f;
         if (this.fastBreakMode < 0 || this.fastBreakMode > 1) this.fastBreakMode = 1;

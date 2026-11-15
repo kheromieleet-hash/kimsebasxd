@@ -191,6 +191,7 @@ public final class ModernModuleSettings {
             );
             case "Auto Crafter" -> buildAutoCrafterControls(cfg, actions);
             case "Auto Sell" -> buildAutoSellControls(cfg, actions);
+            case "Auto Drop" -> buildAutoDropControls(cfg, actions);
             case "Backtrack" -> List.of(
                     intSlider("backtrackDelay", "Max Delay", 40, 300, "ms",
                             () -> cfg.backtrackDelay, v -> cfg.backtrackDelay = v)
@@ -400,27 +401,10 @@ public final class ModernModuleSettings {
     }
 
     private static List<Control> buildAutoSellControls(ModConfig cfg, Actions actions) {
-        List<String> selectedIds = new ArrayList<>();
-        if (cfg.autoSellTargets != null) {
-            selectedIds.addAll(cfg.autoSellTargets);
-            selectedIds.sort(String.CASE_INSENSITIVE_ORDER);
-        }
-
-        List<ChipOption> chips = new ArrayList<>(selectedIds.size());
-        for (String id : selectedIds) {
-            ItemStack icon = resolveItemStack(id);
-            String label = !icon.isEmpty() ? icon.getHoverName().getString() : resolveItemShortLabel(id);
-            chips.add(new ChipOption(
-                    id,
-                    label,
-                    icon,
-                    () -> cfg.isAutoSellTargetEnabled(id),
-                    () -> {
-                        cfg.toggleAutoSellTarget(id);
-                        actions.persist(false);
-                    }
-            ));
-        }
+        List<ChipOption> chips = buildItemChips(cfg.autoSellTargets, cfg::isAutoSellTargetEnabled, id -> {
+            cfg.toggleAutoSellTarget(id);
+            actions.persist(false);
+        });
 
         List<Control> controls = new ArrayList<>();
         controls.add(intSlider("autoSellDelay", "Delay", 1, 60, "s",
@@ -434,12 +418,88 @@ public final class ModernModuleSettings {
                 },
                 () -> {
                     net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
-                    mc.gui.setScreen(new AutoSellItemPickerScreen(mc.gui.screen()));
+                    mc.gui.setScreen(new CatalogItemPickerScreen(
+                            mc.gui.screen(),
+                            "AUTO SELL — ITEM PICKER",
+                            "Triggers /sell all when in inventory",
+                            cfg::isAutoSellTargetEnabled,
+                            id -> {
+                                cfg.toggleAutoSellTarget(id);
+                                cfg.save();
+                            },
+                            () -> {
+                                if (cfg.autoSellTargets != null) {
+                                    cfg.autoSellTargets.clear();
+                                }
+                                cfg.save();
+                            },
+                            () -> cfg.autoSellTargets != null ? cfg.autoSellTargets.size() : 0
+                    ));
                 }));
         if (!chips.isEmpty()) {
             controls.add(new ChipsControl(chips));
         }
         return controls;
+    }
+
+    private static List<Control> buildAutoDropControls(ModConfig cfg, Actions actions) {
+        List<ChipOption> chips = buildItemChips(cfg.autoDropTargets, cfg::isAutoDropTargetEnabled, id -> {
+            cfg.toggleAutoDropTarget(id);
+            actions.persist(false);
+        });
+
+        List<Control> controls = new ArrayList<>();
+        controls.add(intSlider("autoDropDelay", "Delay", 0, 20, "t",
+                () -> cfg.autoDropDelay, v -> cfg.autoDropDelay = v));
+        controls.add(toggle("Exclude Hotbar", () -> cfg.autoDropExcludeHotbar, v -> cfg.autoDropExcludeHotbar = v, actions, false));
+        controls.add(new ActionControl(
+                () -> {
+                    int n = cfg.autoDropTargets != null ? cfg.autoDropTargets.size() : 0;
+                    return "Select Items (" + n + ")...";
+                },
+                () -> {
+                    net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+                    mc.gui.setScreen(new CatalogItemPickerScreen(
+                            mc.gui.screen(),
+                            "AUTO DROP — ITEM PICKER",
+                            "Click any item to toggle auto-dropping",
+                            cfg::isAutoDropTargetEnabled,
+                            id -> {
+                                cfg.toggleAutoDropTarget(id);
+                                cfg.save();
+                            },
+                            () -> {
+                                if (cfg.autoDropTargets != null) {
+                                    cfg.autoDropTargets.clear();
+                                }
+                                cfg.save();
+                            },
+                            () -> cfg.autoDropTargets != null ? cfg.autoDropTargets.size() : 0
+                    ));
+                }));
+        if (!chips.isEmpty()) {
+            controls.add(new ChipsControl(chips));
+        }
+        return controls;
+    }
+
+    private static List<ChipOption> buildItemChips(
+            java.util.Set<String> targetSet,
+            java.util.function.Predicate<String> isEnabled,
+            java.util.function.Consumer<String> onToggle
+    ) {
+        List<String> selectedIds = new ArrayList<>();
+        if (targetSet != null) {
+            selectedIds.addAll(targetSet);
+            selectedIds.sort(String.CASE_INSENSITIVE_ORDER);
+        }
+        List<ChipOption> chips = new ArrayList<>(selectedIds.size());
+        for (String id : selectedIds) {
+            ItemStack icon = resolveItemStack(id);
+            String label = !icon.isEmpty() ? icon.getHoverName().getString() : resolveItemShortLabel(id);
+            chips.add(new ChipOption(id, label, icon, () -> isEnabled.test(id), () -> onToggle.accept(id)));
+        }
+        return chips;
     }
 
     private static ItemStack resolveItemStack(String itemId) {

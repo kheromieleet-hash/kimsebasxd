@@ -20,13 +20,14 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Consumer;
+import java.util.function.IntSupplier;
+import java.util.function.Predicate;
 
 /**
- * Full-catalog item picker screen for Auto Sell.
- * Lists all registered Minecraft items with 16x16 icons, live search,
- * All Items / Selected filter, Clear All, and one-click selection.
+ * Reusable full-catalog item picker screen for Auto Sell, Auto Drop, and similar item-list modules.
  */
-public class AutoSellItemPickerScreen extends Screen {
+public class CatalogItemPickerScreen extends Screen {
 
     private enum FilterMode {
         ALL("Filter: All Items"),
@@ -49,6 +50,13 @@ public class AutoSellItemPickerScreen extends Screen {
     private static List<ItemEntry> cachedAllItems = null;
 
     private final Screen parent;
+    private final String headerTitle;
+    private final String subtitleHint;
+    private final Predicate<String> isSelected;
+    private final Consumer<String> onToggle;
+    private final Runnable onClearAll;
+    private final IntSupplier selectedCountSupplier;
+
     private int windowX;
     private int windowY;
     private int windowW;
@@ -71,9 +79,23 @@ public class AutoSellItemPickerScreen extends Screen {
     private static final int CELL_GAP = 6;
     private static final int COLS = 3;
 
-    public AutoSellItemPickerScreen(Screen parent) {
-        super(Component.literal("Auto Sell Items"));
+    public CatalogItemPickerScreen(
+            Screen parent,
+            String headerTitle,
+            String subtitleHint,
+            Predicate<String> isSelected,
+            Consumer<String> onToggle,
+            Runnable onClearAll,
+            IntSupplier selectedCountSupplier
+    ) {
+        super(Component.literal(headerTitle));
         this.parent = parent;
+        this.headerTitle = headerTitle;
+        this.subtitleHint = subtitleHint;
+        this.isSelected = isSelected;
+        this.onToggle = onToggle;
+        this.onClearAll = onClearAll;
+        this.selectedCountSupplier = selectedCountSupplier;
     }
 
     private static List<ItemEntry> getOrBuildCatalog() {
@@ -128,11 +150,10 @@ public class AutoSellItemPickerScreen extends Screen {
     }
 
     private void rebuildFilteredList() {
-        ModConfig config = ModConfig.getInstance();
         List<ItemEntry> all = getOrBuildCatalog();
         List<ItemEntry> out = new ArrayList<>(all.size());
         for (ItemEntry entry : all) {
-            if (this.filterMode == FilterMode.SELECTED && !config.isAutoSellTargetEnabled(entry.id())) {
+            if (this.filterMode == FilterMode.SELECTED && !this.isSelected.test(entry.id())) {
                 continue;
             }
             if (!this.searchQuery.isEmpty() && !entry.searchKey().contains(this.searchQuery)) {
@@ -150,10 +171,9 @@ public class AutoSellItemPickerScreen extends Screen {
         JelloTheme.drawGlowShadow(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, 0x66000000, 4);
         JelloTheme.fillRoundedCard(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, JelloTheme.WINDOW_BG, 0x26FFFFFF);
 
-        ModConfig config = ModConfig.getInstance();
-        int selectedCount = config.autoSellTargets != null ? config.autoSellTargets.size() : 0;
-        graphics.text(this.font, Component.literal("§lAUTO SELL — ITEM PICKER"), this.windowX + PAD, this.windowY + 11, JelloTheme.TEXT, false);
-        graphics.text(this.font, Component.literal(selectedCount + " items selected  |  Triggers /sell all when in inventory"),
+        int selectedCount = this.selectedCountSupplier.getAsInt();
+        graphics.text(this.font, Component.literal("§l" + this.headerTitle), this.windowX + PAD, this.windowY + 11, JelloTheme.TEXT, false);
+        graphics.text(this.font, Component.literal(selectedCount + " items selected  |  " + this.subtitleHint),
                 this.windowX + PAD, this.windowY + 24, JelloTheme.TEXT_MUTED, false);
 
         int doneW = 58;
@@ -212,7 +232,7 @@ public class AutoSellItemPickerScreen extends Screen {
                 }
                 int cx = innerX + col * (cellW + CELL_GAP);
                 ItemEntry entry = this.filteredItems.get(i);
-                boolean selected = config.isAutoSellTargetEnabled(entry.id());
+                boolean selected = this.isSelected.test(entry.id());
                 boolean hovered = mouseY >= gridTop && mouseY <= gridBottom && isInside(mouseX, mouseY, cx, cy, cellW, CELL_H);
 
                 int bg = selected
@@ -313,14 +333,10 @@ public class AutoSellItemPickerScreen extends Screen {
             return true;
         }
 
-        ModConfig config = ModConfig.getInstance();
         int clearX = filterX + filterW + 8;
         int clearW = 76;
         if (isInside(mouseX, mouseY, clearX, toolY, clearW, searchH)) {
-            if (config.autoSellTargets != null) {
-                config.autoSellTargets.clear();
-            }
-            config.save();
+            this.onClearAll.run();
             rebuildFilteredList();
             playClickSound();
             return true;
@@ -364,8 +380,7 @@ public class AutoSellItemPickerScreen extends Screen {
                 }
                 int cx = innerX + col * (cellW + CELL_GAP);
                 if (isInside(mouseX, mouseY, cx, cy, cellW, CELL_H)) {
-                    config.toggleAutoSellTarget(this.filteredItems.get(i).id());
-                    config.save();
+                    this.onToggle.accept(this.filteredItems.get(i).id());
                     if (this.filterMode == FilterMode.SELECTED) {
                         rebuildFilteredList();
                     }

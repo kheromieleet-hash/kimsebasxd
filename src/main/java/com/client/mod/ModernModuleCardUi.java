@@ -463,6 +463,7 @@ final class ModernModuleCardUi {
             case "Auto Tool" -> "Automatically switch to best mining tool";
             case "Auto Crafter" -> "Automatically compact ores & items into blocks";
             case "Auto Sell" -> "Run /sell all when selected items enter inventory";
+            case "Auto Drop" -> "Automatically throw selected junk items from inventory";
             case "Auto Sprint" -> "Keep sprinting automatically when moving";
             case "Safe Walk" -> "Prevent falling off block edges like sneaking";
             case "Better Chat" -> "Infinite chat history, anti-clear & copy";
