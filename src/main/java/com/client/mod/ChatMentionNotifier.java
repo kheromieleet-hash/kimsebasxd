@@ -3,7 +3,6 @@ package com.client.mod;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.sounds.SoundEvents;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.Locale;
 
@@ -202,12 +201,7 @@ public final class ChatMentionNotifier {
         } catch (Throwable ignored) {
         }
 
-        try {
-            if (mc.getWindow() != null) {
-                GLFW.glfwRequestWindowAttention(mc.getWindow().handle());
-            }
-        } catch (Throwable ignored) {
-        }
+        DesktopAlertHelper.requestWindowAttention(mc);
 
         long now = System.currentTimeMillis();
         if (now - lastMentionAlertMs < 2500L) {
@@ -215,35 +209,11 @@ public final class ChatMentionNotifier {
         }
         lastMentionAlertMs = now;
 
-        String safeBody = cleanMessage
-                .replace("'", "")
-                .replace("\"", "")
-                .replace("`", "")
-                .replace("\r", " ")
-                .replace("\n", " ");
-        if (safeBody.length() > 140) {
-            safeBody = safeBody.substring(0, 137) + "...";
-        }
-        final String finalBody = safeBody;
-
-        Thread alertThread = new Thread(() -> {
-            try {
-                String psScript =
-                        "Add-Type -AssemblyName System.Windows.Forms,System.Drawing; "
-                        + "[System.Media.SystemSounds]::Exclamation.Play(); "
-                        + "$n = New-Object System.Windows.Forms.NotifyIcon; "
-                        + "$n.Icon = [System.Drawing.SystemIcons]::Information; "
-                        + "$n.Visible = $true; "
-                        + "$n.ShowBalloonTip(5000, 'Sestia - Sohbette Bahsedildin!', '" + finalBody + "', [System.Windows.Forms.ToolTipIcon]::Info); "
-                        + "Start-Sleep -Milliseconds 5200; "
-                        + "$n.Dispose()";
-                new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", psScript)
-                        .redirectErrorStream(true)
-                        .start();
-            } catch (Throwable ignored) {
-            }
-        }, "Sestia-WinMentionAlert");
-        alertThread.setDaemon(true);
-        alertThread.start();
+        DesktopAlertHelper.showDesktopNotification(
+                "Sestia - Sohbette Bahsedildin!",
+                cleanMessage,
+                false,
+                "Sestia-MentionAlert"
+        );
     }
 }

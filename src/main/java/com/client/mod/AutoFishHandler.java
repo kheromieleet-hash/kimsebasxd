@@ -11,7 +11,6 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.Items;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -240,12 +239,7 @@ public final class AutoFishHandler {
 
     private static void triggerWindowsVerificationNotification(Minecraft mc, String cleanTitle) {
         playInGameBell(mc);
-        try {
-            if (mc != null && mc.getWindow() != null) {
-                GLFW.glfwRequestWindowAttention(mc.getWindow().handle());
-            }
-        } catch (Throwable ignored) {
-        }
+        DesktopAlertHelper.requestWindowAttention(mc);
 
         long now = System.currentTimeMillis();
         if (now - lastWindowsAlertMs < 4000L) {
@@ -253,26 +247,12 @@ public final class AutoFishHandler {
         }
         lastWindowsAlertMs = now;
 
-        String safeSubtitle = cleanTitle.replace("'", "").replace("\"", "").replace("`", "");
-        Thread alertThread = new Thread(() -> {
-            try {
-                String psScript =
-                        "Add-Type -AssemblyName System.Windows.Forms,System.Drawing; "
-                        + "[System.Media.SystemSounds]::Exclamation.Play(); "
-                        + "$n = New-Object System.Windows.Forms.NotifyIcon; "
-                        + "$n.Icon = [System.Drawing.SystemIcons]::Warning; "
-                        + "$n.Visible = $true; "
-                        + "$n.ShowBalloonTip(5000, 'Sestia AutoFish - DOGRULAMA!', 'Dogrulama ekrani acildi: " + safeSubtitle + "', [System.Windows.Forms.ToolTipIcon]::Warning); "
-                        + "Start-Sleep -Milliseconds 5200; "
-                        + "$n.Dispose()";
-                new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", psScript)
-                        .redirectErrorStream(true)
-                        .start();
-            } catch (Throwable ignored) {
-            }
-        }, "Sestia-WinVerifyAlert");
-        alertThread.setDaemon(true);
-        alertThread.start();
+        DesktopAlertHelper.showDesktopNotification(
+                "Sestia AutoFish - DOGRULAMA!",
+                "Dogrulama ekrani acildi: " + cleanTitle,
+                true,
+                "Sestia-VerifyAlert"
+        );
     }
 
     private static void startLookAround(LocalPlayer player, int durationTicks, float maxYawDeg, boolean recastWhenDone) {
