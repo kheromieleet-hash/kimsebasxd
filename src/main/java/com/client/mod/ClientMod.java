@@ -30,6 +30,7 @@ public class ClientMod implements ClientModInitializer {
 
         ClientTickEvents.START_CLIENT_TICK.register(client -> {
             WheatFarmBotHandler.tick(client);
+            AutoFishHandler.tick(client);
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -50,6 +51,7 @@ public class ClientMod implements ClientModInitializer {
                 wasInWorld = false;
                 AutoLoginHandler.onLeftWorld();
                 WheatFarmBotHandler.onLeftWorld();
+                AutoFishHandler.onLeftWorld();
             }
 
             ModConfig cfg = ModConfig.getInstance();

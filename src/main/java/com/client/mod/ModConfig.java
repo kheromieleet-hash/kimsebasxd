@@ -397,6 +397,13 @@ public class ModConfig {
         return wheatFarmWhitelist.remove(name.trim().toLowerCase(java.util.Locale.ROOT));
     }
 
+    // Auto Fish (Minigame Bar & Auto Recast)
+    public boolean autoFishEnabled = true;
+    public boolean autoFishMigrated = false;
+    public boolean autoFishRecast = true;
+    public int autoFishClickDelay = 5; // 1 to 15 ticks
+    public int autoFishRecastDelay = 15; // 8 to 40 ticks
+
     // No Pause On Lost Focus (Meteor Utils)
     public boolean noPauseOnLostFocus = false;
 
@@ -701,6 +708,11 @@ public class ModConfig {
         }
         this.wheatFarmDelay = other.wheatFarmDelay;
         this.wheatFarmTurnSpeed = other.wheatFarmTurnSpeed;
+        this.autoFishEnabled = other.autoFishEnabled;
+        this.autoFishMigrated = other.autoFishMigrated;
+        this.autoFishRecast = other.autoFishRecast;
+        this.autoFishClickDelay = other.autoFishClickDelay;
+        this.autoFishRecastDelay = other.autoFishRecastDelay;
         this.noPauseOnLostFocus = other.noPauseOnLostFocus;
         this.itemSuckerEnabled = other.itemSuckerEnabled;
         this.itemSuckerMode = other.itemSuckerMode;
@@ -794,6 +806,15 @@ public class ModConfig {
         }
         if (this.wheatFarmDelay < 2 || this.wheatFarmDelay > 20) this.wheatFarmDelay = 4;
         this.wheatFarmTurnSpeed = clampFloat(this.wheatFarmTurnSpeed, 5.0f, 30.0f, 16.0f);
+        if (!this.autoFishMigrated) {
+            this.autoFishEnabled = true;
+            this.autoFishRecast = true;
+            this.autoFishClickDelay = 5;
+            this.autoFishRecastDelay = 15;
+            this.autoFishMigrated = true;
+        }
+        if (this.autoFishClickDelay < 1 || this.autoFishClickDelay > 15) this.autoFishClickDelay = 5;
+        if (this.autoFishRecastDelay < 8 || this.autoFishRecastDelay > 40) this.autoFishRecastDelay = 15;
         if (this.itemSuckerMode < 0 || this.itemSuckerMode > 1) this.itemSuckerMode = 0;
         this.itemSuckerRange = clampFloat(this.itemSuckerRange, 2.0f, 16.0f, 6.0f);
         this.itemSuckerSpeed = clampFloat(this.itemSuckerSpeed, 0.15f, 1.00f, 0.35f);

@@ -266,6 +266,16 @@ public class ClickGuiScreen {
                 }
         ));
 
+        // Auto Fish (World)
+        MODULES.add(new ModuleEntry(
+                "Auto Fish", Category.WORLD,
+                () -> config.autoFishEnabled,
+                val -> {
+                    config.autoFishEnabled = val;
+                    config.save();
+                }
+        ));
+
         // 8. Inventory Tweaks (Player)
         MODULES.add(new ModuleEntry(
                 "Inventory Tweaks", Category.PLAYER,

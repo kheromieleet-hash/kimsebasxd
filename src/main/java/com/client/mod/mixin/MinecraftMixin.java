@@ -71,6 +71,9 @@ public abstract class MinecraftMixin {
     @Shadow
     protected abstract void continueAttack(boolean leftClick);
 
+    @Shadow
+    protected abstract void startUseItem();
+
     @Unique
     private boolean wasAutoRightClicking = false;
 
@@ -238,6 +241,10 @@ public abstract class MinecraftMixin {
 
     @Inject(method = "handleKeybinds", at = @At("HEAD"))
     private void onHandleKeybindsHead(CallbackInfo ci) {
+        if (com.client.mod.AutoFishHandler.consumePendingRightClick()) {
+            this.rightClickDelay = 0;
+            this.startUseItem();
+        }
         ModConfig cfg = ModConfig.getInstance();
         if (cfg.fastUseEnabled) {
             int target = Math.max(0, Math.min(4, cfg.fastUseCooldown));

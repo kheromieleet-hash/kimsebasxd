@@ -200,6 +200,13 @@ public final class ModernModuleSettings {
                             () -> cfg.betterPlaceRange, v -> cfg.betterPlaceRange = v)
             );
             case "Auto Wheat Farm" -> buildWheatFarmControls(cfg, actions);
+            case "Auto Fish" -> List.of(
+                    toggle("Auto Recast", () -> cfg.autoFishRecast, v -> cfg.autoFishRecast = v, actions, false),
+                    intSlider("autoFishClickDelay", "Click Delay", 1, 15, "t",
+                            () -> cfg.autoFishClickDelay, v -> cfg.autoFishClickDelay = v),
+                    intSlider("autoFishRecastDelay", "Recast Delay", 8, 40, "t",
+                            () -> cfg.autoFishRecastDelay, v -> cfg.autoFishRecastDelay = v)
+            );
             case "New Velocity" -> buildNewVelocityControls(cfg, actions);
             case "Item Sucker" -> buildItemSuckerControls(cfg, actions);
             case "Backtrack" -> List.of(

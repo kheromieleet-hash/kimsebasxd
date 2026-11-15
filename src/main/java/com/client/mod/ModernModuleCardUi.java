@@ -469,6 +469,7 @@ final class ModernModuleCardUi {
             case "No Pause" -> "Prevent pausing the game when Alt+Tabbing (losing focus)";
             case "Better Place" -> "Place blocks in mid-air and from awkward angles";
             case "Auto Wheat Farm" -> "Human-like hoe & wheat seed planter inside .farm coordinates";
+            case "Auto Fish" -> "Automatically right-click green bar minigame & recast rod";
             case "Auto Sprint" -> "Keep sprinting automatically when moving";
             case "Safe Walk" -> "Prevent falling off block edges like sneaking";
             case "Item Sucker" -> "Magnetically move toward & collect nearby dropped items";

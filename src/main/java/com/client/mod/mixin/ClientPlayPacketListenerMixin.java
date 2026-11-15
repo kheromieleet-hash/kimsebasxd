@@ -1,5 +1,6 @@
 package com.client.mod.mixin;
 
+import com.client.mod.AutoFishHandler;
 import com.client.mod.ExploitPacketRules;
 import com.client.mod.ModConfig;
 import com.client.mod.PacketMineHandler;
@@ -9,11 +10,15 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundClearTitlesPacket;
 import net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacket;
 import net.minecraft.network.protocol.game.ClientboundExplodePacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
+import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
+import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -237,6 +242,34 @@ public abstract class ClientPlayPacketListenerMixin {
         this.customclient$backtrackQueue.clear();
         PacketMineHandler.clear();
         WorldRenderToolsHandler.clearLightCache();
+    }
+
+    @Inject(method = "setTitleText", at = @At("TAIL"))
+    private void onSetTitleText(ClientboundSetTitleTextPacket packet, CallbackInfo ci) {
+        if (Minecraft.getInstance().isSameThread()) {
+            AutoFishHandler.onTitlePacket(packet.text());
+        }
+    }
+
+    @Inject(method = "setSubtitleText", at = @At("TAIL"))
+    private void onSetSubtitleText(ClientboundSetSubtitleTextPacket packet, CallbackInfo ci) {
+        if (Minecraft.getInstance().isSameThread()) {
+            AutoFishHandler.onSubtitlePacket(packet.text());
+        }
+    }
+
+    @Inject(method = "setActionBarText", at = @At("TAIL"))
+    private void onSetActionBarText(ClientboundSetActionBarTextPacket packet, CallbackInfo ci) {
+        if (Minecraft.getInstance().isSameThread()) {
+            AutoFishHandler.onActionBarPacket(packet.text());
+        }
+    }
+
+    @Inject(method = "handleTitlesClear", at = @At("TAIL"))
+    private void onHandleTitlesClear(ClientboundClearTitlesPacket packet, CallbackInfo ci) {
+        if (Minecraft.getInstance().isSameThread()) {
+            AutoFishHandler.onTitlesCleared();
+        }
     }
 
     @Unique
