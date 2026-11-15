@@ -69,7 +69,7 @@ public class ClientMod implements ClientModInitializer {
 
             if (client.getWindow() != null) {
                 boolean rShiftDown = InputConstants.isKeyDown(InputConstants.KEY_RSHIFT);
-                if (rShiftDown && !wasRightShiftDown) {
+                if (rShiftDown && !wasRightShiftDown && !PanicHandler.isPanicActive()) {
                     if (client.gui.screen() instanceof ModernClickGuiScreen) {
                         client.gui.setScreen(null);
                     } else if (client.gui.screen() == null && client.player != null) {

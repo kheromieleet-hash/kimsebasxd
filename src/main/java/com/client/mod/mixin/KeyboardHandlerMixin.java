@@ -30,7 +30,7 @@ public class KeyboardHandlerMixin {
             }
             return;
         }
-        if (action == InputConstants.PRESS && this.minecraft.gui != null && this.minecraft.gui.screen() == null && this.minecraft.player != null) {
+        if (!com.client.mod.PanicHandler.isPanicActive() && action == InputConstants.PRESS && this.minecraft.gui != null && this.minecraft.gui.screen() == null && this.minecraft.player != null) {
             ClickGuiScreen.handleInGameMacroKey(event.key());
             ClickGuiScreen.handleInGameModuleKey(event.key());
         }

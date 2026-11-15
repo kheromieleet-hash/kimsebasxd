@@ -69,6 +69,9 @@ public abstract class CommandSuggestionsMixin {
 
     @Inject(method = "updateCommandInfo", at = @At("HEAD"), cancellable = true)
     private void onUpdateCommandInfo(CallbackInfo ci) {
+        if (com.client.mod.PanicHandler.isPanicActive()) {
+            return;
+        }
         ModConfig cfg = ModConfig.getInstance();
         if (cfg == null || !cfg.clientChatEnabled || this.input == null) {
             return;

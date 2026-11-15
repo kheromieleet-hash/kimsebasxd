@@ -31,6 +31,19 @@ public abstract class ChatScreenMixin extends Screen {
             return;
         }
         String trimmed = normalized.trim();
+        if (trimmed.equalsIgnoreCase(".panic") && !com.client.mod.PanicHandler.isPanicActive()) {
+            com.client.mod.PanicHandler.enablePanic(this.minecraft);
+            ci.cancel();
+            return;
+        }
+        if (trimmed.equalsIgnoreCase(".unpanic")) {
+            com.client.mod.PanicHandler.disablePanic(this.minecraft);
+            ci.cancel();
+            return;
+        }
+        if (com.client.mod.PanicHandler.isPanicActive()) {
+            return;
+        }
         if (trimmed.equalsIgnoreCase(".coordinates") || trimmed.equalsIgnoreCase(".coords")) {
             if (this.minecraft != null && this.minecraft.player != null) {
                 int x = (int) Math.floor(this.minecraft.player.getX());

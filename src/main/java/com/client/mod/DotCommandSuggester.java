@@ -39,7 +39,8 @@ public final class DotCommandSuggester {
             new Entry(".friend remove", "remove", "Remove player from failsafe friend list: .friend remove <player>"),
             new Entry(".frined", "", "Alias for .friend: .frined <player>"),
             new Entry(".frined list", "list", "Alias for .friend list"),
-            new Entry(".frined remove", "remove", "Alias for .friend remove")
+            new Entry(".frined remove", "remove", "Alias for .friend remove"),
+            new Entry(".panic", "", "Hide & disable all modules/HUD/chat traces for screen-share (.unpanic to restore)")
     );
 
     private DotCommandSuggester() {

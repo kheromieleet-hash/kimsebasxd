@@ -183,4 +183,24 @@ public abstract class ChatComponentMixin implements IChatComponentHelper {
         }
         return null;
     }
+
+    @Override
+    public void clientMod$scrubSestiaMessages() {
+        if (this.allMessages != null) {
+            this.allMessages.removeIf(msg -> {
+                if (msg == null || msg.content() == null) {
+                    return false;
+                }
+                String text = msg.content().getString();
+                if (text == null) {
+                    return false;
+                }
+                String lower = text.toLowerCase(java.util.Locale.ROOT);
+                return lower.contains("[sestia]") || lower.contains("[failsafe]")
+                        || lower.contains(".farm") || lower.contains(".friend")
+                        || lower.contains(".frined") || lower.contains(".panic");
+            });
+            this.refreshTrimmedMessages();
+        }
+    }
 }

@@ -19,7 +19,7 @@ public class HudOverlayMixin {
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void onExtractRenderState(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker, CallbackInfo ci) {
-        if (!this.isHidden) {
+        if (!this.isHidden && !com.client.mod.PanicHandler.isPanicActive()) {
             StatsHudRenderer.render(graphics);
             KeybindsHudRenderer.render(graphics);
             ItemNotifierHudRenderer.render(graphics);

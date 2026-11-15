@@ -102,7 +102,7 @@ public class ClickGuiScreen {
     public static String listeningModuleBind = null;
 
     public static boolean isTargetScreen(Screen screen) {
-        if (screen == null) {
+        if (screen == null || PanicHandler.isPanicActive()) {
             return false;
         }
         String className = screen.getClass().getName();

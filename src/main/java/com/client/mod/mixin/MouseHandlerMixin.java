@@ -57,7 +57,7 @@ public abstract class MouseHandlerMixin {
                 }
                 return;
             }
-            if (action == 1 && this.minecraft.gui.screen() == null && this.minecraft.player != null) {
+            if (!com.client.mod.PanicHandler.isPanicActive() && action == 1 && this.minecraft.gui.screen() == null && this.minecraft.player != null) {
                 ClickGuiScreen.handleInGameMacroMouse(buttonInfo.button());
                 ClickGuiScreen.handleInGameModuleMouse(buttonInfo.button());
             }

@@ -335,6 +335,9 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
   * .c list : Cevrimici Sestia kullanicilarini listeler
   * .c help / .c ? : Komut listesini gosterir
   * .coordinates / .coords : Bulundugun anlik (X, Y, Z) koordinatlarini panoya kopyalar
+  * .panic : Ekran paylasimi / kontrol aninda tum modulleri, HUD'lari, tus atamalarini,
+    ClickGUI (Sag Shift), Client Chat baglantisini ve sohbetteki [Sestia] / komut izlerini
+    sessizce kapatir ve gizler. (.unpanic yazildiginda onceki ayarlar geri yuklenir.)
 
 - Zoom (Varsayilan tus: C): Basili tutunca optifine tarzi yakinlastirma (4.0x).
 - Low Fire: Ekrandaki yanma/ates efektini asagi indirerek gorusu acar.

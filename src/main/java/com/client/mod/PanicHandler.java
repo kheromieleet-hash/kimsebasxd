@@ -1,0 +1,110 @@
+package com.client.mod;
+
+import net.minecraft.client.Minecraft;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.List;
+
+/**
+ * Screen-share safe Panic mode (.panic):
+ * - Disables all modules, HUDs, overlays, keybinds, macros, ClickGUI, and Sestia chat
+ * - Scrubs all [Sestia] messages and dot-commands (.farm, .friend, .panic, etc.) from chat & sent history
+ * - Disables dot-command autocomplete so typing "." in chat behaves 100% like vanilla Minecraft
+ * - Can be restored with .unpanic
+ */
+public final class PanicHandler {
+    private static boolean panicActive = false;
+    private static ModConfig savedSnapshot = null;
+
+    private PanicHandler() {
+    }
+
+    public static boolean isPanicActive() {
+        return panicActive;
+    }
+
+    public static void enablePanic(Minecraft mc) {
+        ModConfig cfg = ModConfig.getInstance();
+        if (cfg != null && !panicActive) {
+            savedSnapshot = cfg.copy();
+        }
+        panicActive = true;
+
+        if (cfg != null) {
+            if (FreecamHandler.isActive()) {
+                cfg.freecamEnabled = false;
+                if (mc != null) {
+                    FreecamHandler.disable(mc);
+                }
+            }
+            for (Field field : ModConfig.class.getFields()) {
+                int mods = field.getModifiers();
+                if (Modifier.isPublic(mods) && !Modifier.isStatic(mods) && field.getType() == boolean.class) {
+                    String name = field.getName();
+                    if (name.endsWith("Migrated") || name.equals("wheatFarmPos1Set") || name.equals("wheatFarmPos2Set")) {
+                        continue;
+                    }
+                    try {
+                        field.setBoolean(cfg, false);
+                    } catch (IllegalAccessException ignored) {
+                    }
+                }
+            }
+            try {
+                dlovin.inventoryhud.InventoryHUDCommon.isActive = false;
+                dlovin.inventoryhud.InventoryHUDCommon.armorHUD = false;
+                dlovin.inventoryhud.InventoryHUDCommon.potionHUD = false;
+            } catch (Throwable ignored) {
+            }
+            SestiaChatClient.onConfigChanged();
+        }
+
+        WheatFarmBotHandler.onLeftWorld();
+        AutoFishHandler.onLeftWorld();
+
+        if (mc != null) {
+            if (mc.options != null) {
+                mc.options.keySprint.setDown(false);
+                mc.options.keyUp.setDown(false);
+                mc.options.keyDown.setDown(false);
+                mc.options.keyJump.setDown(false);
+                mc.options.keyShift.setDown(false);
+            }
+            if (mc.gui != null && mc.gui.hud != null && mc.gui.hud.getChat() != null) {
+                Object chat = mc.gui.hud.getChat();
+                if (chat instanceof IChatComponentHelper helper) {
+                    helper.clientMod$scrubSestiaMessages();
+                }
+                try {
+                    List<String> recent = mc.gui.hud.getChat().getRecentChat();
+                    if (recent != null) {
+                        recent.removeIf(s -> s != null && s.trim().startsWith("."));
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+            ModConfig.reloadChunks();
+        }
+    }
+
+    public static void disablePanic(Minecraft mc) {
+        if (!panicActive) {
+            return;
+        }
+        panicActive = false;
+        ModConfig cfg = ModConfig.getInstance();
+        if (cfg != null && savedSnapshot != null) {
+            cfg.copyFrom(savedSnapshot);
+            savedSnapshot = null;
+            try {
+                dlovin.inventoryhud.InventoryHUDCommon.isActive = cfg.inventoryHudEnabled;
+                dlovin.inventoryhud.InventoryHUDCommon.armorHUD = cfg.inventoryHudEnabled;
+                dlovin.inventoryhud.InventoryHUDCommon.potionHUD = cfg.inventoryHudEnabled;
+            } catch (Throwable ignored) {
+            }
+            SestiaChatClient.onConfigChanged();
+        }
+        ModConfig.reloadChunks();
+    }
+}
