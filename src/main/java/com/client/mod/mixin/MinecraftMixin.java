@@ -312,6 +312,13 @@ public abstract class MinecraftMixin {
         this.continueAttack(attackPressed || held);
     }
 
+    @Inject(method = "pauseIfInactive", at = @At("HEAD"), cancellable = true)
+    private void onPauseIfInactive(CallbackInfo ci) {
+        if (ModConfig.getInstance().noPauseOnLostFocus) {
+            ci.cancel();
+        }
+    }
+
     @Inject(method = "shouldEntityAppearGlowing", at = @At("HEAD"), cancellable = true)
     private void onShouldEntityAppearGlowing(Entity entity, CallbackInfoReturnable<Boolean> cir) {
         ModConfig cfg = ModConfig.getInstance();

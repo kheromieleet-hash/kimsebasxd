@@ -353,6 +353,9 @@ public class ModConfig {
     // MultiTask (Meteor Tweaks)
     public boolean multiTask = false;
 
+    // No Pause On Lost Focus (Meteor Utils)
+    public boolean noPauseOnLostFocus = false;
+
     // Item Sucker (Movement)
     public boolean itemSuckerEnabled = false;
     public int itemSuckerMode = 0; // 0=Move, 1=TP
@@ -633,6 +636,7 @@ public class ModConfig {
         this.betterPlace = other.betterPlace;
         this.betterPlaceRange = other.betterPlaceRange;
         this.multiTask = other.multiTask;
+        this.noPauseOnLostFocus = other.noPauseOnLostFocus;
         this.itemSuckerEnabled = other.itemSuckerEnabled;
         this.itemSuckerMode = other.itemSuckerMode;
         this.itemSuckerRange = other.itemSuckerRange;

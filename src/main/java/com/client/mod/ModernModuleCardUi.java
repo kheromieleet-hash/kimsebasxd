@@ -466,6 +466,7 @@ final class ModernModuleCardUi {
             case "Auto Drop" -> "Automatically throw selected junk items from inventory";
             case "No Strip" -> "Prevent accidentally stripping logs with an axe";
             case "MultiTask" -> "Use both hands simultaneously (e.g. mine while eating)";
+            case "No Pause" -> "Prevent pausing the game when Alt+Tabbing (losing focus)";
             case "Better Place" -> "Place blocks in mid-air and from awkward angles";
             case "Auto Sprint" -> "Keep sprinting automatically when moving";
             case "Safe Walk" -> "Prevent falling off block edges like sneaking";

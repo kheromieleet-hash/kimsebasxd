@@ -270,7 +270,7 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
 
 
 --------------------------------------------------------------------------------
-[6] MISC KATEGORISI (2 Modul)
+[6] MISC KATEGORISI (3 Modul)
 --------------------------------------------------------------------------------
 
 36. Better Chat
@@ -279,6 +279,11 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     (sunucu temizleme bosluklarini gizler), Click to Copy (tikla kopyala),
     Timestamps (Istanbul saati <HH:mm:ss>), Compact Chat (tekrar eden
     mesajlari (2), (3) seklinde birlestirir).
+
+37. No Pause
+    Ne ise yarar: Alt+Tab yapildiginda veya oyun penceresi odagi kaybettiginde
+    oyunun otomatik olarak duraklatilmasini (Pause menusu acilmasini) engeller.
+    Ayarlar: Ek ayar yok (Ac/Kapa).
 
 
 --------------------------------------------------------------------------------

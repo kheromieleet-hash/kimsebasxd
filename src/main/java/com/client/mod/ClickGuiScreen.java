@@ -572,6 +572,16 @@ public class ClickGuiScreen {
                 }
         ));
 
+        // 36. No Pause (Misc)
+        MODULES.add(new ModuleEntry(
+                "No Pause", Category.MISC,
+                () -> config.noPauseOnLostFocus,
+                val -> {
+                    config.noPauseOnLostFocus = val;
+                    config.save();
+                }
+        ));
+
         ModernModuleGridLayout.sortByNameInPlace(MODULES, m -> m.name);
     }
 
