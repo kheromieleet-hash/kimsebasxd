@@ -200,8 +200,9 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
 
 31. Auto Wheat Farm
     Ne ise yarar: Eline cubuk (Stick) alip bloklara sol tik ile 1. koseyi,
-    sag tik ile 2. koseyi sectikten sonra .farm start komutuyla alani insan
-    gibi yuruyerek, kamerayi yumusakca cevirip once capalayip ardindan bugday eker.
+    sag tik ile 2. koseyi sectikten sonra .farm start komutuyla ilk tiklanan
+    koseden baslayarak sirali (zigzag/serpentine) rota boyunca insan gibi
+    yuruyup capalar ve offhand veya hotbardaki bugday tohumlarini eker.
     Ayarlar: Stick Wand, Walk To Blocks, Action Delay (2 - 12t), Turn Speed (8 - 35°/t),
     Set Pos 1 / Set Pos 2 butonlari. Komutlar: .farm start, .farm stop, .farm status, .farm clear.
 
