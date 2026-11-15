@@ -300,9 +300,7 @@ public final class ModernModuleSettings {
                 toggle("Show Direction", () -> cfg.hudShowDir, v -> cfg.hudShowDir = v, actions, false),
                 toggle("Show Nether", () -> cfg.hudShowNether, v -> cfg.hudShowNether = v, actions, false),
                 toggle("Show Pos", () -> cfg.hudShowPos, v -> cfg.hudShowPos = v, actions, false),
-                toggle("Show Clock", () -> cfg.hudShowClock, v -> cfg.hudShowClock = v, actions, false),
-                toggle("Fall Distance", () -> cfg.hudShowFallDistance, v -> cfg.hudShowFallDistance = v, actions, false),
-                toggle("Fall Damage", () -> cfg.hudShowFallDamage, v -> cfg.hudShowFallDamage = v, actions, false)
+                toggle("Show Clock", () -> cfg.hudShowClock, v -> cfg.hudShowClock = v, actions, false)
         );
     }
 

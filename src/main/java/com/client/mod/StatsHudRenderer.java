@@ -6,21 +6,11 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
-import net.minecraft.core.Holder;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.Mth;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
@@ -133,122 +123,6 @@ public class StatsHudRenderer {
             int[] cb = resolveClockBounds(mc.font, screenW, screenH, config);
             graphics.text(mc.font, clockLine, cb[0], cb[1], -1, true);
         }
-
-        if ((config.hudShowFallDistance || config.hudShowFallDamage) && mc.player.fallDistance > 0.05) {
-            Component fallLine = buildFallLine(mc, config);
-            if (fallLine != null) {
-                int[] fb = resolveFallBounds(mc.font, screenW, screenH, config);
-                graphics.text(mc.font, fallLine, fb[0], fb[1], -1, true);
-            }
-        }
-    }
-
-    public static int[] resolveFallBounds(Font font, int screenW, int screenH, ModConfig config) {
-        Minecraft mc = Minecraft.getInstance();
-        Component line = (mc.player != null && mc.level != null && mc.player.fallDistance > 0.05)
-                ? buildFallLine(mc, config)
-                : buildDummyFallLine(config);
-        int w = Math.max(84, line != null ? font.width(line) : 84);
-        int h = 11;
-        int x = config.fallHudX < 0
-                ? Math.max(2, (screenW - w) / 2)
-                : Mth.clamp(config.fallHudX, 2, Math.max(2, screenW - w - 2));
-        int y = config.fallHudY < 0
-                ? Math.max(2, screenH / 2 + 18)
-                : Mth.clamp(config.fallHudY, 2, Math.max(2, screenH - h - 2));
-        return new int[]{x, y, w, h};
-    }
-
-    private static Component buildDummyFallLine(ModConfig config) {
-        if (!config.hudShowFallDistance && config.hudShowFallDamage) {
-            return Component.literal("Dmg: 3.5 HP").setStyle(SECONDARY_STYLE);
-        }
-        if (config.hudShowFallDistance && !config.hudShowFallDamage) {
-            return Component.literal("Fall: 12.4m").setStyle(PRIMARY_STYLE);
-        }
-        return Component.literal("Fall: 12.4m  |  Dmg: 3.5 HP").setStyle(PRIMARY_STYLE);
-    }
-
-    private static Component buildFallLine(Minecraft mc, ModConfig config) {
-        if (mc.player == null || mc.level == null) {
-            return null;
-        }
-        boolean showDist = config.hudShowFallDistance;
-        boolean showDmg = config.hudShowFallDamage;
-        if (!showDist && !showDmg) {
-            return null;
-        }
-        MutableComponent line = Component.empty();
-        if (showDist) {
-            line.append(Component.literal("Fall: ").setStyle(PRIMARY_STYLE))
-                    .append(Component.literal(String.format(Locale.ROOT, "%.1fm", mc.player.fallDistance)).setStyle(SECONDARY_STYLE));
-        }
-        if (showDmg) {
-            float dmg = computeEstimatedFallDamage(mc, mc.player.fallDistance);
-            float effectiveHealth = mc.player.getHealth() + mc.player.getAbsorptionAmount();
-            int dmgColor;
-            if (dmg <= 0.0f) {
-                dmgColor = 0xFF55FF55;
-            } else if (dmg >= effectiveHealth) {
-                dmgColor = 0xFFFF5555;
-            } else if (dmg >= 6.0f) {
-                dmgColor = 0xFFFFAA00;
-            } else {
-                dmgColor = 0xFFFFFF55;
-            }
-            if (showDist) {
-                line.append(Component.literal("  |  ").setStyle(SECONDARY_STYLE));
-            }
-            line.append(Component.literal("Dmg: ").setStyle(PRIMARY_STYLE))
-                    .append(Component.literal(String.format(Locale.ROOT, "%.1f HP", dmg)).setStyle(Style.EMPTY.withColor(dmgColor)));
-        }
-        return line;
-    }
-
-    public static float computeEstimatedFallDamage(Minecraft mc, double fallDistance) {
-        if (mc.player == null || mc.level == null) {
-            return 0.0f;
-        }
-        if (mc.player.getAbilities().invulnerable || mc.player.hasEffect(MobEffects.SLOW_FALLING)) {
-            return 0.0f;
-        }
-        double safeDistance = mc.player.getAttributeValue(Attributes.SAFE_FALL_DISTANCE);
-        double fallMultiplier = mc.player.getAttributeValue(Attributes.FALL_DAMAGE_MULTIPLIER);
-        MobEffectInstance jumpBoost = mc.player.getEffect(MobEffects.JUMP_BOOST);
-        double jumpBonus = jumpBoost != null ? (jumpBoost.getAmplifier() + 1) : 0.0;
-        int rawDamage = Mth.ceil((fallDistance - safeDistance - jumpBonus) * fallMultiplier);
-        if (rawDamage <= 0) {
-            return 0.0f;
-        }
-
-        int epf = 0;
-        var enchLookup = mc.level.registryAccess().lookup(Registries.ENCHANTMENT);
-        if (enchLookup.isPresent()) {
-            var registry = enchLookup.get();
-            Holder<Enchantment> featherFalling = registry.get(Enchantments.FEATHER_FALLING).orElse(null);
-            Holder<Enchantment> protection = registry.get(Enchantments.PROTECTION).orElse(null);
-            EquipmentSlot[] armorSlots = {EquipmentSlot.FEET, EquipmentSlot.LEGS, EquipmentSlot.CHEST, EquipmentSlot.HEAD};
-            for (EquipmentSlot slot : armorSlots) {
-                ItemStack stack = mc.player.getItemBySlot(slot);
-                if (stack.isEmpty()) {
-                    continue;
-                }
-                if (protection != null) {
-                    epf += EnchantmentHelper.getItemEnchantmentLevel(protection, stack);
-                }
-                if (slot == EquipmentSlot.FEET && featherFalling != null) {
-                    epf += 3 * EnchantmentHelper.getItemEnchantmentLevel(featherFalling, stack);
-                }
-            }
-        }
-        int cappedEpf = Math.min(20, epf);
-        float damage = rawDamage * (1.0f - (cappedEpf / 25.0f));
-
-        MobEffectInstance resistance = mc.player.getEffect(MobEffects.RESISTANCE);
-        if (resistance != null) {
-            damage *= Math.max(0.0f, 1.0f - 0.2f * (resistance.getAmplifier() + 1));
-        }
-        return Math.max(0.0f, damage);
     }
 
     public static int[] resolveClockBounds(Font font, int screenW, int screenH, ModConfig config) {

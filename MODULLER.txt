@@ -117,10 +117,9 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
 
 17. HUD Info
     Ne ise yarar: Ekranda canli FPS, TPS, Ping, Hiz, Yon, Overworld/Nether
-    koordinatlari, Istanbul saati, duserken anlik dusme mesafesi (Fall Distance)
-    ve zirh/Feather Falling/iksirlere gore tahmini dusme hasarini (Fall Damage) gosterir.
+    koordinatlari ve Istanbul saatini gosterir.
     Ayarlar: Show FPS, Show TPS, Show Ping, Show Speed, Show Direction, Show Nether,
-    Show Pos, Show Clock, Fall Distance, Fall Damage (HUD Editor uzerinden tasinabilir).
+    Show Pos, Show Clock (HUD Editor uzerinden tasinabilir).
 
 18. Inventory HUD+
     Ne ise yarar: Oyun ekraninda canli envanter, zirh dayanakliligi ve iksir
