@@ -299,9 +299,10 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     Ayarlar: Infinite History (16.384 satira kadar gecmis), Anti Clear
     (sunucu temizleme bosluklarini gizler), Click to Copy (tikla kopyala),
     Timestamps (Istanbul saati <HH:mm:ss>), Compact Chat (tekrar eden
-    mesajlari (2), (3) seklinde birlestirir), Mention Windows Alert (sohbette
-    isminden bahsedildiginde veya ozel mesaj geldiginde Windows masaustu
-    bildirimi ve sesli uyari gonderir).
+    mesajlari (2), (3) seklinde birlestirir), Mention Windows Alert (varsayilan
+    kapali; Settings -> BETTER CHAT altindan acildiginda sohbette isminden
+    bahsedildiginde veya ozel mesaj geldiginde Windows masaustu bildirimi ve
+    sesli uyari gonderir).
 
 37. No Pause
     Ne ise yarar: Alt+Tab yapildiginda veya oyun penceresi odagi kaybettiginde
