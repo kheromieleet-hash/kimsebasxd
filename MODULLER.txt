@@ -308,6 +308,7 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
   * .c msg|dm|w <nick> <mesaj> : Ozel mesaj (DM) gonderir
   * .c list : Cevrimici Sestia kullanicilarini listeler
   * .c help / .c ? : Komut listesini gosterir
+  * .coordinates / .coords : Bulundugun anlik (X, Y, Z) koordinatlarini panoya kopyalar
 
 - Zoom (Varsayilan tus: C): Basili tutunca optifine tarzi yakinlastirma (4.0x).
 - Low Fire: Ekrandaki yanma/ates efektini asagi indirerek gorusu acar.

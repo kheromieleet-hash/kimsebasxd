@@ -29,6 +29,26 @@ public abstract class ChatScreenMixin extends Screen {
         if (normalized.isEmpty()) {
             return;
         }
+        String trimmed = normalized.trim();
+        if (trimmed.equalsIgnoreCase(".coordinates") || trimmed.equalsIgnoreCase(".coords")) {
+            if (this.minecraft != null && this.minecraft.player != null) {
+                int x = (int) Math.floor(this.minecraft.player.getX());
+                int y = (int) Math.floor(this.minecraft.player.getY());
+                int z = (int) Math.floor(this.minecraft.player.getZ());
+                String coords = x + ", " + y + ", " + z;
+                this.minecraft.keyboardHandler.setClipboard(coords);
+                if (this.minecraft.gui != null && this.minecraft.gui.hud != null && this.minecraft.gui.hud.getChat() != null) {
+                    this.minecraft.gui.hud.getChat().addClientSystemMessage(
+                            Component.literal("§a[Sestia] §fCoordinates copied to clipboard: §e" + coords)
+                    );
+                }
+            }
+            if (addToRecent && this.minecraft != null && this.minecraft.gui != null && this.minecraft.gui.hud != null) {
+                this.minecraft.gui.hud.getChat().addRecentChat(normalized);
+            }
+            ci.cancel();
+            return;
+        }
         if (SestiaChatClient.handleOutgoingChat(normalized)) {
             if (addToRecent && this.minecraft != null && this.minecraft.gui != null && this.minecraft.gui.hud != null) {
                 this.minecraft.gui.hud.getChat().addRecentChat(normalized);

@@ -21,7 +21,9 @@ public final class DotCommandSuggester {
             new Entry(".c", "", "Send message to Sestia global chat: .c <message>"),
             new Entry(".c list", "list", "Show online Sestia users"),
             new Entry(".c msg", "msg", "Send private message: .c msg <player> <message>"),
-            new Entry(".c help", "help", "Show Sestia chat command help")
+            new Entry(".c help", "help", "Show Sestia chat command help"),
+            new Entry(".coordinates", "", "Copy current X, Y, Z coordinates to clipboard"),
+            new Entry(".coords", "", "Alias for .coordinates")
     );
 
     private DotCommandSuggester() {
