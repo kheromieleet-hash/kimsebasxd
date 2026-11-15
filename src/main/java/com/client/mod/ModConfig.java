@@ -364,7 +364,7 @@ public class ModConfig {
     public int wheatFarmY2 = 0;
     public int wheatFarmZ2 = 0;
     public boolean wheatFarmWalk = true;
-    public boolean wheatFarmFly = false;
+    public boolean wheatFarmFly = true;
     public boolean wheatFarmStickWand = true;
     public boolean wheatFarmFailsafe = true;
     public int wheatFarmDelay = 7; // 3 to 20 ticks

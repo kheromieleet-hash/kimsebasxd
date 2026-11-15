@@ -205,8 +205,15 @@ public final class WheatFarmBotHandler {
         float[] targetAngles = computeAngles(eyePos, targetCenter);
         float yawDiff = easeRotatePlayer(mc.player, targetAngles[0], targetAngles[1], cfg.wheatFarmTurnSpeed);
 
-        // Auto-enable flight if Fly Mode is active and player can fly
+        // Auto-takeoff & enable flight if Fly Mode is active and server allows flying (mayfly)
         if (cfg.wheatFarmFly && mc.player.getAbilities().mayfly && !mc.player.getAbilities().flying) {
+            if (mc.player.onGround()) {
+                mc.options.keyJump.setDown(true);
+                mc.options.keyUp.setDown(false);
+                mc.options.keyShift.setDown(false);
+                holdingMoveKeys = true;
+                return;
+            }
             mc.player.getAbilities().flying = true;
             mc.player.onUpdateAbilities();
         }
