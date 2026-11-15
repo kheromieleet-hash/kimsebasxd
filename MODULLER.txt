@@ -249,10 +249,17 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
 
 
 --------------------------------------------------------------------------------
-[6] MISC KATEGORISI (2 Modul)
+[6] MISC KATEGORISI (3 Modul)
 --------------------------------------------------------------------------------
 
-36. Better Chat
+36. Auto Login
+    Ne ise yarar: AuthMe / Login eklentili sunucularda sohbetten /login veya
+    /register istendiginde (veya istege bagli sunucuya giriste) sifreyi
+    otomatik gonderir.
+    Ayarlar: Delay (0 - 60t), Auto Register (/register <sifre> <sifre>),
+    Send On Join (sohbet beklemeden giriste gonder), Set Password (sifre giris ekrani).
+
+37. Better Chat
     Ne ise yarar: Sohbeti gelistirir.
     Ayarlar: Infinite History (16.384 satira kadar gecmis), Anti Clear
     (sunucu temizleme bosluklarini gizler), Click to Copy (tikla kopyala),

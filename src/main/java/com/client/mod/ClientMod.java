@@ -34,13 +34,16 @@ public class ClientMod implements ClientModInitializer {
             AutoReplenishHandler.tick(client);
             AutoSellHandler.tick(client);
             AutoDropHandler.tick(client);
+            AutoLoginHandler.tick(client);
             ItemNotifierHudRenderer.tick(client);
             boolean inWorld = client.player != null;
             if (inWorld && !wasInWorld) {
                 wasInWorld = true;
                 SestiaChatClient.onEnteredWorld();
+                AutoLoginHandler.onEnteredWorld();
             } else if (!inWorld && wasInWorld) {
                 wasInWorld = false;
+                AutoLoginHandler.onLeftWorld();
             }
 
             ModConfig cfg = ModConfig.getInstance();

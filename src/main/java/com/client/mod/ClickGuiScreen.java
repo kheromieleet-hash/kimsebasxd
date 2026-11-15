@@ -296,6 +296,16 @@ public class ClickGuiScreen {
                 }
         ));
 
+        // Auto Login (Misc)
+        MODULES.add(new ModuleEntry(
+                "Auto Login", Category.MISC,
+                () -> config.autoLoginEnabled,
+                val -> {
+                    config.autoLoginEnabled = val;
+                    config.save();
+                }
+        ));
+
         // 13. Auto Sprint (Movement)
         MODULES.add(new ModuleEntry(
                 "Auto Sprint", Category.MOVEMENT,

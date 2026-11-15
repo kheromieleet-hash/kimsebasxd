@@ -333,6 +333,13 @@ public class ModConfig {
         }
     }
 
+    // Auto Login
+    public boolean autoLoginEnabled = false;
+    public String autoLoginPassword = "";
+    public int autoLoginDelay = 20; // 0 to 60 ticks
+    public boolean autoLoginAutoRegister = true;
+    public boolean autoLoginOnJoin = false;
+
     // Right-Shift ClickGUI Tab position & state
     public int guiTheme = 0; // 0=Sestia OLED, 1=Transparent, 2=Light, 3=Monokai Pro, 4=Dark
     public int guiWindowX = 480;
@@ -593,6 +600,11 @@ public class ModConfig {
         if (other.autoDropTargets != null) {
             this.autoDropTargets.addAll(other.autoDropTargets);
         }
+        this.autoLoginEnabled = other.autoLoginEnabled;
+        this.autoLoginPassword = other.autoLoginPassword != null ? other.autoLoginPassword : "";
+        this.autoLoginDelay = other.autoLoginDelay;
+        this.autoLoginAutoRegister = other.autoLoginAutoRegister;
+        this.autoLoginOnJoin = other.autoLoginOnJoin;
         this.guiTheme = other.guiTheme;
         this.guiWindowX = other.guiWindowX;
         this.guiWindowY = other.guiWindowY;
@@ -656,6 +668,8 @@ public class ModConfig {
         if (this.autoDropTargets == null) {
             this.autoDropTargets = new HashSet<>();
         }
+        if (this.autoLoginPassword == null) this.autoLoginPassword = "";
+        if (this.autoLoginDelay < 0 || this.autoLoginDelay > 60) this.autoLoginDelay = 20;
         if (this.fastBreakSpeed < 0.5f || this.fastBreakSpeed > 5.0f) this.fastBreakSpeed = 1.15f;
         if (this.fastBreakMode < 0 || this.fastBreakMode > 1) this.fastBreakMode = 1;
         if (this.pingSpoofDelay < 50 || this.pingSpoofDelay > 1000) this.pingSpoofDelay = 150;
