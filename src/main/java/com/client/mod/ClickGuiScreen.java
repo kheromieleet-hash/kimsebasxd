@@ -236,6 +236,16 @@ public class ClickGuiScreen {
                 }
         ));
 
+        // MultiTask (Player)
+        MODULES.add(new ModuleEntry(
+                "MultiTask", Category.PLAYER,
+                () -> config.multiTask,
+                val -> {
+                    config.multiTask = val;
+                    config.save();
+                }
+        ));
+
         // 7. Auto Break (World)
         MODULES.add(new ModuleEntry(
                 "Auto Break", Category.WORLD,

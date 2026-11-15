@@ -465,6 +465,7 @@ final class ModernModuleCardUi {
             case "Auto Sell" -> "Run /sell all when selected items enter inventory";
             case "Auto Drop" -> "Automatically throw selected junk items from inventory";
             case "No Strip" -> "Prevent accidentally stripping logs with an axe";
+            case "MultiTask" -> "Use both hands simultaneously (e.g. mine while eating)";
             case "Better Place" -> "Place blocks in mid-air and from awkward angles";
             case "Auto Sprint" -> "Keep sprinting automatically when moving";
             case "Safe Walk" -> "Prevent falling off block edges like sneaking";

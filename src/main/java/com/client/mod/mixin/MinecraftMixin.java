@@ -30,6 +30,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -66,6 +67,9 @@ public abstract class MinecraftMixin {
 
     @Shadow
     protected abstract boolean startAttack();
+
+    @Shadow
+    protected abstract void continueAttack(boolean leftClick);
 
     @Unique
     private boolean wasAutoRightClicking = false;
@@ -261,6 +265,51 @@ public abstract class MinecraftMixin {
                 && this.player != null
                 && this.gui != null
                 && this.gui.screen() == null;
+    }
+
+    @Redirect(
+            method = "startUseItem",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;isDestroying()Z"
+            )
+    )
+    private boolean onStartUseItemIsDestroying(MultiPlayerGameMode gameMode) {
+        if (ModConfig.getInstance().multiTask) {
+            return false;
+        }
+        return gameMode.isDestroying();
+    }
+
+    @Redirect(
+            method = "continueAttack",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/player/LocalPlayer;isUsingItem()Z"
+            )
+    )
+    private boolean onContinueAttackIsUsingItem(LocalPlayer player) {
+        if (ModConfig.getInstance().multiTask) {
+            return false;
+        }
+        return player.isUsingItem();
+    }
+
+    @Inject(method = "handleKeybinds", at = @At("TAIL"))
+    private void onHandleKeybindsMultiTask(CallbackInfo ci) {
+        ModConfig cfg = ModConfig.getInstance();
+        if (!cfg.multiTask || this.player == null || !this.player.isUsingItem()) {
+            return;
+        }
+        if (this.gui == null || this.gui.screen() != null || this.options == null) {
+            return;
+        }
+        boolean attackPressed = false;
+        while (this.options.keyAttack.consumeClick()) {
+            attackPressed |= this.startAttack();
+        }
+        boolean held = this.options.keyAttack.isDown() && this.mouseHandler != null && this.mouseHandler.isMouseGrabbed();
+        this.continueAttack(attackPressed || held);
     }
 
     @Inject(method = "shouldEntityAppearGlowing", at = @At("HEAD"), cancellable = true)

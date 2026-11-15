@@ -354,6 +354,9 @@ public class ModConfig {
     public boolean betterPlace = false;
     public float betterPlaceRange = 4.5f;
 
+    // MultiTask (Meteor Tweaks)
+    public boolean multiTask = false;
+
     // Item Sucker (Movement)
     public boolean itemSuckerEnabled = false;
     public int itemSuckerMode = 0; // 0=Move, 1=TP
@@ -637,6 +640,7 @@ public class ModConfig {
         this.noStripAllowSneak = other.noStripAllowSneak;
         this.betterPlace = other.betterPlace;
         this.betterPlaceRange = other.betterPlaceRange;
+        this.multiTask = other.multiTask;
         this.itemSuckerEnabled = other.itemSuckerEnabled;
         this.itemSuckerMode = other.itemSuckerMode;
         this.itemSuckerRange = other.itemSuckerRange;

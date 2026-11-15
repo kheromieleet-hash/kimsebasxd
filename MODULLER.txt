@@ -213,6 +213,11 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     Ne ise yarar: Baltayla odun veya bambu bloklarini yanlislikla soymayi engeller.
     Ayarlar: Allow Sneaking (Shift basiliyken soymaya izin verir).
 
+32. MultiTask
+    Ne ise yarar: Iki eli ayni anda kullanabilmeyi saglar (ornegin bir yandan
+    blok kirarken veya saldirirken diger yandan yemek yeme).
+    Ayarlar: Ek ayar yok (Ac/Kapa).
+
 31. Auto Sell
     Ne ise yarar: Secili esyalardan herhangi biri envantere geldiginde belirli
     gecikmeyle otomatik /sell all komutunu calistirir.
