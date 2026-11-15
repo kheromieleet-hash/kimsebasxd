@@ -3,6 +3,7 @@ package com.client.mod.mixin;
 import com.client.mod.AutoToolHandler;
 import com.client.mod.ModConfig;
 import com.client.mod.PacketMineHandler;
+import com.client.mod.WheatFarmBotHandler;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.multiplayer.prediction.PredictiveAction;
@@ -50,6 +51,10 @@ public abstract class MultiPlayerGameModeMixin implements PacketMineHandler.Stop
 
     @Inject(method = "startDestroyBlock", at = @At("HEAD"), cancellable = true)
     private void onStartDestroyBlock(BlockPos pos, Direction dir, CallbackInfoReturnable<Boolean> cir) {
+        if (WheatFarmBotHandler.onStickLeftClickBlock(pos)) {
+            cir.setReturnValue(false);
+            return;
+        }
         AutoToolHandler.onStartMining(pos);
         if (PacketMineHandler.onStartDestroyAttempt((MultiPlayerGameMode) (Object) this, pos, dir)) {
             cir.setReturnValue(true);
@@ -123,6 +128,11 @@ public abstract class MultiPlayerGameModeMixin implements PacketMineHandler.Stop
 
     @Inject(method = "useItemOn", at = @At("HEAD"), cancellable = true)
     private void onUseItemOnNoStrip(LocalPlayer player, InteractionHand hand, BlockHitResult hitResult, CallbackInfoReturnable<InteractionResult> cir) {
+        if (hand == InteractionHand.MAIN_HAND && hitResult != null
+                && WheatFarmBotHandler.onStickRightClickBlock(player, hitResult.getBlockPos())) {
+            cir.setReturnValue(InteractionResult.SUCCESS);
+            return;
+        }
         ModConfig config = ModConfig.getInstance();
         if (config == null || !config.noStrip || player == null || hitResult == null) {
             return;

@@ -39,8 +39,55 @@ public final class WheatFarmBotHandler {
     private static boolean holdingMoveKeys = false;
     private static int actionCooldown = 0;
     private static int missingWarnCooldown = 0;
+    private static long lastStickRightMs = 0L;
 
     private WheatFarmBotHandler() {
+    }
+
+    public static boolean onStickLeftClickBlock(BlockPos pos) {
+        ModConfig cfg = ModConfig.getInstance();
+        Minecraft mc = Minecraft.getInstance();
+        if (cfg == null || !cfg.wheatFarmStickWand || mc == null || mc.player == null || pos == null) {
+            return false;
+        }
+        ItemStack mainHand = mc.player.getMainHandItem();
+        if (mainHand.isEmpty() || !mainHand.is(Items.STICK)) {
+            return false;
+        }
+        cfg.wheatFarmX1 = pos.getX();
+        cfg.wheatFarmY1 = pos.getY();
+        cfg.wheatFarmZ1 = pos.getZ();
+        cfg.wheatFarmPos1Set = true;
+        cfg.save();
+        notify(mc, "§a[Sestia] §fFarm Pos 1 set to §e" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ());
+        return true;
+    }
+
+    public static boolean onStickRightClickBlock(net.minecraft.client.player.LocalPlayer player, BlockPos pos) {
+        ModConfig cfg = ModConfig.getInstance();
+        Minecraft mc = Minecraft.getInstance();
+        if (cfg == null || !cfg.wheatFarmStickWand || player == null || mc == null || pos == null) {
+            return false;
+        }
+        ItemStack mainHand = player.getMainHandItem();
+        if (mainHand.isEmpty() || !mainHand.is(Items.STICK)) {
+            return false;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastStickRightMs < 150L) {
+            return true;
+        }
+        lastStickRightMs = now;
+        cfg.wheatFarmX2 = pos.getX();
+        cfg.wheatFarmY2 = pos.getY();
+        cfg.wheatFarmZ2 = pos.getZ();
+        cfg.wheatFarmPos2Set = true;
+        cfg.save();
+        String extra = cfg.wheatFarmPos1Set
+                ? " §7(" + countRemainingTasks(mc.level, cfg) + " blocks, run §e.farm start§7)"
+                : "";
+        notify(mc, "§a[Sestia] §fFarm Pos 2 set to §e" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + extra);
+        return true;
     }
 
     public static void onLeftWorld() {

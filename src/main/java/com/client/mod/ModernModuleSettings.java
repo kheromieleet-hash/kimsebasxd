@@ -503,6 +503,7 @@ public final class ModernModuleSettings {
 
     private static List<Control> buildWheatFarmControls(ModConfig cfg, Actions actions) {
         return List.of(
+                toggle("Stick Wand", () -> cfg.wheatFarmStickWand, v -> cfg.wheatFarmStickWand = v, actions, false),
                 toggle("Walk To Blocks", () -> cfg.wheatFarmWalk, v -> cfg.wheatFarmWalk = v, actions, false),
                 intSlider("wheatFarmDelay", "Action Delay", 2, 12, "t",
                         () -> cfg.wheatFarmDelay, v -> cfg.wheatFarmDelay = v),
