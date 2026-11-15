@@ -212,6 +212,9 @@ public class ClickGuiScreen {
                 () -> config.fastPlace,
                 val -> {
                     config.fastPlace = val;
+                    if (!val) {
+                        config.fastPlaceAutoRightClick = false;
+                    }
                     config.save();
                 }
         ));
