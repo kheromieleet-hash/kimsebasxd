@@ -344,12 +344,6 @@ public class ModConfig {
     public boolean autoLoginAutoRegister = true;
     public boolean autoLoginOnJoin = false;
 
-    // Anti Vanish
-    public boolean antiVanishEnabled = false;
-    public boolean antiVanishTabCheck = true;
-    public boolean antiVanishCommandCheck = true;
-    public int antiVanishInterval = 15; // 5 to 60 seconds
-
     // New Velocity (Combat)
     public boolean newVelocityEnabled = false;
     public int newVelocityMode = 0; // 0=Normal, 1=Jump Reset, 2=Grim
@@ -635,10 +629,6 @@ public class ModConfig {
         this.autoLoginDelay = other.autoLoginDelay;
         this.autoLoginAutoRegister = other.autoLoginAutoRegister;
         this.autoLoginOnJoin = other.autoLoginOnJoin;
-        this.antiVanishEnabled = other.antiVanishEnabled;
-        this.antiVanishTabCheck = other.antiVanishTabCheck;
-        this.antiVanishCommandCheck = other.antiVanishCommandCheck;
-        this.antiVanishInterval = other.antiVanishInterval;
         this.newVelocityEnabled = other.newVelocityEnabled;
         this.newVelocityMode = other.newVelocityMode;
         this.newVelocityHorizontal = other.newVelocityHorizontal;
@@ -716,7 +706,6 @@ public class ModConfig {
         }
         if (this.autoLoginPassword == null) this.autoLoginPassword = "";
         if (this.autoLoginDelay < 0 || this.autoLoginDelay > 60) this.autoLoginDelay = 20;
-        if (this.antiVanishInterval < 5 || this.antiVanishInterval > 60) this.antiVanishInterval = 15;
         if (this.newVelocityMode < 0 || this.newVelocityMode > 2) this.newVelocityMode = 0;
         if (this.newVelocityHorizontal < 0 || this.newVelocityHorizontal > 100) this.newVelocityHorizontal = 0;
         if (this.newVelocityVertical < 0 || this.newVelocityVertical > 100) this.newVelocityVertical = 0;

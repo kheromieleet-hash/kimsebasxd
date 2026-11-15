@@ -1,6 +1,5 @@
 package com.client.mod.mixin;
 
-import com.client.mod.AntiVanishHandler;
 import com.client.mod.ExploitPacketRules;
 import com.client.mod.ModConfig;
 import com.client.mod.PacketMineHandler;
@@ -10,7 +9,6 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.network.protocol.game.ClientboundCommandSuggestionsPacket;
 import net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacket;
 import net.minecraft.network.protocol.game.ClientboundExplodePacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
@@ -44,13 +42,6 @@ public abstract class ClientPlayPacketListenerMixin {
 
     @Unique
     private Vec3 customclient$preVelocity = null;
-
-    @Inject(method = "handleCommandSuggestions", at = @At("HEAD"), cancellable = true)
-    private void onHandleCommandSuggestions(ClientboundCommandSuggestionsPacket packet, CallbackInfo ci) {
-        if (AntiVanishHandler.handleCommandSuggestions(packet)) {
-            ci.cancel();
-        }
-    }
 
     @Inject(method = "handleParticleEvent", at = @At("HEAD"), cancellable = true)
     private void onHandleParticleEvent(ClientboundLevelParticlesPacket packet, CallbackInfo ci) {
