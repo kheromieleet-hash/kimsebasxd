@@ -57,6 +57,8 @@ public final class WheatFarmBotHandler {
     private static double jitterZ = 0.0;
     private static Vec3 lastPlayerPos = null;
     private static int alarmTicksRemaining = 0;
+    private static int isFlyRetryTicks = 0;
+    private static int isFlyAttempts = 0;
 
     private WheatFarmBotHandler() {
     }
@@ -151,6 +153,8 @@ public final class WheatFarmBotHandler {
             actionCooldown = 0;
             jitterForPos = null;
             lastPlayerPos = null;
+            isFlyRetryTicks = 0;
+            isFlyAttempts = 0;
             return;
         }
         if (mc.gui != null && mc.gui.screen() != null) {
@@ -204,6 +208,18 @@ public final class WheatFarmBotHandler {
         // 1. Ease-out mouse-like camera rotation toward target block (every tick, even while walking!)
         float[] targetAngles = computeAngles(eyePos, targetCenter);
         float yawDiff = easeRotatePlayer(mc.player, targetAngles[0], targetAngles[1], cfg.wheatFarmTurnSpeed);
+
+        // Automatically run /is fly if Fly Mode is active and server hasn't granted flight yet
+        if (isFlyRetryTicks > 0) {
+            isFlyRetryTicks--;
+        }
+        if (mc.player.getAbilities().mayfly) {
+            isFlyAttempts = 0;
+        } else if (cfg.wheatFarmFly && isFlyRetryTicks <= 0 && isFlyAttempts < 2 && mc.player.connection != null) {
+            mc.player.connection.sendCommand("is fly");
+            isFlyRetryTicks = 100;
+            isFlyAttempts++;
+        }
 
         // Auto-takeoff & enable flight if Fly Mode is active and server allows flying (mayfly)
         if (cfg.wheatFarmFly && mc.player.getAbilities().mayfly && !mc.player.getAbilities().flying) {
