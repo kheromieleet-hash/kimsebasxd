@@ -26,13 +26,16 @@ import java.util.Locale;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Human-like wheat farm builder: follows a serpentine row-by-row path starting at Pos 1,
- * walks to blocks, smoothly aims the camera, tills with a hoe (main hand),
- * and plants wheat seeds (offhand or hotbar).
+ * Taunahi-style human-like wheat farm builder:
+ * - Serpentine row-by-row path starting from Pos 1
+ * - Fluid walk-while-working movement (no jerky stop-and-go)
+ * - Ease-out mouse-like camera rotation with natural hit-point variance
+ * - Supports Hoe in main hand + Wheat Seeds in offhand or hotbar
+ * - Works both on foot and while flying
  */
 public final class WheatFarmBotHandler {
-    private static final double INTERACT_RANGE = 3.4;
-    private static final double WALK_STOP_RANGE = 2.6;
+    private static final double INTERACT_RANGE = 3.35;
+    private static final double PAUSE_BEFORE_OVERSHOOT_HORIZ = 1.15;
 
     private enum TaskType {
         TILL,
@@ -42,12 +45,12 @@ public final class WheatFarmBotHandler {
     private record FarmTask(BlockPos pos, TaskType type) {}
 
     private static boolean holdingMoveKeys = false;
-    private static boolean walkingToTarget = false;
-    private static BlockPos walkOntoPos = null;
-    private static int walkOntoTicks = 0;
     private static int actionCooldown = 0;
     private static int missingWarnCooldown = 0;
     private static long lastStickRightMs = 0L;
+    private static BlockPos jitterForPos = null;
+    private static double jitterX = 0.0;
+    private static double jitterZ = 0.0;
 
     private WheatFarmBotHandler() {
     }
@@ -100,26 +103,21 @@ public final class WheatFarmBotHandler {
 
     public static void onLeftWorld() {
         releaseMovementKeys(Minecraft.getInstance());
-        walkingToTarget = false;
-        walkOntoPos = null;
-        walkOntoTicks = 0;
         actionCooldown = 0;
         missingWarnCooldown = 0;
+        jitterForPos = null;
     }
 
     public static void tick(Minecraft mc) {
         ModConfig cfg = ModConfig.getInstance();
         if (cfg == null || !cfg.wheatFarmEnabled || mc == null || mc.player == null || mc.level == null || mc.gameMode == null) {
             releaseMovementKeys(mc);
-            walkingToTarget = false;
-            walkOntoPos = null;
-            walkOntoTicks = 0;
             actionCooldown = 0;
+            jitterForPos = null;
             return;
         }
         if (mc.gui != null && mc.gui.screen() != null) {
             releaseMovementKeys(mc);
-            walkingToTarget = false;
             return;
         }
         if (!cfg.wheatFarmPos1Set || !cfg.wheatFarmPos2Set) {
@@ -135,26 +133,6 @@ public final class WheatFarmBotHandler {
         }
         if (missingWarnCooldown > 0) {
             missingWarnCooldown--;
-        }
-
-        // Step onto the block we just planted before moving on to the next block
-        if (walkOntoPos != null) {
-            if (!cfg.wheatFarmWalk || walkOntoTicks++ > 35) {
-                walkOntoPos = null;
-                walkOntoTicks = 0;
-                releaseMovementKeys(mc);
-            } else {
-                Vec3 stepTarget = new Vec3(walkOntoPos.getX() + 0.5, walkOntoPos.getY() + 1.0, walkOntoPos.getZ() + 0.5);
-                double stepHoriz = Math.hypot(stepTarget.x - mc.player.getX(), stepTarget.z - mc.player.getZ());
-                if (stepHoriz <= 0.45) {
-                    walkOntoPos = null;
-                    walkOntoTicks = 0;
-                    releaseMovementKeys(mc);
-                } else {
-                    steerToward(mc, mc.player.getEyePosition(1.0f), stepTarget, cfg.wheatFarmTurnSpeed);
-                    return;
-                }
-            }
         }
 
         int hoeSlot = findHotbarHoe(mc.player.getInventory());
@@ -176,46 +154,47 @@ public final class WheatFarmBotHandler {
             return;
         }
 
+        updateBlockJitter(task.pos);
         Vec3 eyePos = mc.player.getEyePosition(1.0f);
-        Vec3 targetCenter = new Vec3(task.pos.getX() + 0.5, task.pos.getY() + 0.99, task.pos.getZ() + 0.5);
+        Vec3 targetCenter = new Vec3(task.pos.getX() + 0.5 + jitterX, task.pos.getY() + 0.99, task.pos.getZ() + 0.5 + jitterZ);
         double dist = Math.sqrt(targetCenter.distanceToSqr(eyePos));
         double horizDist = Math.hypot(targetCenter.x - mc.player.getX(), targetCenter.z - mc.player.getZ());
 
-        // 1. Walk closer with hysteresis so we stop in front of the block without overshooting
-        if (dist > INTERACT_RANGE) {
-            walkingToTarget = true;
-        } else if (dist <= WALK_STOP_RANGE || horizDist <= 1.25) {
-            walkingToTarget = false;
-        }
-
-        if (walkingToTarget) {
-            if (!cfg.wheatFarmWalk) {
-                walkingToTarget = false;
-                releaseMovementKeys(mc);
-                return;
-            }
-            steerToward(mc, eyePos, targetCenter, cfg.wheatFarmTurnSpeed);
-            return;
-        }
-
-        releaseMovementKeys(mc);
-
-        // 2. Smoothly aim camera at target block top
+        // 1. Ease-out mouse-like camera rotation toward target block (every tick, even while walking!)
         float[] targetAngles = computeAngles(eyePos, targetCenter);
-        float maxStep = Mth.clamp(cfg.wheatFarmTurnSpeed, 5.0f, 45.0f);
-        float yawDiff = Mth.wrapDegrees(targetAngles[0] - mc.player.getYRot());
+        float yawDiff = easeRotatePlayer(mc.player, targetAngles[0], targetAngles[1], cfg.wheatFarmTurnSpeed);
+
+        // 2. Fluid walk-while-working movement (only pauses if about to step past an unfinished block)
+        if (cfg.wheatFarmWalk) {
+            boolean shouldWalk = dist > INTERACT_RANGE || horizDist > PAUSE_BEFORE_OVERSHOOT_HORIZ;
+            if (shouldWalk) {
+                mc.options.keyUp.setDown(Math.abs(yawDiff) < 42.0f);
+                if (mc.player.getAbilities().flying) {
+                    double dy = targetCenter.y - mc.player.getY();
+                    mc.options.keyJump.setDown(dy > 0.55);
+                    mc.options.keyShift.setDown(dy < -2.35);
+                } else {
+                    mc.options.keyJump.setDown(mc.player.horizontalCollision);
+                    mc.options.keyShift.setDown(false);
+                }
+                holdingMoveKeys = true;
+            } else {
+                releaseMovementKeys(mc);
+            }
+        } else {
+            releaseMovementKeys(mc);
+        }
+
+        // Wait until within interaction reach & aimed closely enough
+        if (dist > INTERACT_RANGE) {
+            return;
+        }
         float pitchDiff = targetAngles[1] - mc.player.getXRot();
-
-        float nextYaw = mc.player.getYRot() + Mth.clamp(yawDiff, -maxStep, maxStep);
-        float nextPitch = Mth.clamp(mc.player.getXRot() + Mth.clamp(pitchDiff, -maxStep, maxStep), -89.9f, 89.9f);
-        mc.player.setYRot(nextYaw);
-        mc.player.setXRot(nextPitch);
-
-        if (Math.abs(yawDiff) > 3.0f || Math.abs(pitchDiff) > 3.0f) {
+        if (Math.abs(yawDiff) > 4.0f || Math.abs(pitchDiff) > 4.0f) {
             return;
         }
 
-        // 3. Choose hand & slot (Offhand seeds supported without swapping main hand!)
+        // 3. Select hand & slot (Offhand seeds supported without swapping main hand!)
         InteractionHand useHand;
         if (task.type == TaskType.PLANT && offhandSeeds) {
             useHand = InteractionHand.OFF_HAND;
@@ -226,7 +205,7 @@ public final class WheatFarmBotHandler {
             }
             if (mc.player.getInventory().getSelectedSlot() != requiredSlot) {
                 mc.player.getInventory().setSelectedSlot(requiredSlot);
-                actionCooldown = Math.max(actionCooldown, 3);
+                actionCooldown = Math.max(actionCooldown, 2);
                 return;
             }
             useHand = InteractionHand.MAIN_HAND;
@@ -250,46 +229,43 @@ public final class WheatFarmBotHandler {
 
         ItemStack held = mc.player.getItemInHand(useHand);
         InteractionResult res = mc.gameMode.useItemOn(mc.player, useHand, hitResult);
-        if (res instanceof InteractionResult.Success success) {
-            if (success.swingSource() == InteractionResult.SwingSource.PREDICTED) {
-                mc.player.swing(useHand, held.getInteractAnimation(), false);
-            }
-            if (task.type == TaskType.PLANT && cfg.wheatFarmWalk) {
-                walkOntoPos = task.pos;
-                walkOntoTicks = 0;
-            }
+        if (res instanceof InteractionResult.Success success && success.swingSource() == InteractionResult.SwingSource.PREDICTED) {
+            mc.player.swing(useHand, held.getInteractAnimation(), false);
         }
 
         int baseDelay = Mth.clamp(cfg.wheatFarmDelay, 3, 20);
         int extraTill = (task.type == TaskType.TILL) ? 2 : 0;
-        actionCooldown = baseDelay + extraTill + ThreadLocalRandom.current().nextInt(4);
+        actionCooldown = baseDelay + extraTill + ThreadLocalRandom.current().nextInt(3);
     }
 
-    private static void steerToward(Minecraft mc, Vec3 eyePos, Vec3 target, float turnSpeed) {
-        if (mc.options == null || mc.player == null) {
-            return;
+    private static void updateBlockJitter(BlockPos pos) {
+        if (!pos.equals(jitterForPos)) {
+            jitterForPos = pos;
+            ThreadLocalRandom rnd = ThreadLocalRandom.current();
+            jitterX = rnd.nextDouble(-0.09, 0.09);
+            jitterZ = rnd.nextDouble(-0.09, 0.09);
         }
-        float[] targetAngles = computeAngles(eyePos, target);
-        float yawDiff = Mth.wrapDegrees(targetAngles[0] - mc.player.getYRot());
-        float maxStep = Mth.clamp(turnSpeed, 5.0f, 30.0f);
-        mc.player.setYRot(mc.player.getYRot() + Mth.clamp(yawDiff, -maxStep, maxStep));
+    }
 
-        // Keep head smoothly aimed toward the block (no sudden upward snap)
-        float clampedTargetPitch = Mth.clamp(targetAngles[1], 18.0f, 65.0f);
-        float pitchDiff = clampedTargetPitch - mc.player.getXRot();
-        float maxPitchStep = Math.min(3.5f, maxStep * 0.4f);
-        mc.player.setXRot(Mth.clamp(mc.player.getXRot() + Mth.clamp(pitchDiff, -maxPitchStep, maxPitchStep), -89.0f, 89.0f));
+    private static float easeRotatePlayer(LocalPlayer player, float targetYaw, float targetPitch, float turnSpeedSetting) {
+        float yawDiff = Mth.wrapDegrees(targetYaw - player.getYRot());
+        float pitchDiff = Mth.clamp(targetPitch, -89.5f, 89.5f) - player.getXRot();
 
-        mc.options.keyUp.setDown(Math.abs(yawDiff) < 30.0f);
-        if (mc.player.getAbilities().flying) {
-            double dy = target.y - mc.player.getY();
-            mc.options.keyJump.setDown(dy > 0.6);
-            mc.options.keyShift.setDown(dy < -2.2);
-        } else {
-            mc.options.keyJump.setDown(mc.player.horizontalCollision);
-            mc.options.keyShift.setDown(false);
+        // Ease-out curve: fast when far, decelerates smoothly near target like a human hand
+        float factor = Mth.clamp(turnSpeedSetting / 42.0f, 0.14f, 0.50f);
+        float maxStep = Mth.clamp(turnSpeedSetting, 5.0f, 30.0f);
+
+        float yawStep = Math.abs(yawDiff) < 0.2f ? yawDiff : Mth.clamp(yawDiff * factor, -maxStep, maxStep);
+        float pitchStep = Math.abs(pitchDiff) < 0.2f ? pitchDiff : Mth.clamp(pitchDiff * (factor * 0.85f), -maxStep * 0.7f, maxStep * 0.7f);
+
+        // Subtle micro-jitter when actively turning
+        if (Math.abs(yawDiff) > 1.5f) {
+            yawStep += (float) ThreadLocalRandom.current().nextDouble(-0.18, 0.18);
         }
-        holdingMoveKeys = true;
+
+        player.setYRot(player.getYRot() + yawStep);
+        player.setXRot(Mth.clamp(player.getXRot() + pitchStep, -89.5f, 89.5f));
+        return Mth.wrapDegrees(targetYaw - player.getYRot());
     }
 
     private static void releaseMovementKeys(Minecraft mc) {
