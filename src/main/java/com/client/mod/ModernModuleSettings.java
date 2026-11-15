@@ -199,14 +199,6 @@ public final class ModernModuleSettings {
                     floatSlider("betterPlaceRange", "Place Range", 2.0f, 6.0f, 0.25f, "b",
                             () -> cfg.betterPlaceRange, v -> cfg.betterPlaceRange = v)
             );
-            case "Auto Farm Land" -> List.of(
-                    floatSlider("autoFarmLandRange", "Range", 2.0f, 5.0f, 0.25f, "b",
-                            () -> cfg.autoFarmLandRange, v -> cfg.autoFarmLandRange = v),
-                    intSlider("autoFarmLandDelay", "Delay", 0, 10, "t",
-                            () -> cfg.autoFarmLandDelay, v -> cfg.autoFarmLandDelay = v),
-                    toggle("Require Water", () -> cfg.autoFarmLandRequireWater, v -> cfg.autoFarmLandRequireWater = v, actions, false),
-                    toggle("Rotate", () -> cfg.autoFarmLandRotate, v -> cfg.autoFarmLandRotate = v, actions, false)
-            );
             case "Auto Wheat Farm" -> buildWheatFarmControls(cfg, actions);
             case "New Velocity" -> buildNewVelocityControls(cfg, actions);
             case "Item Sucker" -> buildItemSuckerControls(cfg, actions);

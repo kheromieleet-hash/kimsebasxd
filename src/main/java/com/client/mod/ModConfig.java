@@ -353,13 +353,6 @@ public class ModConfig {
     // MultiTask (Meteor Tweaks)
     public boolean multiTask = false;
 
-    // Auto Farm Land (Nora Tweaks)
-    public boolean autoFarmLandEnabled = false;
-    public float autoFarmLandRange = 3.5f;
-    public int autoFarmLandDelay = 3; // 0 to 10 ticks
-    public boolean autoFarmLandRequireWater = false;
-    public boolean autoFarmLandRotate = true;
-
     // Auto Wheat Farm (Area Bot)
     public boolean wheatFarmEnabled = false;
     public boolean wheatFarmPos1Set = false;
@@ -658,11 +651,6 @@ public class ModConfig {
         this.betterPlace = other.betterPlace;
         this.betterPlaceRange = other.betterPlaceRange;
         this.multiTask = other.multiTask;
-        this.autoFarmLandEnabled = other.autoFarmLandEnabled;
-        this.autoFarmLandRange = other.autoFarmLandRange;
-        this.autoFarmLandDelay = other.autoFarmLandDelay;
-        this.autoFarmLandRequireWater = other.autoFarmLandRequireWater;
-        this.autoFarmLandRotate = other.autoFarmLandRotate;
         this.wheatFarmEnabled = other.wheatFarmEnabled;
         this.wheatFarmPos1Set = other.wheatFarmPos1Set;
         this.wheatFarmX1 = other.wheatFarmX1;
@@ -752,8 +740,6 @@ public class ModConfig {
         if (this.newVelocityVertical < 0 || this.newVelocityVertical > 100) this.newVelocityVertical = 0;
         if (this.newVelocityChance < 0 || this.newVelocityChance > 100) this.newVelocityChance = 100;
         this.betterPlaceRange = clampFloat(this.betterPlaceRange, 2.0f, 6.0f, 4.5f);
-        this.autoFarmLandRange = clampFloat(this.autoFarmLandRange, 2.0f, 5.0f, 3.5f);
-        if (this.autoFarmLandDelay < 0 || this.autoFarmLandDelay > 10) this.autoFarmLandDelay = 3;
         if (this.wheatFarmDelay < 2 || this.wheatFarmDelay > 12) this.wheatFarmDelay = 4;
         this.wheatFarmTurnSpeed = clampFloat(this.wheatFarmTurnSpeed, 8.0f, 35.0f, 18.0f);
         if (this.itemSuckerMode < 0 || this.itemSuckerMode > 1) this.itemSuckerMode = 0;

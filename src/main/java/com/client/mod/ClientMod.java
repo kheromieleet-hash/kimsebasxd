@@ -35,7 +35,6 @@ public class ClientMod implements ClientModInitializer {
             AutoSellHandler.tick(client);
             AutoDropHandler.tick(client);
             AutoLoginHandler.tick(client);
-            AutoFarmLandHandler.tick(client);
             WheatFarmBotHandler.tick(client);
             ItemSuckerHandler.tick(client);
             ItemNotifierHudRenderer.tick(client);

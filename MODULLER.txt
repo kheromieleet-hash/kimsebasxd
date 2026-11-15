@@ -191,14 +191,7 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     Ayarlar: Mode (Vulcan / Vanilla, varsayilan: Vulcan), Break Speed
     (Vulcan'da max guvenli 1.15x, Vanilla'da 0.5x - 5.0x).
 
-30. Auto Farm Land
-    Ne ise yarar: Elinde capa (Hoe) tutarken erisim mesafesindeki uygun toprak
-    ve cimen bloklarini otomatik olarak Farmland'e cevirir.
-    Ayarlar: Range (2.0 - 5.0b, varsayilan 3.5b), Delay (0 - 10t, varsayilan 3t),
-    Require Water (sadece yakininda su olan bloklari capalar), Rotate (Vulcan
-    uyumlu hedef bloga bakma ve gorus hatti kontrolu).
-
-31. Auto Wheat Farm
+30. Auto Wheat Farm
     Ne ise yarar: Eline cubuk (Stick) alip bloklara sol tik ile 1. koseyi,
     sag tik ile 2. koseyi sectikten sonra .farm start komutuyla ilk tiklanan
     koseden baslayarak sirali (zigzag/serpentine) rota boyunca insan gibi

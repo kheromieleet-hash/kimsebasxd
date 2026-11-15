@@ -256,16 +256,6 @@ public class ClickGuiScreen {
                 }
         ));
 
-        // Auto Farm Land (World)
-        MODULES.add(new ModuleEntry(
-                "Auto Farm Land", Category.WORLD,
-                () -> config.autoFarmLandEnabled,
-                val -> {
-                    config.autoFarmLandEnabled = val;
-                    config.save();
-                }
-        ));
-
         // Auto Wheat Farm (World)
         MODULES.add(new ModuleEntry(
                 "Auto Wheat Farm", Category.WORLD,
