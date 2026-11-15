@@ -460,9 +460,25 @@ public class ModConfig {
         setCategoryExpanded(id, !current);
     }
 
-    // Module Keybinds
+    // Module Keybinds & Favorites
     public Map<String, Integer> moduleKeybinds = new HashMap<>();
     public Map<String, Boolean> moduleKeybindIsMouse = new HashMap<>();
+    public Set<String> favoriteModules = new HashSet<>();
+
+    public boolean isFavoriteModule(String id) {
+        if (id == null) return false;
+        if (favoriteModules == null) favoriteModules = new HashSet<>();
+        return favoriteModules.contains(id);
+    }
+
+    public void toggleFavoriteModule(String id) {
+        if (id == null) return;
+        if (favoriteModules == null) favoriteModules = new HashSet<>();
+        if (!favoriteModules.remove(id)) {
+            favoriteModules.add(id);
+        }
+        save();
+    }
 
     public int getModuleKey(String id) {
         if (moduleKeybinds == null) moduleKeybinds = new HashMap<>();
@@ -753,6 +769,10 @@ public class ModConfig {
         if (other.moduleKeybindIsMouse != null) {
             this.moduleKeybindIsMouse.putAll(other.moduleKeybindIsMouse);
         }
+        this.favoriteModules = new HashSet<>();
+        if (other.favoriteModules != null) {
+            this.favoriteModules.addAll(other.favoriteModules);
+        }
     }
 
     public void sanitize() {
@@ -837,6 +857,7 @@ public class ModConfig {
         if (this.categoryExpanded == null) this.categoryExpanded = new HashMap<>();
         if (this.moduleKeybinds == null) this.moduleKeybinds = new HashMap<>();
         if (this.moduleKeybindIsMouse == null) this.moduleKeybindIsMouse = new HashMap<>();
+        if (this.favoriteModules == null) this.favoriteModules = new HashSet<>();
         if (this.keybindsHudX < 0 || this.keybindsHudX > 3000) this.keybindsHudX = 8;
         if (this.keybindsHudY < 0 || this.keybindsHudY > 3000) this.keybindsHudY = 60;
         if (this.statsHudX < 0 || this.statsHudX > 4000) this.statsHudX = 4;

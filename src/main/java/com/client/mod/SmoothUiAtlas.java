@@ -33,7 +33,9 @@ final class SmoothUiAtlas {
         BRAND,
         CHECK,
         CHEVRON_RIGHT,
-        KEYBOARD
+        KEYBOARD,
+        STAR_FILLED,
+        STAR_OUTLINE
     }
 
     record Region(int u, int v, int w, int h) {
@@ -313,7 +315,38 @@ final class SmoothUiAtlas {
                 float space = sdSegment(x, y, 3.2f, 6.0f, 6.8f, 6.0f) - 0.45f;
                 yield Math.min(frame, Math.min(row1, space));
             }
+            case STAR_FILLED -> sdStar5(x, y, 5.0f, 5.2f, 4.15f, 0.45f) - 0.12f;
+            case STAR_OUTLINE -> Math.abs(sdStar5(x, y, 5.0f, 5.2f, 4.05f, 0.45f)) - 0.52f;
         };
+    }
+
+    private static float sdStar5(float px, float py, float cx, float cy, float r, float rf) {
+        float x = Math.abs(px - cx);
+        float y = cy - py;
+        final float k1x = 0.80901699f;
+        final float k1y = -0.58778525f;
+        final float k2x = -0.80901699f;
+        final float k2y = -0.58778525f;
+
+        float d1 = Math.max(k1x * x + k1y * y, 0.0f) * 2.0f;
+        x -= d1 * k1x;
+        y -= d1 * k1y;
+
+        float d2 = Math.max(k2x * x + k2y * y, 0.0f) * 2.0f;
+        x -= d2 * k2x;
+        y -= d2 * k2y;
+
+        x = Math.abs(x);
+        y -= r;
+
+        float bax = rf * 0.58778525f;
+        float bay = rf * 0.80901699f - 1.0f;
+        float baDot = bax * bax + bay * bay;
+        float h = Mth.clamp((x * bax + y * bay) / baDot, 0.0f, r);
+        float dx = x - bax * h;
+        float dy = y - bay * h;
+        float dist = (float) Math.hypot(dx, dy);
+        return (y * bax - x * bay < 0.0f) ? -dist : dist;
     }
 
     private static int packWhiteAlpha(float cov) {

@@ -172,5 +172,20 @@ final class ModernIcons {
         g.fill(x + 2, y + 2, x + 5, y + 5, color);
         g.fill(x + 5, y + 6, x + 8, y + 8, color);
     }
+
+    /** 5-pointed favorite star icon (9x9 or 10x10) in filled or outline style. */
+    static void drawStarIcon(GuiGraphicsExtractor g, int x, int y, int size, boolean filled, int color) {
+        SmoothUiAtlas.IconKind kind = filled ? SmoothUiAtlas.IconKind.STAR_FILLED : SmoothUiAtlas.IconKind.STAR_OUTLINE;
+        if (drawAtlasIcon(g, kind, x, y, size, size, color)) {
+            return;
+        }
+        g.fill(x + 4, y, x + 5, y + 2, color);
+        g.fill(x + 1, y + 3, x + 8, y + 4, color);
+        if (filled) {
+            g.fill(x + 2, y + 2, x + 7, y + 6, color);
+        }
+        g.fill(x + 2, y + 6, x + 4, y + 8, color);
+        g.fill(x + 5, y + 6, x + 7, y + 8, color);
+    }
 }
 

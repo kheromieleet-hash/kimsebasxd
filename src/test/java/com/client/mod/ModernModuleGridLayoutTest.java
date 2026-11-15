@@ -77,6 +77,8 @@ public class ModernModuleGridLayoutTest {
         assert layout.switchX() + layout.switchW() <= cardX + cardW - 8 : "Toggle switch leaked past card right bound";
         assert layout.bindY() == layout.switchY() && layout.tuneY() == layout.bindY() : "Controls must align on same bottom row";
         assert layout.bindY() + layout.bindH() < cardY + ModernModuleGridLayout.CARD_HEIGHT : "Controls must fit inside card height";
+        assert layout.starX(cardX) >= cardX && layout.starX(cardX) + layout.starW() <= layout.titleX(cardX) : "Favorite star hitbox must sit cleanly left of module title";
+        assert layout.titleMaxWWithStar(cardW) >= 85 : "Title max width with star must remain readable";
     }
 
     private static void assertAlphabeticalFilteringAndSorting() {
@@ -117,6 +119,19 @@ public class ModernModuleGridLayoutTest {
                 unsorted, StubModule::name, StubModule::catId, StubModule::catName, "render", "auto");
         assert List.of("Auto Break", "Auto Crafter", "Auto Sprint")
                 .equals(searchSorted.stream().map(StubModule::name).toList());
+
+        List<StubModule> favSorted = ModernModuleGridLayout.filterAndSortModules(
+                unsorted,
+                StubModule::name,
+                StubModule::catId,
+                StubModule::catName,
+                "FAVORITES",
+                "",
+                null,
+                m -> "Viewmodel".equals(m.name()) || "Auto Sprint".equals(m.name())
+        );
+        assert List.of("Auto Sprint", "Viewmodel")
+                .equals(favSorted.stream().map(StubModule::name).toList());
     }
 
     private static void assertInlineAccordionGridPlan() {

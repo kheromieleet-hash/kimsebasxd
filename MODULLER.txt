@@ -202,7 +202,6 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     durdurur; whitelist oyuncularinda tetiklenmez), Action Delay (3 - 20t),
     Turn Speed (5 - 30°/t), Set Pos 1 / Set Pos 2 butonlari.
     Komutlar: .farm start, .farm stop, .farm status, .farm clear,
-    .farm allow <oyuncu>, .farm remove <oyuncu>, .farm list,
     .friend <oyuncu>, .friend list, .friend remove <oyuncu> (.frined da desteklenir).
 
 31. Auto Fish
@@ -354,6 +353,10 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
 - Slider Sayi Girisi: Tum modullerdeki slider deger etiketlerinin (orn. 1.00x,
   -0.21, 0.0°, 25t, 70%) uzerine tiklayip klavyeden istenen sayiyi dogrudan
   yazma (Enter/Tab veya disa tikla onayla, Esc ile iptal et).
+- Favori Moduller (Favorites Sekmesi & Yildiz Ikonu): Her modul kartinin sol ust
+  basinda bulunan yildiz (★) ikonuna tiklayarak modulu favorilere ekleme/cikarma;
+  hem sol menudeki "Favorites" sekmesinden hem de ust kategori cubugundaki
+  "★ Favorites" filtresinden favori modullere aninda ulasma.
 - GUI Temalari (Settings -> GENERAL -> GUI Theme): Toplam 10 farkli tema arasinda
   (< / > tuslariyla) aninda gecis yapabilme:
   1. Sestia OLED (Neon Crimson & Koyu OLED)

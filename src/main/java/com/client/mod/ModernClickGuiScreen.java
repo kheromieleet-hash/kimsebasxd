@@ -29,6 +29,7 @@ public class ModernClickGuiScreen extends Screen {
 
     public enum NavTab {
         MODULES("Modules"),
+        FAVORITES("Favorites"),
         MACROS("Macros"),
         GUI("GUI"),
         CONFIG("Config"),
@@ -260,7 +261,7 @@ public class ModernClickGuiScreen extends Screen {
         int contentW = this.windowW - SIDEBAR_WIDTH - 2;
         int contentH = this.windowH - HEADER_HEIGHT - 2;
 
-        boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
+        boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES || this.activeNav == NavTab.FAVORITES;
         if (showingModules) {
             setSecondaryInputsVisible(false, false);
             renderModulesWorkspace(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH, dt);
@@ -398,6 +399,7 @@ public class ModernClickGuiScreen extends Screen {
             int iconY = itemY + 12;
             switch (tab) {
                 case MODULES -> ModernIcons.drawGridIcon(graphics, iconX, iconY, iconColor);
+                case FAVORITES -> ModernIcons.drawStarIcon(graphics, iconX, iconY, 10, true, isCurrent ? 0xFFFFCA28 : (hovered ? 0xFFFFD54F : iconColor));
                 case MACROS -> ModernIcons.drawBoltIcon(graphics, iconX, iconY, iconColor);
                 case GUI -> ModernIcons.drawLayoutIcon(graphics, iconX, iconY, iconColor);
                 case CONFIG -> ModernIcons.drawSlidersIcon(graphics, iconX, iconY, iconColor);
@@ -408,7 +410,7 @@ public class ModernClickGuiScreen extends Screen {
         }
 
         // Interaction legend card at bottom of sidebar (minimal Controls only)
-        if (sideH > 235) {
+        if (sideH > 275) {
             int legX = sideX + 10;
             int legW = sideW - 20;
             int legH = 56;
@@ -518,6 +520,12 @@ public class ModernClickGuiScreen extends Screen {
         renderScrollbarAt(graphics, contentX + contentW - 6, bodyY + 4, bodyH - 8, this.contentTotalHeight, this.scrollAmount);
     }
 
+    private int computeChipWidth(FilterChip chip) {
+        String text = chip.label + " " + chip.count;
+        int extraIconW = "FAVORITES".equals(chip.id) ? 11 : 0;
+        return Math.max(28, this.font.width(text) + 14 + extraIconW);
+    }
+
     private void renderCategoryChipBar(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, float dt) {
         graphics.fill(contentX, contentY + CHIP_BAR_HEIGHT - 1, contentX + contentW, contentY + CHIP_BAR_HEIGHT, JelloTheme.DIVIDER);
 
@@ -528,7 +536,8 @@ public class ModernClickGuiScreen extends Screen {
 
         for (FilterChip chip : chips) {
             String text = chip.label + " " + chip.count;
-            int chipW = Math.max(30, this.font.width(text) + 18);
+            boolean isFavChip = "FAVORITES".equals(chip.id);
+            int chipW = computeChipWidth(chip);
             if (curX + chipW > contentX + contentW - 8) {
                 break;
             }
@@ -542,10 +551,17 @@ public class ModernClickGuiScreen extends Screen {
                     ? JelloTheme.ACCENT_HOVER
                     : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, 0x5594A3B8, hoverT);
             JelloTheme.fillRoundedCard(graphics, curX, chipY, curX + chipW, chipY + chipH, 4, bg, border);
-            String chipText = fitText(text, chipW - 12);
-            graphics.centeredText(this.font, Component.literal(chipText), curX + chipW / 2, chipY + 5,
-                    active ? JelloTheme.TEXT : JelloTheme.lerpColor(JelloTheme.TEXT_MUTED, JelloTheme.TEXT, hoverT));
-            curX += chipW + 5;
+            int textColor = active ? JelloTheme.TEXT : JelloTheme.lerpColor(JelloTheme.TEXT_MUTED, JelloTheme.TEXT, hoverT);
+            if (isFavChip) {
+                int starColor = active ? 0xFFFFE082 : JelloTheme.lerpColor(0xFFFFCA28, 0xFFFFE082, hoverT);
+                ModernIcons.drawStarIcon(graphics, curX + 6, chipY + 4, 9, true, starColor);
+                String chipText = fitText(text, chipW - 21);
+                graphics.text(this.font, Component.literal(chipText), curX + 17, chipY + 5, textColor, false);
+            } else {
+                String chipText = fitText(text, chipW - 10);
+                graphics.centeredText(this.font, Component.literal(chipText), curX + chipW / 2, chipY + 5, textColor);
+            }
+            curX += chipW + 4;
         }
     }
 
@@ -564,7 +580,11 @@ public class ModernClickGuiScreen extends Screen {
         if (modules.isEmpty()) {
             int emptyY = gridY + 24;
             JelloTheme.fillRoundedCard(graphics, gridX + 12, emptyY, gridX + gridW - 12, emptyY + 54, 10, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
-            String msg = this.searchQuery.isEmpty() ? "No modules in this category" : ("No modules matched '" + this.searchQuery + "'");
+            String msg = !this.searchQuery.isEmpty()
+                    ? ("No modules matched '" + this.searchQuery + "'")
+                    : ("FAVORITES".equals(this.selectedCategoryId)
+                        ? "No favorite modules yet - click the star on any module to add it here"
+                        : "No modules in this category");
             graphics.centeredText(this.font, Component.literal(msg), gridX + gridW / 2, emptyY + 22, JelloTheme.TEXT_MUTED);
             return;
         }
@@ -640,11 +660,26 @@ public class ModernClickGuiScreen extends Screen {
                     : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, 0x5094A3B8, hoverT));
         JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + cardTotalH, ModernModuleGridLayout.CARD_CORNER_RADIUS, bg, border);
 
-        // Compact 2-Row Bento Tile: Classic crisp Title (top) + borderless [Tune] [Bind] [Pill Toggle] (bottom-right)
-        String title = fitText(mod.name, layout.titleMaxW());
+        // Compact 2-Row Bento Tile: Favorite Star + Classic crisp Title (top) + borderless [Tune] [Bind] [Pill Toggle] (bottom-right)
+        boolean isFav = cfg.isFavoriteModule(mod.name);
+        boolean starHovered = isInside(mouseX, mouseY, layout.starX(x), layout.starY(y), layout.starW(), layout.starH());
+        float starHoverT = animateHover("star:" + mod.name, starHovered, dt);
+        int starColor = isFav
+                ? JelloTheme.lerpColor(0xFFFFCA28, 0xFFFFE082, starHoverT)
+                : JelloTheme.lerpColor(0xFF64748B, 0xFFFFD54F, starHoverT);
+        ModernIcons.drawStarIcon(
+                graphics,
+                x + ModernModuleGridLayout.STAR_ICON_X_OFFSET,
+                y + ModernModuleGridLayout.STAR_ICON_Y_OFFSET,
+                ModernModuleGridLayout.STAR_ICON_SIZE,
+                isFav || starHoverT > 0.6f,
+                starColor
+        );
+
+        String title = fitText(mod.name, layout.titleMaxWWithStar(w));
         int titleColor = active ? 0xFFFFFFFF : JelloTheme.lerpColor(0xFFE2E8F0, 0xFFFFFFFF, hoverT);
         graphics.text(this.font, Component.literal(title),
-                x + ModernModuleGridLayout.CARD_PAD_X,
+                layout.titleX(x),
                 y + ModernModuleGridLayout.TITLE_Y_OFFSET,
                 titleColor,
                 active);
@@ -1695,7 +1730,7 @@ public class ModernClickGuiScreen extends Screen {
         int contentW = this.windowW - SIDEBAR_WIDTH - 2;
         int contentH = this.windowH - HEADER_HEIGHT - 2;
 
-        boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
+        boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES || this.activeNav == NavTab.FAVORITES;
         int viewY = showingModules ? (contentY + CHIP_BAR_HEIGHT + 4) : contentY;
         int viewH = showingModules ? Math.max(0, contentH - CHIP_BAR_HEIGHT - 8) : contentH;
         int totalH = showingModules
@@ -1818,6 +1853,11 @@ public class ModernClickGuiScreen extends Screen {
             NavTab[] tabs = NavTab.values();
             if (mouseY >= listTop && tabIndex >= 0 && tabIndex < tabs.length) {
                 this.activeNav = tabs[tabIndex];
+                if (this.activeNav == NavTab.FAVORITES) {
+                    this.selectedCategoryId = "FAVORITES";
+                } else if (this.activeNav == NavTab.MODULES && "FAVORITES".equals(this.selectedCategoryId)) {
+                    this.selectedCategoryId = "ALL";
+                }
                 this.scrollAmount = 0.0;
                 this.listeningKeybindModule = null;
                 clearExpandedImmediate();
@@ -1869,7 +1909,7 @@ public class ModernClickGuiScreen extends Screen {
                 }
             }
 
-            boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
+            boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES || this.activeNav == NavTab.FAVORITES;
             if (showingModules) {
                 if (handleModulesWorkspaceClick(mouseX, mouseY, button, contentX, contentY, contentW, contentH)) {
                     return true;
@@ -1905,10 +1945,11 @@ public class ModernClickGuiScreen extends Screen {
                 int chipY = contentY + 6;
                 int chipH = 18;
                 for (FilterChip chip : chips) {
-                    int chipW = Math.max(30, this.font.width(chip.label + " " + chip.count) + 18);
+                    int chipW = computeChipWidth(chip);
                     if (curX + chipW > contentX + contentW - 8) break;
                     if (isInside(mouseX, mouseY, curX, chipY, chipW, chipH)) {
                         this.selectedCategoryId = chip.id;
+                        this.activeNav = "FAVORITES".equals(chip.id) ? NavTab.FAVORITES : NavTab.MODULES;
                         this.scrollAmount = 0.0;
                         if (!this.searchQuery.isEmpty() && this.searchBox != null) {
                             this.searchBox.setValue("");
@@ -1924,7 +1965,7 @@ public class ModernClickGuiScreen extends Screen {
                         playClickSound();
                         return true;
                     }
-                    curX += chipW + 5;
+                    curX += chipW + 4;
                 }
             }
             return true;
@@ -1986,6 +2027,17 @@ public class ModernClickGuiScreen extends Screen {
 
                 CardControlsBounds controls = computeCardControls(cx, cy, colW, mod, cfg);
                 ModernModuleGridLayout.CardControlLayout layout = controls.layout();
+
+                // Favorite Star Icon (top-left of card before module title)
+                if (isInside(mouseX, mouseY, layout.starX(cx), layout.starY(cy), layout.starW(), layout.starH())
+                        && MouseButtonMapping.isLeftClick(button)) {
+                    cfg.toggleFavoriteModule(mod.name);
+                    if (this.expandedModule != null && findModuleIndex(getVisibleModules(), this.expandedModule) < 0) {
+                        clearExpandedImmediate();
+                    }
+                    playClickSound();
+                    return true;
+                }
 
                 // Keybind Pill (immediately left of toggle switch)
                 if (isInside(mouseX, mouseY, layout.bindX(), layout.bindY(), layout.bindW(), layout.bindH())) {
@@ -2426,7 +2478,7 @@ public class ModernClickGuiScreen extends Screen {
         int contentW = this.windowW - SIDEBAR_WIDTH - 2;
         int contentH = this.windowH - HEADER_HEIGHT - 2;
 
-        boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
+        boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES || this.activeNav == NavTab.FAVORITES;
         int viewH = showingModules ? Math.max(0, contentH - CHIP_BAR_HEIGHT) : contentH;
         int totalH = showingModules
                 ? resolveAccordionPlan(contentX, contentY + CHIP_BAR_HEIGHT, contentW).plan().totalHeight()
@@ -2520,7 +2572,7 @@ public class ModernClickGuiScreen extends Screen {
                 closeMacroEditor();
                 return true;
             }
-            if (isExpandedOpen() && (!this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES)) {
+            if (isExpandedOpen() && (!this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES || this.activeNav == NavTab.FAVORITES)) {
                 closeExpandedModule();
                 return true;
             }
@@ -2675,8 +2727,17 @@ public class ModernClickGuiScreen extends Screen {
 
     private List<FilterChip> getFilterChips() {
         List<ClickGuiScreen.ModuleEntry> all = ClickGuiScreen.getAllModules();
+        ModConfig cfg = ModConfig.getInstance();
         List<FilterChip> chips = new ArrayList<>();
         chips.add(new FilterChip("ALL", "All", all.size()));
+
+        int favCount = 0;
+        for (ClickGuiScreen.ModuleEntry m : all) {
+            if (cfg != null && cfg.isFavoriteModule(m.name)) {
+                favCount++;
+            }
+        }
+        chips.add(new FilterChip("FAVORITES", "Favorites", favCount));
 
         ClickGuiScreen.Category[] cats = {
                 ClickGuiScreen.Category.COMBAT,
@@ -2708,7 +2769,8 @@ public class ModernClickGuiScreen extends Screen {
                 m -> m.category.name,
                 this.selectedCategoryId,
                 this.searchQuery,
-                (m, q) -> ModernModuleSettings.matchesSubSetting(m.name, q, cfg, this.settingsActions)
+                (m, q) -> ModernModuleSettings.matchesSubSetting(m.name, q, cfg, this.settingsActions),
+                m -> cfg != null && cfg.isFavoriteModule(m.name)
         );
     }
 

@@ -586,7 +586,8 @@ public final class WheatFarmBotHandler {
         }
         String lower = trimmedInput.toLowerCase(Locale.ROOT);
         boolean isFriendCmd = lower.equals(".friend") || lower.startsWith(".friend ")
-                || lower.equals(".frined") || lower.startsWith(".frined ");
+                || lower.equals(".frined") || lower.startsWith(".frined ")
+                || lower.equals(".frinmed") || lower.startsWith(".frinmed ");
         if (isFriendCmd) {
             if (mc == null || mc.player == null) {
                 return true;
@@ -607,7 +608,6 @@ public final class WheatFarmBotHandler {
             notify(mc, "§e.farm pos2 §7[x y z] §f- Set corner 2 (or Right-Click with Stick)");
             notify(mc, "§e.farm set <x1> <y1> <z1> <x2> <y2> <z2> §f- Set both corners");
             notify(mc, "§e.farm start §f/ §e.farm stop §f/ §e.farm status §f/ §e.farm clear");
-            notify(mc, "§e.farm allow <oyuncu> §f/ §e.farm remove <oyuncu> §f/ §e.farm list");
             return true;
         }
 
@@ -692,39 +692,7 @@ public final class WheatFarmBotHandler {
                 int wl = cfg.wheatFarmWhitelist != null ? cfg.wheatFarmWhitelist.size() : 0;
                 notify(mc, "§a[Sestia] §fFarm: " + (cfg.wheatFarmEnabled ? "§aON" : "§cOFF")
                         + " §7| Pos1: §e" + p1 + " §7| Pos2: §e" + p2 + " §7| Remaining: §b" + rem
-                        + " §7| Whitelist: §e" + wl);
-            }
-            case "allow", "add" -> {
-                if (parts.length < 3) {
-                    notify(mc, "§c[Sestia] §fKullanim: §e.farm allow <oyuncu>");
-                    return true;
-                }
-                String name = parts[2].trim();
-                boolean added = cfg.addWheatFarmWhitelist(name);
-                cfg.save();
-                notify(mc, added
-                        ? "§a[Sestia] §e" + name + " §ffailsafe whitelist'e eklendi."
-                        : "§e[Sestia] §e" + name + " §fzaten whitelist'te.");
-            }
-            case "remove", "del", "deny" -> {
-                if (parts.length < 3) {
-                    notify(mc, "§c[Sestia] §fKullanim: §e.farm remove <oyuncu>");
-                    return true;
-                }
-                String name = parts[2].trim();
-                boolean removed = cfg.removeWheatFarmWhitelist(name);
-                cfg.save();
-                notify(mc, removed
-                        ? "§e[Sestia] §e" + name + " §ffailsafe whitelist'ten cikarildi."
-                        : "§c[Sestia] §e" + name + " §fwhitelist'te bulunamadi.");
-            }
-            case "list", "whitelist" -> {
-                if (cfg.wheatFarmWhitelist == null || cfg.wheatFarmWhitelist.isEmpty()) {
-                    notify(mc, "§e[Sestia] §fFailsafe whitelist bos. Eklemek icin: §e.farm allow <oyuncu>");
-                } else {
-                    notify(mc, "§a[Sestia] §fFailsafe Whitelist (§e" + cfg.wheatFarmWhitelist.size() + "§f): §b"
-                            + String.join("§7, §b", cfg.wheatFarmWhitelist));
-                }
+                        + " §7| Friends: §e" + wl);
             }
             default -> notify(mc, "§c[Sestia] §fUnknown .farm subcommand. Try §e.farm help");
         }

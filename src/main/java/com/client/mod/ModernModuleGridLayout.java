@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * Pure-Java layout and ordering helper for the compact multi-column module card grid
@@ -24,6 +25,13 @@ final class ModernModuleGridLayout {
     static final int CARD_PAD_X = 10;
     static final int CARD_PADDING_X = 10;
     static final int TITLE_Y_OFFSET = 9;
+    static final int STAR_BOX_X_OFFSET = 6;
+    static final int STAR_BOX_Y_OFFSET = 6;
+    static final int STAR_BOX_SIZE = 14;
+    static final int STAR_ICON_X_OFFSET = 8;
+    static final int STAR_ICON_Y_OFFSET = 8;
+    static final int STAR_ICON_SIZE = 9;
+    static final int TITLE_WITH_STAR_X_OFFSET = 21;
     static final int CONTROL_Y_OFFSET = 25;
     static final int CONTROL_HEIGHT = 15;
     static final int CONTROL_GAP = 5;
@@ -73,6 +81,29 @@ final class ModernModuleGridLayout {
             int tuneH,
             int titleMaxW
     ) {
+        int starX(int cardX) {
+            return cardX + STAR_BOX_X_OFFSET;
+        }
+
+        int starY(int cardY) {
+            return cardY + STAR_BOX_Y_OFFSET;
+        }
+
+        int starW() {
+            return STAR_BOX_SIZE;
+        }
+
+        int starH() {
+            return STAR_BOX_SIZE;
+        }
+
+        int titleX(int cardX) {
+            return cardX + TITLE_WITH_STAR_X_OFFSET;
+        }
+
+        int titleMaxWWithStar(int cardW) {
+            return Math.max(24, cardW - TITLE_WITH_STAR_X_OFFSET - 6);
+        }
     }
 
     record AccordionBounds(
@@ -274,6 +305,21 @@ final class ModernModuleGridLayout {
             String searchQuery,
             BiPredicate<T, String> extraMatcher
     ) {
+        return filterAndSortModules(
+                all, nameExtractor, catIdExtractor, catNameExtractor, selectedCategoryId, searchQuery, extraMatcher, null);
+    }
+
+    /** Filters by search/category/favorites (including optional sub-setting matcher) and returns modules sorted A-Z by name. */
+    static <T> List<T> filterAndSortModules(
+            List<T> all,
+            Function<T, String> nameExtractor,
+            Function<T, String> catIdExtractor,
+            Function<T, String> catNameExtractor,
+            String selectedCategoryId,
+            String searchQuery,
+            BiPredicate<T, String> extraMatcher,
+            Predicate<T> favoriteMatcher
+    ) {
         if (all == null || all.isEmpty()) {
             return List.of();
         }
@@ -291,6 +337,14 @@ final class ModernModuleGridLayout {
             }
         } else if (selectedCategoryId == null || "ALL".equals(selectedCategoryId)) {
             result.addAll(all);
+        } else if ("FAVORITES".equalsIgnoreCase(selectedCategoryId)) {
+            if (favoriteMatcher != null) {
+                for (T m : all) {
+                    if (favoriteMatcher.test(m)) {
+                        result.add(m);
+                    }
+                }
+            }
         } else {
             for (T m : all) {
                 if (selectedCategoryId.equals(catIdExtractor.apply(m))) {

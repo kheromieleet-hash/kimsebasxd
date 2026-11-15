@@ -96,7 +96,7 @@ public final class AutoFishHandler {
                 || norm.contains("kamerani oynat")
                 || norm.contains("kamerayi oynat")
                 || (norm.contains("balikci") && (norm.contains("kamera") || norm.contains("etraf")))) {
-            startLookAround(mc.player, 22, 22.0f, true);
+            startLookAround(mc.player, 26, 6.5f, true);
         }
     }
 
@@ -192,9 +192,8 @@ public final class AutoFishHandler {
             hasAnchor = true;
         }
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        float sign = rnd.nextBoolean() ? 1.0f : -1.0f;
-        lookSwingYaw = sign * (maxYawDeg + (float) rnd.nextDouble(-2.5, 2.5));
-        lookSwingPitch = (rnd.nextBoolean() ? 1.0f : -1.0f) * (float) rnd.nextDouble(3.2, 6.0);
+        lookSwingYaw = maxYawDeg + (float) rnd.nextDouble(-1.5, 1.5);
+        lookSwingPitch = (rnd.nextBoolean() ? 1.0f : -1.0f) * (float) rnd.nextDouble(1.2, 2.4);
         lookAroundTotalTicks = Math.max(12, durationTicks);
         lookAroundTicks = lookAroundTotalTicks;
         recastAfterLook = recastWhenDone;
@@ -204,16 +203,17 @@ public final class AutoFishHandler {
         int elapsed = lookAroundTotalTicks - lookAroundTicks + 1;
         float progress = (float) elapsed / (float) lookAroundTotalTicks;
 
-        // Smooth full sine wave: swings right/left then opposite side then returns to exact water anchorYaw/anchorPitch
-        float wave = Mth.sin(progress * (float) (Math.PI * 2.0));
+        // Gentle human-like sine wave: slight right (+yaw), slight left (-yaw), then return to exact anchorYaw/anchorPitch
+        float wave = (lookAroundTicks <= 2) ? 0.0f : Mth.sin(progress * (float) (Math.PI * 2.0));
         float desiredYaw = anchorYaw + lookSwingYaw * wave;
         float desiredPitch = Mth.clamp(anchorPitch + lookSwingPitch * wave, -88.0f, 88.0f);
 
         float yawDiff = Mth.wrapDegrees(desiredYaw - player.getYRot());
         float pitchDiff = desiredPitch - player.getXRot();
 
-        float yawStep = Mth.clamp(yawDiff * 0.45f, -12.0f, 12.0f);
-        float pitchStep = Mth.clamp(pitchDiff * 0.45f, -6.0f, 6.0f);
+        float gain = (lookAroundTicks == 1) ? 1.0f : 0.55f;
+        float yawStep = Mth.clamp(yawDiff * gain, -8.0f, 8.0f);
+        float pitchStep = Mth.clamp(pitchDiff * gain, -4.0f, 4.0f);
 
         double sens = (mc != null && mc.options != null) ? mc.options.sensitivity().get() : 0.5;
         double d = sens * 0.6 + 0.2;
@@ -221,13 +221,15 @@ public final class AutoFishHandler {
         if (gcd > 1.0e-4f) {
             int yawPixels = Math.round(yawStep / gcd);
             int pitchPixels = Math.round(pitchStep / gcd);
-            if (pitchPixels != 0 && yawPixels == 0) {
-                yawPixelFlip = !yawPixelFlip;
-                yawPixels = yawPixelFlip ? 1 : -1;
-            }
-            if (yawPixels != 0 && pitchPixels == 0) {
-                yawPixelFlip = !yawPixelFlip;
-                pitchPixels = yawPixelFlip ? 1 : -1;
+            if (lookAroundTicks > 1) {
+                if (pitchPixels != 0 && yawPixels == 0) {
+                    yawPixelFlip = !yawPixelFlip;
+                    yawPixels = yawPixelFlip ? 1 : -1;
+                }
+                if (yawPixels != 0 && pitchPixels == 0) {
+                    yawPixelFlip = !yawPixelFlip;
+                    pitchPixels = yawPixelFlip ? 1 : -1;
+                }
             }
             yawStep = yawPixels * gcd;
             pitchStep = pitchPixels * gcd;
@@ -254,14 +256,14 @@ public final class AutoFishHandler {
                 case 'ı', 'і', 'ɪ', 'i', 'İ' -> 'i';
                 case 'ü', 'ᴜ' -> 'u';
                 case 'ö', 'ᴏ' -> 'o';
-                case 'ş', 's' -> 's';
+                case 'ş', 's', 'ꜱ' -> 's';
                 case 'ç', 'ᴄ' -> 'c';
                 case 'ğ', 'ɢ' -> 'g';
                 case 'ᴀ' -> 'a';
                 case 'ʙ' -> 'b';
                 case 'ᴅ' -> 'd';
                 case 'ᴇ' -> 'e';
-                case 'ғ' -> 'f';
+                case 'ғ', 'ꜰ' -> 'f';
                 case 'ʜ' -> 'h';
                 case 'ᴊ' -> 'j';
                 case 'ᴋ' -> 'k';
