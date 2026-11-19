@@ -2,6 +2,8 @@ package com.client.mod.mixin;
 
 import com.client.mod.AutoCrafterHandler;
 import com.client.mod.ModConfig;
+import com.client.mod.MouseButtonMapping;
+import com.client.mod.PanicHandler;
 import com.client.mod.inventory.InventoryTweaksHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -24,6 +26,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class AbstractContainerScreenMixin {
     @Shadow protected Slot hoveredSlot;
     @Shadow @Final protected AbstractContainerMenu menu;
+    @Shadow private boolean skipNextRelease;
     @Shadow protected abstract Slot getHoveredSlot(double x, double y);
     @Shadow protected abstract void slotClicked(Slot slot, int slotId, int mouseButton, ContainerInput containerInput);
 
@@ -39,17 +42,48 @@ public abstract class AbstractContainerScreenMixin {
 
     @Inject(method = "mouseDragged", at = @At("HEAD"))
     private void onMouseDragged(MouseButtonEvent event, double deltaX, double deltaY, CallbackInfoReturnable<Boolean> cir) {
-        if (event.button() != 0) {
+        if (PanicHandler.isPanicActive()) {
+            return;
+        }
+        if (!MouseButtonMapping.isLeftClick(event.button()) && event.button() != 0) {
             return;
         }
         ModConfig config = ModConfig.getInstance();
         if (config.invTweaksEnabled && config.invMouseDrag) {
+            if (this.menu != null && !this.menu.getCarried().isEmpty()) {
+                return;
+            }
             Minecraft mc = Minecraft.getInstance();
-            if (mc.hasShiftDown()) {
+            if (event.hasShiftDown() || mc.hasShiftDown()) {
                 Slot slot = this.getHoveredSlot(event.x(), event.y());
                 if (slot != null && slot.hasItem() && slot != lastDraggedSlot) {
                     lastDraggedSlot = slot;
+                    this.skipNextRelease = true;
                     this.slotClicked(slot, slot.index, 0, ContainerInput.QUICK_MOVE);
+                }
+            }
+        }
+    }
+
+    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
+    private void onMouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY, CallbackInfoReturnable<Boolean> cir) {
+        if (PanicHandler.isPanicActive() || scrollY == 0.0) {
+            return;
+        }
+        ModConfig config = ModConfig.getInstance();
+        if (config.invTweaksEnabled && config.invMouseDrag) {
+            if (this.menu != null && !this.menu.getCarried().isEmpty()) {
+                return;
+            }
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.hasShiftDown()) {
+                Slot slot = this.getHoveredSlot(mouseX, mouseY);
+                if (slot == null) {
+                    slot = this.hoveredSlot;
+                }
+                if (slot != null && slot.hasItem()) {
+                    this.slotClicked(slot, slot.index, 0, ContainerInput.QUICK_MOVE);
+                    cir.setReturnValue(true);
                 }
             }
         }
@@ -57,9 +91,17 @@ public abstract class AbstractContainerScreenMixin {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void onMouseClicked(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
+        if (PanicHandler.isPanicActive()) {
+            return;
+        }
         ModConfig config = ModConfig.getInstance();
+        if (config.invTweaksEnabled && config.invMouseDrag
+                && (MouseButtonMapping.isLeftClick(event.button()) || event.button() == 0)
+                && (event.hasShiftDown() || Minecraft.getInstance().hasShiftDown())) {
+            lastDraggedSlot = this.getHoveredSlot(event.x(), event.y());
+        }
         // Middle button click (button 2) triggers instant sorting and prevents vanilla Creative clone
-        if (config.invTweaksEnabled && config.invSorting && event.button() == 2) {
+        if (config.invTweaksEnabled && config.invSorting && MouseButtonMapping.isMiddleClick(event.button())) {
             Slot hovered = this.getHoveredSlot(event.x(), event.y());
             if (InventoryTweaksHandler.sort((AbstractContainerScreen<?>) (Object) this, hovered)) {
                 cir.setReturnValue(true);

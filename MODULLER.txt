@@ -1,6 +1,6 @@
 ================================================================================
 SESTIA CLIENT - TUM MODULLER VE OZELLIKLER REHBERI
-Surum: v1.0.203 (VersionCode: 203) | Minecraft: 26.3 Fabric
+Surum: v1.0.204 (VersionCode: 204) | Minecraft: 26.3 Fabric
 Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
 ================================================================================
 
@@ -327,7 +327,7 @@ Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
 
 33. Inventory Tweaks
     Ne ise yarar: Envanter ve sandik duzenleme kolayliklari saglar.
-    Ayarlar: Mouse Drag Move, Auto Sorting, Sorting Delay (0 - 10t),
+    Ayarlar: Mouse Drag Move (Shift + Sol Tik surukleme veya Shift + Fare Tekerlegi ile hizli tasima), Auto Sorting, Sorting Delay (0 - 10t),
     Protect Hotbar, Xcarry (2x2 craft slotlarinda esya tasima),
     Skip In Creative, Shulker Preview.
 
