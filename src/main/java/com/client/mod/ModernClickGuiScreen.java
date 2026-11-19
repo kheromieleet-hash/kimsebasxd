@@ -29,7 +29,6 @@ public class ModernClickGuiScreen extends Screen {
 
     public enum NavTab {
         MODULES("Modules"),
-        FAVORITES("Favorites"),
         MACROS("Macros"),
         GUI("GUI"),
         CONFIG("Config"),
@@ -48,6 +47,7 @@ public class ModernClickGuiScreen extends Screen {
     private static final int CHIP_BAR_HEIGHT = 30;
     private static final int SEARCH_BOX_WIDTH = 196;
     private static final int SEARCH_BOX_HEIGHT = 22;
+    private static final Identifier SESTIA_EMBLEM_ICON = Identifier.fromNamespaceAndPath("sestia", "icons/icon_32x32.png");
 
     private final Screen parent;
 
@@ -55,6 +55,11 @@ public class ModernClickGuiScreen extends Screen {
     private int windowY;
     private int windowW;
     private int windowH;
+
+    // Session-persisted tab/category/accordion memory across Shift/ESC reopens
+    private static NavTab persistedActiveNav = NavTab.MODULES;
+    private static String persistedSelectedCategoryId = "ALL";
+    private static String persistedExpandedModule = null;
 
     // Navigation & filter state
     private NavTab activeNav = NavTab.MODULES;
@@ -100,6 +105,13 @@ public class ModernClickGuiScreen extends Screen {
     // Module Keybind listening state
     private String listeningKeybindModule = null;
     private final ModernModuleSettings.Actions settingsActions = ModernModuleCardUi.createActions();
+    private final Map<String, Boolean> hasSettingsCache = new HashMap<>();
+
+    // Custom module folders state
+    private EditBox folderNameBox;
+    private boolean creatingFolder = false;
+    private String editingFolderId = null;
+    private String renamingFolderId = null;
 
     // Macro editor state
     private int editingMacroIndex = -1;
@@ -121,6 +133,29 @@ public class ModernClickGuiScreen extends Screen {
         super(Component.literal("Sestia ClickGUI"));
         this.parent = parent;
         ClickGuiScreen.getAllModules();
+        restoreUiTabState();
+    }
+
+    private void restoreUiTabState() {
+        this.activeNav = persistedActiveNav != null ? persistedActiveNav : NavTab.MODULES;
+        String cat = persistedSelectedCategoryId != null ? persistedSelectedCategoryId : "ALL";
+        ModConfig cfg = ModConfig.getInstance();
+        if (cat.startsWith("FOLDER_") && (cfg == null || cfg.getCustomFolder(cat) == null)) {
+            cat = "ALL";
+        }
+        this.selectedCategoryId = cat;
+        this.expandedModule = persistedExpandedModule;
+        if (this.expandedModule != null) {
+            this.renderedExpandedModule = this.expandedModule;
+            this.expandAnim = 1.0f;
+            this.ensureExpandedVisible = true;
+        }
+    }
+
+    private void saveUiTabState() {
+        persistedActiveNav = this.activeNav != null ? this.activeNav : NavTab.MODULES;
+        persistedSelectedCategoryId = this.selectedCategoryId != null ? this.selectedCategoryId : "ALL";
+        persistedExpandedModule = this.expandedBySearch ? null : this.expandedModule;
     }
 
     public ModernClickGuiScreen() {
@@ -129,6 +164,7 @@ public class ModernClickGuiScreen extends Screen {
 
     @Override
     protected void init() {
+        this.hasSettingsCache.clear();
         this.windowW = Math.min(880, Math.max(520, (int) (this.width * 0.88f)));
         this.windowH = Math.min(540, Math.max(320, (int) (this.height * 0.85f)));
         this.windowX = (this.width - this.windowW) / 2;
@@ -151,7 +187,7 @@ public class ModernClickGuiScreen extends Screen {
 
         String prevQuery = this.searchQuery;
         this.searchBox = new EditBox(this.font, searchX + 26, searchBoxY + 7, SEARCH_BOX_WIDTH - 44, 14, Component.literal("Search"));
-        this.searchBox.setHint(Component.literal("Search modules..."));
+        this.searchBox.setHint(Component.literal("Search or bind:key..."));
         this.searchBox.setBordered(false);
         this.searchBox.setMaxLength(30);
         this.searchBox.setValue(prevQuery);
@@ -221,7 +257,20 @@ public class ModernClickGuiScreen extends Screen {
         this.sliderInputBox.visible = false;
         this.addRenderableWidget(this.sliderInputBox);
 
+        this.folderNameBox = new EditBox(this.font, 0, 0, 96, 16, Component.literal("Folder Name"));
+        this.folderNameBox.setHint(Component.literal("Folder name..."));
+        this.folderNameBox.setBordered(false);
+        this.folderNameBox.setMaxLength(20);
+        this.folderNameBox.setTextColor(0xFFFFFFFF);
+        this.folderNameBox.visible = false;
+        this.addRenderableWidget(this.folderNameBox);
+
         refreshProfilesList();
+        setSecondaryInputsVisible(this.activeNav == NavTab.MACROS && this.editingMacroIndex != -1,
+                this.activeNav == NavTab.CONFIG);
+        if (this.expandedModule != null && findModuleIndex(getVisibleModules(), this.expandedModule) < 0) {
+            clearExpandedImmediate();
+        }
     }
 
     @Override
@@ -261,7 +310,7 @@ public class ModernClickGuiScreen extends Screen {
         int contentW = this.windowW - SIDEBAR_WIDTH - 2;
         int contentH = this.windowH - HEADER_HEIGHT - 2;
 
-        boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES || this.activeNav == NavTab.FAVORITES;
+        boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
         if (showingModules) {
             setSecondaryInputsVisible(false, false);
             renderModulesWorkspace(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH, dt);
@@ -277,7 +326,10 @@ public class ModernClickGuiScreen extends Screen {
                 renderScrollbarAt(graphics, contentX + contentW - 6, contentY, contentH, this.contentTotalHeight, this.scrollAmount);
             } else if (this.activeNav == NavTab.GUI) {
                 setSecondaryInputsVisible(false, false);
+                graphics.enableScissor(contentX, contentY, contentX + contentW, contentY + contentH);
                 renderGuiView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH);
+                graphics.disableScissor();
+                renderScrollbarAt(graphics, contentX + contentW - 6, contentY, contentH, this.contentTotalHeight, this.scrollAmount);
             } else if (this.activeNav == NavTab.CONFIG) {
                 setSecondaryInputsVisible(false, true);
                 renderProfilesView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH);
@@ -308,7 +360,7 @@ public class ModernClickGuiScreen extends Screen {
         // Brand icon + Name + Version badge (classic crisp default font)
         graphics.blit(
                 RenderPipelines.GUI_TEXTURED,
-                Identifier.fromNamespaceAndPath("sestia", "icons/icon_32x32.png"),
+                SESTIA_EMBLEM_ICON,
                 headX + 12, headY + (HEADER_HEIGHT - 16) / 2,
                 0.0f, 0.0f, 16, 16, 16, 16
         );
@@ -365,6 +417,26 @@ public class ModernClickGuiScreen extends Screen {
     // ==========================================
     // LEFT SIDEBAR NAVIGATION (ZERO DEAD TABS)
     // ==========================================
+    private record SidebarItem(NavTab tab, ModConfig.CustomModuleFolder folder, int height) {}
+
+    private List<SidebarItem> buildSidebarItems() {
+        List<SidebarItem> items = new ArrayList<>();
+        items.add(new SidebarItem(NavTab.MODULES, null, NAV_ROW_HEIGHT));
+        ModConfig cfg = ModConfig.getInstance();
+        if (cfg != null && cfg.customFolders != null) {
+            for (ModConfig.CustomModuleFolder f : cfg.customFolders) {
+                if (f != null && f.id != null && f.name != null) {
+                    items.add(new SidebarItem(null, f, 24));
+                }
+            }
+        }
+        items.add(new SidebarItem(NavTab.MACROS, null, NAV_ROW_HEIGHT));
+        items.add(new SidebarItem(NavTab.GUI, null, NAV_ROW_HEIGHT));
+        items.add(new SidebarItem(NavTab.CONFIG, null, NAV_ROW_HEIGHT));
+        items.add(new SidebarItem(NavTab.SETTINGS, null, NAV_ROW_HEIGHT));
+        return items;
+    }
+
     private void renderSidebar(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float dt) {
         int sideX = this.windowX;
         int sideY = this.windowY + HEADER_HEIGHT + 1;
@@ -374,53 +446,96 @@ public class ModernClickGuiScreen extends Screen {
         JelloTheme.fillRoundedBottomLeft(graphics, sideX + 1, sideY, sideX + sideW, sideY + sideH, 9, JelloTheme.SIDEBAR_BG);
         graphics.fill(sideX + sideW, sideY, sideX + sideW + 1, sideY + sideH, JelloTheme.DIVIDER);
 
+        List<SidebarItem> items = buildSidebarItems();
         int listTop = sideY + 10;
-        float targetY = listTop + this.activeNav.ordinal() * NAV_ROW_HEIGHT;
+        int activeIdx = 0;
+        int curY = listTop;
+        int targetY = listTop;
+        int targetH = NAV_ROW_HEIGHT;
+        for (int i = 0; i < items.size(); i++) {
+            SidebarItem it = items.get(i);
+            boolean isCurr = isSidebarItemActive(it);
+            if (isCurr) {
+                activeIdx = i;
+                targetY = curY;
+                targetH = it.height;
+                break;
+            }
+            curY += it.height;
+        }
+
         this.indicatorY += (targetY - this.indicatorY) * Mth.clamp(dt * 16.0f, 0.08f, 1.0f);
-
         int indY = Math.round(this.indicatorY);
-        JelloTheme.fillRoundedCard(graphics, sideX + 8, indY + 2, sideX + sideW - 8, indY + NAV_ROW_HEIGHT - 2, 6, 0x38FF1E2D, 0xBBFF1E2D);
+        JelloTheme.fillRoundedCard(graphics, sideX + 8, indY + 2, sideX + sideW - 8, indY + targetH - 2, 6,
+                withAlpha(JelloTheme.ACCENT, 0x38), withAlpha(JelloTheme.ACCENT, 0xBB));
 
-        NavTab[] tabs = NavTab.values();
-        for (int i = 0; i < tabs.length; i++) {
-            NavTab tab = tabs[i];
-            int itemY = listTop + i * NAV_ROW_HEIGHT;
-            boolean isCurrent = tab == this.activeNav && this.searchQuery.isEmpty();
-            boolean hovered = isInside(mouseX, mouseY, sideX + 6, itemY, sideW - 12, NAV_ROW_HEIGHT);
+        int itemY = listTop;
+        for (SidebarItem it : items) {
+            int rowH = it.height;
+            boolean isCurrent = isSidebarItemActive(it) && this.searchQuery.isEmpty();
+            boolean hovered = isInside(mouseX, mouseY, sideX + 6, itemY, sideW - 12, rowH);
 
             if (hovered && !isCurrent) {
-                JelloTheme.fillRounded(graphics, sideX + 8, itemY + 2, sideX + sideW - 8, itemY + NAV_ROW_HEIGHT - 2, 6, 0x16FFFFFF);
+                JelloTheme.fillRounded(graphics, sideX + 8, itemY + 2, sideX + sideW - 8, itemY + rowH - 2, 6, JelloTheme.ROW_HOVER);
             }
 
             int iconColor = isCurrent ? JelloTheme.ACCENT_HOVER : (hovered ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED);
-            int textColor = isCurrent ? JelloTheme.TEXT : (hovered ? 0xFFE2E8F0 : JelloTheme.TEXT_MUTED);
+            int textColor = isCurrent ? JelloTheme.TEXT : (hovered ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED);
 
-            int iconX = sideX + 18;
-            int iconY = itemY + 12;
-            switch (tab) {
-                case MODULES -> ModernIcons.drawGridIcon(graphics, iconX, iconY, iconColor);
-                case FAVORITES -> ModernIcons.drawStarIcon(graphics, iconX, iconY, 10, true, isCurrent ? 0xFFFFCA28 : (hovered ? 0xFFFFD54F : iconColor));
-                case MACROS -> ModernIcons.drawBoltIcon(graphics, iconX, iconY, iconColor);
-                case GUI -> ModernIcons.drawLayoutIcon(graphics, iconX, iconY, iconColor);
-                case CONFIG -> ModernIcons.drawSlidersIcon(graphics, iconX, iconY, iconColor);
-                case SETTINGS -> ModernIcons.drawTuneIcon(graphics, iconX, iconY, iconColor);
+            if (it.folder != null) {
+                // Mini folder icon + module count pill
+                int fx = sideX + 20;
+                int fy = itemY + 7;
+                int folderCol = isCurrent ? JelloTheme.ACCENT_HOVER : (hovered ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED);
+                graphics.fill(fx, fy, fx + 5, fy + 2, folderCol);
+                graphics.fill(fx, fy + 2, fx + 10, fy + 9, folderCol);
+                int fCount = it.folder.modules != null ? it.folder.modules.size() : 0;
+                String fCountStr = String.valueOf(fCount);
+                int fCountW = this.font.width(fCountStr);
+                graphics.text(this.font, Component.literal(fCountStr), sideX + sideW - 14 - fCountW, itemY + 8, JelloTheme.TEXT_MUTED, false);
+                String lbl = fitText(it.folder.name, sideW - 56 - fCountW);
+                graphics.text(this.font, Component.literal(lbl), sideX + 35, itemY + 8, textColor, isCurrent);
+            } else {
+                int iconX = sideX + 18;
+                int iconY = itemY + 12;
+                switch (it.tab) {
+                    case MODULES -> ModernIcons.drawGridIcon(graphics, iconX, iconY, iconColor);
+                    case MACROS -> ModernIcons.drawBoltIcon(graphics, iconX, iconY, iconColor);
+                    case GUI -> ModernIcons.drawLayoutIcon(graphics, iconX, iconY, iconColor);
+                    case CONFIG -> ModernIcons.drawSlidersIcon(graphics, iconX, iconY, iconColor);
+                    case SETTINGS -> ModernIcons.drawTuneIcon(graphics, iconX, iconY, iconColor);
+                }
+                graphics.text(this.font, Component.literal(it.tab.label), sideX + 35, itemY + 13, textColor, isCurrent);
             }
-
-            graphics.text(this.font, Component.literal(tab.label), sideX + 35, itemY + 13, textColor, isCurrent);
+            itemY += rowH;
         }
 
-        // Interaction legend card at bottom of sidebar (minimal Controls only)
-        if (sideH > 275) {
+        // Interaction legend card at bottom of sidebar (only when space allows)
+        int legH = 68;
+        int legY = sideY + sideH - legH - 10;
+        if (sideH > 290 && itemY + 8 < legY) {
             int legX = sideX + 10;
             int legW = sideW - 20;
-            int legH = 56;
-            int legY = sideY + sideH - legH - 10;
             JelloTheme.fillRoundedCard(graphics, legX, legY, legX + legW, legY + legH, 6, JelloTheme.CONTAINER_BG, JelloTheme.BORDER_SUBTLE);
             graphics.text(this.font, Component.literal("Controls"), legX + 8, legY + 7, JelloTheme.ACCENT_HOVER, false);
             graphics.text(this.font, Component.literal("LMB  Toggle"), legX + 8, legY + 21, JelloTheme.TEXT_MUTED, false);
             graphics.text(this.font, Component.literal("RMB  Settings"), legX + 8, legY + 33, JelloTheme.TEXT_MUTED, false);
-            graphics.text(this.font, Component.literal("ESC  Collapse"), legX + 8, legY + 45, 0xFF64748B, false);
+            ModernIcons.drawStarIcon(graphics, legX + 8, legY + 45, 8, true, 0xFFFBBF24);
+            graphics.text(this.font, Component.literal("Favorite"), legX + 20, legY + 45, JelloTheme.TEXT_MUTED, false);
+            graphics.text(this.font, Component.literal("ESC  Collapse"), legX + 8, legY + 57, 0xFF64748B, false);
         }
+    }
+
+    private boolean isSidebarItemActive(SidebarItem it) {
+        if (it.folder != null) {
+            return this.activeNav == NavTab.MODULES && it.folder.id.equals(this.selectedCategoryId);
+        }
+        if (it.tab == NavTab.MODULES) {
+            ModConfig cfg = ModConfig.getInstance();
+            boolean inFolder = cfg != null && cfg.getCustomFolder(this.selectedCategoryId) != null;
+            return this.activeNav == NavTab.MODULES && !inFolder;
+        }
+        return it.tab == this.activeNav;
     }
 
     // ==========================================
@@ -441,9 +556,20 @@ public class ModernClickGuiScreen extends Screen {
         List<ClickGuiScreen.ModuleEntry> modules = getVisibleModules();
         int expIdx = findModuleIndex(modules, this.renderedExpandedModule);
         ClickGuiScreen.ModuleEntry expandedEntry = expIdx >= 0 ? modules.get(expIdx) : null;
-        List<ModernModuleSettings.Control> expandedControls = expandedEntry != null
-                ? ModernModuleSettings.getControls(expandedEntry.name, ModConfig.getInstance(), this.settingsActions)
-                : List.of();
+        ModConfig cfg = ModConfig.getInstance();
+        List<ModernModuleSettings.Control> expandedControls = List.of();
+        if (expandedEntry != null) {
+            List<ModernModuleSettings.Control> baseControls = ModernModuleSettings.getControls(expandedEntry.name, cfg, this.settingsActions);
+            if (!baseControls.isEmpty()) {
+                List<ModernModuleSettings.Control> withReset = new ArrayList<>(baseControls);
+                String targetName = expandedEntry.name;
+                withReset.add(new ModernModuleSettings.ActionControl(
+                        () -> "Reset Defaults",
+                        () -> ModernModuleSettings.resetModuleToDefaults(targetName, ModConfig.getInstance(), this.settingsActions)
+                ));
+                expandedControls = withReset;
+            }
+        }
         ModernModuleGridLayout.GridMetrics baseMetrics = ModernModuleGridLayout.computeGridMetrics(contentW, modules.size());
         List<FormattedCharSequence> descLines = List.of();
         int descHeaderH = 0;
@@ -454,8 +580,9 @@ public class ModernClickGuiScreen extends Screen {
                     Component.literal(desc),
                     ModernModuleGridLayout.computeCardControlsWidth(baseMetrics.colWidth())
             );
-            descHeaderH = ModernModuleGridLayout.computeExpandedDescHeaderHeight(descLines.size());
-            fullH = ModernModuleGridLayout.computeCardExtraHeight(baseMetrics.colWidth(), descHeaderH, expandedControls);
+            int maxDescLines = expandedControls.isEmpty() ? 4 : 2;
+            descHeaderH = ModernModuleGridLayout.computeExpandedDescHeaderHeight(descLines.size(), maxDescLines);
+            fullH = ModernModuleGridLayout.computeAccordionExtraHeight(baseMetrics.colWidth(), descHeaderH, expandedControls);
         }
         int startY = (int) (bodyY + ModernModuleGridLayout.GRID_PAD_Y - this.scrollAmount);
         ModernModuleGridLayout.GridPlan plan = ModernModuleGridLayout.computeGridPlan(
@@ -465,27 +592,38 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     private void renderModulesWorkspace(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, int contentH, float dt) {
-        renderCategoryChipBar(graphics, mouseX, mouseY, contentX, contentY, contentW, dt);
+        if (this.folderNameBox != null) {
+            this.folderNameBox.visible = false;
+        }
+        ChipsLayout chipsLayout = layoutFilterChips(contentX, contentY, contentW);
+        int chipBarH = chipsLayout.totalHeight();
+        renderCategoryChipBar(graphics, mouseX, mouseY, contentX, contentY, contentW, chipBarH, chipsLayout, dt);
 
-        int bodyY = contentY + CHIP_BAR_HEIGHT;
-        int bodyH = contentH - CHIP_BAR_HEIGHT;
+        ModConfig cfg = ModConfig.getInstance();
+        boolean inCustomFolder = this.searchQuery.isEmpty() && cfg != null && cfg.getCustomFolder(this.selectedCategoryId) != null;
+        int folderBarH = inCustomFolder ? 24 : 0;
+        int bodyY = contentY + chipBarH + folderBarH;
+        int bodyH = contentH - chipBarH - folderBarH;
+        if (inCustomFolder) {
+            renderCustomFolderToolbar(graphics, mouseX, mouseY, contentX, contentY + chipBarH, contentW, cfg.getCustomFolder(this.selectedCategoryId), dt);
+        }
         if (bodyH <= 16) {
             return;
         }
 
         ResolvedAccordionPlan resolved = resolveAccordionPlan(contentX, bodyY, contentW);
         if (this.ensureExpandedVisible && resolved.expandedEntry() != null && this.expandedModule != null) {
-            if (resolved.expandedControls().isEmpty()) {
+            int fullH = ModernModuleGridLayout.computeAccordionExtraHeight(
+                    resolved.plan().metrics().colWidth(),
+                    resolved.descHeaderHeight(),
+                    resolved.expandedControls()
+            );
+            if (fullH <= 0) {
                 this.ensureExpandedVisible = false;
             } else {
                 int expIdx = resolved.plan().expandedIndex();
                 if (expIdx >= 0) {
                     int row = expIdx / resolved.plan().metrics().columns();
-                    int fullH = ModernModuleGridLayout.computeCardExtraHeight(
-                            resolved.plan().metrics().colWidth(),
-                            resolved.descHeaderHeight(),
-                            resolved.expandedControls()
-                    );
                     int desiredBottom = bodyY + ModernModuleGridLayout.GRID_PAD_Y
                             + row * (ModernModuleGridLayout.CARD_HEIGHT + ModernModuleGridLayout.GRID_GAP_Y)
                             + ModernModuleGridLayout.CARD_HEIGHT
@@ -521,47 +659,179 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     private int computeChipWidth(FilterChip chip) {
+        if ("ADD_FOLDER".equals(chip.id)) {
+            return 20;
+        }
         String text = chip.label + " " + chip.count;
-        int extraIconW = "FAVORITES".equals(chip.id) ? 11 : 0;
-        return Math.max(28, this.font.width(text) + 14 + extraIconW);
+        int pad = "ACTIVE".equals(chip.id) ? 20 : 14;
+        return Math.max(28, this.font.width(text) + pad);
     }
 
-    private void renderCategoryChipBar(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, float dt) {
-        graphics.fill(contentX, contentY + CHIP_BAR_HEIGHT - 1, contentX + contentW, contentY + CHIP_BAR_HEIGHT, JelloTheme.DIVIDER);
+    private record ChipSlot(FilterChip chip, int x, int y, int w, int h) {}
 
+    private record ChipsLayout(List<ChipSlot> slots, int folderBoxX, int folderBoxY, int folderBoxW, int totalHeight) {}
+
+    private ChipsLayout layoutFilterChips(int contentX, int contentY, int contentW) {
         List<FilterChip> chips = getFilterChips();
-        int curX = contentX + 12;
+        int startX = contentX + 12;
+        int curX = startX;
         int chipY = contentY + 6;
         int chipH = 18;
+        int maxRight = contentX + contentW - 8;
+        boolean prevCustomRow = false;
 
+        List<ChipSlot> slots = new ArrayList<>(chips.size());
         for (FilterChip chip : chips) {
-            String text = chip.label + " " + chip.count;
-            boolean isFavChip = "FAVORITES".equals(chip.id);
             int chipW = computeChipWidth(chip);
-            if (curX + chipW > contentX + contentW - 8) {
-                break;
+            // Always start user-created custom folders & '+' on a dedicated row below built-in categories
+            boolean forceCustomBreak = chip.customRow && !prevCustomRow && curX > startX;
+            if (forceCustomBreak || (curX > startX && curX + chipW > maxRight)) {
+                curX = startX;
+                chipY += chipH + 4;
             }
+            prevCustomRow = chip.customRow;
+            slots.add(new ChipSlot(chip, curX, chipY, chipW, chipH));
+            curX += chipW + 4;
+        }
+
+        int folderBoxX = -1;
+        int folderBoxY = -1;
+        int folderBoxW = 0;
+        if (this.creatingFolder) {
+            if (curX > startX && curX + 90 > maxRight) {
+                curX = startX;
+                chipY += chipH + 4;
+            }
+            int boxW = Math.min(108, Math.max(64, (contentX + contentW - 10) - curX));
+            if (boxW >= 54) {
+                folderBoxX = curX;
+                folderBoxY = chipY;
+                folderBoxW = boxW;
+            }
+        }
+        int totalHeight = (chipY - contentY) + chipH + 6;
+        return new ChipsLayout(slots, folderBoxX, folderBoxY, folderBoxW, totalHeight);
+    }
+
+    private int computeChipBarHeight(int contentX, int contentW) {
+        return layoutFilterChips(contentX, 0, contentW).totalHeight();
+    }
+
+    private void renderCategoryChipBar(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, int chipBarH, ChipsLayout layout, float dt) {
+        graphics.fill(contentX, contentY + chipBarH - 1, contentX + contentW, contentY + chipBarH, JelloTheme.DIVIDER);
+        for (ChipSlot slot : layout.slots()) {
+            FilterChip chip = slot.chip();
+            int curX = slot.x();
+            int chipY = slot.y();
+            int chipW = slot.w();
+            int chipH = slot.h();
+            boolean isAddChip = "ADD_FOLDER".equals(chip.id);
+            boolean isActiveFilterChip = "ACTIVE".equals(chip.id);
+            String text = isAddChip ? "+" : (chip.label + " " + chip.count);
+
             boolean active = this.searchQuery.isEmpty() && chip.id.equals(this.selectedCategoryId);
+            if (isAddChip && this.creatingFolder) {
+                active = true;
+            }
             boolean hovered = isInside(mouseX, mouseY, curX, chipY, chipW, chipH);
             float hoverT = animateHover("chip:" + chip.id, hovered, dt);
-            int bg = active
-                    ? JelloTheme.lerpColor(JelloTheme.ACCENT, JelloTheme.ACCENT_HOVER, hoverT)
-                    : JelloTheme.lerpColor(JelloTheme.CARD_INACTIVE, JelloTheme.CARD_INACTIVE_HOVER, hoverT);
-            int border = active
-                    ? JelloTheme.ACCENT_HOVER
-                    : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, 0x5594A3B8, hoverT);
-            JelloTheme.fillRoundedCard(graphics, curX, chipY, curX + chipW, chipY + chipH, 4, bg, border);
-            int textColor = active ? JelloTheme.TEXT : JelloTheme.lerpColor(JelloTheme.TEXT_MUTED, JelloTheme.TEXT, hoverT);
-            if (isFavChip) {
-                int starColor = active ? 0xFFFFE082 : JelloTheme.lerpColor(0xFFFFCA28, 0xFFFFE082, hoverT);
-                ModernIcons.drawStarIcon(graphics, curX + 6, chipY + 4, 9, true, starColor);
-                String chipText = fitText(text, chipW - 21);
-                graphics.text(this.font, Component.literal(chipText), curX + 17, chipY + 5, textColor, false);
+            if (isActiveFilterChip) {
+                int bg = active
+                        ? JelloTheme.lerpColor(0xAA10B981, 0xCC10B981, hoverT)
+                        : JelloTheme.lerpColor(0x3A10B981, 0x5510B981, hoverT);
+                int border = active
+                        ? 0xFF4ADE80
+                        : JelloTheme.lerpColor(0xCC10B981, 0xFF34D399, hoverT);
+                int dotColor = active ? 0xFFECFDF5 : 0xFF4ADE80;
+                int textColor = active
+                        ? 0xFFFFFFFF
+                        : JelloTheme.lerpColor(0xFF86EFAC, 0xFFDCFCE7, hoverT);
+                JelloTheme.fillRoundedCard(graphics, curX, chipY, curX + chipW, chipY + chipH, 4, bg, border);
+                JelloTheme.fillCircle(graphics, curX + 7, chipY + chipH / 2, 2, dotColor);
+                String chipText = fitText(text, chipW - 18);
+                graphics.text(this.font, Component.literal(chipText), curX + 13, chipY + 5, textColor, false);
             } else {
-                String chipText = fitText(text, chipW - 10);
+                int bg = active
+                        ? JelloTheme.lerpColor(JelloTheme.ACCENT, JelloTheme.ACCENT_HOVER, hoverT)
+                        : JelloTheme.lerpColor(JelloTheme.CARD_INACTIVE, JelloTheme.CARD_INACTIVE_HOVER, hoverT);
+                int border = active
+                        ? JelloTheme.ACCENT_HOVER
+                        : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, 0x5594A3B8, hoverT);
+                JelloTheme.fillRoundedCard(graphics, curX, chipY, curX + chipW, chipY + chipH, 4, bg, border);
+                int textColor = active ? JelloTheme.TEXT : JelloTheme.lerpColor(JelloTheme.TEXT_MUTED, JelloTheme.TEXT, hoverT);
+                String chipText = isAddChip ? "+" : fitText(text, chipW - 10);
                 graphics.centeredText(this.font, Component.literal(chipText), curX + chipW / 2, chipY + 5, textColor);
             }
-            curX += chipW + 4;
+        }
+
+        if (this.creatingFolder && this.folderNameBox != null && layout.folderBoxW() >= 54) {
+            int bx = layout.folderBoxX();
+            int by = layout.folderBoxY();
+            int bw = layout.folderBoxW();
+            int chipH = 18;
+            JelloTheme.fillRoundedCard(graphics, bx, by, bx + bw, by + chipH, 4, JelloTheme.CARD_INACTIVE, JelloTheme.ACCENT_HOVER);
+            this.folderNameBox.setX(bx + 5);
+            this.folderNameBox.setY(by + 4);
+            this.folderNameBox.setWidth(bw - 10);
+            this.folderNameBox.visible = true;
+        }
+    }
+
+    private void renderCustomFolderToolbar(
+            GuiGraphicsExtractor graphics,
+            int mouseX,
+            int mouseY,
+            int contentX,
+            int barY,
+            int contentW,
+            ModConfig.CustomModuleFolder folder,
+            float dt
+    ) {
+        if (folder == null) return;
+        graphics.fill(contentX, barY + 23, contentX + contentW, barY + 24, JelloTheme.DIVIDER);
+        boolean picking = folder.id.equals(this.editingFolderId);
+        boolean renaming = folder.id.equals(this.renamingFolderId) && this.folderNameBox != null;
+        int btnY = barY + 3;
+        int btnH = 17;
+
+        int delW = 46;
+        int delX = contentX + contentW - 12 - delW;
+        boolean delHov = isInside(mouseX, mouseY, delX, btnY, delW, btnH);
+        JelloTheme.fillRoundedCard(graphics, delX, btnY, delX + delW, btnY + btnH, 4,
+                delHov ? 0xFF991B1B : 0x557F1D1D, 0x88EF4444);
+        graphics.centeredText(this.font, Component.literal("Delete"), delX + delW / 2, btnY + 4, 0xFFFCA5A5);
+
+        String editLabel = picking ? "Done" : "+ Select Modules";
+        int editW = Math.max(66, this.font.width(editLabel) + 14);
+        int editX = delX - 6 - editW;
+        boolean editHov = isInside(mouseX, mouseY, editX, btnY, editW, btnH);
+        JelloTheme.fillRoundedCard(graphics, editX, btnY, editX + editW, btnY + btnH, 4,
+                picking ? (editHov ? 0xFF15803D : 0xFF166534) : (editHov ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT),
+                picking ? 0xFF22C55E : JelloTheme.ACCENT_HOVER);
+        graphics.centeredText(this.font, Component.literal(editLabel), editX + editW / 2, btnY + 4, 0xFFFFFFFF);
+
+        String renLabel = renaming ? "Save" : "Rename";
+        int renW = 48;
+        int renX = editX - 6 - renW;
+        boolean renHov = isInside(mouseX, mouseY, renX, btnY, renW, btnH);
+        JelloTheme.fillRoundedCard(graphics, renX, btnY, renX + renW, btnY + btnH, 4,
+                renaming ? 0x5510B981 : (renHov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE),
+                renaming ? 0xFF34D399 : (renHov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE));
+        graphics.centeredText(this.font, Component.literal(renLabel), renX + renW / 2, btnY + 4, renaming ? 0xFFFFFFFF : JelloTheme.TEXT_DIM);
+
+        int infoMaxW = Math.max(60, renX - (contentX + 12) - 8);
+        if (renaming) {
+            int boxW = Math.min(160, infoMaxW);
+            JelloTheme.fillRoundedCard(graphics, contentX + 12, btnY, contentX + 12 + boxW, btnY + btnH, 4, JelloTheme.CARD_INACTIVE, JelloTheme.ACCENT_HOVER);
+            this.folderNameBox.setX(contentX + 17);
+            this.folderNameBox.setY(btnY + 4);
+            this.folderNameBox.setWidth(Math.max(36, boxW - 10));
+            this.folderNameBox.visible = true;
+        } else {
+            String info = picking
+                    ? "Click modules to add/remove (" + folder.modules.size() + " selected)"
+                    : (folder.name + " (" + folder.modules.size() + " modules)");
+            graphics.text(this.font, Component.literal(fitText(info, infoMaxW)), contentX + 12, barY + 7, picking ? 0xFF4ADE80 : JelloTheme.TEXT_MUTED, false);
         }
     }
 
@@ -582,9 +852,11 @@ public class ModernClickGuiScreen extends Screen {
             JelloTheme.fillRoundedCard(graphics, gridX + 12, emptyY, gridX + gridW - 12, emptyY + 54, 10, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
             String msg = !this.searchQuery.isEmpty()
                     ? ("No modules matched '" + this.searchQuery + "'")
-                    : ("FAVORITES".equals(this.selectedCategoryId)
-                        ? "No favorite modules yet - click the star on any module to add it here"
-                        : "No modules in this category");
+                    : ("ACTIVE".equals(this.selectedCategoryId)
+                        ? "No active modules"
+                        : (this.selectedCategoryId != null && this.selectedCategoryId.startsWith("FOLDER_")
+                            ? "This folder is empty - click '+ Select Modules' to add modules"
+                            : "No modules in this category"));
             graphics.centeredText(this.font, Component.literal(msg), gridX + gridW / 2, emptyY + 22, JelloTheme.TEXT_MUTED);
             return;
         }
@@ -614,8 +886,17 @@ public class ModernClickGuiScreen extends Screen {
     ) {
     }
 
+    private boolean hasModuleSettingsCached(String modName, ModConfig cfg) {
+        Boolean cached = this.hasSettingsCache.get(modName);
+        if (cached == null) {
+            cached = ModernModuleSettings.hasSettings(modName, cfg, this.settingsActions);
+            this.hasSettingsCache.put(modName, cached);
+        }
+        return cached;
+    }
+
     private CardControlsBounds computeCardControls(int x, int y, int w, ClickGuiScreen.ModuleEntry mod, ModConfig cfg) {
-        boolean hasSettings = ModernModuleSettings.hasSettings(mod.name, cfg, this.settingsActions);
+        boolean hasSettings = hasModuleSettingsCached(mod.name, cfg);
         boolean isListening = mod.name.equals(this.listeningKeybindModule);
         String bindTag = getBindPillText(cfg, mod.name, isListening);
         ModernModuleGridLayout.CardControlLayout layout =
@@ -638,79 +919,77 @@ public class ModernClickGuiScreen extends Screen {
     ) {
         ModConfig cfg = ModConfig.getInstance();
         boolean active = mod.getter.get();
+        boolean pickingFolder = this.editingFolderId != null && this.searchQuery.isEmpty();
+        boolean inFolder = pickingFolder && cfg != null && cfg.isModuleInCustomFolder(this.editingFolderId, mod.name);
         CardControlsBounds controls = computeCardControls(x, y, w, mod, cfg);
         ModernModuleGridLayout.CardControlLayout layout = controls.layout();
-        boolean isExpanded = controls.hasSettings() && mod.name.equals(this.expandedModule);
+        boolean isExpanded = mod.name.equals(this.expandedModule);
         int cardH = ModernModuleGridLayout.CARD_HEIGHT;
         boolean hovered = isInside(mouseX, mouseY, x, y, w, cardH);
         float hoverT = animateHover("card:" + mod.name, hovered, dt);
 
-        if (active) {
+        if (active && !pickingFolder) {
             JelloTheme.drawGlowShadow(graphics, x, y, x + w, y + cardTotalH, ModernModuleGridLayout.CARD_CORNER_RADIUS,
-                    isExpanded ? 0x55FF1E2D : 0x3FFF1E2D, 3);
+                    withAlpha(JelloTheme.ACCENT, isExpanded ? 0x55 : 0x3F), 3);
         }
 
-        int bg = active
-                ? JelloTheme.lerpColor(JelloTheme.CARD_ACTIVE, JelloTheme.CARD_ACTIVE_HOVER, hoverT)
-                : JelloTheme.lerpColor(JelloTheme.CARD_INACTIVE, JelloTheme.CARD_INACTIVE_HOVER, hoverT);
-        int border = isExpanded
-                ? JelloTheme.BORDER_EXPANDED_SOFT
+        int bg = pickingFolder
+                ? (inFolder ? 0xFF143326 : JelloTheme.lerpColor(JelloTheme.CARD_INACTIVE, JelloTheme.CARD_INACTIVE_HOVER, hoverT))
                 : (active
-                    ? JelloTheme.lerpColor(JelloTheme.BORDER_ACTIVE_SOFT, JelloTheme.ACCENT_HOVER, hoverT)
-                    : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, 0x5094A3B8, hoverT));
+                    ? JelloTheme.lerpColor(JelloTheme.CARD_ACTIVE, JelloTheme.CARD_ACTIVE_HOVER, hoverT)
+                    : JelloTheme.lerpColor(JelloTheme.CARD_INACTIVE, JelloTheme.CARD_INACTIVE_HOVER, hoverT));
+        int border = pickingFolder
+                ? (inFolder ? 0xFF22C55E : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, JelloTheme.BORDER_ACTIVE_SOFT, hoverT))
+                : (isExpanded
+                    ? JelloTheme.BORDER_EXPANDED_SOFT
+                    : (active
+                        ? JelloTheme.lerpColor(JelloTheme.BORDER_ACTIVE_SOFT, JelloTheme.ACCENT_HOVER, hoverT)
+                        : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, JelloTheme.BORDER_ACTIVE_SOFT, hoverT)));
         JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + cardTotalH, ModernModuleGridLayout.CARD_CORNER_RADIUS, bg, border);
 
-        // Compact 2-Row Bento Tile: Favorite Star + Classic crisp Title (top) + borderless [Tune] [Bind] [Pill Toggle] (bottom-right)
-        boolean isFav = cfg.isFavoriteModule(mod.name);
-        boolean starHovered = isInside(mouseX, mouseY, layout.starX(x), layout.starY(y), layout.starW(), layout.starH());
-        float starHoverT = animateHover("star:" + mod.name, starHovered, dt);
-        int starColor = isFav
-                ? JelloTheme.lerpColor(0xFFFFCA28, 0xFFFFE082, starHoverT)
-                : JelloTheme.lerpColor(0xFF64748B, 0xFFFFD54F, starHoverT);
-        ModernIcons.drawStarIcon(
-                graphics,
-                x + ModernModuleGridLayout.STAR_ICON_X_OFFSET,
-                y + ModernModuleGridLayout.STAR_ICON_Y_OFFSET,
-                ModernModuleGridLayout.STAR_ICON_SIZE,
-                isFav || starHoverT > 0.6f,
-                starColor
-        );
-
+        // Balanced Pro 4-col Card: Title + top-right ★ Star, bottom-left [Bind] [Tune] + bottom-right Toggle
         String title = fitText(mod.name, layout.titleMaxWWithStar(w));
-        int titleColor = active ? 0xFFFFFFFF : JelloTheme.lerpColor(0xFFE2E8F0, 0xFFFFFFFF, hoverT);
+        int titleColor = active ? JelloTheme.TEXT : JelloTheme.lerpColor(JelloTheme.TEXT_MUTED, JelloTheme.TEXT, hoverT);
         graphics.text(this.font, Component.literal(title),
                 layout.titleX(x),
                 y + ModernModuleGridLayout.TITLE_Y_OFFSET,
                 titleColor,
-                active);
+                active && JelloTheme.WINDOW_BG != 0xF6B6B6B6);
+
+        int starX = layout.starX(x, w);
+        int starY = layout.starY(y);
+        int starW = layout.starW();
+        int starH = layout.starH();
+        boolean isFav = cfg != null && cfg.isFavoriteModule(mod.name);
+        boolean starHovered = isInside(mouseX, mouseY, starX, starY, starW, starH);
+        float starT = animateHover("star:" + mod.name, starHovered, dt);
+        int starColor = isFav
+                ? JelloTheme.lerpColor(0xFFFBBF24, 0xFFFDE047, starT)
+                : JelloTheme.lerpColor(JelloTheme.TEXT_MUTED, JelloTheme.TEXT, starT);
+        ModernIcons.drawStarIcon(graphics, starX + 2, starY + 2, ModernModuleGridLayout.STAR_ICON_SIZE, isFav, starColor);
+
+        boolean bindHovered = isInside(mouseX, mouseY, layout.bindX(), layout.bindY(), layout.bindW(), layout.bindH());
+        float bindT = animateHover("bind:" + mod.name, bindHovered, dt);
+        boolean hasBoundKey = cfg != null && cfg.getModuleKey(mod.name) >= 0;
+        int bindBg = controls.isListening()
+                ? withAlpha(JelloTheme.ACCENT, 0x66)
+                : (hasBoundKey ? withAlpha(JelloTheme.ACCENT, 0x33) : JelloTheme.lerpColor(JelloTheme.CONTAINER_BG, withAlpha(JelloTheme.ACCENT, 0x44), bindT));
+        int bindBorder = controls.isListening()
+                ? JelloTheme.ACCENT_HOVER
+                : (hasBoundKey ? withAlpha(JelloTheme.ACCENT, 0x99) : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, JelloTheme.ACCENT, bindT));
+        JelloTheme.fillRoundedCard(graphics, layout.bindX(), layout.bindY(), layout.bindX() + layout.bindW(), layout.bindY() + layout.bindH(), 3, bindBg, bindBorder);
+        graphics.centeredText(this.font, Component.literal(controls.bindTag()), layout.bindX() + layout.bindW() / 2, layout.bindY() + 4,
+                controls.isListening() ? 0xFFFFDD55 : (hasBoundKey ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED));
 
         if (controls.hasSettings()) {
             boolean tuneHov = isInside(mouseX, mouseY, layout.tuneX(), layout.tuneY(), layout.tuneW(), layout.tuneH());
             float tuneT = animateHover("tune:" + mod.name, tuneHov, dt);
-            if (isExpanded || tuneT > 0.05f) {
-                int tuneBg = isExpanded ? 0x55FF1E2D : JelloTheme.lerpColor(0x0016161D, 0x7724242F, tuneT);
-                int tuneBorder = isExpanded ? JelloTheme.BORDER_EXPANDED_SOFT : JelloTheme.lerpColor(0x0094A3B8, 0x5594A3B8, tuneT);
-                JelloTheme.fillRoundedCard(graphics, layout.tuneX(), layout.tuneY(), layout.tuneX() + layout.tuneW(), layout.tuneY() + layout.tuneH(), 4, tuneBg, tuneBorder);
-            }
+            int tuneBg = isExpanded ? withAlpha(JelloTheme.ACCENT, 0x66) : JelloTheme.lerpColor(JelloTheme.CONTAINER_BG, JelloTheme.CARD_INACTIVE_HOVER, tuneT);
+            int tuneBorder = isExpanded ? JelloTheme.BORDER_EXPANDED_SOFT : JelloTheme.lerpColor(JelloTheme.BORDER_SUBTLE, JelloTheme.ACCENT, tuneT);
+            JelloTheme.fillRoundedCard(graphics, layout.tuneX(), layout.tuneY(), layout.tuneX() + layout.tuneW(), layout.tuneY() + layout.tuneH(), 3, tuneBg, tuneBorder);
             ModernIcons.drawTuneIcon(graphics, layout.tuneX() + 4, layout.tuneY() + 3,
-                    isExpanded ? JelloTheme.ACCENT_HOVER : JelloTheme.lerpColor(0xFF94A3B8, JelloTheme.TEXT, tuneT));
+                    isExpanded ? JelloTheme.TEXT : JelloTheme.lerpColor(JelloTheme.TEXT_MUTED, JelloTheme.TEXT, tuneT));
         }
-
-        boolean bindHovered = isInside(mouseX, mouseY, layout.bindX(), layout.bindY(), layout.bindW(), layout.bindH());
-        float bindT = animateHover("bind:" + mod.name, bindHovered, dt);
-        boolean hasBoundKey = cfg.getModuleKey(mod.name) >= 0;
-        if (controls.isListening() || hasBoundKey || bindT > 0.05f) {
-            int bindBg = controls.isListening()
-                    ? 0x66FF1E2D
-                    : (hasBoundKey ? 0x33FF1E2D : JelloTheme.lerpColor(0x0016161D, 0x44FF1E2D, bindT));
-            int bindBorder = controls.isListening()
-                    ? JelloTheme.ACCENT_HOVER
-                    : (hasBoundKey ? 0x99FF2838 : JelloTheme.lerpColor(0x00FF1E2D, 0x88FF1E2D, bindT));
-            JelloTheme.fillRoundedCard(graphics, layout.bindX(), layout.bindY(), layout.bindX() + layout.bindW(), layout.bindY() + layout.bindH(), 3, bindBg, bindBorder);
-        }
-        // Keybind badges deliberately retain monospace font for crisp alignment; [None] renders borderless
-        graphics.centeredText(this.font, Component.literal(controls.bindTag()), layout.bindX() + layout.bindW() / 2, layout.bindY() + 4,
-                controls.isListening() ? 0xFFFFDD55 : (hasBoundKey ? (active ? JelloTheme.TEXT_DIM : 0xFFE2E8F0) : JelloTheme.TEXT_MUTED));
 
         renderSmoothSwitch(graphics, mouseX, mouseY, layout.switchX(), layout.switchY(), layout.switchW(), layout.switchH(), "mod:" + mod.name, active, dt);
 
@@ -720,7 +999,7 @@ public class ModernClickGuiScreen extends Screen {
             graphics.fill(x + 1, y + cardH, x + w - 1, y + cardH + 1, JelloTheme.DIVIDER);
 
             List<FormattedCharSequence> descLines = resolved.descLines();
-            int maxDescLines = Math.min(2, descLines.size());
+            int maxDescLines = Math.min(resolved.expandedControls().isEmpty() ? 4 : 2, descLines.size());
             for (int lineIdx = 0; lineIdx < maxDescLines; lineIdx++) {
                 int lineY = y + cardH + 1 + ModernModuleGridLayout.ACCORDION_TOP_DIVIDER_PAD
                         + lineIdx * ModernModuleGridLayout.ACCORDION_DESC_LINE_HEIGHT;
@@ -728,37 +1007,39 @@ public class ModernClickGuiScreen extends Screen {
                         x + ModernModuleGridLayout.CARD_PADDING_X, lineY, JelloTheme.TEXT_MUTED, false);
             }
 
-            int controlsY = y + cardH + 1 + resolved.descHeaderHeight();
-            ModernModuleCardUi.SliderEditState editState = this.editingSlider != null
-                    ? new ModernModuleCardUi.SliderEditState(this.editingSlider.key(), this.editingSliderText, false)
-                    : null;
-            ModernModuleCardUi.renderControls(
-                    graphics,
-                    this.font,
-                    mouseX,
-                    mouseY,
-                    x + ModernModuleGridLayout.CARD_PADDING_X,
-                    controlsY,
-                    acc.controlsWidth(),
-                    mod.name,
-                    resolved.expandedControls(),
-                    (sx, sy, sw, sh, skey, pct) -> renderInteractiveSlider(graphics, mouseX, mouseY, sx, sy, sw, sh, skey, pct),
-                    (tx, ty, tw, th, tkey, tactive) -> renderSmoothSwitch(graphics, mouseX, mouseY, tx, ty, tw, th, tkey, tactive, dt),
-                    editState,
-                    (bx, by, bw, bh) -> {
-                        this.editingBoxX = bx;
-                        this.editingBoxY = by;
-                        this.editingBoxW = bw;
-                        this.editingBoxH = bh;
-                        if (this.sliderInputBox != null && this.editingSlider != null) {
-                            this.sliderInputBox.setX(bx + 4);
-                            this.sliderInputBox.setY(by + 2);
-                            this.sliderInputBox.setWidth(Math.max(16, bw - 8));
-                            this.sliderInputBox.setHeight(9);
-                            this.sliderInputBox.visible = true;
+            if (!resolved.expandedControls().isEmpty()) {
+                int controlsY = y + cardH + 1 + resolved.descHeaderHeight();
+                ModernModuleCardUi.SliderEditState editState = this.editingSlider != null
+                        ? new ModernModuleCardUi.SliderEditState(this.editingSlider.key(), this.editingSliderText, false)
+                        : null;
+                ModernModuleCardUi.renderControls(
+                        graphics,
+                        this.font,
+                        mouseX,
+                        mouseY,
+                        x + ModernModuleGridLayout.CARD_PADDING_X,
+                        controlsY,
+                        acc.controlsWidth(),
+                        mod.name,
+                        resolved.expandedControls(),
+                        (sx, sy, sw, sh, skey, pct) -> renderInteractiveSlider(graphics, mouseX, mouseY, sx, sy, sw, sh, skey, pct),
+                        (tx, ty, tw, th, tkey, tactive) -> renderSmoothSwitch(graphics, mouseX, mouseY, tx, ty, tw, th, tkey, tactive, dt),
+                        editState,
+                        (bx, by, bw, bh) -> {
+                            this.editingBoxX = bx;
+                            this.editingBoxY = by;
+                            this.editingBoxW = bw;
+                            this.editingBoxH = bh;
+                            if (this.sliderInputBox != null && this.editingSlider != null) {
+                                this.sliderInputBox.setX(bx + 4);
+                                this.sliderInputBox.setY(by + 2);
+                                this.sliderInputBox.setWidth(Math.max(16, bw - 8));
+                                this.sliderInputBox.setHeight(9);
+                                this.sliderInputBox.visible = true;
+                            }
                         }
-                    }
-            );
+                );
+            }
             graphics.disableScissor();
         }
     }
@@ -811,40 +1092,50 @@ public class ModernClickGuiScreen extends Screen {
                 JelloTheme.fillRoundedCard(graphics, leftColX, cardY, leftColX + leftColW, cardY + cardH, 7, cardBg, borderColor);
 
                 String nameTitle = (m.name != null && !m.name.isEmpty()) ? m.name : "Unnamed Macro";
-                graphics.text(this.font, Component.literal(nameTitle), leftColX + 12, cardY + 9, JelloTheme.TEXT, false);
+                boolean isCmd = m.message != null && m.message.startsWith("/");
+                String typeTag = isCmd ? "CMD" : "CHAT";
+                int tagW = this.font.width(typeTag) + 8;
+                JelloTheme.fillRoundedCard(graphics, leftColX + 12, cardY + 8, leftColX + 12 + tagW, cardY + 20, 3,
+                        isCmd ? 0x3338BDF8 : 0x3310B981, isCmd ? 0x6638BDF8 : 0x6634D399);
+                graphics.centeredText(this.font, Component.literal(typeTag), leftColX + 12 + tagW / 2, cardY + 10,
+                        isCmd ? 0xFF7DD3FC : 0xFF6EE7B7);
+                graphics.text(this.font, Component.literal(nameTitle), leftColX + 18 + tagW, cardY + 10, JelloTheme.TEXT, false);
 
                 String cmdPreview = (m.message != null && !m.message.isEmpty()) ? m.message : "/help";
-                if (cmdPreview.length() > 30) {
-                    cmdPreview = cmdPreview.substring(0, 27) + "...";
-                }
-                int cmdColor = cmdPreview.startsWith("/") ? JelloTheme.TEXT_DIM : 0xFF81C784;
-                graphics.text(this.font, Component.literal(cmdPreview), leftColX + 12, cardY + 25, cmdColor, false);
+                int previewMaxW = Math.max(80, leftColW - 140);
+                int cmdColor = cmdPreview.startsWith("/") ? JelloTheme.TEXT_MUTED : 0xFF81C784;
+                graphics.text(this.font, Component.literal(fitText(cmdPreview, previewMaxW)), leftColX + 12, cardY + 26, cmdColor, false);
 
-                String bindText = ClickGuiScreen.getBindDisplayName(m.keyCode, m.isMouse);
-                int bindBadgeW = Math.max(48, this.font.width(bindText) + 14);
-                int bindBadgeH = 18;
+                String bindText = "[" + ClickGuiScreen.getShortBindName(m.keyCode, m.isMouse) + "]";
+                int bindBadgeW = computeMacroBindBadgeWidth(bindText);
+                int bindBadgeH = 17;
                 int bindBadgeX = leftColX + leftColW - 64 - bindBadgeW;
                 int bindBadgeY = cardY + 14;
 
                 boolean bindHovered = isInside(mouseX, mouseY, bindBadgeX, bindBadgeY, bindBadgeW, bindBadgeH);
-                int bindBg = (isEditingThis && this.listeningMacroKey) ? 0x66FF1E2D : (bindHovered ? 0x44FF1E2D : 0xFF141419);
-                int bindBorder = (isEditingThis && this.listeningMacroKey) ? JelloTheme.ACCENT_HOVER : (bindHovered ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
-                JelloTheme.fillRoundedCard(graphics, bindBadgeX, bindBadgeY, bindBadgeX + bindBadgeW, bindBadgeY + bindBadgeH, 4, bindBg, bindBorder);
-                graphics.centeredText(this.font, Component.literal(bindText), bindBadgeX + bindBadgeW / 2, bindBadgeY + 5,
-                        (isEditingThis && this.listeningMacroKey) ? JelloTheme.ACCENT_HOVER : (m.keyCode >= 0 ? 0xFFFFD54F : JelloTheme.TEXT_MUTED));
+                boolean macroBound = m.keyCode >= 0;
+                int bindBg = (isEditingThis && this.listeningMacroKey)
+                        ? withAlpha(JelloTheme.ACCENT, 0x66)
+                        : (macroBound ? withAlpha(JelloTheme.ACCENT, 0x33) : (bindHovered ? withAlpha(JelloTheme.ACCENT, 0x44) : JelloTheme.CONTAINER_BG));
+                int bindBorder = (isEditingThis && this.listeningMacroKey)
+                        ? JelloTheme.ACCENT_HOVER
+                        : (macroBound ? withAlpha(JelloTheme.ACCENT, 0x99) : (bindHovered ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE));
+                JelloTheme.fillRoundedCard(graphics, bindBadgeX, bindBadgeY, bindBadgeX + bindBadgeW, bindBadgeY + bindBadgeH, 3, bindBg, bindBorder);
+                graphics.centeredText(this.font, Component.literal(bindText), bindBadgeX + bindBadgeW / 2, bindBadgeY + 4,
+                        (isEditingThis && this.listeningMacroKey) ? 0xFFFFDD55 : (macroBound ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED));
 
                 int editBtnX = leftColX + leftColW - 56;
                 int editBtnY = cardY + 14;
                 boolean editHovered = isInside(mouseX, mouseY, editBtnX, editBtnY, 22, 18);
                 JelloTheme.fillRoundedCard(graphics, editBtnX, editBtnY, editBtnX + 22, editBtnY + 18, 4,
-                        editHovered ? 0x55FF1E2D : 0xFF141419, editHovered ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+                        editHovered ? withAlpha(JelloTheme.ACCENT, 0x55) : JelloTheme.CONTAINER_BG, editHovered ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
                 ModernIcons.drawTuneIcon(graphics, editBtnX + 6, editBtnY + 4, editHovered ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED);
 
                 int delBtnX = leftColX + leftColW - 28;
                 boolean delHovered = isInside(mouseX, mouseY, delBtnX, editBtnY, 22, 18);
                 JelloTheme.fillRoundedCard(graphics, delBtnX, editBtnY, delBtnX + 22, editBtnY + 18, 4,
-                        delHovered ? 0x77FF1E2D : 0xFF141419, delHovered ? JelloTheme.ACCENT_HOVER : JelloTheme.BORDER_SUBTLE);
-                ModernIcons.drawCloseIcon(graphics, delBtnX + 11, editBtnY + 9, delHovered ? 0xFFFFFFFF : 0xFFFF6666);
+                        delHovered ? withAlpha(JelloTheme.ACCENT, 0x77) : JelloTheme.CONTAINER_BG, delHovered ? JelloTheme.ACCENT_HOVER : JelloTheme.BORDER_SUBTLE);
+                ModernIcons.drawCloseIcon(graphics, delBtnX + 11, editBtnY + 9, delHovered ? JelloTheme.TEXT : 0xFFFF6666);
             }
         }
 
@@ -965,6 +1256,7 @@ public class ModernClickGuiScreen extends Screen {
 
     private record ProfileCardButtons(
             int btnY,
+            int saveBtnX, int saveBtnW,
             int loadBtnX, int loadBtnW,
             int exportBtnX, int exportBtnW,
             int delBtnX, int delBtnW
@@ -1006,12 +1298,22 @@ public class ModernClickGuiScreen extends Screen {
     private static ProfileCardButtons computeProfileCardButtons(ProfileLayout layout, int cardY) {
         int btnY = cardY + 14;
         int delBtnW = 22;
-        int exportBtnW = 48;
-        int loadBtnW = 40;
+        int exportBtnW = 46;
+        int loadBtnW = 38;
+        int saveBtnW = 38;
         int delBtnX = layout.leftColX() + layout.leftColW() - 28;
-        int exportBtnX = delBtnX - exportBtnW - 6;
-        int loadBtnX = exportBtnX - loadBtnW - 6;
-        return new ProfileCardButtons(btnY, loadBtnX, loadBtnW, exportBtnX, exportBtnW, delBtnX, delBtnW);
+        int exportBtnX = delBtnX - exportBtnW - 5;
+        int loadBtnX = exportBtnX - loadBtnW - 5;
+        int saveBtnX = loadBtnX - saveBtnW - 5;
+        return new ProfileCardButtons(btnY, saveBtnX, saveBtnW, loadBtnX, loadBtnW, exportBtnX, exportBtnW, delBtnX, delBtnW);
+    }
+
+    private static int withAlpha(int argb, int alphaByte) {
+        return ((alphaByte & 0xFF) << 24) | (argb & 0x00FFFFFF);
+    }
+
+    private int computeMacroBindBadgeWidth(String shortBindBracketed) {
+        return Math.max(40, this.font.width(shortBindBracketed) + 12);
     }
 
     private void renderGuiView(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int contentX, int contentY, int contentW, int contentH) {
@@ -1019,11 +1321,19 @@ public class ModernClickGuiScreen extends Screen {
         int pad = 16;
         int innerX = contentX + pad;
         int innerW = contentW - pad * 2;
-        int innerY = contentY + 14;
+        int cardH = 40;
+        int cardGap = 6;
+
+        int totalContentH = 14 + 24 + 24 + 12 + (cardH + cardGap) * 6 + 10;
+        this.contentTotalHeight = Math.max(contentH, totalContentH);
+        this.scrollAmount = Mth.clamp(this.scrollAmount, 0.0, Math.max(0, this.contentTotalHeight - contentH));
+        int scroll = (int) Math.round(this.scrollAmount);
+
+        int innerY = contentY + 14 - scroll;
 
         ModernIcons.drawLayoutIcon(graphics, innerX, innerY - 1, JelloTheme.ACCENT);
         graphics.text(this.font, Component.literal("§lHUD LAYOUT & GUI"), innerX + 15, innerY, JelloTheme.TEXT, false);
-        JelloTheme.fillHorizontalGradient(graphics, innerX, innerY + 13, innerX + 165, innerY + 14, JelloTheme.ACCENT, 0x55FF424E);
+        JelloTheme.fillHorizontalGradient(graphics, innerX, innerY + 13, innerX + 165, innerY + 14, JelloTheme.ACCENT, withAlpha(JelloTheme.ACCENT_HOVER, 0x55));
 
         int btnY = innerY + 24;
         int openBtnW = 148;
@@ -1031,7 +1341,7 @@ public class ModernClickGuiScreen extends Screen {
         int btnH = 24;
         boolean openHov = isInside(mouseX, mouseY, innerX, btnY, openBtnW, btnH);
         JelloTheme.fillRoundedCard(graphics, innerX, btnY, innerX + openBtnW, btnY + btnH, 6,
-                openHov ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT, 0xFFFF6674);
+                openHov ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT, JelloTheme.BORDER_ACTIVE_SOFT);
         graphics.centeredText(this.font, Component.literal("Open HUD Editor"), innerX + openBtnW / 2, btnY + 8, 0xFFFFFFFF);
 
         int resetAllX = innerX + openBtnW + 10;
@@ -1042,8 +1352,6 @@ public class ModernClickGuiScreen extends Screen {
         graphics.centeredText(this.font, Component.literal("Reset All Positions"), resetAllX + resetAllBtnW / 2, btnY + 8, JelloTheme.TEXT);
 
         int listY = btnY + btnH + 12;
-        int cardH = 40;
-        int cardGap = 6;
 
         drawHudResetCard(graphics, mouseX, mouseY, innerX, listY, innerW, cardH,
                 "Keybinds HUD",
@@ -1092,33 +1400,34 @@ public class ModernClickGuiScreen extends Screen {
             String title, String subtitle,
             boolean enabled, boolean showToggle, boolean showActionBtn, String actionLabel
     ) {
-        JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + h, 6, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
-        graphics.text(this.font, Component.literal(title), x + 12, y + 9, JelloTheme.TEXT, false);
-        graphics.text(this.font, Component.literal(subtitle), x + 12, y + 24, JelloTheme.TEXT_MUTED, false);
+        boolean cardHov = isInside(mouseX, mouseY, x, y, w, h);
+        JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + h, 7,
+                cardHov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE,
+                cardHov ? JelloTheme.BORDER_ACTIVE_SOFT : JelloTheme.BORDER_SUBTLE);
 
         int rightEdge = x + w - 10;
         int btnH = 20;
         int btnY = y + (h - btnH) / 2;
+        int controlsWidth = (showActionBtn ? Math.max(54, this.font.width(actionLabel) + 16) + 8 : 0) + (showToggle ? 42 : 0);
+        int maxTextW = Math.max(48, w - 24 - controlsWidth);
+        graphics.text(this.font, Component.literal(fitText(title, maxTextW)), x + 12, y + 9, JelloTheme.TEXT, false);
+        graphics.text(this.font, Component.literal(fitText(subtitle, maxTextW)), x + 12, y + 24, JelloTheme.TEXT_MUTED, false);
 
         if (showActionBtn) {
             int actionW = Math.max(54, this.font.width(actionLabel) + 16);
             int actionX = rightEdge - actionW;
             boolean hov = isInside(mouseX, mouseY, actionX, btnY, actionW, btnH);
             JelloTheme.fillRoundedCard(graphics, actionX, btnY, actionX + actionW, btnY + btnH, 4,
-                    hov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CONTAINER_BG,
+                    hov ? withAlpha(JelloTheme.ACCENT, 0x44) : JelloTheme.CONTAINER_BG,
                     hov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
-            graphics.centeredText(this.font, Component.literal(actionLabel), actionX + actionW / 2, btnY + 6, JelloTheme.TEXT);
+            graphics.centeredText(this.font, Component.literal(actionLabel), actionX + actionW / 2, btnY + 6, hov ? JelloTheme.TEXT : JelloTheme.TEXT_DIM);
             rightEdge = actionX - 8;
         }
 
         if (showToggle) {
             int toggleW = 38;
             int toggleX = rightEdge - toggleW;
-            boolean hov = isInside(mouseX, mouseY, toggleX, btnY, toggleW, btnH);
-            int bg = enabled ? (hov ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT) : (hov ? 0x33FFFFFF : 0x22FFFFFF);
-            int border = enabled ? 0xFFFF6674 : JelloTheme.BORDER_SUBTLE;
-            JelloTheme.fillRoundedCard(graphics, toggleX, btnY, toggleX + toggleW, btnY + btnH, 4, bg, border);
-            graphics.centeredText(this.font, Component.literal(enabled ? "ON" : "OFF"), toggleX + toggleW / 2, btnY + 6, 0xFFFFFFFF);
+            renderSmoothSwitch(graphics, mouseX, mouseY, toggleX + 5, y + (h - 15) / 2, 28, 15, "hudcard:" + title, enabled, 0.04f);
         }
     }
 
@@ -1130,7 +1439,11 @@ public class ModernClickGuiScreen extends Screen {
         int pad = 16;
         int innerX = contentX + pad;
         int innerW = contentW - pad * 2;
-        int innerY = contentY + 14;
+        int cardH = 40;
+        int cardGap = 6;
+        int totalContentH = 14 + 24 + 24 + 12 + (cardH + cardGap) * 6 + 10;
+        int clampedScroll = (int) Math.round(Mth.clamp(this.scrollAmount, 0.0, Math.max(0, totalContentH - contentH)));
+        int innerY = contentY + 14 - clampedScroll;
         int btnY = innerY + 24;
         int openBtnW = 148;
         int resetAllBtnW = 132;
@@ -1149,8 +1462,6 @@ public class ModernClickGuiScreen extends Screen {
         }
 
         int listY = btnY + btnH + 12;
-        int cardH = 40;
-        int cardGap = 6;
 
         // Card 0: Keybinds HUD (Toggle + Reset)
         if (handleHudCardClick(mouseX, mouseY, innerX, listY, innerW, cardH, true, true, "Reset",
@@ -1334,10 +1645,6 @@ public class ModernClickGuiScreen extends Screen {
             String title, String subtitle, String valueText,
             int valW, String minusLabel, String plusLabel
     ) {
-        JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + h, 6, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
-        graphics.text(this.font, Component.literal(title), x + 12, y + 9, JelloTheme.TEXT, false);
-        graphics.text(this.font, Component.literal(subtitle), x + 12, y + 24, JelloTheme.TEXT_MUTED, false);
-
         int btnH = 20;
         int btnY = y + (h - btnH) / 2;
         int stepW = 22;
@@ -1346,6 +1653,11 @@ public class ModernClickGuiScreen extends Screen {
         int plusX = rightEdge - stepW;
         int valX = plusX - 4 - valW;
         int minusX = valX - 4 - stepW;
+        int maxTextW = Math.max(48, minusX - (x + 12) - 8);
+
+        JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + h, 6, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
+        graphics.text(this.font, Component.literal(fitText(title, maxTextW)), x + 12, y + 9, JelloTheme.TEXT, false);
+        graphics.text(this.font, Component.literal(fitText(subtitle, maxTextW)), x + 12, y + 24, JelloTheme.TEXT_MUTED, false);
 
         boolean hovMinus = isInside(mouseX, mouseY, minusX, btnY, stepW, btnH);
         JelloTheme.fillRoundedCard(graphics, minusX, btnY, minusX + stepW, btnY + btnH, 4,
@@ -1598,11 +1910,34 @@ public class ModernClickGuiScreen extends Screen {
                 JelloTheme.fillRoundedCard(graphics, layout.leftColX(), cardY, layout.leftColX() + layout.leftColW(), cardY + cardH, 7, cardBg, borderColor);
 
                 ProfileCardButtons btns = computeProfileCardButtons(layout, cardY);
-                int textMaxW = Math.max(60, btns.loadBtnX() - layout.leftColX() - 18);
+                int textMaxW = Math.max(60, btns.saveBtnX() - layout.leftColX() - 14);
 
-                graphics.text(this.font, Component.literal(fitText(p.name(), textMaxW)), layout.leftColX() + 12, cardY + 9, JelloTheme.TEXT, false);
-                String meta = p.activeCount() + " Active  •  " + p.bindCount() + " Binds  •  " + p.macroCount() + " Macros";
-                graphics.text(this.font, Component.literal(fitText(meta, textMaxW)), layout.leftColX() + 12, cardY + 25, JelloTheme.TEXT_MUTED, false);
+                graphics.text(this.font, Component.literal(fitText(p.name(), textMaxW)), layout.leftColX() + 12, cardY + 8, JelloTheme.TEXT, false);
+
+                // Balanced Pro metadata pill badges
+                int chipX = layout.leftColX() + 12;
+                int chipY = cardY + 25;
+                String[] chipTexts = {
+                        p.activeCount() + " Active",
+                        p.bindCount() + " Binds",
+                        p.macroCount() + " Macros"
+                };
+                int[] chipBgs = {0x2410B981, 0x26FF1E2D, 0x2438BDF8};
+                int[] chipBorders = {0x6634D399, 0x66FF4B5C, 0x6638BDF8};
+                int[] chipColors = {0xFF6EE7B7, 0xFFFF99A4, 0xFF7DD3FC};
+                for (int c = 0; c < chipTexts.length; c++) {
+                    int cw = this.font.width(chipTexts[c]) + 8;
+                    if (chipX + cw > btns.saveBtnX() - 6) break;
+                    JelloTheme.fillRoundedCard(graphics, chipX, chipY, chipX + cw, chipY + 13, 3, chipBgs[c], chipBorders[c]);
+                    graphics.centeredText(this.font, Component.literal(chipTexts[c]), chipX + cw / 2, chipY + 2, chipColors[c]);
+                    chipX += cw + 4;
+                }
+
+                boolean saveHov = isInside(mouseX, mouseY, btns.saveBtnX(), btns.btnY(), btns.saveBtnW(), 18);
+                JelloTheme.fillRoundedCard(graphics, btns.saveBtnX(), btns.btnY(), btns.saveBtnX() + btns.saveBtnW(), btns.btnY() + 18, 4,
+                        saveHov ? 0x4410B981 : 0xFF141419, saveHov ? 0xFF34D399 : JelloTheme.BORDER_SUBTLE);
+                graphics.centeredText(this.font, Component.literal("Save"), btns.saveBtnX() + btns.saveBtnW() / 2, btns.btnY() + 5,
+                        saveHov ? 0xFF6EE7B7 : JelloTheme.TEXT_DIM);
 
                 boolean loadHov = isInside(mouseX, mouseY, btns.loadBtnX(), btns.btnY(), btns.loadBtnW(), 18);
                 JelloTheme.fillRoundedCard(graphics, btns.loadBtnX(), btns.btnY(), btns.loadBtnX() + btns.loadBtnW(), btns.btnY() + 18, 4,
@@ -1733,18 +2068,37 @@ public class ModernClickGuiScreen extends Screen {
                 this.draggingScrollbar ? JelloTheme.SCROLLBAR_THUMB_HOVER : JelloTheme.SCROLLBAR_THUMB);
     }
 
+    private int[] computeModulesViewportMetrics(int contentX, int contentY, int contentW, int contentH) {
+        int chipBarH = layoutFilterChips(contentX, contentY, contentW).totalHeight();
+        ModConfig cfg = ModConfig.getInstance();
+        boolean inCustomFolder = this.searchQuery.isEmpty() && cfg != null && cfg.getCustomFolder(this.selectedCategoryId) != null;
+        int folderBarH = inCustomFolder ? 24 : 0;
+        int headerH = chipBarH + folderBarH;
+        return new int[]{contentY + headerH, Math.max(0, contentH - headerH)};
+    }
+
     private int[] computeActiveScrollbarMetrics() {
         int contentX = this.windowX + SIDEBAR_WIDTH + 1;
         int contentY = this.windowY + HEADER_HEIGHT + 1;
         int contentW = this.windowW - SIDEBAR_WIDTH - 2;
         int contentH = this.windowH - HEADER_HEIGHT - 2;
 
-        boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES || this.activeNav == NavTab.FAVORITES;
-        int viewY = showingModules ? (contentY + CHIP_BAR_HEIGHT + 4) : contentY;
-        int viewH = showingModules ? Math.max(0, contentH - CHIP_BAR_HEIGHT - 8) : contentH;
-        int totalH = showingModules
-                ? resolveAccordionPlan(contentX, contentY + CHIP_BAR_HEIGHT, contentW).plan().totalHeight()
-                : this.contentTotalHeight;
+        boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
+        int viewY;
+        int viewH;
+        int totalH;
+        if (showingModules) {
+            int[] vp = computeModulesViewportMetrics(contentX, contentY, contentW, contentH);
+            int bodyY = vp[0];
+            int bodyH = vp[1];
+            viewY = bodyY + 4;
+            viewH = Math.max(0, bodyH - 8);
+            totalH = resolveAccordionPlan(contentX, bodyY, contentW).plan().totalHeight();
+        } else {
+            viewY = contentY;
+            viewH = contentH;
+            totalH = this.contentTotalHeight;
+        }
         int maxScroll = Math.max(0, totalH - viewH);
         int thumbH = maxScroll > 0 ? Math.max(22, (int) ((float) (viewH * viewH) / totalH)) : viewH;
         int thumbY = maxScroll > 0 ? viewY + (int) ((this.scrollAmount / maxScroll) * (viewH - thumbH)) : viewY;
@@ -1834,6 +2188,19 @@ public class ModernClickGuiScreen extends Screen {
             return true;
         }
 
+        // Focus inline folder name input (create/rename) without letting toolbar swallow the click
+        if (MouseButtonMapping.isLeftClick(button)
+                && this.folderNameBox != null
+                && this.folderNameBox.visible
+                && isInside(mouseX, mouseY,
+                        this.folderNameBox.getX() - 2, this.folderNameBox.getY() - 2,
+                        this.folderNameBox.getWidth() + 4, 18)) {
+            super.mouseClicked(event, wasHandled);
+            this.folderNameBox.setFocused(true);
+            this.setFocused(this.folderNameBox);
+            return true;
+        }
+
         // Unfocus secondary boxes when clicking outside them
         if (this.searchBox != null && !isInside(mouseX, mouseY, searchBoxX, searchBoxY, SEARCH_BOX_WIDTH, SEARCH_BOX_HEIGHT)) {
             this.searchBox.setFocused(false);
@@ -1841,8 +2208,11 @@ public class ModernClickGuiScreen extends Screen {
                 this.setFocused(null);
             }
         }
-        unfocusProfileInputIfOutside(this.profileNameBox, mouseX, mouseY);
-        unfocusProfileInputIfOutside(this.profileCodeBox, mouseX, mouseY);
+        unfocusInputIfOutside(this.profileNameBox, mouseX, mouseY, 5, 6, 10, 20);
+        unfocusInputIfOutside(this.profileCodeBox, mouseX, mouseY, 5, 6, 10, 20);
+        unfocusInputIfOutside(this.macroNameBox, mouseX, mouseY, 4, 5, 8, 20);
+        unfocusInputIfOutside(this.macroCmdBox, mouseX, mouseY, 4, 5, 8, 20);
+        unfocusInputIfOutside(this.folderNameBox, mouseX, mouseY, 5, 4, 10, 18);
 
         // Close [X] button in header
         int closeX = this.windowX + this.windowW - 30;
@@ -1858,33 +2228,48 @@ public class ModernClickGuiScreen extends Screen {
         int sideY = this.windowY + HEADER_HEIGHT + 1;
         int listTop = sideY + 10;
         if (MouseButtonMapping.isLeftClick(button) && isInside(mouseX, mouseY, sideX, sideY, SIDEBAR_WIDTH, this.windowH - HEADER_HEIGHT - 2)) {
-            int tabIndex = (mouseY - listTop) / NAV_ROW_HEIGHT;
-            NavTab[] tabs = NavTab.values();
-            if (mouseY >= listTop && tabIndex >= 0 && tabIndex < tabs.length) {
-                this.activeNav = tabs[tabIndex];
-                if (this.activeNav == NavTab.FAVORITES) {
-                    this.selectedCategoryId = "FAVORITES";
-                } else if (this.activeNav == NavTab.MODULES && "FAVORITES".equals(this.selectedCategoryId)) {
-                    this.selectedCategoryId = "ALL";
+            List<SidebarItem> items = buildSidebarItems();
+            int curY = listTop;
+            for (SidebarItem it : items) {
+                if (mouseY >= curY && mouseY < curY + it.height) {
+                    if (it.folder != null) {
+                        this.activeNav = NavTab.MODULES;
+                        this.selectedCategoryId = it.folder.id;
+                        if (!it.folder.id.equals(this.editingFolderId)) {
+                            this.editingFolderId = null;
+                        }
+                    } else {
+                        this.activeNav = it.tab;
+                        this.editingFolderId = null;
+                        if (this.activeNav == NavTab.MODULES) {
+                            ModConfig cfg = ModConfig.getInstance();
+                            if (cfg != null && cfg.getCustomFolder(this.selectedCategoryId) != null) {
+                                this.selectedCategoryId = "ALL";
+                            }
+                        }
+                    }
+                    this.creatingFolder = false;
+                    this.renamingFolderId = null;
+                    this.scrollAmount = 0.0;
+                    this.listeningKeybindModule = null;
+                    clearExpandedImmediate();
+                    if (!this.searchQuery.isEmpty() && this.searchBox != null) {
+                        this.searchBox.setValue("");
+                        this.searchQuery = "";
+                    }
+                    if (this.activeNav != NavTab.MACROS) {
+                        this.editingMacroIndex = -1;
+                        this.listeningMacroKey = false;
+                    }
+                    if (this.activeNav == NavTab.CONFIG) {
+                        refreshProfilesList();
+                    }
+                    setSecondaryInputsVisible(this.activeNav == NavTab.MACROS && this.editingMacroIndex != -1,
+                            this.activeNav == NavTab.CONFIG);
+                    playClickSound();
+                    return true;
                 }
-                this.scrollAmount = 0.0;
-                this.listeningKeybindModule = null;
-                clearExpandedImmediate();
-                if (!this.searchQuery.isEmpty() && this.searchBox != null) {
-                    this.searchBox.setValue("");
-                    this.searchQuery = "";
-                }
-                if (this.activeNav != NavTab.MACROS) {
-                    this.editingMacroIndex = -1;
-                    this.listeningMacroKey = false;
-                }
-                if (this.activeNav == NavTab.CONFIG) {
-                    refreshProfilesList();
-                }
-                setSecondaryInputsVisible(this.activeNav == NavTab.MACROS && this.editingMacroIndex != -1,
-                        this.activeNav == NavTab.CONFIG);
-                playClickSound();
-                return true;
+                curY += it.height;
             }
         }
 
@@ -1918,7 +2303,7 @@ public class ModernClickGuiScreen extends Screen {
                 }
             }
 
-            boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES || this.activeNav == NavTab.FAVORITES;
+            boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
             if (showingModules) {
                 if (handleModulesWorkspaceClick(mouseX, mouseY, button, contentX, contentY, contentW, contentH)) {
                     return true;
@@ -1946,19 +2331,33 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     private boolean handleModulesWorkspaceClick(int mouseX, int mouseY, int button, int contentX, int contentY, int contentW, int contentH) {
+        ChipsLayout chipLayout = layoutFilterChips(contentX, contentY, contentW);
+        int chipBarH = chipLayout.totalHeight();
         // 1. Category chip filter bar
-        if (mouseY < contentY + CHIP_BAR_HEIGHT) {
+        if (mouseY < contentY + chipBarH) {
             if (MouseButtonMapping.isLeftClick(button)) {
-                List<FilterChip> chips = getFilterChips();
-                int curX = contentX + 12;
-                int chipY = contentY + 6;
-                int chipH = 18;
-                for (FilterChip chip : chips) {
-                    int chipW = computeChipWidth(chip);
-                    if (curX + chipW > contentX + contentW - 8) break;
-                    if (isInside(mouseX, mouseY, curX, chipY, chipW, chipH)) {
+                for (ChipSlot slot : chipLayout.slots()) {
+                    FilterChip chip = slot.chip();
+                    if (isInside(mouseX, mouseY, slot.x(), slot.y(), slot.w(), slot.h())) {
+                        if ("ADD_FOLDER".equals(chip.id)) {
+                            this.renamingFolderId = null;
+                            this.creatingFolder = !this.creatingFolder;
+                            if (this.creatingFolder && this.folderNameBox != null) {
+                                this.folderNameBox.setValue("");
+                                this.folderNameBox.visible = true;
+                                this.setFocused(this.folderNameBox);
+                                this.folderNameBox.setFocused(true);
+                            }
+                            playClickSound();
+                            return true;
+                        }
+                        this.creatingFolder = false;
+                        this.renamingFolderId = null;
+                        if (!chip.id.equals(this.editingFolderId)) {
+                            this.editingFolderId = null;
+                        }
                         this.selectedCategoryId = chip.id;
-                        this.activeNav = "FAVORITES".equals(chip.id) ? NavTab.FAVORITES : NavTab.MODULES;
+                        this.activeNav = NavTab.MODULES;
                         this.scrollAmount = 0.0;
                         if (!this.searchQuery.isEmpty() && this.searchBox != null) {
                             this.searchBox.setValue("");
@@ -1974,14 +2373,73 @@ public class ModernClickGuiScreen extends Screen {
                         playClickSound();
                         return true;
                     }
-                    curX += chipW + 4;
                 }
             }
             return true;
         }
 
-        int bodyY = contentY + CHIP_BAR_HEIGHT;
-        int bodyH = contentH - CHIP_BAR_HEIGHT;
+        ModConfig cfg = ModConfig.getInstance();
+        ModConfig.CustomModuleFolder activeFolder = this.searchQuery.isEmpty() && cfg != null
+                ? cfg.getCustomFolder(this.selectedCategoryId)
+                : null;
+        int folderBarH = activeFolder != null ? 24 : 0;
+        if (activeFolder != null && mouseY < contentY + chipBarH + folderBarH) {
+            if (MouseButtonMapping.isLeftClick(button)) {
+                int barY = contentY + chipBarH;
+                int btnY = barY + 3;
+                int btnH = 17;
+                int delW = 46;
+                int delX = contentX + contentW - 12 - delW;
+                if (isInside(mouseX, mouseY, delX, btnY, delW, btnH)) {
+                    cfg.deleteCustomFolder(activeFolder.id);
+                    this.editingFolderId = null;
+                    this.renamingFolderId = null;
+                    this.selectedCategoryId = "ALL";
+                    this.scrollAmount = 0.0;
+                    playClickSound();
+                    return true;
+                }
+                boolean picking = activeFolder.id.equals(this.editingFolderId);
+                String editLabel = picking ? "Done" : "+ Select Modules";
+                int editW = Math.max(66, this.font.width(editLabel) + 14);
+                int editX = delX - 6 - editW;
+                if (isInside(mouseX, mouseY, editX, btnY, editW, btnH)) {
+                    this.renamingFolderId = null;
+                    this.editingFolderId = picking ? null : activeFolder.id;
+                    this.scrollAmount = 0.0;
+                    clearExpandedImmediate();
+                    playClickSound();
+                    return true;
+                }
+                int renW = 48;
+                int renX = editX - 6 - renW;
+                if (isInside(mouseX, mouseY, renX, btnY, renW, btnH)) {
+                    boolean alreadyRenaming = activeFolder.id.equals(this.renamingFolderId);
+                    if (alreadyRenaming) {
+                        if (this.folderNameBox != null) {
+                            cfg.renameCustomFolder(activeFolder.id, this.folderNameBox.getValue());
+                            this.folderNameBox.visible = false;
+                        }
+                        this.renamingFolderId = null;
+                    } else {
+                        this.creatingFolder = false;
+                        this.renamingFolderId = activeFolder.id;
+                        if (this.folderNameBox != null) {
+                            this.folderNameBox.setValue(activeFolder.name != null ? activeFolder.name : "");
+                            this.folderNameBox.visible = true;
+                            this.setFocused(this.folderNameBox);
+                            this.folderNameBox.setFocused(true);
+                        }
+                    }
+                    playClickSound();
+                    return true;
+                }
+            }
+            return true;
+        }
+
+        int bodyY = contentY + chipBarH + folderBarH;
+        int bodyH = contentH - chipBarH - folderBarH;
         if (!isInside(mouseX, mouseY, contentX, bodyY, contentW, bodyH)) {
             return false;
         }
@@ -1992,9 +2450,14 @@ public class ModernClickGuiScreen extends Screen {
 
         // 2. Module Grid & Unified Card Accordion interaction
         List<ClickGuiScreen.ModuleEntry> modules = resolved.modules();
+        if (activeFolder != null && modules.isEmpty() && MouseButtonMapping.isLeftClick(button)) {
+            this.editingFolderId = activeFolder.id;
+            this.scrollAmount = 0.0;
+            playClickSound();
+            return true;
+        }
         int colW = plan.metrics().colWidth();
         int cardH = plan.metrics().cardHeight();
-        ModConfig cfg = ModConfig.getInstance();
 
         for (int i = 0; i < modules.size(); i++) {
             int cx = plan.cardX(contentX, i);
@@ -2004,13 +2467,18 @@ public class ModernClickGuiScreen extends Screen {
 
             if (isInside(mouseX, mouseY, cx, cy, colW, cardTotalH)) {
                 ClickGuiScreen.ModuleEntry mod = modules.get(i);
+                if (this.editingFolderId != null && this.searchQuery.isEmpty() && MouseButtonMapping.isLeftClick(button)) {
+                    cfg.toggleModuleInCustomFolder(this.editingFolderId, mod.name);
+                    playClickSound();
+                    return true;
+                }
                 if (isAccordionCard && mouseY >= cy + cardH) {
                     if (MouseButtonMapping.isRightClick(button)) {
                         closeExpandedModule();
                         playClickSound();
                         return true;
                     }
-                    if (this.expandedModule != null && MouseButtonMapping.isLeftClick(button)) {
+                    if (this.expandedModule != null && MouseButtonMapping.isLeftClick(button) && !resolved.expandedControls().isEmpty()) {
                         int controlsY = cy + cardH + 1 + resolved.descHeaderHeight();
                         ModernModuleCardUi.handleControlsClick(
                                 this.font,
@@ -2037,18 +2505,17 @@ public class ModernClickGuiScreen extends Screen {
                 CardControlsBounds controls = computeCardControls(cx, cy, colW, mod, cfg);
                 ModernModuleGridLayout.CardControlLayout layout = controls.layout();
 
-                // Favorite Star Icon (top-left of card before module title)
-                if (isInside(mouseX, mouseY, layout.starX(cx), layout.starY(cy), layout.starW(), layout.starH())
-                        && MouseButtonMapping.isLeftClick(button)) {
+                // Favorite Star Icon (top-right)
+                if (MouseButtonMapping.isLeftClick(button)
+                        && cfg != null
+                        && isInside(mouseX, mouseY, layout.starX(cx, colW), layout.starY(cy), layout.starW(), layout.starH())) {
                     cfg.toggleFavoriteModule(mod.name);
-                    if (this.expandedModule != null && findModuleIndex(getVisibleModules(), this.expandedModule) < 0) {
-                        clearExpandedImmediate();
-                    }
+                    cfg.save();
                     playClickSound();
                     return true;
                 }
 
-                // Keybind Pill (immediately left of toggle switch)
+                // Keybind Pill (bottom-left)
                 if (isInside(mouseX, mouseY, layout.bindX(), layout.bindY(), layout.bindW(), layout.bindH())) {
                     if (MouseButtonMapping.isRightClick(button)) {
                         cfg.setModuleKey(mod.name, -1, false);
@@ -2063,7 +2530,7 @@ public class ModernClickGuiScreen extends Screen {
                     return true;
                 }
 
-                // Settings Tune Icon (immediately left of keybind pill, only on configurable modules)
+                // Settings Tune Button (right of keybind pill, only on configurable modules)
                 if (controls.hasSettings()
                         && isInside(mouseX, mouseY, layout.tuneX(), layout.tuneY(), layout.tuneW(), layout.tuneH())
                         && (MouseButtonMapping.isLeftClick(button) || MouseButtonMapping.isRightClick(button))) {
@@ -2078,9 +2545,7 @@ public class ModernClickGuiScreen extends Screen {
                     return true;
                 }
                 if (MouseButtonMapping.isRightClick(button)) {
-                    if (controls.hasSettings()) {
-                        toggleExpandedModule(mod.name);
-                    }
+                    toggleExpandedModule(mod.name);
                     return true;
                 }
                 return true;
@@ -2176,6 +2641,7 @@ public class ModernClickGuiScreen extends Screen {
                         this.macroNameBox.setValue("");
                         this.macroNameBox.visible = true;
                         this.macroNameBox.setFocused(true);
+                        this.setFocused(this.macroNameBox);
                     }
                     if (this.macroCmdBox != null) {
                         this.macroCmdBox.setValue("");
@@ -2218,8 +2684,8 @@ public class ModernClickGuiScreen extends Screen {
                     return true;
                 }
 
-                String bindText = ClickGuiScreen.getBindDisplayName(m.keyCode, m.isMouse);
-                int bindBadgeW = Math.max(48, this.font.width(bindText) + 14);
+                String bindText = "[" + ClickGuiScreen.getShortBindName(m.keyCode, m.isMouse) + "]";
+                int bindBadgeW = computeMacroBindBadgeWidth(bindText);
                 int bindBadgeX = leftColX + leftColW - 64 - bindBadgeW;
                 if (isInside(mouseX, mouseY, bindBadgeX, btnY, bindBadgeW, 18)) {
                     if (MouseButtonMapping.isRightClick(button)) {
@@ -2342,6 +2808,18 @@ public class ModernClickGuiScreen extends Screen {
 
             ProfileCardButtons btns = computeProfileCardButtons(layout, cardY);
 
+            if (isInside(mouseX, mouseY, btns.saveBtnX(), btns.btnY(), btns.saveBtnW(), 18)) {
+                try {
+                    ConfigProfileManager.saveProfile(profilesDir, p.name(), config, inv, countActiveModules());
+                    refreshProfilesList();
+                    setProfileStatus("Updated '" + p.name() + "'!", false);
+                } catch (Exception e) {
+                    setProfileStatus("Failed to update profile", true);
+                }
+                playClickSound();
+                return true;
+            }
+
             if (isInside(mouseX, mouseY, btns.delBtnX(), btns.btnY(), btns.delBtnW(), 18)) {
                 try {
                     ConfigProfileManager.deleteProfile(p.file());
@@ -2393,10 +2871,13 @@ public class ModernClickGuiScreen extends Screen {
         }
     }
 
-    private static void unfocusProfileInputIfOutside(EditBox box, int mouseX, int mouseY) {
+    private void unfocusInputIfOutside(EditBox box, int mouseX, int mouseY, int padLeft, int padTop, int extraW, int frameH) {
         if (box != null && (!box.visible || !isInside(mouseX, mouseY,
-                box.getX() - 5, box.getY() - 6, box.getWidth() + 10, 20))) {
+                box.getX() - padLeft, box.getY() - padTop, box.getWidth() + extraW, frameH))) {
             box.setFocused(false);
+            if (this.getFocused() == box) {
+                this.setFocused(null);
+            }
         }
     }
 
@@ -2406,9 +2887,21 @@ public class ModernClickGuiScreen extends Screen {
             ModernModuleSettings.InventoryBridge inv
     ) {
         ConfigProfileManager.applyProfile(env, config, inv, () -> {
+            JelloTheme.applyTheme(config.guiTheme);
+            AutoSpawnerModule autoSpawner = AutoSpawnerModule.getInstance();
+            if (autoSpawner != null) autoSpawner.setEnabledFromConfig(config.autoSpawnerEnabled);
+            SpawnerAutoSellModule spawnerSell = SpawnerAutoSellModule.getInstance();
+            if (spawnerSell != null) spawnerSell.setEnabledFromConfig(config.spawnerAutoSellEnabled);
+            if (!config.freecamEnabled && FreecamHandler.isActive() && this.minecraft != null) {
+                FreecamHandler.disable(this.minecraft);
+            }
+            if (!config.packetMine) {
+                PacketMineHandler.clear();
+            }
             config.save();
             ModernModuleCardUi.flushInventoryConfigSave();
             ModConfig.reloadChunks();
+            SestiaChatClient.onConfigChanged();
         });
     }
 
@@ -2434,14 +2927,6 @@ public class ModernClickGuiScreen extends Screen {
         if (mc != null && mc.keyboardHandler != null) {
             mc.keyboardHandler.setClipboard(text != null ? text : "");
         }
-    }
-
-    private static String getClipboardSafe() {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc != null && mc.keyboardHandler != null) {
-            return mc.keyboardHandler.getClipboard();
-        }
-        return "";
     }
 
     @Override
@@ -2487,10 +2972,12 @@ public class ModernClickGuiScreen extends Screen {
         int contentW = this.windowW - SIDEBAR_WIDTH - 2;
         int contentH = this.windowH - HEADER_HEIGHT - 2;
 
-        boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES || this.activeNav == NavTab.FAVORITES;
-        int viewH = showingModules ? Math.max(0, contentH - CHIP_BAR_HEIGHT) : contentH;
+        boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
+        int[] vp = computeModulesViewportMetrics(contentX, contentY, contentW, contentH);
+        int bodyY = vp[0];
+        int viewH = vp[1];
         int totalH = showingModules
-                ? resolveAccordionPlan(contentX, contentY + CHIP_BAR_HEIGHT, contentW).plan().totalHeight()
+                ? resolveAccordionPlan(contentX, bodyY, contentW).plan().totalHeight()
                 : this.contentTotalHeight;
         int maxScroll = Math.max(0, totalH - viewH);
         if (maxScroll > 0) {
@@ -2564,6 +3051,36 @@ public class ModernClickGuiScreen extends Screen {
             return true;
         }
 
+        if ((this.creatingFolder || this.renamingFolderId != null) && this.folderNameBox != null && this.folderNameBox.isFocused()) {
+            int key = event.key();
+            if (key == InputConstants.KEY_RETURN || key == GLFW.GLFW_KEY_KP_ENTER) {
+                if (this.renamingFolderId != null) {
+                    ModConfig.getInstance().renameCustomFolder(this.renamingFolderId, this.folderNameBox.getValue());
+                    this.renamingFolderId = null;
+                } else {
+                    ModConfig.CustomModuleFolder created = ModConfig.getInstance().createCustomFolder(this.folderNameBox.getValue());
+                    this.creatingFolder = false;
+                    this.selectedCategoryId = created.id;
+                    this.activeNav = NavTab.MODULES;
+                    this.editingFolderId = created.id;
+                }
+                this.folderNameBox.visible = false;
+                this.scrollAmount = 0.0;
+                playClickSound();
+                return true;
+            }
+            if (key == InputConstants.KEY_ESCAPE) {
+                this.creatingFolder = false;
+                this.renamingFolderId = null;
+                this.folderNameBox.visible = false;
+                playClickSound();
+                return true;
+            }
+            if (this.folderNameBox.keyPressed(event)) {
+                return true;
+            }
+        }
+
         if (event.key() == InputConstants.KEY_ESCAPE) {
             if (this.searchBox != null && this.searchBox.isFocused() && !this.searchQuery.isEmpty()) {
                 this.searchBox.setValue("");
@@ -2581,7 +3098,7 @@ public class ModernClickGuiScreen extends Screen {
                 closeMacroEditor();
                 return true;
             }
-            if (isExpandedOpen() && (!this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES || this.activeNav == NavTab.FAVORITES)) {
+            if (isExpandedOpen() && (!this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES)) {
                 closeExpandedModule();
                 return true;
             }
@@ -2732,45 +3249,103 @@ public class ModernClickGuiScreen extends Screen {
         cancelEditingSlider();
     }
 
-    private record FilterChip(String id, String label, int count) {}
+    private record FilterChip(String id, String label, int count, boolean customRow) {}
+
+    private static final ClickGuiScreen.Category[] CHIP_CATEGORIES = {
+            ClickGuiScreen.Category.COMBAT,
+            ClickGuiScreen.Category.RENDER,
+            ClickGuiScreen.Category.PLAYER,
+            ClickGuiScreen.Category.WORLD,
+            ClickGuiScreen.Category.MOVEMENT,
+            ClickGuiScreen.Category.EXPLOIT,
+            ClickGuiScreen.Category.MISC
+    };
 
     private List<FilterChip> getFilterChips() {
         List<ClickGuiScreen.ModuleEntry> all = ClickGuiScreen.getAllModules();
-        ModConfig cfg = ModConfig.getInstance();
-        List<FilterChip> chips = new ArrayList<>();
-        chips.add(new FilterChip("ALL", "All", all.size()));
-
-        int favCount = 0;
-        for (ClickGuiScreen.ModuleEntry m : all) {
-            if (cfg != null && cfg.isFavoriteModule(m.name)) {
-                favCount++;
+        int[] counts = new int[ClickGuiScreen.Category.values().length];
+        int activeCount = 0;
+        for (int i = 0; i < all.size(); i++) {
+            ClickGuiScreen.ModuleEntry m = all.get(i);
+            counts[m.category.ordinal()]++;
+            if (m.getter.get()) {
+                activeCount++;
             }
         }
-        chips.add(new FilterChip("FAVORITES", "Favorites", favCount));
+        List<FilterChip> chips = new ArrayList<>(CHIP_CATEGORIES.length + 3);
+        chips.add(new FilterChip("ALL", "All", all.size(), false));
+        chips.add(new FilterChip("ACTIVE", "Active", activeCount, false));
 
-        ClickGuiScreen.Category[] cats = {
-                ClickGuiScreen.Category.COMBAT,
-                ClickGuiScreen.Category.RENDER,
-                ClickGuiScreen.Category.PLAYER,
-                ClickGuiScreen.Category.WORLD,
-                ClickGuiScreen.Category.MOVEMENT,
-                ClickGuiScreen.Category.EXPLOIT,
-                ClickGuiScreen.Category.MISC
-        };
-        for (ClickGuiScreen.Category cat : cats) {
-            int count = 0;
-            for (ClickGuiScreen.ModuleEntry m : all) {
-                if (m.category == cat) count++;
-            }
+        for (ClickGuiScreen.Category cat : CHIP_CATEGORIES) {
+            int count = counts[cat.ordinal()];
             if (count > 0) {
-                chips.add(new FilterChip(cat.id, cat.name, count));
+                chips.add(new FilterChip(cat.id, cat.name, count, false));
             }
         }
+        // Custom folders live in the left sidebar; keep '+' inline so the chip bar stays single-row
+        chips.add(new FilterChip("ADD_FOLDER", "+", 0, false));
         return chips;
     }
 
     private List<ClickGuiScreen.ModuleEntry> getVisibleModules() {
         ModConfig cfg = ModConfig.getInstance();
+        java.util.function.Predicate<ClickGuiScreen.ModuleEntry> favoriteMatcher =
+                cfg != null ? m -> cfg.isFavoriteModule(m.name) : null;
+        if (this.searchQuery.isEmpty() && this.editingFolderId != null && cfg != null && cfg.getCustomFolder(this.editingFolderId) != null) {
+            return ModernModuleGridLayout.filterAndSortModules(
+                    ClickGuiScreen.getAllModules(),
+                    m -> m.name,
+                    m -> m.category.id,
+                    m -> m.category.name,
+                    "ALL",
+                    "",
+                    (m, q) -> false,
+                    favoriteMatcher
+            );
+        }
+        if (this.searchQuery.isEmpty() && "ACTIVE".equals(this.selectedCategoryId)) {
+            List<ClickGuiScreen.ModuleEntry> all = ClickGuiScreen.getAllModules();
+            List<ClickGuiScreen.ModuleEntry> result = new ArrayList<>();
+            for (int i = 0; i < all.size(); i++) {
+                ClickGuiScreen.ModuleEntry m = all.get(i);
+                if (m.getter.get()) {
+                    result.add(m);
+                }
+            }
+            if (favoriteMatcher != null) {
+                ModernModuleGridLayout.sortFavoritesFirstInPlace(result, m -> m.name, favoriteMatcher);
+            } else {
+                ModernModuleGridLayout.sortByNameInPlace(result, m -> m.name);
+            }
+            return result;
+        }
+        if (this.searchQuery.isEmpty() && this.selectedCategoryId != null && this.selectedCategoryId.startsWith("FOLDER_") && cfg != null) {
+            ModConfig.CustomModuleFolder folder = cfg.getCustomFolder(this.selectedCategoryId);
+            if (folder != null) {
+                List<ClickGuiScreen.ModuleEntry> all = ClickGuiScreen.getAllModules();
+                List<ClickGuiScreen.ModuleEntry> result = new ArrayList<>();
+                if (folder.modules != null && !folder.modules.isEmpty()) {
+                    for (int i = 0; i < all.size(); i++) {
+                        ClickGuiScreen.ModuleEntry m = all.get(i);
+                        if (folder.modules.contains(m.name)) {
+                            result.add(m);
+                        }
+                    }
+                    ModernModuleGridLayout.sortFavoritesFirstInPlace(result, m -> m.name, favoriteMatcher);
+                }
+                return result;
+            }
+            return ModernModuleGridLayout.filterAndSortModules(
+                    ClickGuiScreen.getAllModules(),
+                    m -> m.name,
+                    m -> m.category.id,
+                    m -> m.category.name,
+                    "ALL",
+                    this.searchQuery,
+                    (m, q) -> matchesModuleSearchExtra(m, q, cfg),
+                    favoriteMatcher
+            );
+        }
         return ModernModuleGridLayout.filterAndSortModules(
                 ClickGuiScreen.getAllModules(),
                 m -> m.name,
@@ -2778,9 +3353,36 @@ public class ModernClickGuiScreen extends Screen {
                 m -> m.category.name,
                 this.selectedCategoryId,
                 this.searchQuery,
-                (m, q) -> ModernModuleSettings.matchesSubSetting(m.name, q, cfg, this.settingsActions),
-                m -> cfg != null && cfg.isFavoriteModule(m.name)
+                (m, q) -> matchesModuleSearchExtra(m, q, cfg),
+                favoriteMatcher
         );
+    }
+
+    private boolean matchesModuleSearchExtra(ClickGuiScreen.ModuleEntry mod, String queryLower, ModConfig cfg) {
+        if (mod == null || queryLower == null || queryLower.isEmpty()) {
+            return false;
+        }
+        if (cfg != null && queryLower.startsWith("bind:")) {
+            String bindTerm = queryLower.substring(5).trim();
+            String boundName = ClickGuiScreen.getShortBindName(
+                    cfg.getModuleKey(mod.name),
+                    cfg.isModuleKeyMouse(mod.name)
+            ).toLowerCase(java.util.Locale.ROOT);
+            if (bindTerm.isEmpty()) {
+                return cfg.getModuleKey(mod.name) >= 0;
+            }
+            return boundName.contains(bindTerm);
+        }
+        if (cfg != null && cfg.getModuleKey(mod.name) >= 0) {
+            String boundName = ClickGuiScreen.getShortBindName(
+                    cfg.getModuleKey(mod.name),
+                    cfg.isModuleKeyMouse(mod.name)
+            ).toLowerCase(java.util.Locale.ROOT);
+            if (boundName.contains(queryLower)) {
+                return true;
+            }
+        }
+        return ModernModuleSettings.matchesSubSetting(mod.name, queryLower, cfg, this.settingsActions);
     }
 
     private String findSubSettingAutoExpandTarget(List<ClickGuiScreen.ModuleEntry> visible, String query) {
@@ -2849,7 +3451,14 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     @Override
+    public void removed() {
+        saveUiTabState();
+        super.removed();
+    }
+
+    @Override
     public void onClose() {
+        saveUiTabState();
         ModConfig.getInstance().save();
         if (this.minecraft != null) {
             this.minecraft.gui.setScreen(this.parent);

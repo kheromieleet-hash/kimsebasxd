@@ -73,7 +73,7 @@ public abstract class CommandSuggestionsMixin {
             return;
         }
         ModConfig cfg = ModConfig.getInstance();
-        if (cfg == null || !cfg.clientChatEnabled || this.input == null) {
+        if (cfg == null || this.input == null) {
             return;
         }
         String value = this.input.getValue();
@@ -99,7 +99,8 @@ public abstract class CommandSuggestionsMixin {
             Suggestions built = DotCommandSuggester.buildSuggestions(
                     value,
                     cursor,
-                    SestiaChatClient.getSuggestedPlayers()
+                    SestiaChatClient.getSuggestedPlayers(),
+                    cfg.clientChatEnabled
             );
             this.pendingSuggestions = CompletableFuture.completedFuture(built);
             if (!built.isEmpty()) {

@@ -58,6 +58,13 @@ public class ModConfig {
     public boolean hudShowNether = true;
     public boolean hudShowPos = true;
     public boolean hudShowClock = true;
+    public boolean hudUnifiedGlass = true;
+    public boolean hudWatermarkEnabled = true;
+    public boolean hudArrayListEnabled = true;
+    public int hudWatermarkX = 4;
+    public int hudWatermarkY = 4;
+    public int hudArrayListX = -1;
+    public int hudArrayListY = -1;
     public int statsHudX = 4;
     public int statsHudY = 4;
     public int posHudX = -1;
@@ -69,9 +76,19 @@ public class ModConfig {
     public boolean keybindsHudEnabled = true;
     public boolean keybindsHudOnlyActive = false;
     public boolean keybindsHudAutoHide = false;
-    public boolean keybindsHudCollapsed = false;
     public int keybindsHudX = 8;
     public int keybindsHudY = 60;
+
+    // Player List HUD (nearby players)
+    public boolean playerListEnabled = false;
+    public int playerListAlign = 0; // 0 = Top Right, 1 = Top Left
+    public boolean playerListShowDistance = true;
+    public boolean playerListShowHealth = true;
+    public boolean playerListIgnoreNpcs = false;
+    public boolean playerListAutoHide = false;
+    public int playerListMaxRows = 20;
+    public int playerListX = -1;
+    public int playerListY = -1;
 
     // Item Pickup / Drop Notifier HUD
     public boolean itemNotifierEnabled = false;
@@ -115,12 +132,11 @@ public class ModConfig {
     public boolean invShulkerPreview = true;
 
     public boolean autoSprint = false;
+    public boolean autoWalkEnabled = false;
+    public int autoWalkDirection = 0;    // 0 = Forwards, 1 = Backwards, 2 = Left, 3 = Right
 
     // Fast Use
     public boolean fastUseEnabled = false;
-    public int fastUseMode = 0;          // 0 = All, 1 = Some
-    public boolean fastUseItems = true;
-    public boolean fastUseBlocks = true;
     public int fastUseCooldown = 0;      // 0 to 4 ticks
 
     // Auto Replenish
@@ -176,9 +192,6 @@ public class ModConfig {
     public boolean trueSight = false;
     public boolean itemEsp = false;
 
-    // ClickGUI Style: 0 = Classic Multi-Window, 1 = Modern Single-Panel
-    public int clickGuiStyle = 1;
-
     public boolean fastBreak = false;
     public int fastBreakMode = 1; // 0 = Vanilla (0 Delay), 1 = Vulcan (Anti-Cheat Bypass)
     public float fastBreakSpeed = 1.15f;
@@ -220,6 +233,60 @@ public class ModConfig {
     public boolean freecamScrollSpeed = true;
     public boolean freecamToggleOnDamage = true;
     public boolean freecamAllowInteract = false;
+    public boolean freecamRotate = true;
+
+    // Xray (Meteor parity)
+    public boolean xrayEnabled = false;
+    public int xrayOpacity = 0; // 0 = hide non-targets, 1..254 = translucent, 255 = solid
+    public boolean xrayOpacityDefaultMigrated = true;
+    public boolean xrayExposedOnly = false;
+    public Set<String> xrayBlocks = XrayHandler.createDefaultBlocks();
+
+    // Block ESP (Meteor parity)
+    public boolean blockEspEnabled = false;
+    public int blockEspRange = 64; // 16..160 blocks
+    public BlockEspHandler.BlockEspStyle blockEspDefaultStyle = new BlockEspHandler.BlockEspStyle();
+    public Set<String> blockEspBlocks = XrayHandler.createDefaultBlockEspBlocks();
+    public Map<String, BlockEspHandler.BlockEspStyle> blockEspPerBlockStyles = new HashMap<>();
+
+    public boolean isXrayBlockEnabled(String blockId) {
+        if (xrayBlocks == null) {
+            xrayBlocks = XrayHandler.createDefaultBlocks();
+        }
+        return blockId != null && xrayBlocks.contains(blockId);
+    }
+
+    public void toggleXrayBlock(String blockId) {
+        if (blockId == null || blockId.isEmpty()) {
+            return;
+        }
+        if (xrayBlocks == null) {
+            xrayBlocks = XrayHandler.createDefaultBlocks();
+        }
+        if (!xrayBlocks.remove(blockId)) {
+            xrayBlocks.add(blockId);
+        }
+        XrayHandler.invalidateBlockCache();
+    }
+
+    public boolean isBlockEspTargetEnabled(String blockId) {
+        if (blockEspBlocks == null) {
+            blockEspBlocks = XrayHandler.createDefaultBlockEspBlocks();
+        }
+        return blockId != null && blockEspBlocks.contains(blockId);
+    }
+
+    public void toggleBlockEspTarget(String blockId) {
+        if (blockId == null || blockId.isEmpty()) {
+            return;
+        }
+        if (blockEspBlocks == null) {
+            blockEspBlocks = XrayHandler.createDefaultBlockEspBlocks();
+        }
+        if (!blockEspBlocks.remove(blockId)) {
+            blockEspBlocks.add(blockId);
+        }
+    }
 
     // Protocol & Version Switcher (LiquidBounce style)
     public int targetProtocol = -1; // -1 = Auto / Default (26.3 Native, Protocol 777)
@@ -407,6 +474,25 @@ public class ModConfig {
     public int autoFishClickDelay = 5; // 1 to 15 ticks
     public int autoFishRecastDelay = 15; // 8 to 40 ticks
 
+    // Auto Spawner (S-Snake Room Looter, /craft & Chest Depositor)
+    public boolean autoSpawnerEnabled = false;
+    public int autoSpawnerCount = 0;        // 0 = Auto (all spawners in cluster), max 256
+    public int autoSpawnerSearchRadius = 26; // 12 to 40
+    public int autoSpawnerClickDelay = 3;    // 2 to 8 ticks
+    public boolean autoSpawnerLockMouse = true;
+    public boolean autoSpawnerRenderEsp = true;
+    public int autoSpawnerHudX = -1;
+    public int autoSpawnerHudY = -1;
+
+    // Spawner Auto Sell (Toggle all spawners to Gold Block / Gold Nugget)
+    public boolean spawnerAutoSellEnabled = false;
+    public boolean spawnerAutoSellTargetGoldBlock = true;
+    public int spawnerAutoSellSearchRadius = 26;
+    public boolean spawnerAutoSellLockMouse = true;
+    public boolean spawnerAutoSellRenderEsp = true;
+    public int spawnerAutoSellHudX = -1;
+    public int spawnerAutoSellHudY = -1;
+
     // No Pause On Lost Focus (Meteor Utils)
     public boolean noPauseOnLostFocus = false;
 
@@ -467,6 +553,80 @@ public class ModConfig {
     public Map<String, Integer> moduleKeybinds = new HashMap<>();
     public Map<String, Boolean> moduleKeybindIsMouse = new HashMap<>();
     public Set<String> favoriteModules = new HashSet<>();
+
+    public static final class CustomModuleFolder {
+        public String id;
+        public String name;
+        public Set<String> modules = new HashSet<>();
+    }
+
+    public List<CustomModuleFolder> customFolders = new ArrayList<>();
+
+    public CustomModuleFolder getCustomFolder(String folderId) {
+        if (folderId == null || customFolders == null) return null;
+        for (CustomModuleFolder f : customFolders) {
+            if (f != null && folderId.equals(f.id)) return f;
+        }
+        return null;
+    }
+
+    public CustomModuleFolder createCustomFolder(String name) {
+        if (customFolders == null) customFolders = new ArrayList<>();
+        String clean = name == null ? "" : name.trim();
+        if (clean.isEmpty()) clean = "Folder " + (customFolders.size() + 1);
+        if (clean.length() > 20) clean = clean.substring(0, 20);
+        int seq = 1;
+        String id;
+        do {
+            id = "FOLDER_" + seq++;
+        } while (getCustomFolder(id) != null);
+        CustomModuleFolder f = new CustomModuleFolder();
+        f.id = id;
+        f.name = clean;
+        f.modules = new HashSet<>();
+        customFolders.add(f);
+        save();
+        return f;
+    }
+
+    public void deleteCustomFolder(String folderId) {
+        if (customFolders == null || folderId == null) return;
+        customFolders.removeIf(f -> f != null && folderId.equals(f.id));
+        save();
+    }
+
+    public boolean renameCustomFolder(String folderId, String newName) {
+        if (renameCustomFolderInMemory(folderId, newName)) {
+            save();
+            return true;
+        }
+        return false;
+    }
+
+    boolean renameCustomFolderInMemory(String folderId, String newName) {
+        CustomModuleFolder f = getCustomFolder(folderId);
+        if (f == null || newName == null) return false;
+        String clean = newName.trim();
+        if (clean.isEmpty()) return false;
+        if (clean.length() > 20) clean = clean.substring(0, 20);
+        f.name = clean;
+        return true;
+    }
+
+    public boolean isModuleInCustomFolder(String folderId, String moduleName) {
+        CustomModuleFolder f = getCustomFolder(folderId);
+        return f != null && f.modules != null && moduleName != null && f.modules.contains(moduleName);
+    }
+
+    public void toggleModuleInCustomFolder(String folderId, String moduleName) {
+        CustomModuleFolder f = getCustomFolder(folderId);
+        if (f == null || moduleName == null) return;
+        if (f.modules == null) f.modules = new HashSet<>();
+        if (!f.modules.remove(moduleName)) {
+            f.modules.add(moduleName);
+        }
+        save();
+    }
 
     public boolean isFavoriteModule(String id) {
         if (id == null) return false;
@@ -543,6 +703,13 @@ public class ModConfig {
         this.hudShowNether = other.hudShowNether;
         this.hudShowPos = other.hudShowPos;
         this.hudShowClock = other.hudShowClock;
+        this.hudUnifiedGlass = other.hudUnifiedGlass;
+        this.hudWatermarkEnabled = other.hudWatermarkEnabled;
+        this.hudArrayListEnabled = other.hudArrayListEnabled;
+        this.hudWatermarkX = other.hudWatermarkX;
+        this.hudWatermarkY = other.hudWatermarkY;
+        this.hudArrayListX = other.hudArrayListX;
+        this.hudArrayListY = other.hudArrayListY;
         this.statsHudX = other.statsHudX;
         this.statsHudY = other.statsHudY;
         this.posHudX = other.posHudX;
@@ -557,9 +724,17 @@ public class ModConfig {
         this.keybindsHudEnabled = other.keybindsHudEnabled;
         this.keybindsHudOnlyActive = other.keybindsHudOnlyActive;
         this.keybindsHudAutoHide = other.keybindsHudAutoHide;
-        this.keybindsHudCollapsed = other.keybindsHudCollapsed;
         this.keybindsHudX = other.keybindsHudX;
         this.keybindsHudY = other.keybindsHudY;
+        this.playerListEnabled = other.playerListEnabled;
+        this.playerListAlign = (other.playerListAlign == 1) ? 1 : 0;
+        this.playerListShowDistance = other.playerListShowDistance;
+        this.playerListShowHealth = other.playerListShowHealth;
+        this.playerListIgnoreNpcs = other.playerListIgnoreNpcs;
+        this.playerListAutoHide = other.playerListAutoHide;
+        this.playerListMaxRows = clampInt(other.playerListMaxRows, 4, 40, 20);
+        this.playerListX = other.playerListX;
+        this.playerListY = other.playerListY;
         this.fullbright = other.fullbright;
         this.fullbrightForceMaxLight = other.fullbrightForceMaxLight;
         this.zoomEnabled = other.zoomEnabled;
@@ -582,10 +757,9 @@ public class ModConfig {
         this.invDisableInCreative = other.invDisableInCreative;
         this.invShulkerPreview = other.invShulkerPreview;
         this.autoSprint = other.autoSprint;
+        this.autoWalkEnabled = other.autoWalkEnabled;
+        this.autoWalkDirection = other.autoWalkDirection;
         this.fastUseEnabled = other.fastUseEnabled;
-        this.fastUseMode = other.fastUseMode;
-        this.fastUseItems = other.fastUseItems;
-        this.fastUseBlocks = other.fastUseBlocks;
         this.fastUseCooldown = other.fastUseCooldown;
         this.autoReplenishEnabled = other.autoReplenishEnabled;
         this.autoReplenishMinCount = other.autoReplenishMinCount;
@@ -626,7 +800,6 @@ public class ModConfig {
         this.tntTimer = other.tntTimer;
         this.trueSight = other.trueSight;
         this.itemEsp = other.itemEsp;
-        this.clickGuiStyle = other.clickGuiStyle;
         this.fastBreak = other.fastBreak;
         this.fastBreakMode = other.fastBreakMode;
         this.fastBreakSpeed = other.fastBreakSpeed;
@@ -662,7 +835,7 @@ public class ModConfig {
         this.trajectoriesShowPassive = other.trajectoriesShowPassive;
         this.trajectoriesBoxOutline = other.trajectoriesBoxOutline;
         this.configVersion = other.configVersion;
-        this.clientChatEnabled = true;
+        this.clientChatEnabled = other.clientChatEnabled;
         this.clientChatUrl = SestiaChatProtocol.normalizeWebSocketUrl(other.clientChatUrl);
         this.clientChatAllowDms = other.clientChatAllowDms;
         this.clientChatMuted = other.clientChatMuted != null ? other.clientChatMuted : "";
@@ -678,6 +851,29 @@ public class ModConfig {
         this.freecamScrollSpeed = other.freecamScrollSpeed;
         this.freecamToggleOnDamage = other.freecamToggleOnDamage;
         this.freecamAllowInteract = other.freecamAllowInteract;
+        this.freecamRotate = other.freecamRotate;
+        this.xrayEnabled = other.xrayEnabled;
+        this.xrayOpacity = XrayHandler.clampOpacity(other.xrayOpacity);
+        this.xrayOpacityDefaultMigrated = other.xrayOpacityDefaultMigrated;
+        this.xrayExposedOnly = other.xrayExposedOnly;
+        this.xrayBlocks = other.xrayBlocks != null ? new java.util.LinkedHashSet<>(other.xrayBlocks) : XrayHandler.createDefaultBlocks();
+        XrayHandler.invalidateBlockCache();
+        this.blockEspEnabled = other.blockEspEnabled;
+        this.blockEspRange = clampInt(other.blockEspRange, 16, 160, 64);
+        this.blockEspDefaultStyle = other.blockEspDefaultStyle != null
+                ? other.blockEspDefaultStyle.copy()
+                : new BlockEspHandler.BlockEspStyle();
+        this.blockEspBlocks = other.blockEspBlocks != null
+                ? new java.util.LinkedHashSet<>(other.blockEspBlocks)
+                : XrayHandler.createDefaultBlockEspBlocks();
+        this.blockEspPerBlockStyles = new HashMap<>();
+        if (other.blockEspPerBlockStyles != null) {
+            for (Map.Entry<String, BlockEspHandler.BlockEspStyle> entry : other.blockEspPerBlockStyles.entrySet()) {
+                if (entry.getKey() != null && entry.getValue() != null) {
+                    this.blockEspPerBlockStyles.put(entry.getKey(), entry.getValue().copy());
+                }
+            }
+        }
         this.autoCrafterTargets = new HashSet<>();
         if (other.autoCrafterTargets != null) {
             this.autoCrafterTargets.addAll(other.autoCrafterTargets);
@@ -735,6 +931,21 @@ public class ModConfig {
         this.autoFishRecast = other.autoFishRecast;
         this.autoFishClickDelay = other.autoFishClickDelay;
         this.autoFishRecastDelay = other.autoFishRecastDelay;
+        this.autoSpawnerEnabled = other.autoSpawnerEnabled;
+        this.autoSpawnerCount = clampInt(other.autoSpawnerCount, 0, 256, 0);
+        this.autoSpawnerSearchRadius = clampInt(other.autoSpawnerSearchRadius, 12, 40, 26);
+        this.autoSpawnerClickDelay = clampInt(other.autoSpawnerClickDelay, 2, 8, 3);
+        this.autoSpawnerLockMouse = other.autoSpawnerLockMouse;
+        this.autoSpawnerRenderEsp = other.autoSpawnerRenderEsp;
+        this.autoSpawnerHudX = other.autoSpawnerHudX;
+        this.autoSpawnerHudY = other.autoSpawnerHudY;
+        this.spawnerAutoSellEnabled = other.spawnerAutoSellEnabled;
+        this.spawnerAutoSellTargetGoldBlock = other.spawnerAutoSellTargetGoldBlock;
+        this.spawnerAutoSellSearchRadius = clampInt(other.spawnerAutoSellSearchRadius, 12, 40, 26);
+        this.spawnerAutoSellLockMouse = other.spawnerAutoSellLockMouse;
+        this.spawnerAutoSellRenderEsp = other.spawnerAutoSellRenderEsp;
+        this.spawnerAutoSellHudX = other.spawnerAutoSellHudX;
+        this.spawnerAutoSellHudY = other.spawnerAutoSellHudY;
         this.noPauseOnLostFocus = other.noPauseOnLostFocus;
         this.itemSuckerEnabled = other.itemSuckerEnabled;
         this.itemSuckerMode = other.itemSuckerMode;
@@ -778,6 +989,17 @@ public class ModConfig {
         this.favoriteModules = new HashSet<>();
         if (other.favoriteModules != null) {
             this.favoriteModules.addAll(other.favoriteModules);
+        }
+        this.customFolders = new ArrayList<>();
+        if (other.customFolders != null) {
+            for (CustomModuleFolder f : other.customFolders) {
+                if (f == null || f.id == null || f.name == null) continue;
+                CustomModuleFolder copy = new CustomModuleFolder();
+                copy.id = f.id;
+                copy.name = f.name;
+                copy.modules = f.modules != null ? new HashSet<>(f.modules) : new HashSet<>();
+                this.customFolders.add(copy);
+            }
         }
     }
 
@@ -845,6 +1067,14 @@ public class ModConfig {
         }
         if (this.autoFishClickDelay < 1 || this.autoFishClickDelay > 15) this.autoFishClickDelay = 5;
         if (this.autoFishRecastDelay < 8 || this.autoFishRecastDelay > 40) this.autoFishRecastDelay = 15;
+        this.autoSpawnerCount = clampInt(this.autoSpawnerCount, 0, 256, 0);
+        this.autoSpawnerSearchRadius = clampInt(this.autoSpawnerSearchRadius, 12, 40, 26);
+        this.autoSpawnerClickDelay = clampInt(this.autoSpawnerClickDelay, 2, 8, 3);
+        if (this.autoSpawnerHudX < -1 || this.autoSpawnerHudX > 4000) this.autoSpawnerHudX = -1;
+        if (this.autoSpawnerHudY < -1 || this.autoSpawnerHudY > 4000) this.autoSpawnerHudY = -1;
+        this.spawnerAutoSellSearchRadius = clampInt(this.spawnerAutoSellSearchRadius, 12, 40, 26);
+        if (this.spawnerAutoSellHudX < -1 || this.spawnerAutoSellHudX > 4000) this.spawnerAutoSellHudX = -1;
+        if (this.spawnerAutoSellHudY < -1 || this.spawnerAutoSellHudY > 4000) this.spawnerAutoSellHudY = -1;
         if (this.itemSuckerMode < 0 || this.itemSuckerMode > 1) this.itemSuckerMode = 0;
         this.itemSuckerRange = clampFloat(this.itemSuckerRange, 2.0f, 16.0f, 6.0f);
         this.itemSuckerSpeed = clampFloat(this.itemSuckerSpeed, 0.15f, 1.00f, 0.35f);
@@ -857,7 +1087,18 @@ public class ModConfig {
         if (this.disablerMode < 0 || this.disablerMode > 1) this.disablerMode = 0;
         if (this.packetMineDelay < 0 || this.packetMineDelay > 5) this.packetMineDelay = 1;
         if (this.lightOverlayRange < 8 || this.lightOverlayRange > 24) this.lightOverlayRange = 16;
-        if (this.clickGuiStyle < 0 || this.clickGuiStyle > 1) this.clickGuiStyle = 1;
+        this.xrayOpacity = XrayHandler.clampOpacity(this.xrayOpacity);
+        if (!this.xrayOpacityDefaultMigrated) {
+            if (this.xrayOpacity == 128 || this.xrayOpacity == 255) {
+                this.xrayOpacity = 0;
+            }
+            this.xrayOpacityDefaultMigrated = true;
+        }
+        if (this.xrayBlocks == null) this.xrayBlocks = XrayHandler.createDefaultBlocks();
+        this.blockEspRange = clampInt(this.blockEspRange, 16, 160, 64);
+        if (this.blockEspDefaultStyle == null) this.blockEspDefaultStyle = new BlockEspHandler.BlockEspStyle();
+        if (this.blockEspBlocks == null) this.blockEspBlocks = XrayHandler.createDefaultBlockEspBlocks();
+        if (this.blockEspPerBlockStyles == null) this.blockEspPerBlockStyles = new HashMap<>();
         if (this.targetVersionName == null) this.targetVersionName = "Auto";
         this.clientChatUrl = SestiaChatProtocol.normalizeWebSocketUrl(this.clientChatUrl);
         if (this.clientChatMuted == null) this.clientChatMuted = "";
@@ -868,8 +1109,14 @@ public class ModConfig {
         if (this.moduleKeybinds == null) this.moduleKeybinds = new HashMap<>();
         if (this.moduleKeybindIsMouse == null) this.moduleKeybindIsMouse = new HashMap<>();
         if (this.favoriteModules == null) this.favoriteModules = new HashSet<>();
+        if (this.customFolders == null) this.customFolders = new ArrayList<>();
+        migrateModuleName("Spawner Auto Sell", "Spawner Mode");
         if (this.keybindsHudX < 0 || this.keybindsHudX > 3000) this.keybindsHudX = 8;
         if (this.keybindsHudY < 0 || this.keybindsHudY > 3000) this.keybindsHudY = 60;
+        if (this.playerListAlign != 1) this.playerListAlign = 0;
+        this.playerListMaxRows = clampInt(this.playerListMaxRows, 4, 40, 20);
+        if (this.playerListX < -1 || this.playerListX > 4000) this.playerListX = -1;
+        if (this.playerListY < -1 || this.playerListY > 4000) this.playerListY = -1;
         if (this.statsHudX < 0 || this.statsHudX > 4000) this.statsHudX = 4;
         if (this.statsHudY < 0 || this.statsHudY > 4000) this.statsHudY = 4;
         if (this.posHudX < -1 || this.posHudX > 4000) this.posHudX = -1;
@@ -880,6 +1127,10 @@ public class ModConfig {
         if (this.itemNotifierX < -1 || this.itemNotifierX > 4000) this.itemNotifierX = -1;
         if (this.itemNotifierY < -1 || this.itemNotifierY > 4000) this.itemNotifierY = -1;
         if (this.clockHudY < -1 || this.clockHudY > 4000) this.clockHudY = -1;
+        if (this.hudWatermarkX < 0 || this.hudWatermarkX > 4000) this.hudWatermarkX = 4;
+        if (this.hudWatermarkY < 0 || this.hudWatermarkY > 4000) this.hudWatermarkY = 4;
+        if (this.hudArrayListX < -1 || this.hudArrayListX > 4000) this.hudArrayListX = -1;
+        if (this.hudArrayListY < -1 || this.hudArrayListY > 4000) this.hudArrayListY = -1;
         this.vmSwingSpeed = clampInt(this.vmSwingSpeed, 0, 100, 0);
         this.vmOffsetX = clampFloat(this.vmOffsetX, -2.0f, 2.0f, 0.0f);
         this.vmOffsetY = clampFloat(this.vmOffsetY, -2.0f, 2.0f, 0.0f);
@@ -893,6 +1144,31 @@ public class ModConfig {
         this.vmSwingX = clampFloat(this.vmSwingX, 0.0f, 2.0f, 1.0f);
         this.vmSwingY = clampFloat(this.vmSwingY, 0.0f, 2.0f, 1.0f);
         this.vmSwingZ = clampFloat(this.vmSwingZ, 0.0f, 2.0f, 1.0f);
+    }
+
+    private void migrateModuleName(String oldName, String newName) {
+        if (this.moduleKeybinds.containsKey(oldName)) {
+            Integer oldKey = this.moduleKeybinds.remove(oldName);
+            if (oldKey != null) {
+                this.moduleKeybinds.putIfAbsent(newName, oldKey);
+            }
+        }
+        if (this.moduleKeybindIsMouse.containsKey(oldName)) {
+            Boolean oldMouse = this.moduleKeybindIsMouse.remove(oldName);
+            if (oldMouse != null) {
+                this.moduleKeybindIsMouse.putIfAbsent(newName, oldMouse);
+            }
+        }
+        if (this.favoriteModules.remove(oldName)) {
+            this.favoriteModules.add(newName);
+        }
+        for (CustomModuleFolder folder : this.customFolders) {
+            if (folder != null && folder.modules != null && folder.modules.remove(oldName)) {
+                if (!folder.modules.contains(newName)) {
+                    folder.modules.add(newName);
+                }
+            }
+        }
     }
 
     private static float clampFloat(float value, float min, float max, float fallback) {
@@ -916,16 +1192,21 @@ public class ModConfig {
                 if (loaded != null) {
                     this.copyFrom(loaded);
                     this.sanitize();
-                    if (this.moduleKeybinds.isEmpty()) {
-                        this.moduleKeybinds.put("Zoom", 67); // C
-                        this.moduleKeybindIsMouse.put("Zoom", false);
+                    this.autoSpawnerEnabled = false;
+                    this.spawnerAutoSellEnabled = false;
+                    if (this.configVersion < 2 && this.moduleKeybinds.isEmpty()) {
                         this.moduleKeybinds.put("Fullbright", 66); // B
                         this.moduleKeybindIsMouse.put("Fullbright", false);
                         this.keybindsHudEnabled = true;
                     }
+                    if (this.configVersion < 3) {
+                        // Zoom uses vanilla KeyMapping ("key.customclient.zoom"), remove legacy orphan bind
+                        this.moduleKeybinds.remove("Zoom");
+                        this.moduleKeybindIsMouse.remove("Zoom");
+                    }
                     this.clientChatEnabled = true;
-                    if (this.configVersion < 2) {
-                        this.configVersion = 2;
+                    if (this.configVersion < 3) {
+                        this.configVersion = 3;
                         save();
                     }
                 }
@@ -933,12 +1214,16 @@ public class ModConfig {
                 e.printStackTrace();
             }
         } else {
-            this.configVersion = 2;
+            this.configVersion = 3;
             save();
         }
     }
 
     public void save() {
+        if (PanicHandler.isPanicActive()) {
+            return;
+        }
+        XrayHandler.invalidateBlockCache();
         File file = getConfigFile();
         try {
             if (!file.getParentFile().exists()) {

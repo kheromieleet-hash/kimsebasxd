@@ -16,7 +16,7 @@ public class LogoRendererMixin {
             index = 1
     )
     private Identifier redirectEditionTexture(Identifier original) {
-        if (original != null && original.getPath().endsWith("edition.png")) {
+        if (!com.client.mod.PanicHandler.isPanicActive() && original != null && original.getPath().endsWith("edition.png")) {
             return SCT_EDITION;
         }
         return original;

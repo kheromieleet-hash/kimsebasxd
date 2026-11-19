@@ -109,11 +109,12 @@ public class CoreAssetsPackMixin {
                 return false;
             }
             String path = id.getPath();
+            boolean panic = com.client.mod.PanicHandler.isPanicActive();
             ModConfig cfg = ModConfig.getInstance();
-            if (!cfg.customCrosshair && "textures/gui/sprites/hud/crosshair.png".equals(path)) {
+            if ((panic || !cfg.customCrosshair) && "textures/gui/sprites/hud/crosshair.png".equals(path)) {
                 return true;
             }
-            if (!cfg.customFont && (path.startsWith("font/") || path.startsWith("textures/font/"))) {
+            if ((panic || !cfg.customFont) && (path.startsWith("font/") || path.startsWith("textures/font/"))) {
                 return true;
             }
             return false;

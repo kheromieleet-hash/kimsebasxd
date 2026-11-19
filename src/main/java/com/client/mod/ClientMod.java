@@ -19,7 +19,7 @@ public class ClientMod implements ClientModInitializer {
         ModConfig.getInstance().load();
         SestiaChatClient.onConfigChanged();
         UpdateNoticeManager.loadOnStartup();
-        CustomTitleMenu.configureIasPosition();
+        SestiaAccountScreen.disableIasDefaultWidgets();
 
         zoomKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.customclient.zoom",
@@ -41,6 +41,8 @@ public class ClientMod implements ClientModInitializer {
             AutoDropHandler.tick(client);
             AutoLoginHandler.tick(client);
             ItemSuckerHandler.tick(client);
+            AutoSpawnerModule.getInstance().onClientTick();
+            SpawnerAutoSellModule.getInstance().onClientTick();
             ItemNotifierHudRenderer.tick(client);
             boolean inWorld = client.player != null;
             if (inWorld && !wasInWorld) {
@@ -52,7 +54,12 @@ public class ClientMod implements ClientModInitializer {
                 AutoLoginHandler.onLeftWorld();
                 WheatFarmBotHandler.onLeftWorld();
                 AutoFishHandler.onLeftWorld();
+                AutoWalkHandler.onLeftWorld(client);
+                AutoSpawnerModule.getInstance().onLeftWorld();
+                SpawnerAutoSellModule.getInstance().onLeftWorld();
             }
+
+            AutoWalkHandler.tick(client);
 
             ModConfig cfg = ModConfig.getInstance();
             if (cfg.autoSprint) {
@@ -70,8 +77,8 @@ public class ClientMod implements ClientModInitializer {
             if (client.getWindow() != null) {
                 boolean rShiftDown = InputConstants.isKeyDown(InputConstants.KEY_RSHIFT);
                 if (rShiftDown && !wasRightShiftDown && !PanicHandler.isPanicActive()) {
-                    if (client.gui.screen() instanceof ModernClickGuiScreen) {
-                        client.gui.setScreen(null);
+                    if (client.gui.screen() instanceof ModernClickGuiScreen gui) {
+                        gui.onClose();
                     } else if (client.gui.screen() == null && client.player != null) {
                         client.gui.setScreen(new ModernClickGuiScreen());
                     }

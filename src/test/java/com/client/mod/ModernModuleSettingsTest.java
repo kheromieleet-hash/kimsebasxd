@@ -62,7 +62,7 @@ public class ModernModuleSettingsTest {
         ModConfig cfg = new ModConfig();
         RecordingActions actions = new RecordingActions();
         List<String> simpleModules = List.of(
-                "HUD Info", "TNT Timer", "Auto Sprint", "Safe Walk",
+                "Fullbright", "TNT Timer", "Auto Sprint", "Safe Walk",
                 "TrueSight", "Item ESP", "No Pitch Limit", "Abort Breaking",
                 "Anti Hunger", "Anti Levitation", "Ghost Hand", "Portal GUI", "Resource Pack Spoof",
                 "Version Switcher", "Unknown Module"
@@ -80,12 +80,12 @@ public class ModernModuleSettingsTest {
         ModConfig cfg = new ModConfig();
         RecordingActions actions = new RecordingActions();
         List<String> configurable = List.of(
-                "Viewmodel", "Inventory HUD+", "Fullbright", "Keybinds HUD",
+                "Viewmodel", "Inventory HUD+", "HUD Info", "Keybinds HUD", "Player List",
                 "Fast Place", "Auto Break", "FastBreak", "Inventory Tweaks",
                 "Auto Replenish", "Fast Use", "Auto Tool", "Auto Crafter",
-                "Better Chat", "Backtrack", "Disabler", "Exploit Guard",
+                "Auto Fish", "Freecam", "Backtrack", "Disabler", "Exploit Guard",
                 "No Mining Trace", "No Slowdown", "Packet Mine", "Ping Spoof",
-                "Chunk Borders", "Light Overlay", "Trajectories"
+                "Chunk Borders", "Light Overlay", "Trajectories", "Xray", "Block ESP"
         );
         for (String name : configurable) {
             List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(name, cfg, actions);
@@ -97,22 +97,9 @@ public class ModernModuleSettingsTest {
 
     private static void testFullbrightControls() {
         ModConfig cfg = new ModConfig();
-        cfg.fullbrightMode = 0;
         RecordingActions actions = new RecordingActions();
         List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls("Fullbright", cfg, actions);
-
-        ModernModuleSettings.CycleControl mode = (ModernModuleSettings.CycleControl) controls.get(0);
-        assert "Natural".equals(mode.valueLabel().get());
-        mode.onCycle().run();
-        assert cfg.fullbrightMode == 1 : "Expected mode 1 after cycle";
-        assert actions.chunkReloads == 1 : "Expected chunk reload on mode cycle";
-
-        cfg.fullbrightMode = 0;
-        ModernModuleSettings.SliderControl brightness = (ModernModuleSettings.SliderControl) controls.get(1);
-        brightness.pctSetter().accept(1.0f);
-        assert Math.abs(cfg.fullbrightBrightness - 1.0f) < 0.001f;
-        assert cfg.fullbrightMode == 1 : "Expected gamma mode enabled when dragging brightness from Natural";
-        assert brightness.needsChunkReload();
+        assert controls.isEmpty() : "Fullbright should remain a direct vanilla max-gamma toggle without inline controls";
     }
 
     private static void testFastBreakModeAndClamp() {
@@ -154,12 +141,12 @@ public class ModernModuleSettingsTest {
 
     private static void testAutoCrafterActionsAndChips() {
         ModConfig cfg = new ModConfig();
+        cfg.setAllAutoCraftTargets(true);
         RecordingActions actions = new RecordingActions();
         List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls("Auto Crafter", cfg, actions);
 
-        ModernModuleSettings.ActionControl selectAll = (ModernModuleSettings.ActionControl) controls.get(2);
-        selectAll.onClick().run();
-        assert cfg.autoCrafterTargets.size() == AutoCrafterHandler.TARGETS.size();
+        ModernModuleSettings.ActionControl pickerAction = (ModernModuleSettings.ActionControl) controls.get(2);
+        assert pickerAction.labelSupplier().get().contains(Integer.toString(AutoCrafterHandler.TARGETS.size()));
 
         ModernModuleSettings.ChipsControl chips = (ModernModuleSettings.ChipsControl) controls.get(3);
         ModernModuleSettings.ChipOption firstChip = chips.options().get(0);
@@ -173,7 +160,7 @@ public class ModernModuleSettingsTest {
         RecordingActions actions = new RecordingActions();
 
         List<ModernModuleSettings.Control> invControls = ModernModuleSettings.getControls("Inventory HUD+", cfg, actions);
-        assert invControls.size() == 8 : "Inventory HUD+ should have 5 toggles, 2 sliders, and 1 Move HUD action";
+        assert invControls.size() == 7 : "Inventory HUD+ should have 5 toggles and 2 sliders";
         for (ModernModuleSettings.Control c : invControls) {
             if (c instanceof ModernModuleSettings.ActionControl ac) {
                 assert !"Open Settings...".equals(ac.labelSupplier().get()) : "Open Settings... must be removed";
@@ -182,10 +169,6 @@ public class ModernModuleSettingsTest {
         ModernModuleSettings.SliderControl alphaSlider = (ModernModuleSettings.SliderControl) invControls.get(6);
         alphaSlider.pctSetter().accept(0.8f);
         assert actions.inv.getBgAlpha() == 80;
-        ModernModuleSettings.ActionControl moveAction = (ModernModuleSettings.ActionControl) invControls.get(7);
-        assert "Move HUD...".equals(moveAction.labelSupplier().get());
-        moveAction.onClick().run();
-        assert actions.invMoveOpened == 1;
     }
 
     private static void testNewExploitModulesControls() {
@@ -285,7 +268,7 @@ public class ModernModuleSettingsTest {
         ModConfig cfg = new ModConfig();
         RecordingActions actions = new RecordingActions();
         List<ModernModuleSettings.Control> vm = ModernModuleSettings.getControls("Viewmodel", cfg, actions);
-        assert vm.size() == 22 : "Expected 22 Viewmodel controls (NoFrills + AirWalker + Item/Player Scale + Reset), got " + vm.size();
+        assert vm.size() == 21 : "Expected 21 Viewmodel controls (NoFrills + AirWalker + Item/Player Scale), got " + vm.size();
 
         ((ModernModuleSettings.ToggleControl) vm.get(0)).setter().accept(true);
         ((ModernModuleSettings.ToggleControl) vm.get(1)).setter().accept(true);
@@ -325,7 +308,7 @@ public class ModernModuleSettingsTest {
         assert Math.abs(cfg.vmSwingY) < 0.001f;
 
         int beforePersist = actions.persistCalls;
-        ((ModernModuleSettings.ActionControl) vm.get(21)).onClick().run();
+        ModernModuleSettings.resetModuleToDefaults("Viewmodel", cfg, actions);
         assert actions.persistCalls == beforePersist + 1;
         assert !cfg.vmNoHaste && !cfg.vmNoEquip && !cfg.vmAirWalker && cfg.vmSwingSpeed == 0;
         assert Math.abs(cfg.itemScale - 1.0f) < 0.001f && Math.abs(cfg.playerScale - 1.0f) < 0.001f;
@@ -337,9 +320,9 @@ public class ModernModuleSettingsTest {
         ModConfig cfg = new ModConfig();
         RecordingActions actions = new RecordingActions();
         List<String> sliderModules = List.of(
-                "Viewmodel", "Inventory HUD+", "Fullbright", "Fast Place", "FastBreak",
+                "Viewmodel", "Inventory HUD+", "Fast Place", "FastBreak",
                 "Inventory Tweaks", "Auto Replenish", "Fast Use", "Auto Crafter",
-                "Backtrack", "Exploit Guard", "Packet Mine", "Ping Spoof", "Light Overlay"
+                "Freecam", "Backtrack", "Exploit Guard", "Packet Mine", "Ping Spoof", "Light Overlay"
         );
         int sliderCount = 0;
         for (String mod : sliderModules) {
@@ -355,7 +338,7 @@ public class ModernModuleSettingsTest {
                 }
             }
         }
-        assert sliderCount >= 25 : "Expected all module sliders tested, got " + sliderCount;
+        assert sliderCount >= 23 : "Expected all module sliders tested, got " + sliderCount;
 
         // Viewmodel floats & int sliders (including commas, exact values, negatives, clamping)
         List<ModernModuleSettings.Control> vm = ModernModuleSettings.getControls("Viewmodel", cfg, actions);
@@ -374,13 +357,6 @@ public class ModernModuleSettingsTest {
 
         ModernModuleSettings.SliderControl rotX = (ModernModuleSettings.SliderControl) vm.get(15);
         assert rotX.textCommitter().test("-45.5") && Math.abs(cfg.vmRotX + 45.5f) < 0.001f;
-
-        // Fullbright percentage slider auto-switches from Natural to Gamma
-        cfg.fullbrightMode = 0;
-        ModernModuleSettings.SliderControl fb =
-                (ModernModuleSettings.SliderControl) ModernModuleSettings.getControls("Fullbright", cfg, actions).get(1);
-        assert fb.textCommitter().test("85%") && Math.abs(cfg.fullbrightBrightness - 0.85f) < 0.001f;
-        assert cfg.fullbrightMode == 1 : "Typing Fullbright brightness should switch from Natural to Gamma mode";
 
         // FastBreak dynamic mode range
         cfg.fastBreakMode = 1; // Vulcan max 1.15x
@@ -403,8 +379,8 @@ public class ModernModuleSettingsTest {
         assert ModernModuleSettings.mapKeyCodeToSliderChar(49, false, true) == 0;
         assert ModernModuleSettings.isInsideSliderValueBox(145, 22, 10, 20, 150, 24);
         assert !ModernModuleSettings.isInsideSliderValueBox(50, 35, 10, 20, 150, 24);
-        assert ModernModuleSettings.matchesSubSetting("Inventory Tweaks", "shulker preview", cfg, actions);
+        assert ModernModuleSettings.matchesSubSetting("Inventory Tweaks", "auto sorting", cfg, actions);
         assert ModernModuleSettings.matchesSubSetting("Viewmodel", "airwalker", cfg, actions);
-        assert !ModernModuleSettings.matchesSubSetting("Viewmodel", "shulker preview", cfg, actions);
+        assert !ModernModuleSettings.matchesSubSetting("Viewmodel", "auto sorting", cfg, actions);
     }
 }

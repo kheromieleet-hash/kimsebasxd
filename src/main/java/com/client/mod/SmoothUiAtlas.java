@@ -16,7 +16,7 @@ final class SmoothUiAtlas {
 
     static final Identifier ATLAS_ID = Identifier.fromNamespaceAndPath("inventoryhud", "smooth_ui_atlas");
     static final int ATLAS_W = 512;
-    static final int ATLAS_H = 512;
+    static final int ATLAS_H = 1024;
     static final int MAX_RADIUS = 12;
     static final int ICON_TEX_SIZE = 40;
     static final int GLOW_TEX_SIZE = 80;
@@ -24,7 +24,6 @@ final class SmoothUiAtlas {
 
     enum IconKind {
         GRID,
-        EYE,
         BOLT,
         SLIDERS,
         TUNE,
@@ -104,19 +103,32 @@ final class SmoothUiAtlas {
             return activeLayout;
         }
 
+        NativeImage image = null;
         try {
-            NativeImage image = new NativeImage(ATLAS_W, ATLAS_H, false);
+            image = new NativeImage(ATLAS_W, ATLAS_H, false);
             for (int y = 0; y < ATLAS_H; y++) {
                 for (int x = 0; x < ATLAS_W; x++) {
                     // Pure white RGB prevents dark edge halos during bilinear filtering
                     image.setPixel(x, y, 0x00FFFFFF);
                 }
             }
-            AtlasLayout built = buildLayout(currentGuiScale, image::setPixel);
+            final NativeImage targetImg = image;
+            AtlasLayout built = buildLayout(currentGuiScale, (px, py, argb) -> {
+                if (px >= 0 && px < ATLAS_W && py >= 0 && py < ATLAS_H) {
+                    targetImg.setPixel(px, py, argb);
+                }
+            });
             mc.getTextureManager().register(ATLAS_ID, new LinearDynamicTexture(image));
+            image = null; // owned by LinearDynamicTexture now
             activeLayout = built;
             return activeLayout;
         } catch (Throwable ignored) {
+            if (image != null) {
+                try {
+                    image.close();
+                } catch (Throwable ignoredClose) {
+                }
+            }
             return null;
         }
     }
@@ -252,13 +264,6 @@ final class SmoothUiAtlas {
                 float bl = sdRoundedBox(x, y, 2.5f, 7.5f, 1.75f, 1.75f, 0.7f);
                 float br = sdRoundedBox(x, y, 7.5f, 7.5f, 1.75f, 1.75f, 0.7f);
                 yield Math.min(Math.min(tl, tr), Math.min(bl, br));
-            }
-            case EYE -> {
-                float top = sdCircle(x, y, 5.0f, 9.55f, 6.45f);
-                float bot = sdCircle(x, y, 5.0f, 0.45f, 6.45f);
-                float contour = Math.abs(Math.max(top, bot)) - 0.56f;
-                float pupil = sdCircle(x, y, 5.0f, 5.0f, 1.5f);
-                yield Math.min(contour, pupil);
             }
             case BOLT -> {
                 float s1 = sdSegment(x, y, 5.8f, 0.9f, 2.2f, 5.2f) - 0.78f;

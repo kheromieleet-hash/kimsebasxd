@@ -148,6 +148,99 @@ public final class ModernModuleSettings {
         return !getControls(modName, cfg, actions).isEmpty();
     }
 
+    /**
+     * Resets all configurable controls (sliders, toggles, cycle modes) of a module back to
+     * fresh ModConfig defaults without per-module duplicate boilerplate.
+     */
+    public static boolean resetModuleToDefaults(String modName, ModConfig cfg, Actions actions) {
+        if (modName == null || cfg == null) {
+            return false;
+        }
+        final boolean[] needsReload = {false};
+        Actions deferredActions = new Actions() {
+            @Override
+            public void persist(boolean reloadChunks) {
+                if (reloadChunks) {
+                    needsReload[0] = true;
+                }
+            }
+
+            @Override
+            public void openInventoryMove() {
+            }
+
+            @Override
+            public InventoryBridge inventory() {
+                return actions != null ? actions.inventory() : null;
+            }
+        };
+
+        List<Control> defaultControls = getControls(modName, new ModConfig(), deferredActions);
+        List<Control> liveControls = getControls(modName, cfg, deferredActions);
+        if (defaultControls.isEmpty()) {
+            return false;
+        }
+
+        boolean changed = false;
+        // Pass 1: restore toggles & cycles first (these can reveal/hide dynamic child controls)
+        for (Control def : defaultControls) {
+            if (def instanceof ToggleControl dt) {
+                for (Control live : liveControls) {
+                    if (live instanceof ToggleControl lt && dt.label().equals(lt.label())) {
+                        boolean defVal = dt.getter().get();
+                        if (lt.getter().get() != defVal) {
+                            lt.setter().accept(defVal);
+                            changed = true;
+                        }
+                        break;
+                    }
+                }
+            } else if (def instanceof CycleControl dc) {
+                for (Control live : liveControls) {
+                    if (live instanceof CycleControl lc && dc.label().equals(lc.label())) {
+                        String target = dc.valueLabel().get();
+                        if (target != null && !target.equals(lc.valueLabel().get())) {
+                            for (int step = 0; step < 24; step++) {
+                                lc.onCycle().run();
+                                if (target.equals(lc.valueLabel().get())) {
+                                    changed = true;
+                                    break;
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Pass 2: re-fetch live controls in case toggles revealed sliders, then restore all sliders
+        liveControls = getControls(modName, cfg, deferredActions);
+        for (Control def : defaultControls) {
+            if (def instanceof SliderControl ds) {
+                for (Control live : liveControls) {
+                    if (live instanceof SliderControl ls && ds.key().equals(ls.key())) {
+                        float defPct = ds.pctGetter().get();
+                        if (Math.abs(ls.pctGetter().get() - defPct) > 0.0005f) {
+                            ls.pctSetter().accept(defPct);
+                            if (ls.needsChunkReload()) {
+                                needsReload[0] = true;
+                            }
+                            changed = true;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        if (actions != null) {
+            actions.persist(needsReload[0]);
+        } else {
+            cfg.save();
+        }
+        return changed;
+    }
+
     public static int computeExpandedHeight(List<Control> controls) {
         if (controls == null || controls.isEmpty()) {
             return 0;
@@ -170,6 +263,7 @@ public final class ModernModuleSettings {
             case "Viewmodel" -> buildViewmodelControls(cfg, actions);
             case "Inventory HUD+" -> buildInventoryHudControls(cfg, actions);
             case "Keybinds HUD" -> buildKeybindsHudControls(cfg, actions);
+            case "Player List" -> buildPlayerListControls(cfg, actions);
             case "HUD Info" -> buildHudInfoControls(cfg, actions);
             case "Fast Place" -> List.of(
                     toggle("Auto Right Click", () -> cfg.fastPlaceAutoRightClick, v -> {
@@ -201,7 +295,7 @@ public final class ModernModuleSettings {
                     toggle("Allow Sneaking", () -> cfg.noStripAllowSneak, v -> cfg.noStripAllowSneak = v, actions, false)
             );
             case "Better Place" -> List.of(
-                    floatSlider("betterPlaceRange", "Place Range", 2.0f, 6.0f, 0.25f, "b",
+                    floatSlider("betterPlaceRange", "Place Range", 2.0f, 6.0f, 4.0f, "%.1fb",
                             () -> cfg.betterPlaceRange, v -> cfg.betterPlaceRange = v)
             );
             case "Auto Wheat Farm" -> buildWheatFarmControls(cfg, actions);
@@ -211,6 +305,21 @@ public final class ModernModuleSettings {
                             () -> cfg.autoFishClickDelay, v -> cfg.autoFishClickDelay = v),
                     intSlider("autoFishRecastDelay", "Recast Delay", 8, 40, "t",
                             () -> cfg.autoFishRecastDelay, v -> cfg.autoFishRecastDelay = v)
+            );
+            case "Auto Spawner" -> buildAutoSpawnerControls(cfg, actions);
+            case "Spawner Mode" -> buildSpawnerAutoSellControls(cfg, actions);
+            case "Auto Walk" -> List.of(
+                    new CycleControl("Direction",
+                            () -> switch (Math.floorMod(cfg.autoWalkDirection, 4)) {
+                                case 1 -> "Backwards";
+                                case 2 -> "Left";
+                                case 3 -> "Right";
+                                default -> "Forwards";
+                            },
+                            () -> {
+                                cfg.autoWalkDirection = (Math.floorMod(cfg.autoWalkDirection, 4) + 1) % 4;
+                                actions.persist(false);
+                            })
             );
             case "New Velocity" -> buildNewVelocityControls(cfg, actions);
             case "Item Sucker" -> buildItemSuckerControls(cfg, actions);
@@ -272,8 +381,11 @@ public final class ModernModuleSettings {
                             () -> cfg.freecamSpeed, v -> cfg.freecamSpeed = v),
                     toggle("Scroll Speed", () -> cfg.freecamScrollSpeed, v -> cfg.freecamScrollSpeed = v, actions, false),
                     toggle("Toggle on Damage", () -> cfg.freecamToggleOnDamage, v -> cfg.freecamToggleOnDamage = v, actions, false),
-                    toggle("Allow Interact", () -> cfg.freecamAllowInteract, v -> cfg.freecamAllowInteract = v, actions, false)
+                    toggle("Allow Interact", () -> cfg.freecamAllowInteract, v -> cfg.freecamAllowInteract = v, actions, false),
+                    toggle("Rotate", () -> cfg.freecamRotate, v -> cfg.freecamRotate = v, actions, false)
             );
+            case "Xray" -> buildXrayControls(cfg, actions);
+            case "Block ESP" -> buildBlockEspControls(cfg, actions);
             default -> List.of();
         };
     }
@@ -304,6 +416,30 @@ public final class ModernModuleSettings {
         );
     }
 
+    private static List<Control> buildPlayerListControls(ModConfig cfg, Actions actions) {
+        return List.of(
+                new CycleControl("Side",
+                        () -> cfg.playerListAlign == 1 ? "Top Left" : "Top Right",
+                        () -> {
+                            cfg.playerListAlign = cfg.playerListAlign == 1 ? 0 : 1;
+                            cfg.playerListX = -1;
+                            cfg.playerListY = -1;
+                            actions.persist(false);
+                        }),
+                toggle("Show Distance", () -> cfg.playerListShowDistance, v -> cfg.playerListShowDistance = v, actions, false),
+                toggle("Show Health", () -> cfg.playerListShowHealth, v -> cfg.playerListShowHealth = v, actions, false),
+                toggle("Ignore NPCs", () -> cfg.playerListIgnoreNpcs, v -> cfg.playerListIgnoreNpcs = v, actions, false),
+                toggle("Auto-Hide", () -> cfg.playerListAutoHide, v -> cfg.playerListAutoHide = v, actions, false),
+                intSlider("playerListMaxRows", "Visible Rows", 4, 40, "",
+                        () -> cfg.playerListMaxRows, v -> cfg.playerListMaxRows = v),
+                new ActionControl(() -> "Reset Position", () -> {
+                    cfg.playerListX = -1;
+                    cfg.playerListY = -1;
+                    actions.persist(false);
+                })
+        );
+    }
+
     private static List<Control> buildHudInfoControls(ModConfig cfg, Actions actions) {
         return List.of(
                 toggle("Show FPS", () -> cfg.hudShowFps, v -> cfg.hudShowFps = v, actions, false),
@@ -313,7 +449,10 @@ public final class ModernModuleSettings {
                 toggle("Show Direction", () -> cfg.hudShowDir, v -> cfg.hudShowDir = v, actions, false),
                 toggle("Show Nether", () -> cfg.hudShowNether, v -> cfg.hudShowNether = v, actions, false),
                 toggle("Show Pos", () -> cfg.hudShowPos, v -> cfg.hudShowPos = v, actions, false),
-                toggle("Show Clock", () -> cfg.hudShowClock, v -> cfg.hudShowClock = v, actions, false)
+                toggle("Show Clock", () -> cfg.hudShowClock, v -> cfg.hudShowClock = v, actions, false),
+                toggle("Unified Glass", () -> cfg.hudUnifiedGlass, v -> cfg.hudUnifiedGlass = v, actions, false),
+                toggle("Watermark", () -> cfg.hudWatermarkEnabled, v -> cfg.hudWatermarkEnabled = v, actions, false),
+                toggle("Active Modules", () -> cfg.hudArrayListEnabled, v -> cfg.hudArrayListEnabled = v, actions, false)
         );
     }
 
@@ -513,7 +652,7 @@ public final class ModernModuleSettings {
                 toggle("Failsafe Alert", () -> cfg.wheatFarmFailsafe, v -> cfg.wheatFarmFailsafe = v, actions, false),
                 intSlider("wheatFarmDelay", "Action Delay", 1, 20, "t",
                         () -> cfg.wheatFarmDelay, v -> cfg.wheatFarmDelay = v),
-                floatSlider("wheatFarmTurnSpeed", "Turn Speed", 5.0f, 30.0f, 1.0f, "°",
+                floatSlider("wheatFarmTurnSpeed", "Turn Speed", 5.0f, 30.0f, 1.0f, "%.0f°",
                         () -> cfg.wheatFarmTurnSpeed, v -> cfg.wheatFarmTurnSpeed = v),
                 new ActionControl(
                         () -> cfg.wheatFarmPos1Set
@@ -591,12 +730,52 @@ public final class ModernModuleSettings {
                             cfg.itemSuckerMode = (cfg.itemSuckerMode + 1) % 2;
                             actions.persist(false);
                         }),
-                floatSlider("itemSuckerRange", "Range", 2.0f, 16.0f, 0.5f, "%.1fm",
+                floatSlider("itemSuckerRange", "Range", 2.0f, 16.0f, 2.0f, "%.1fm",
                         () -> cfg.itemSuckerRange, v -> cfg.itemSuckerRange = v),
-                floatSlider("itemSuckerSpeed", "Move Speed", 0.15f, 1.00f, 0.05f, "%.2f",
+                floatSlider("itemSuckerSpeed", "Move Speed", 0.15f, 1.00f, 20.0f, "%.2f",
                         () -> cfg.itemSuckerSpeed, v -> cfg.itemSuckerSpeed = v),
                 toggle("Only Pickable", () -> cfg.itemSuckerOnlyPickable, v -> cfg.itemSuckerOnlyPickable = v, actions, false),
                 toggle("Only On Ground", () -> cfg.itemSuckerOnlyOnGround, v -> cfg.itemSuckerOnlyOnGround = v, actions, false)
+        );
+    }
+
+    private static List<Control> buildAutoSpawnerControls(ModConfig cfg, Actions actions) {
+        return List.of(
+                new SliderControl("autoSpawnerCount", "Spawner Count",
+                        () -> cfg.autoSpawnerCount / 256.0f,
+                        pct -> cfg.autoSpawnerCount = clampInt(Math.round(pct * 256.0f), 0, 256),
+                        () -> cfg.autoSpawnerCount <= 0 ? "Auto" : Integer.toString(cfg.autoSpawnerCount),
+                        false,
+                        () -> Integer.toString(cfg.autoSpawnerCount),
+                        raw -> {
+                            String trimmed = raw == null ? "" : raw.trim();
+                            if ("auto".equalsIgnoreCase(trimmed)) {
+                                cfg.autoSpawnerCount = 0;
+                                return true;
+                            }
+                            return parseAndApplyInt(trimmed, 0, 256, v -> cfg.autoSpawnerCount = v);
+                        }),
+                intSlider("autoSpawnerSearchRadius", "Search Radius", 12, 40, "b",
+                        () -> cfg.autoSpawnerSearchRadius, v -> cfg.autoSpawnerSearchRadius = v),
+                intSlider("autoSpawnerClickDelay", "Click Delay", 2, 8, "t",
+                        () -> cfg.autoSpawnerClickDelay, v -> cfg.autoSpawnerClickDelay = v),
+                toggle("Lock Mouse", () -> cfg.autoSpawnerLockMouse, v -> cfg.autoSpawnerLockMouse = v, actions, false),
+                toggle("Render ESP", () -> cfg.autoSpawnerRenderEsp, v -> cfg.autoSpawnerRenderEsp = v, actions, false)
+        );
+    }
+
+    private static List<Control> buildSpawnerAutoSellControls(ModConfig cfg, Actions actions) {
+        return List.of(
+                new CycleControl("Target",
+                        () -> cfg.spawnerAutoSellTargetGoldBlock ? "Gold Block (ON)" : "Gold Nugget (OFF)",
+                        () -> {
+                            cfg.spawnerAutoSellTargetGoldBlock = !cfg.spawnerAutoSellTargetGoldBlock;
+                            actions.persist(false);
+                        }),
+                intSlider("spawnerAutoSellSearchRadius", "Search Radius", 12, 40, "b",
+                        () -> cfg.spawnerAutoSellSearchRadius, v -> cfg.spawnerAutoSellSearchRadius = v),
+                toggle("Lock Mouse", () -> cfg.spawnerAutoSellLockMouse, v -> cfg.spawnerAutoSellLockMouse = v, actions, false),
+                toggle("Render ESP", () -> cfg.spawnerAutoSellRenderEsp, v -> cfg.spawnerAutoSellRenderEsp = v, actions, false)
         );
     }
 
@@ -687,31 +866,69 @@ public final class ModernModuleSettings {
                 floatSlider("vmRotZ", "Rotation Z", -180.0f, 180.0f, 2.0f, "%.1f°", () -> cfg.vmRotZ, v -> cfg.vmRotZ = v),
                 floatSlider("vmSwingX", "Swing X", 0.0f, 2.0f, 100.0f, "%.2fx", () -> cfg.vmSwingX, v -> cfg.vmSwingX = v),
                 floatSlider("vmSwingY", "Swing Y", 0.0f, 2.0f, 100.0f, "%.2fx", () -> cfg.vmSwingY, v -> cfg.vmSwingY = v),
-                floatSlider("vmSwingZ", "Swing Z", 0.0f, 2.0f, 100.0f, "%.2fx", () -> cfg.vmSwingZ, v -> cfg.vmSwingZ = v),
-                new ActionControl(() -> "Reset Defaults", () -> {
-                    cfg.vmNoHaste = false;
-                    cfg.vmNoEquip = false;
-                    cfg.vmApplyToHand = false;
-                    cfg.vmNoBowSwing = false;
-                    cfg.vmNoSwingReset = false;
-                    cfg.vmAirWalker = false;
-                    cfg.itemScale = 1.0f;
-                    cfg.playerScale = 1.0f;
-                    cfg.vmSwingSpeed = 0;
-                    cfg.vmOffsetX = 0.0f;
-                    cfg.vmOffsetY = 0.0f;
-                    cfg.vmOffsetZ = 0.0f;
-                    cfg.vmScaleX = 1.0f;
-                    cfg.vmScaleY = 1.0f;
-                    cfg.vmScaleZ = 1.0f;
-                    cfg.vmRotX = 0.0f;
-                    cfg.vmRotY = 0.0f;
-                    cfg.vmRotZ = 0.0f;
-                    cfg.vmSwingX = 1.0f;
-                    cfg.vmSwingY = 1.0f;
-                    cfg.vmSwingZ = 1.0f;
-                    actions.persist(false);
-                })
+                floatSlider("vmSwingZ", "Swing Z", 0.0f, 2.0f, 100.0f, "%.2fx", () -> cfg.vmSwingZ, v -> cfg.vmSwingZ = v)
+        );
+    }
+
+    private static List<Control> buildXrayControls(ModConfig cfg, Actions actions) {
+        return List.of(
+                intSlider("xrayOpacity", "Opacity", 0, 255, "",
+                        () -> cfg.xrayOpacity, v -> cfg.xrayOpacity = XrayHandler.clampOpacity(v), true),
+                toggle("Exposed Only", () -> cfg.xrayExposedOnly, v -> cfg.xrayExposedOnly = v, actions, true),
+                new ActionControl(
+                        () -> {
+                            int n = cfg.xrayBlocks != null ? cfg.xrayBlocks.size() : 0;
+                            return "Select Blocks (" + n + ")...";
+                        },
+                        () -> {
+                            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+                            mc.gui.setScreen(CatalogBlockPickerScreen.forXray(mc.gui.screen(), cfg));
+                        })
+        );
+    }
+
+    private static final int[] ESP_COLOR_VALUES = {0x00D4FF, 0x22C55E, 0xEF4444, 0xF59E0B, 0xA855F7, 0xEC4899, 0x3B82F6, 0xFFFFFF};
+    private static final String[] ESP_COLOR_NAMES = {"Cyan", "Green", "Red", "Amber", "Violet", "Pink", "Blue", "White"};
+
+    private static int findEspColorIndex(int rgb) {
+        for (int i = 0; i < ESP_COLOR_VALUES.length; i++) {
+            if (ESP_COLOR_VALUES[i] == rgb) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    private static List<Control> buildBlockEspControls(ModConfig cfg, Actions actions) {
+        if (cfg.blockEspDefaultStyle == null) {
+            cfg.blockEspDefaultStyle = new BlockEspHandler.BlockEspStyle();
+        }
+        return List.of(
+                intSlider("blockEspRange", "Range", 16, 160, "b",
+                        () -> cfg.blockEspRange, v -> cfg.blockEspRange = v),
+                new CycleControl("Shape Mode",
+                        () -> cfg.blockEspDefaultStyle.resolveShapeMode().label,
+                        () -> {
+                            cfg.blockEspDefaultStyle.shapeMode = cfg.blockEspDefaultStyle.resolveShapeMode().next().label;
+                            actions.persist(false);
+                        }),
+                new CycleControl("Default Color",
+                        () -> ESP_COLOR_NAMES[findEspColorIndex(cfg.blockEspDefaultStyle.rgb())],
+                        () -> {
+                            int next = (findEspColorIndex(cfg.blockEspDefaultStyle.rgb()) + 1) % ESP_COLOR_VALUES.length;
+                            cfg.blockEspDefaultStyle.setColorRGB(ESP_COLOR_VALUES[next]);
+                            actions.persist(false);
+                        }),
+                toggle("Tracers", () -> cfg.blockEspDefaultStyle.tracer, v -> cfg.blockEspDefaultStyle.tracer = v, actions, false),
+                new ActionControl(
+                        () -> {
+                            int n = cfg.blockEspBlocks != null ? cfg.blockEspBlocks.size() : 0;
+                            return "Select & Style Blocks (" + n + ")...";
+                        },
+                        () -> {
+                            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+                            mc.gui.setScreen(CatalogBlockPickerScreen.forBlockEsp(mc.gui.screen(), cfg));
+                        })
         );
     }
 
@@ -726,6 +943,13 @@ public final class ModernModuleSettings {
     private static SliderControl intSlider(String key, String label, int min, int max, String unit,
                                            java.util.function.IntSupplier getter,
                                            java.util.function.IntConsumer setter) {
+        return intSlider(key, label, min, max, unit, getter, setter, false);
+    }
+
+    private static SliderControl intSlider(String key, String label, int min, int max, String unit,
+                                           java.util.function.IntSupplier getter,
+                                           java.util.function.IntConsumer setter,
+                                           boolean needsChunkReload) {
         float span = Math.max(1, max - min);
         return new SliderControl(
                 key,
@@ -733,7 +957,7 @@ public final class ModernModuleSettings {
                 () -> (getter.getAsInt() - min) / span,
                 pct -> setter.accept(clampInt(Math.round(min + pct * span), min, max)),
                 () -> getter.getAsInt() + unit,
-                false,
+                needsChunkReload,
                 () -> Integer.toString(getter.getAsInt()),
                 raw -> parseAndApplyInt(raw, min, max, setter)
         );
@@ -863,7 +1087,7 @@ public final class ModernModuleSettings {
         }
         while (!res.isEmpty()) {
             char last = res.charAt(res.length() - 1);
-            if (last == 'x' || last == '°' || last == 't' || last == '%') {
+            if (last == 'x' || last == '°' || last == 't' || last == '%' || last == 'm' || last == 'b') {
                 res = res.substring(0, res.length() - 1);
             } else {
                 break;
@@ -900,7 +1124,7 @@ public final class ModernModuleSettings {
         s = s.replace("ms", "");
         while (!s.isEmpty()) {
             char last = s.charAt(s.length() - 1);
-            if (last == 'x' || last == 't' || last == '%' || last == '°' || last == ' ') {
+            if (last == 'x' || last == 't' || last == '%' || last == '°' || last == 'm' || last == 'b' || last == ' ') {
                 s = s.substring(0, s.length() - 1);
             } else {
                 break;

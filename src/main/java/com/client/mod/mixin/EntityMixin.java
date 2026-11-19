@@ -1,8 +1,8 @@
 package com.client.mod.mixin;
 
 import com.client.mod.ModConfig;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -23,7 +23,7 @@ public abstract class EntityMixin {
 
     @Inject(method = "setXRot", at = @At("HEAD"), cancellable = true)
     private void onSetXRot(float pitch, CallbackInfo ci) {
-        if ((Object) this instanceof Player && ModConfig.getInstance().noPitchLimit) {
+        if ((Object) this instanceof LocalPlayer && ModConfig.getInstance().noPitchLimit) {
             if (Float.isFinite(pitch)) {
                 this.xRot = pitch;
             }
@@ -33,7 +33,7 @@ public abstract class EntityMixin {
 
     @Inject(method = "turn", at = @At("HEAD"), cancellable = true)
     private void onTurn(double yRot, double xRot, CallbackInfo ci) {
-        if ((Object) this instanceof Player && ModConfig.getInstance().noPitchLimit) {
+        if ((Object) this instanceof LocalPlayer && ModConfig.getInstance().noPitchLimit) {
             float f = (float) xRot * 0.15F;
             float g = (float) yRot * 0.15F;
             this.setXRot(this.getXRot() + f);

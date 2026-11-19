@@ -84,12 +84,33 @@ public class KeybindsHudRenderer {
             return;
         }
 
-        renderBox(graphics, mc.font, config.keybindsHudX, config.keybindsHudY, -1, -1, false, false);
+        renderBoxWithItems(graphics, mc.font, config.keybindsHudX, resolveDefaultY(config), -1, -1, false, false, config, items);
+    }
+
+    public static int resolveDefaultY(ModConfig config) {
+        if (config != null && config.keybindsHudX == 8 && config.keybindsHudY == 60
+                && config.hudWatermarkEnabled && config.hudInfoEnabled && config.hudTelemetryEnabled) {
+            return 74;
+        }
+        return config != null ? config.keybindsHudY : 60;
     }
 
     public static void renderBox(GuiGraphicsExtractor graphics, Font font, int x, int y, int mouseX, int mouseY, boolean isHoveredOrDragging, boolean isGuiOpen) {
-        ModConfig config = ModConfig.getInstance();
-        List<BoundDisplayItem> items = getBoundItems();
+        renderBoxWithItems(graphics, font, x, y, mouseX, mouseY, isHoveredOrDragging, isGuiOpen, ModConfig.getInstance(), getBoundItems());
+    }
+
+    private static void renderBoxWithItems(
+            GuiGraphicsExtractor graphics,
+            Font font,
+            int x,
+            int y,
+            int mouseX,
+            int mouseY,
+            boolean isHoveredOrDragging,
+            boolean isGuiOpen,
+            ModConfig config,
+            List<BoundDisplayItem> items
+    ) {
         int width = calculateWidth(font, items);
         int rows = items.isEmpty() ? 1 : items.size();
         int bodyH = HEADER_HEIGHT + rows * ROW_HEIGHT + 4;
@@ -100,11 +121,15 @@ public class KeybindsHudRenderer {
         y = Mth.clamp(y, 2, Math.max(2, screenH - bodyH - 2));
 
         // 1. Soft rounded glass frame & outline
-        int shadowColor = isHoveredOrDragging ? 0x88E53935 : 0x55242431;
-        JelloTheme.fillRoundedCard(graphics, x, y, x + width, y + bodyH, 5, 0xD8120B0E, shadowColor);
+        boolean unified = config.hudUnifiedGlass;
+        int cardBg = unified ? JelloTheme.hudCardBackground() : 0xD8120B0E;
+        int shadowColor = isHoveredOrDragging
+                ? (unified ? JelloTheme.hudCardBorder(true) : 0x88E53935)
+                : (unified ? JelloTheme.hudCardBorder(false) : 0x55242431);
+        JelloTheme.fillRoundedCard(graphics, x, y, x + width, y + bodyH, 5, cardBg, shadowColor);
 
-        // 2. Header fill + dual-gradient accent line (Crimson -> Scarlet)
-        int headerBg = isHoveredOrDragging ? 0xFA261217 : 0xF0140B0E;
+        // 2. Header fill + dual-gradient accent line (Theme Accent -> Hover)
+        int headerBg = unified ? JelloTheme.hudHeaderBackground(isHoveredOrDragging) : (isHoveredOrDragging ? 0xFA261217 : 0xF0140B0E);
         JelloTheme.fillRoundedTop(graphics, x + 1, y + 1, x + width - 1, y + HEADER_HEIGHT, 4, headerBg);
         int halfW = width / 2;
         JelloTheme.fill(graphics, x + 1, y + HEADER_HEIGHT - 1, x + halfW, y + HEADER_HEIGHT, JelloTheme.ACCENT);
@@ -115,27 +140,32 @@ public class KeybindsHudRenderer {
         int groupW = 12 + titleW;
         int groupX = x + (width - groupW) / 2;
         ModernIcons.drawKeyboardIcon(graphics, groupX, y + 3, JelloTheme.ACCENT);
-        JelloTheme.text(graphics, font, "§fKeybinds", groupX + 12, y + 4, 0xFFFFFFFF);
+        int headerTextCol = unified ? JelloTheme.TEXT : 0xFFFFFFFF;
+        JelloTheme.text(graphics, font, "Keybinds", groupX + 12, y + 4, headerTextCol);
 
         // 7. Rows
         int curY = y + HEADER_HEIGHT + 3;
         if (items.isEmpty()) {
             String emptyMsg = config.keybindsHudOnlyActive ? "No Binds Active" : "No Binds Set";
-            JelloTheme.textCentered(graphics, font, emptyMsg, x + width / 2, curY + 2, JelloTheme.TEXT_DIM);
+            JelloTheme.textCentered(graphics, font, emptyMsg, x + width / 2, curY + 2, unified ? JelloTheme.TEXT_MUTED : JelloTheme.TEXT_DIM);
         } else {
             for (BoundDisplayItem item : items) {
                 // Status dot (bright green when active, subtle dim dot when inactive)
-                int dotColor = item.active ? 0xFF00FF66 : 0x44FFFFFF;
+                int dotColor = item.active ? 0xFF00FF66 : (unified ? JelloTheme.TEXT_MUTED : 0x44FFFFFF);
                 JelloTheme.fill(graphics, x + 5, curY + 4, x + 7, curY + 6, dotColor);
 
                 // Module name
-                int nameColor = item.active ? 0xFFFFFFFF : 0x88CCCCCC;
+                int nameColor = item.active
+                        ? (unified ? JelloTheme.TEXT : 0xFFFFFFFF)
+                        : (unified ? JelloTheme.TEXT_MUTED : 0x88CCCCCC);
                 JelloTheme.text(graphics, font, item.name, x + 11, curY + 2, nameColor);
 
                 // Key tag
                 int tagW = font.width(item.keyTag);
                 int tagX = x + width - 5 - tagW;
-                int tagColor = item.active ? JelloTheme.ACCENT : 0x66FFFFFF;
+                int tagColor = item.active
+                        ? JelloTheme.ACCENT
+                        : (unified ? JelloTheme.TEXT_MUTED : 0x66FFFFFF);
                 JelloTheme.text(graphics, font, item.keyTag, tagX, curY + 2, tagColor);
 
                 curY += ROW_HEIGHT;

@@ -82,18 +82,45 @@ public abstract class MinecraftMixin {
 
     @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
     private void onStartAttackFreecam(CallbackInfoReturnable<Boolean> cir) {
-        if (com.client.mod.FreecamHandler.isActive() && !ModConfig.getInstance().freecamAllowInteract) {
+        boolean freecamActive = com.client.mod.FreecamHandler.isActive();
+        ModConfig cfg = ModConfig.getInstance();
+        if (!com.client.mod.FreecamHandler.shouldAllowWorldInteraction(freecamActive, cfg.freecamAllowInteract)) {
             cir.setReturnValue(false);
+            return;
+        }
+        if (freecamActive && cfg.freecamAllowInteract) {
+            com.client.mod.FreecamHandler.sendSilentInteractRotationIfEnabled(this.player, this.hitResult);
+        }
+    }
+
+    @Inject(method = "continueAttack", at = @At("HEAD"), cancellable = true)
+    private void onContinueAttackFreecam(boolean leftClick, CallbackInfo ci) {
+        boolean freecamActive = com.client.mod.FreecamHandler.isActive();
+        ModConfig cfg = ModConfig.getInstance();
+        if (!com.client.mod.FreecamHandler.shouldAllowWorldInteraction(freecamActive, cfg.freecamAllowInteract)) {
+            if (this.gameMode != null && this.gameMode.isDestroying()) {
+                this.gameMode.stopDestroyBlock();
+            }
+            ci.cancel();
+            return;
+        }
+        if (leftClick && freecamActive && cfg.freecamAllowInteract) {
+            com.client.mod.FreecamHandler.sendSilentInteractRotationIfEnabled(this.player, this.hitResult);
         }
     }
 
     @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
     private void onStartUseItemGhostHand(CallbackInfo ci) {
-        if (com.client.mod.FreecamHandler.isActive() && !ModConfig.getInstance().freecamAllowInteract) {
+        boolean freecamActive = com.client.mod.FreecamHandler.isActive();
+        ModConfig cfg = ModConfig.getInstance();
+        if (!com.client.mod.FreecamHandler.shouldAllowWorldInteraction(freecamActive, cfg.freecamAllowInteract)) {
             ci.cancel();
             return;
         }
-        if (com.client.mod.ModConfig.getInstance().ghostHand
+        if (freecamActive && cfg.freecamAllowInteract) {
+            com.client.mod.FreecamHandler.sendSilentInteractRotationIfEnabled(this.player, this.hitResult);
+        }
+        if (cfg.ghostHand
                 && this.gameMode != null && this.player != null && this.level != null
                 && !this.gameMode.isDestroying() && !this.player.isHandsBusy()
                 && com.client.mod.GhostHandHandler.tryInteractThroughBlocks(this.player, this.level, this.gameMode, this.hitResult)) {
@@ -207,7 +234,10 @@ public abstract class MinecraftMixin {
 
             // Auto Break logic
             boolean shouldBreak = false;
-            if (cfg.autoBreakEnabled && this.player != null && this.level != null
+            if (cfg.autoBreakEnabled
+                    && com.client.mod.FreecamHandler.shouldAllowWorldInteraction(
+                            com.client.mod.FreecamHandler.isActive(), cfg.freecamAllowInteract)
+                    && this.player != null && this.level != null
                     && this.gui != null && this.gui.screen() == null
                     && this.hitResult instanceof BlockHitResult blockHit
                     && blockHit.getType() == HitResult.Type.BLOCK) {

@@ -26,17 +26,27 @@ public abstract class MultiplayerScreenMixin extends Screen {
 
     @Inject(method = "repositionElements", at = @At("HEAD"))
     private void onRepositionElementsHead(CallbackInfo ci) {
-        disableIasDefaultWidgets();
+        if (com.client.mod.PanicHandler.isPanicActive()) {
+            return;
+        }
+        com.client.mod.SestiaAccountScreen.disableIasDefaultWidgets();
     }
 
     @Inject(method = "repositionElements", at = @At("TAIL"))
     private void onRepositionElementsTail(CallbackInfo ci) {
-        disableIasDefaultWidgets();
+        if (com.client.mod.PanicHandler.isPanicActive()) {
+            return;
+        }
+        com.client.mod.SestiaAccountScreen.disableIasDefaultWidgets();
 
-        // Remove any default IAS icon buttons (smileys/arrows)
+        // Remove any default IAS icon buttons (smileys/arrows) without stripping other mods' buttons
         for (GuiEventListener child : new ArrayList<>(this.children())) {
-            if (child instanceof ImageButton) {
-                this.removeWidget(child);
+            if (child instanceof ImageButton ib) {
+                String cls = ib.getClass().getName();
+                String msg = ib.getMessage() != null ? ib.getMessage().getString().toLowerCase(java.util.Locale.ROOT) : "";
+                if (cls.startsWith("ru.vidtu.ias.") || msg.contains("account switcher") || msg.contains("ias")) {
+                    this.removeWidget(child);
+                }
             }
         }
 
@@ -81,6 +91,9 @@ public abstract class MultiplayerScreenMixin extends Screen {
 
     @Inject(method = "tick", at = @At("HEAD"))
     private void onTick(CallbackInfo ci) {
+        if (com.client.mod.PanicHandler.isPanicActive()) {
+            return;
+        }
         if (this.customVersionButton != null) {
             com.client.mod.ModConfig config = com.client.mod.ModConfig.getInstance();
             String verLabel = "Version: " + (config != null ? config.getDisplayVersion() : "Auto");
@@ -95,26 +108,8 @@ public abstract class MultiplayerScreenMixin extends Screen {
     }
 
     @Unique
-    private void disableIasDefaultWidgets() {
-        try {
-            Class<?> cfgCls = Class.forName("ru.vidtu.ias.config.IASConfig");
-            cfgCls.getField("serversButton").setBoolean(null, false);
-            cfgCls.getField("titleButton").setBoolean(null, false);
-            cfgCls.getField("serversText").setBoolean(null, false);
-            cfgCls.getField("titleText").setBoolean(null, false);
-        } catch (Throwable ignored) {
-        }
-    }
-
-    @Unique
     private void openAccountScreen() {
         if (this.minecraft == null) return;
-        try {
-            Class<?> cls = Class.forName("ru.vidtu.ias.screen.AccountScreen");
-            Screen s = (Screen) cls.getConstructor(Screen.class).newInstance(this);
-            this.minecraft.gui.setScreen(s);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
+        this.minecraft.gui.setScreen(new com.client.mod.SestiaAccountScreen(this));
     }
 }

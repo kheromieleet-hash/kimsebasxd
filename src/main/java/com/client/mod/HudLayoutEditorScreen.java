@@ -25,6 +25,11 @@ public class HudLayoutEditorScreen extends Screen {
     private enum HudTarget {
         NONE,
         KEYBINDS,
+        WATERMARK,
+        ARRAY_LIST,
+        PLAYER_LIST,
+        AUTO_SPAWNER,
+        SPAWNER_MODE,
         STATS,
         POSITION,
         CLOCK,
@@ -38,6 +43,8 @@ public class HudLayoutEditorScreen extends Screen {
     private HudTarget dragging = HudTarget.NONE;
     private int dragOffsetX = 0;
     private int dragOffsetY = 0;
+    private Integer activeGuideX = null;
+    private Integer activeGuideY = null;
 
     public HudLayoutEditorScreen(Screen parent) {
         super(Component.literal("HUD Layout Editor"));
@@ -82,6 +89,26 @@ public class HudLayoutEditorScreen extends Screen {
                 0x55FF1E2D, 0xFFFF4B5C
         );
 
+        int[] wmBounds = WatermarkArrayListHudRenderer.resolveWatermarkBounds(this.font, this.width, this.height, config);
+        drawDraggableBox(
+                graphics, mouseX, mouseY,
+                wmBounds[0], wmBounds[1], wmBounds[2], wmBounds[3],
+                "Watermark",
+                config.hudWatermarkEnabled,
+                this.dragging == HudTarget.WATERMARK,
+                0x55EF4444, 0xFFF87171
+        );
+
+        int[] arrBounds = WatermarkArrayListHudRenderer.resolveArrayListBounds(this.font, this.width, this.height, config);
+        drawDraggableBox(
+                graphics, mouseX, mouseY,
+                arrBounds[0], arrBounds[1], arrBounds[2], arrBounds[3],
+                "Modules",
+                config.hudArrayListEnabled,
+                this.dragging == HudTarget.ARRAY_LIST,
+                0x488B5CF6, 0xDDA78BFA
+        );
+
         drawDraggableBox(
                 graphics, mouseX, mouseY,
                 statsBounds[0], statsBounds[1], statsBounds[2], statsBounds[3],
@@ -118,6 +145,36 @@ public class HudLayoutEditorScreen extends Screen {
                 config.itemNotifierEnabled,
                 this.dragging == HudTarget.ITEM_NOTIFIER,
                 0x4810B981, 0xDD34D399
+        );
+
+        int[] playerListBounds = PlayerListHudRenderer.resolveBounds(this.font, this.width, this.height, config);
+        drawDraggableBox(
+                graphics, mouseX, mouseY,
+                playerListBounds[0], playerListBounds[1], playerListBounds[2], playerListBounds[3],
+                "Player List",
+                config.playerListEnabled,
+                this.dragging == HudTarget.PLAYER_LIST,
+                0x4806B6D4, 0xDD22D3EE
+        );
+
+        int[] autoSpawnerBounds = AutoSpawnerModule.resolveHudBounds(this.font, this.width, this.height, config);
+        drawDraggableBox(
+                graphics, mouseX, mouseY,
+                autoSpawnerBounds[0], autoSpawnerBounds[1], autoSpawnerBounds[2], autoSpawnerBounds[3],
+                "Auto Spawner",
+                config.autoSpawnerEnabled,
+                this.dragging == HudTarget.AUTO_SPAWNER,
+                0x48F43F5E, 0xDDFB7185
+        );
+
+        int[] spawnerModeBounds = SpawnerAutoSellModule.resolveHudBounds(this.font, this.width, this.height, config, true);
+        drawDraggableBox(
+                graphics, mouseX, mouseY,
+                spawnerModeBounds[0], spawnerModeBounds[1], spawnerModeBounds[2], spawnerModeBounds[3],
+                "Spawner Mode",
+                config.spawnerAutoSellEnabled,
+                this.dragging == HudTarget.SPAWNER_MODE,
+                0x48F59E0B, 0xDDFBBF24
         );
 
         // Inventory HUD+ overlays (Inventory, Potions, Armor)
@@ -209,29 +266,56 @@ public class HudLayoutEditorScreen extends Screen {
     }
 
     private boolean handleRightClickAt(int mouseX, int mouseY) {
+        if (isInside(mouseX, mouseY, getResetButtonBounds()) || isInside(mouseX, mouseY, getDoneButtonBounds())) {
+            return false;
+        }
         ModConfig config = ModConfig.getInstance();
 
-        if (isInside(mouseX, mouseY, getKeybindsBounds(config))) {
-            config.keybindsHudEnabled = !config.keybindsHudEnabled;
-            config.save();
+        // Hit-test in reverse draw order so topmost overlay receives the click.
+        int[] arm = getArmorBounds();
+        if (arm != null && isInside(mouseX, mouseY, arm)) {
+            toggleInventoryComponent(config, HudTarget.ARMOR);
             return true;
         }
-        if (isInside(mouseX, mouseY, StatsHudRenderer.resolveStatsBounds(this.font, this.width, this.height, config))) {
-            if (!config.hudInfoEnabled) {
-                config.hudInfoEnabled = true;
-                config.hudTelemetryEnabled = true;
-            } else {
-                config.hudTelemetryEnabled = !config.hudTelemetryEnabled;
+        int[] pot = getPotionsBounds();
+        if (pot != null && isInside(mouseX, mouseY, pot)) {
+            toggleInventoryComponent(config, HudTarget.POTIONS);
+            return true;
+        }
+        int[] inv = getInventoryBounds(config);
+        if (inv != null && isInside(mouseX, mouseY, inv)) {
+            toggleInventoryComponent(config, HudTarget.INVENTORY);
+            return true;
+        }
+        if (isInside(mouseX, mouseY, SpawnerAutoSellModule.resolveHudBounds(this.font, this.width, this.height, config, true))) {
+            boolean next = !config.spawnerAutoSellEnabled;
+            config.spawnerAutoSellEnabled = next;
+            SpawnerAutoSellModule mod = SpawnerAutoSellModule.getInstance();
+            if (mod != null) {
+                mod.setEnabledFromConfig(next);
             }
             config.save();
             return true;
         }
-        if (isInside(mouseX, mouseY, StatsHudRenderer.resolvePositionBounds(this.font, this.width, this.height, config))) {
-            if (!config.hudInfoEnabled) {
-                config.hudInfoEnabled = true;
-                config.hudPositionEnabled = true;
-            } else {
-                config.hudPositionEnabled = !config.hudPositionEnabled;
+        if (isInside(mouseX, mouseY, AutoSpawnerModule.resolveHudBounds(this.font, this.width, this.height, config))) {
+            boolean next = !config.autoSpawnerEnabled;
+            config.autoSpawnerEnabled = next;
+            AutoSpawnerModule mod = AutoSpawnerModule.getInstance();
+            if (mod != null) {
+                mod.setEnabledFromConfig(next);
+            }
+            config.save();
+            return true;
+        }
+        if (isInside(mouseX, mouseY, PlayerListHudRenderer.resolveBounds(this.font, this.width, this.height, config))) {
+            config.playerListEnabled = !config.playerListEnabled;
+            config.save();
+            return true;
+        }
+        if (isInside(mouseX, mouseY, ItemNotifierHudRenderer.resolveBounds(this.font, this.width, this.height, config))) {
+            config.itemNotifierEnabled = !config.itemNotifierEnabled;
+            if (!config.itemNotifierEnabled) {
+                ItemNotifierHudRenderer.reset();
             }
             config.save();
             return true;
@@ -246,27 +330,39 @@ public class HudLayoutEditorScreen extends Screen {
             config.save();
             return true;
         }
-        if (isInside(mouseX, mouseY, ItemNotifierHudRenderer.resolveBounds(this.font, this.width, this.height, config))) {
-            config.itemNotifierEnabled = !config.itemNotifierEnabled;
-            if (!config.itemNotifierEnabled) {
-                ItemNotifierHudRenderer.reset();
+        if (isInside(mouseX, mouseY, StatsHudRenderer.resolvePositionBounds(this.font, this.width, this.height, config))) {
+            if (!config.hudInfoEnabled) {
+                config.hudInfoEnabled = true;
+                config.hudPositionEnabled = true;
+            } else {
+                config.hudPositionEnabled = !config.hudPositionEnabled;
             }
             config.save();
             return true;
         }
-        int[] inv = getInventoryBounds(config);
-        if (inv != null && isInside(mouseX, mouseY, inv)) {
-            toggleInventoryComponent(config, HudTarget.INVENTORY);
+        if (isInside(mouseX, mouseY, StatsHudRenderer.resolveStatsBounds(this.font, this.width, this.height, config))) {
+            if (!config.hudInfoEnabled) {
+                config.hudInfoEnabled = true;
+                config.hudTelemetryEnabled = true;
+            } else {
+                config.hudTelemetryEnabled = !config.hudTelemetryEnabled;
+            }
+            config.save();
             return true;
         }
-        int[] pot = getPotionsBounds();
-        if (pot != null && isInside(mouseX, mouseY, pot)) {
-            toggleInventoryComponent(config, HudTarget.POTIONS);
+        if (isInside(mouseX, mouseY, WatermarkArrayListHudRenderer.resolveArrayListBounds(this.font, this.width, this.height, config))) {
+            config.hudArrayListEnabled = !config.hudArrayListEnabled;
+            config.save();
             return true;
         }
-        int[] arm = getArmorBounds();
-        if (arm != null && isInside(mouseX, mouseY, arm)) {
-            toggleInventoryComponent(config, HudTarget.ARMOR);
+        if (isInside(mouseX, mouseY, WatermarkArrayListHudRenderer.resolveWatermarkBounds(this.font, this.width, this.height, config))) {
+            config.hudWatermarkEnabled = !config.hudWatermarkEnabled;
+            config.save();
+            return true;
+        }
+        if (isInside(mouseX, mouseY, getKeybindsBounds(config))) {
+            config.keybindsHudEnabled = !config.keybindsHudEnabled;
+            config.save();
             return true;
         }
         return false;
@@ -303,6 +399,16 @@ public class HudLayoutEditorScreen extends Screen {
         }
     }
 
+    private boolean beginDragIfInside(HudTarget target, int[] bounds, int mouseX, int mouseY) {
+        if (bounds != null && isInside(mouseX, mouseY, bounds)) {
+            this.dragging = target;
+            this.dragOffsetX = mouseX - bounds[0];
+            this.dragOffsetY = mouseY - bounds[1];
+            return true;
+        }
+        return false;
+    }
+
     private boolean handlePressAt(int mouseX, int mouseY) {
         ModConfig config = ModConfig.getInstance();
 
@@ -315,67 +421,20 @@ public class HudLayoutEditorScreen extends Screen {
             return true;
         }
 
-        int[] kb = getKeybindsBounds(config);
-        if (isInside(mouseX, mouseY, kb)) {
-            this.dragging = HudTarget.KEYBINDS;
-            this.dragOffsetX = mouseX - kb[0];
-            this.dragOffsetY = mouseY - kb[1];
-            return false;
-        }
-
-        int[] stats = StatsHudRenderer.resolveStatsBounds(this.font, this.width, this.height, config);
-        if (isInside(mouseX, mouseY, stats)) {
-            this.dragging = HudTarget.STATS;
-            this.dragOffsetX = mouseX - stats[0];
-            this.dragOffsetY = mouseY - stats[1];
-            return false;
-        }
-
-        int[] pos = StatsHudRenderer.resolvePositionBounds(this.font, this.width, this.height, config);
-        if (isInside(mouseX, mouseY, pos)) {
-            this.dragging = HudTarget.POSITION;
-            this.dragOffsetX = mouseX - pos[0];
-            this.dragOffsetY = mouseY - pos[1];
-            return false;
-        }
-
-        int[] clock = StatsHudRenderer.resolveClockBounds(this.font, this.width, this.height, config);
-        if (isInside(mouseX, mouseY, clock)) {
-            this.dragging = HudTarget.CLOCK;
-            this.dragOffsetX = mouseX - clock[0];
-            this.dragOffsetY = mouseY - clock[1];
-            return false;
-        }
-
-        int[] itemNotifier = ItemNotifierHudRenderer.resolveBounds(this.font, this.width, this.height, config);
-        if (isInside(mouseX, mouseY, itemNotifier)) {
-            this.dragging = HudTarget.ITEM_NOTIFIER;
-            this.dragOffsetX = mouseX - itemNotifier[0];
-            this.dragOffsetY = mouseY - itemNotifier[1];
-            return false;
-        }
-
-        int[] inv = getInventoryBounds(config);
-        if (inv != null && isInside(mouseX, mouseY, inv)) {
-            this.dragging = HudTarget.INVENTORY;
-            this.dragOffsetX = mouseX - inv[0];
-            this.dragOffsetY = mouseY - inv[1];
-            return false;
-        }
-
-        int[] pot = getPotionsBounds();
-        if (pot != null && isInside(mouseX, mouseY, pot)) {
-            this.dragging = HudTarget.POTIONS;
-            this.dragOffsetX = mouseX - pot[0];
-            this.dragOffsetY = mouseY - pot[1];
-            return false;
-        }
-
-        int[] arm = getArmorBounds();
-        if (arm != null && isInside(mouseX, mouseY, arm)) {
-            this.dragging = HudTarget.ARMOR;
-            this.dragOffsetX = mouseX - arm[0];
-            this.dragOffsetY = mouseY - arm[1];
+        // Hit-test in reverse draw order so topmost overlay is grabbed.
+        if (beginDragIfInside(HudTarget.ARMOR, getArmorBounds(), mouseX, mouseY)
+                || beginDragIfInside(HudTarget.POTIONS, getPotionsBounds(), mouseX, mouseY)
+                || beginDragIfInside(HudTarget.INVENTORY, getInventoryBounds(config), mouseX, mouseY)
+                || beginDragIfInside(HudTarget.SPAWNER_MODE, SpawnerAutoSellModule.resolveHudBounds(this.font, this.width, this.height, config, true), mouseX, mouseY)
+                || beginDragIfInside(HudTarget.AUTO_SPAWNER, AutoSpawnerModule.resolveHudBounds(this.font, this.width, this.height, config), mouseX, mouseY)
+                || beginDragIfInside(HudTarget.PLAYER_LIST, PlayerListHudRenderer.resolveBounds(this.font, this.width, this.height, config), mouseX, mouseY)
+                || beginDragIfInside(HudTarget.ITEM_NOTIFIER, ItemNotifierHudRenderer.resolveBounds(this.font, this.width, this.height, config), mouseX, mouseY)
+                || beginDragIfInside(HudTarget.CLOCK, StatsHudRenderer.resolveClockBounds(this.font, this.width, this.height, config), mouseX, mouseY)
+                || beginDragIfInside(HudTarget.POSITION, StatsHudRenderer.resolvePositionBounds(this.font, this.width, this.height, config), mouseX, mouseY)
+                || beginDragIfInside(HudTarget.STATS, StatsHudRenderer.resolveStatsBounds(this.font, this.width, this.height, config), mouseX, mouseY)
+                || beginDragIfInside(HudTarget.ARRAY_LIST, WatermarkArrayListHudRenderer.resolveArrayListBounds(this.font, this.width, this.height, config), mouseX, mouseY)
+                || beginDragIfInside(HudTarget.WATERMARK, WatermarkArrayListHudRenderer.resolveWatermarkBounds(this.font, this.width, this.height, config), mouseX, mouseY)
+                || beginDragIfInside(HudTarget.KEYBINDS, getKeybindsBounds(config), mouseX, mouseY)) {
             return false;
         }
         return false;
@@ -390,59 +449,134 @@ public class HudLayoutEditorScreen extends Screen {
         return super.mouseDragged(event, dragX, dragY);
     }
 
+    private HudLayoutPresets.SnapResult snapDrag(int rawX, int rawY, int w, int h) {
+        boolean snapEnabled = true;
+        try {
+            snapEnabled = !InputConstants.isKeyDown(InputConstants.KEY_LSHIFT)
+                    && !InputConstants.isKeyDown(InputConstants.KEY_RSHIFT);
+        } catch (Throwable ignored) {
+        }
+        HudLayoutPresets.SnapResult snapped = HudLayoutPresets.snapBox(
+                rawX, rawY, w, h, this.width, this.height, snapEnabled
+        );
+        this.activeGuideX = snapped.guideX();
+        this.activeGuideY = snapped.guideY();
+        return snapped;
+    }
+
     private void updateDraggedPosition(ModConfig config, int mouseX, int mouseY) {
+        this.activeGuideX = null;
+        this.activeGuideY = null;
+        int rawX = mouseX - this.dragOffsetX;
+        int rawY = mouseY - this.dragOffsetY;
         switch (this.dragging) {
             case KEYBINDS -> {
                 int[] b = getKeybindsBounds(config);
-                config.keybindsHudX = Mth.clamp(mouseX - this.dragOffsetX, 2, Math.max(2, this.width - b[2] - 2));
-                config.keybindsHudY = Mth.clamp(mouseY - this.dragOffsetY, 2, Math.max(2, this.height - b[3] - 2));
+                HudLayoutPresets.SnapResult s = snapDrag(rawX, rawY, b[2], b[3]);
+                config.keybindsHudX = s.x();
+                config.keybindsHudY = s.y();
+            }
+            case WATERMARK -> {
+                int[] b = WatermarkArrayListHudRenderer.resolveWatermarkBounds(this.font, this.width, this.height, config);
+                HudLayoutPresets.SnapResult s = snapDrag(rawX, rawY, b[2], b[3]);
+                config.hudWatermarkX = s.x();
+                config.hudWatermarkY = s.y();
+            }
+            case ARRAY_LIST -> {
+                int[] b = WatermarkArrayListHudRenderer.resolveArrayListBounds(this.font, this.width, this.height, config);
+                HudLayoutPresets.SnapResult s = snapDrag(rawX, rawY, b[2], b[3]);
+                config.hudArrayListX = s.x();
+                config.hudArrayListY = s.y();
+            }
+            case PLAYER_LIST -> {
+                int[] b = PlayerListHudRenderer.resolveBounds(this.font, this.width, this.height, config);
+                HudLayoutPresets.SnapResult s = snapDrag(rawX, rawY, b[2], b[3]);
+                config.playerListX = s.x();
+                config.playerListY = s.y();
+            }
+            case AUTO_SPAWNER -> {
+                int[] b = AutoSpawnerModule.resolveHudBounds(this.font, this.width, this.height, config);
+                HudLayoutPresets.SnapResult s = snapDrag(rawX, rawY, b[2], b[3]);
+                config.autoSpawnerHudX = s.x();
+                config.autoSpawnerHudY = s.y();
+            }
+            case SPAWNER_MODE -> {
+                int[] b = SpawnerAutoSellModule.resolveHudBounds(this.font, this.width, this.height, config, true);
+                HudLayoutPresets.SnapResult s = snapDrag(rawX, rawY, b[2], b[3]);
+                config.spawnerAutoSellHudX = s.x();
+                config.spawnerAutoSellHudY = s.y();
             }
             case STATS -> {
                 int[] b = StatsHudRenderer.resolveStatsBounds(this.font, this.width, this.height, config);
-                config.statsHudX = Mth.clamp(mouseX - this.dragOffsetX, 2, Math.max(2, this.width - b[2] - 2));
-                config.statsHudY = Mth.clamp(mouseY - this.dragOffsetY, 2, Math.max(2, this.height - b[3] - 2));
+                HudLayoutPresets.SnapResult s = snapDrag(rawX, rawY, b[2], b[3]);
+                config.statsHudX = s.x();
+                config.statsHudY = s.y();
             }
             case POSITION -> {
                 int[] b = StatsHudRenderer.resolvePositionBounds(this.font, this.width, this.height, config);
-                config.posHudX = Mth.clamp(mouseX - this.dragOffsetX, 2, Math.max(2, this.width - b[2] - 2));
-                config.posHudY = Mth.clamp(mouseY - this.dragOffsetY, 2, Math.max(2, this.height - b[3] - 2));
+                HudLayoutPresets.SnapResult s = snapDrag(rawX, rawY, b[2], b[3]);
+                config.posHudX = s.x();
+                config.posHudY = s.y();
             }
             case CLOCK -> {
                 int[] b = StatsHudRenderer.resolveClockBounds(this.font, this.width, this.height, config);
-                config.clockHudX = Mth.clamp(mouseX - this.dragOffsetX, 2, Math.max(2, this.width - b[2] - 2));
-                config.clockHudY = Mth.clamp(mouseY - this.dragOffsetY, 2, Math.max(2, this.height - b[3] - 2));
+                HudLayoutPresets.SnapResult s = snapDrag(rawX, rawY, b[2], b[3]);
+                config.clockHudX = s.x();
+                config.clockHudY = s.y();
             }
             case ITEM_NOTIFIER -> {
                 int[] b = ItemNotifierHudRenderer.resolveBounds(this.font, this.width, this.height, config);
-                config.itemNotifierX = Mth.clamp(mouseX - this.dragOffsetX, 2, Math.max(2, this.width - b[2] - 2));
-                config.itemNotifierY = Mth.clamp(mouseY - this.dragOffsetY, 2, Math.max(2, this.height - b[3] - 2));
+                HudLayoutPresets.SnapResult s = snapDrag(rawX, rawY, b[2], b[3]);
+                config.itemNotifierX = s.x();
+                config.itemNotifierY = s.y();
             }
             case INVENTORY -> {
                 int[] b = getInventoryBounds(config);
                 if (b != null) {
-                    int nx = Mth.clamp(mouseX - this.dragOffsetX, 0, Math.max(0, this.width - b[2]));
-                    int ny = Mth.clamp(mouseY - this.dragOffsetY, 0, Math.max(0, this.height - b[3]));
-                    applyInventoryPos(nx, ny);
+                    HudLayoutPresets.SnapResult s = snapDrag(rawX, rawY, b[2], b[3]);
+                    applyInventoryPos(s.x(), s.y());
                 }
             }
             case POTIONS -> {
                 int[] b = getPotionsBounds();
                 if (b != null) {
-                    int nx = Mth.clamp(mouseX - this.dragOffsetX, 0, Math.max(0, this.width - b[2]));
-                    int ny = Mth.clamp(mouseY - this.dragOffsetY, 0, Math.max(0, this.height - b[3]));
-                    applyPotionsPos(nx, ny);
+                    HudLayoutPresets.SnapResult s = snapDrag(rawX, rawY, b[2], b[3]);
+                    applyPotionsPos(s.x(), s.y());
                 }
             }
             case ARMOR -> {
                 int[] b = getArmorBounds();
                 if (b != null) {
-                    int nx = Mth.clamp(mouseX - this.dragOffsetX, 0, Math.max(0, this.width - b[2]));
-                    int ny = Mth.clamp(mouseY - this.dragOffsetY, 0, Math.max(0, this.height - b[3]));
-                    applyArmorPos(nx, ny);
+                    HudLayoutPresets.SnapResult s = snapDrag(rawX, rawY, b[2], b[3]);
+                    applyArmorPos(s.x(), s.y());
                 }
             }
             case NONE -> {
             }
+        }
+    }
+
+    public static void applyPresetToEditor(HudLayoutPresets.Preset preset, ModConfig config, int screenW, int screenH) {
+        HudLayoutPresets.applyPreset(preset, config, screenW, screenH);
+        try {
+            ConfigAccess invCfg = InventoryHUDCommon.getConfig();
+            if (preset == HudLayoutPresets.Preset.PVP) {
+                InventoryHUDCommon.armorHUD = true;
+                InventoryHUDCommon.potionHUD = true;
+                if (invCfg != null) {
+                    invCfg.setArmorDamage(true);
+                    invCfg.setPotions(true);
+                }
+            } else if (preset == HudLayoutPresets.Preset.MINIMAL) {
+                InventoryHUDCommon.armorHUD = false;
+                InventoryHUDCommon.potionHUD = false;
+                if (invCfg != null) {
+                    invCfg.setArmorDamage(false);
+                    invCfg.setPotions(false);
+                }
+            }
+            saveInventoryHudConfig();
+        } catch (Throwable ignored) {
         }
     }
 
@@ -453,6 +587,8 @@ public class HudLayoutEditorScreen extends Screen {
                     || this.dragging == HudTarget.POTIONS
                     || this.dragging == HudTarget.ARMOR;
             this.dragging = HudTarget.NONE;
+            this.activeGuideX = null;
+            this.activeGuideY = null;
             ModConfig.getInstance().save();
             if (wasInv) {
                 saveInventoryHudConfig();
@@ -482,6 +618,16 @@ public class HudLayoutEditorScreen extends Screen {
         config.clockHudY = -1;
         config.itemNotifierX = -1;
         config.itemNotifierY = -1;
+        config.playerListX = -1;
+        config.playerListY = -1;
+        config.autoSpawnerHudX = -1;
+        config.autoSpawnerHudY = -1;
+        config.spawnerAutoSellHudX = -1;
+        config.spawnerAutoSellHudY = -1;
+        config.hudWatermarkX = 4;
+        config.hudWatermarkY = 4;
+        config.hudArrayListX = -1;
+        config.hudArrayListY = -1;
         config.save();
     }
 
@@ -608,7 +754,7 @@ public class HudLayoutEditorScreen extends Screen {
         int rows = items.isEmpty() ? 1 : items.size();
         int h = KeybindsHudRenderer.HEADER_HEIGHT + rows * KeybindsHudRenderer.ROW_HEIGHT + 4;
         int x = Mth.clamp(config.keybindsHudX, 2, Math.max(2, this.width - w - 2));
-        int y = Mth.clamp(config.keybindsHudY, 2, Math.max(2, this.height - h - 2));
+        int y = Mth.clamp(KeybindsHudRenderer.resolveDefaultY(config), 2, Math.max(2, this.height - h - 2));
         return new int[]{x, y, w, h};
     }
 
@@ -676,6 +822,14 @@ public class HudLayoutEditorScreen extends Screen {
             }
             for (int x = 0; x < this.width; x += 8) {
                 graphics.fill(x, cy, Math.min(this.width, x + 4), cy + 1, 0x33FF4B5C);
+            }
+            if (this.activeGuideX != null) {
+                int gx = this.activeGuideX;
+                graphics.fill(gx, 0, gx + 1, this.height, 0xCC38BDF8);
+            }
+            if (this.activeGuideY != null) {
+                int gy = this.activeGuideY;
+                graphics.fill(0, gy, this.width, gy + 1, 0xCC38BDF8);
             }
         }
     }

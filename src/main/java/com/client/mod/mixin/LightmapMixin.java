@@ -1,6 +1,7 @@
 package com.client.mod.mixin;
 
 import com.client.mod.ModConfig;
+import com.client.mod.XrayHandler;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.renderpearl.api.textures.GpuTexture;
 import net.minecraft.client.renderer.Lightmap;
@@ -26,7 +27,7 @@ public class LightmapMixin {
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)
     private void onRenderLightmap(LightmapRenderState state, CallbackInfo ci) {
         ModConfig cfg = ModConfig.getInstance();
-        if (cfg.fullbright) {
+        if (cfg.fullbright || XrayHandler.isEnabled()) {
             RenderSystem.getDevice().createCommandEncoder().clearColorTexture(this.texture, FULLBRIGHT_WHITE);
             ci.cancel();
         }

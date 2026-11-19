@@ -1,6 +1,7 @@
 package com.client.mod.mixin;
 
 import com.client.mod.ModConfig;
+import com.client.mod.XrayHandler;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.CardinalLighting;
 import org.spongepowered.asm.mixin.Mixin;
@@ -12,5 +13,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class CardinalLightingMixin {
     @Inject(method = "byFace", at = @At("HEAD"), cancellable = true)
     private void onByFace(Direction direction, CallbackInfoReturnable<Float> cir) {
+        if (XrayHandler.isEnabled()) {
+            cir.setReturnValue(1.0f);
+        }
     }
 }

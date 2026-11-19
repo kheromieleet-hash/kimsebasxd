@@ -58,7 +58,7 @@ public final class ChatMentionNotifier {
             return;
         }
         String clean = raw.replaceAll("§.", "").trim();
-        String asciiLower = foldTurkishToAscii(clean.toLowerCase(Locale.ROOT));
+        String asciiLower = AutoSpawnerModule.normalizeTurkishText(clean);
         if (asciiLower.contains("senden bahsetti")
                 || asciiLower.contains("sizden bahsetti")
                 || asciiLower.contains("senden bahsedildi")
@@ -85,16 +85,43 @@ public final class ChatMentionNotifier {
     }
 
     static boolean isMentionOrIncomingDm(String cleanMessage, String myName) {
-        String lower = cleanMessage.toLowerCase(Locale.ROOT);
+        if (cleanMessage == null || myName == null || myName.isEmpty()) {
+            return false;
+        }
+        String clean = cleanMessage.replaceAll("§.", "");
+        String lower = clean.toLowerCase(Locale.ROOT);
         String myLower = myName.toLowerCase(Locale.ROOT);
 
-        // 1. Sestia Client Chat lines: only alert on incoming DMs ("[Sestia] [DM] <sender> -> You: ...")
+        // 1. Sestia Client Chat lines: support both legacy "[Sestia]" and current "[SestiaChat]" / "[sender -> me]"
         if (lower.startsWith("[sestia]")) {
             return lower.contains("[dm]") && lower.contains("-> you:");
         }
+        if (lower.startsWith("[me -> ")) {
+            return false;
+        }
+        if (lower.contains(" -> me]")) {
+            return !lower.startsWith("[" + myLower + " -> me]");
+        }
+        if (lower.startsWith("[sestiachat]")) {
+            // Skip online list responses (".c list") so listing yourself doesn't trigger a false mention
+            if (lower.startsWith("[sestiachat] online (")) {
+                return false;
+            }
+            String afterPrefix = lower.substring("[sestiachat]".length()).trim();
+            int colon = afterPrefix.indexOf(':');
+            if (colon > 0) {
+                String sender = afterPrefix.substring(0, colon).trim();
+                String body = afterPrefix.substring(colon + 1);
+                if (sender.equalsIgnoreCase(myLower)) {
+                    return false;
+                }
+                return containsWholeWord(body, myLower);
+            }
+            return false;
+        }
 
         // 2. Explicit server-side mention notifications
-        String asciiLower = foldTurkishToAscii(lower);
+        String asciiLower = AutoSpawnerModule.normalizeTurkishText(clean);
         if (asciiLower.contains("senden bahsetti")
                 || asciiLower.contains("sizden bahsetti")
                 || asciiLower.contains("senden bahsedildi")
@@ -173,24 +200,6 @@ public final class ChatMentionNotifier {
 
     private static boolean isWordChar(char c) {
         return Character.isLetterOrDigit(c) || c == '_';
-    }
-
-    private static String foldTurkishToAscii(String s) {
-        StringBuilder sb = new StringBuilder(s.length());
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            char mapped = switch (c) {
-                case 'ı', 'і', 'ɪ', 'i', 'İ' -> 'i';
-                case 'ü', 'ᴜ' -> 'u';
-                case 'ö', 'ᴏ' -> 'o';
-                case 'ş', 'ꜱ' -> 's';
-                case 'ç', 'ᴄ' -> 'c';
-                case 'ğ', 'ɢ' -> 'g';
-                default -> c;
-            };
-            sb.append(mapped);
-        }
-        return sb.toString();
     }
 
     private static void triggerWindowsMentionNotification(Minecraft mc, String cleanMessage) {

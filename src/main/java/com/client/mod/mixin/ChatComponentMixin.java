@@ -107,25 +107,31 @@ public abstract class ChatComponentMixin implements IChatComponentHelper {
         }
 
         // Fresh new message
-        duplicateCount = 1;
-        lastRawText = rawText;
-        lastBaseComponent = message;
-        lastTimestamp = LocalTime.now(ISTANBUL_ZONE).format(TIME_FORMAT);
-
         if (config != null && config.chatTimestamps) {
+            String ts = LocalTime.now(ISTANBUL_ZONE).format(TIME_FORMAT);
             MutableComponent timestamped = Component.empty();
-            timestamped.append(Component.literal("<" + lastTimestamp + "> ").withStyle(ChatFormatting.GRAY));
+            timestamped.append(Component.literal("<" + ts + "> ").withStyle(ChatFormatting.GRAY));
             timestamped.append(message);
 
             int guiTicks = this.minecraft.gui.hud.getGuiTicks();
             GuiMessage guiMessage = new GuiMessage(guiTicks, timestamped, signature, source, tag);
             if (this.visibleMessageFilter.test(guiMessage)) {
+                duplicateCount = 1;
+                lastRawText = rawText;
+                lastBaseComponent = message;
+                lastTimestamp = ts;
                 this.logChatMessage(guiMessage);
                 this.addMessageToDisplayQueue(guiMessage);
                 this.addMessageToQueue(guiMessage);
             }
             ci.cancel();
+            return;
         }
+
+        duplicateCount = 1;
+        lastRawText = rawText;
+        lastBaseComponent = message;
+        lastTimestamp = null;
     }
 
     @Inject(method = "clearMessages", at = @At("HEAD"), cancellable = true)
@@ -187,6 +193,10 @@ public abstract class ChatComponentMixin implements IChatComponentHelper {
 
     @Override
     public void clientMod$scrubSestiaMessages() {
+        lastRawText = null;
+        lastBaseComponent = null;
+        duplicateCount = 1;
+        lastTimestamp = null;
         if (this.allMessages != null) {
             this.allMessages.removeIf(msg -> {
                 if (msg == null || msg.content() == null) {
@@ -196,10 +206,15 @@ public abstract class ChatComponentMixin implements IChatComponentHelper {
                 if (text == null) {
                     return false;
                 }
-                String lower = text.toLowerCase(java.util.Locale.ROOT);
-                return lower.contains("[sestia]") || lower.contains("[failsafe]")
+                // Strip formatting codes so "§8[§cSestiaChat§8]" and DM brackets match reliably
+                String lower = text.replaceAll("§.", "").toLowerCase(java.util.Locale.ROOT);
+                return lower.contains("[sestia]") || lower.contains("[sestiachat]")
+                        || lower.contains("[failsafe]")
+                        || lower.contains("[me -> ") || lower.contains(" -> me]")
                         || lower.contains(".farm") || lower.contains(".friend")
-                        || lower.contains(".frined") || lower.contains(".panic");
+                        || lower.contains(".frined") || lower.contains(".panic")
+                        || lower.contains(".coords") || lower.contains(".coordinates")
+                        || lower.startsWith(".c ") || lower.contains(" .c ");
             });
             this.refreshTrimmedMessages();
         }

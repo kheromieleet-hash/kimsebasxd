@@ -13,6 +13,9 @@ public abstract class LevelRendererMixin {
 
     @Inject(method = "finalizeGizmoCollection", at = @At("HEAD"))
     private void onFinalizeGizmoCollection(CallbackInfo ci) {
+        if (com.client.mod.PanicHandler.isPanicActive()) {
+            return;
+        }
         PacketMineHandler.renderGizmo();
         WorldRenderToolsHandler.renderAll();
     }

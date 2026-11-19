@@ -28,6 +28,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MultiPlayerGameMode.class)
 public abstract class MultiPlayerGameModeMixin implements PacketMineHandler.StopPacketSender {
+    @Shadow private BlockPos destroyBlockPos;
     @Shadow private int destroyDelay;
     @Shadow private float destroyProgress;
     @Shadow private boolean isDestroying;
@@ -90,12 +91,10 @@ public abstract class MultiPlayerGameModeMixin implements PacketMineHandler.Stop
                 if (this.destroyProgress >= 0.78f) {
                     this.destroyProgress = 1.0f;
                 } else {
-                    // Safe smooth boost within Vulcan's 15% tolerance window
+                    // Safe smooth boost within Vulcan's 15% tolerance window (avoid inverting boost at <= 1.0x)
                     float safeSpeed = Math.min(config.fastBreakSpeed, 1.15f);
                     if (safeSpeed > 1.0f) {
                         this.destroyProgress += (safeSpeed - 1.0f) * 0.05f;
-                    } else {
-                        this.destroyProgress += 0.012f;
                     }
                 }
             } else {
@@ -123,7 +122,7 @@ public abstract class MultiPlayerGameModeMixin implements PacketMineHandler.Stop
 
     @Inject(method = "tick", at = @At("HEAD"))
     private void onTickPacketMine(CallbackInfo ci) {
-        PacketMineHandler.tick((MultiPlayerGameMode) (Object) this, this.isDestroying, this.destroyProgress);
+        PacketMineHandler.tick((MultiPlayerGameMode) (Object) this, this.isDestroying, this.destroyProgress, this.destroyBlockPos);
     }
 
     @Inject(method = "useItemOn", at = @At("HEAD"), cancellable = true)

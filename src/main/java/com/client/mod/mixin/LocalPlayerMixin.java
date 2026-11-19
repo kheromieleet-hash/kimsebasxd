@@ -10,8 +10,10 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Input;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec2;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -33,6 +35,7 @@ public abstract class LocalPlayerMixin {
         Minecraft mc = Minecraft.getInstance();
         if ((Object) this == mc.player && FreecamHandler.isActive()) {
             input.keyPresses = Input.EMPTY;
+            ((ClientInputAccessor) input).sestia$setMoveVector(Vec2.ZERO);
             return;
         }
         input.tick();
@@ -55,12 +58,27 @@ public abstract class LocalPlayerMixin {
         }
     }
 
+    @Inject(method = "raycastHitResult", at = @At("HEAD"), cancellable = true)
+    private void onRaycastHitResultHead(float partialTick, Entity cameraEntity, CallbackInfoReturnable<HitResult> cir) {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer self = (LocalPlayer) (Object) this;
+        if (self != mc.player || !FreecamHandler.isActive()) {
+            return;
+        }
+        ModConfig cfg = ModConfig.getInstance();
+        if (!FreecamHandler.shouldAllowWorldInteraction(true, cfg.freecamAllowInteract)) {
+            cir.setReturnValue(BlockHitResult.miss(self.getEyePosition(partialTick), self.getDirection(), self.blockPosition()));
+            return;
+        }
+        cir.setReturnValue(FreecamHandler.raycastFromCamera(self, self.level(), partialTick));
+    }
+
     @Inject(method = "raycastHitResult", at = @At("RETURN"), cancellable = true)
     private void onRaycastHitResult(float partialTick, Entity cameraEntity, CallbackInfoReturnable<HitResult> cir) {
         Minecraft mc = Minecraft.getInstance();
         ModConfig cfg = ModConfig.getInstance();
         LocalPlayer self = (LocalPlayer) (Object) this;
-        if (self != mc.player || !cfg.noMiningTrace || cameraEntity == null) {
+        if (self != mc.player || FreecamHandler.isActive() || !cfg.noMiningTrace || cameraEntity == null) {
             return;
         }
         if (!(cir.getReturnValue() instanceof EntityHitResult)) {

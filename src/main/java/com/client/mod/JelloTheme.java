@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -692,10 +693,12 @@ public final class JelloTheme {
     public static void fillHorizontalGradient(GuiGraphicsExtractor graphics, int x1, int y1, int x2, int y2, int colorFrom, int colorTo) {
         int w = x2 - x1;
         if (w <= 0) return;
-        for (int x = 0; x < w; x++) {
-            float t = (float) x / (float) w;
+        final int step = 4;
+        for (int x = 0; x < w; x += step) {
+            int segEnd = Math.min(w, x + step);
+            float t = (x + (segEnd - x) * 0.5f) / (float) w;
             int col = lerpColor(colorFrom, colorTo, t);
-            graphics.fill(x1 + x, y1, x1 + x + 1, y2, fade(col));
+            graphics.fill(x1 + x, y1, x1 + segEnd, y2, fade(col));
         }
     }
 
@@ -752,8 +755,9 @@ public final class JelloTheme {
         }
 
         void update(float target, float stiffness, float damping, float dt) {
-            int steps = Math.max(1, (int) Math.ceil(dt / 0.004f));
-            float h = dt / steps;
+            float clampedDt = Math.max(0.0f, Math.min(0.05f, dt));
+            int steps = Math.max(1, (int) Math.ceil(clampedDt / 0.004f));
+            float h = clampedDt / steps;
             for (int i = 0; i < steps; i++) {
                 vel += ((target - pos) * stiffness - vel * damping) * h;
                 pos += vel * h;
@@ -771,5 +775,105 @@ public final class JelloTheme {
 
     public static void clearSprings(String prefix) {
         SPRINGS.keySet().removeIf(k -> k.startsWith(prefix));
+    }
+
+    public record HudStatRow(String label, String value, int accentColor, int valueColor, float progress) {
+        public HudStatRow(String label, String value, int accentColor, int valueColor) {
+            this(label, value, accentColor, valueColor, -1.0f);
+        }
+    }
+
+    public static final int HUD_CARD_HEADER_HEIGHT = 16;
+    public static final int HUD_CARD_ROW_HEIGHT = 13;
+
+    public static int hudCardBackground() {
+        return (0xD4 << 24) | (CONTAINER_BG & 0x00FFFFFF);
+    }
+
+    public static int hudHeaderBackground(boolean highlighted) {
+        if (highlighted) {
+            int mixed = lerpColor(HEADER_BG, ACCENT, 0.18f);
+            return (0xF2 << 24) | (mixed & 0x00FFFFFF);
+        }
+        return (0xEE << 24) | (HEADER_BG & 0x00FFFFFF);
+    }
+
+    public static int hudCardBorder(boolean highlighted) {
+        int mixed = highlighted ? ACCENT_HOVER : lerpColor(DIVIDER, ACCENT, 0.30f);
+        int alpha = highlighted ? 0x99 : 0x5A;
+        return (alpha << 24) | (mixed & 0x00FFFFFF);
+    }
+
+    public static int[] resolveHudCardBounds(
+            Font font, int screenW, int screenH,
+            String title, List<HudStatRow> rows,
+            int minWidth, int cfgX, int cfgY, int defaultX, int defaultY
+    ) {
+        int maxW = font != null ? font.width(title) + 18 : minWidth;
+        int extraProgressH = 0;
+        if (rows != null) {
+            for (HudStatRow row : rows) {
+                if (font != null) {
+                    int rowW = 16 + font.width(row.label()) + 10 + font.width(row.value()) + 8;
+                    if (rowW > maxW) {
+                        maxW = rowW;
+                    }
+                }
+                if (row.progress() >= 0.0f) {
+                    extraProgressH += 5;
+                }
+            }
+        }
+        int rowCount = rows != null ? rows.size() : 0;
+        int w = Math.max(minWidth, maxW);
+        int h = HUD_CARD_HEADER_HEIGHT + rowCount * HUD_CARD_ROW_HEIGHT + extraProgressH + 5;
+        int rawX = cfgX >= 0 ? cfgX : defaultX;
+        int rawY = cfgY >= 0 ? cfgY : defaultY;
+        int x = Mth.clamp(rawX, 2, Math.max(2, screenW - w - 2));
+        int y = Mth.clamp(rawY, 2, Math.max(2, screenH - h - 2));
+        return new int[]{x, y, w, h};
+    }
+
+    public static void renderHudCard(
+            GuiGraphicsExtractor graphics, Font font,
+            int x, int y, int width, int height,
+            String title, List<HudStatRow> rows
+    ) {
+        boolean unified = ModConfig.getInstance().hudUnifiedGlass;
+        int bg = unified ? hudCardBackground() : 0xD8120B0E;
+        int border = unified ? hudCardBorder(false) : 0x55242431;
+        int hdrBg = unified ? hudHeaderBackground(false) : 0xF0140B0E;
+
+        fillRoundedCard(graphics, x, y, x + width, y + height, 5, bg, border);
+        fillRoundedTop(graphics, x + 1, y + 1, x + width - 1, y + HUD_CARD_HEADER_HEIGHT, 4, hdrBg);
+        int halfW = width / 2;
+        fill(graphics, x + 1, y + HUD_CARD_HEADER_HEIGHT - 1, x + halfW, y + HUD_CARD_HEADER_HEIGHT, ACCENT);
+        fill(graphics, x + halfW, y + HUD_CARD_HEADER_HEIGHT - 1, x + width - 1, y + HUD_CARD_HEADER_HEIGHT, ACCENT_HOVER);
+
+        textCentered(graphics, font, title, x + width / 2, y + 4, unified ? TEXT : 0xFFFFFFFF);
+
+        int curY = y + HUD_CARD_HEADER_HEIGHT + 3;
+        int labelCol = unified ? TEXT_MUTED : 0xFFD8D8D8;
+        for (HudStatRow row : rows) {
+            fill(graphics, x + 5, curY + 4, x + 8, curY + 7, row.accentColor());
+            text(graphics, font, row.label(), x + 11, curY + 2, labelCol);
+            int valW = font.width(row.value());
+            text(graphics, font, row.value(), x + width - 6 - valW, curY + 2, row.valueColor());
+            curY += HUD_CARD_ROW_HEIGHT;
+
+            if (row.progress() >= 0.0f) {
+                int barX = x + 6;
+                int barW = Math.max(16, width - 12);
+                int barY = curY;
+                fillRounded(graphics, barX, barY, barX + barW, barY + 2, 1, 0x26FFFFFF);
+                float clamped = Mth.clamp(row.progress(), 0.0f, 1.0f);
+                int fillW = Math.round(barW * clamped);
+                if (fillW > 0) {
+                    int fillColor = lerpColor(ACCENT, ACCENT_HOVER, clamped);
+                    fillRounded(graphics, barX, barY, barX + Math.max(2, fillW), barY + 2, 1, fillColor);
+                }
+                curY += 5;
+            }
+        }
     }
 }

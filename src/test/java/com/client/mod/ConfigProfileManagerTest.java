@@ -48,8 +48,8 @@ public class ConfigProfileManagerTest {
     private static void testJsonAndShareCodeRoundTrip() {
         ModConfig source = new ModConfig();
         source.fullbright = false;
-        source.fullbrightMode = 1;
-        source.fullbrightBrightness = 0.85f;
+        source.fullbrightForceMaxLight = true;
+        source.zoomFactor = 6.5f;
         source.fastBreak = true;
         source.fastBreakSpeed = 1.45f;
         source.backtrack = true;
@@ -88,8 +88,8 @@ public class ConfigProfileManagerTest {
             ConfigProfileManager.applyProfile(parsed, target, dstInv, () -> saved[0] = true);
             assert saved[0];
             assert !target.fullbright;
-            assert target.fullbrightMode == 1;
-            assert Math.abs(target.fullbrightBrightness - 0.85f) < 0.001f;
+            assert target.fullbrightForceMaxLight;
+            assert Math.abs(target.zoomFactor - 6.5f) < 0.001f;
             assert target.fastBreak;
             assert target.backtrack && target.backtrackDelay == 180;
             assert !target.chatInfinite;

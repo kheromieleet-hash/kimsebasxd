@@ -1,13 +1,14 @@
 package com.client.mod.mixin;
 
+import com.client.mod.AutoSpawnerModule;
 import com.client.mod.ClickGuiScreen;
-import com.client.mod.CustomTitleMenu;
 import com.client.mod.FreecamHandler;
+import com.client.mod.PlayerListHudRenderer;
+import com.client.mod.SpawnerAutoSellModule;
 import com.client.mod.ZoomHandler;
 import com.mojang.blaze3d.platform.Window;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
-import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.client.player.LocalPlayer;
 import org.spongepowered.asm.mixin.Final;
@@ -39,15 +40,6 @@ public abstract class MouseHandlerMixin {
     @Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
     private void onMouseButtonHead(long window, MouseButtonInfo buttonInfo, int action, CallbackInfo ci) {
         if (this.minecraft != null && this.minecraft.gui != null) {
-            if (this.minecraft.gui.screen() instanceof TitleScreen titleScreen && action == 1) {
-                Window win = this.minecraft.getWindow();
-                double mouseX = this.getScaledXPos(win);
-                double mouseY = this.getScaledYPos(win);
-                if (CustomTitleMenu.handleClick(this.minecraft, titleScreen, mouseX, mouseY, buttonInfo.button(), action)) {
-                    ci.cancel();
-                    return;
-                }
-            }
             if (ClickGuiScreen.isTargetScreen(this.minecraft.gui.screen())) {
                 Window win = this.minecraft.getWindow();
                 double mouseX = this.getScaledXPos(win);
@@ -75,6 +67,18 @@ public abstract class MouseHandlerMixin {
         }
     }
 
+    @Inject(method = "turnPlayer", at = @At("HEAD"), cancellable = true)
+    private void onTurnPlayerHead(double movementTime, CallbackInfo ci) {
+        AutoSpawnerModule mod = AutoSpawnerModule.getInstance();
+        SpawnerAutoSellModule sellMod = SpawnerAutoSellModule.getInstance();
+        if ((mod != null && mod.isActiveLockingMouse())
+                || (sellMod != null && sellMod.isActiveLockingMouse())) {
+            this.accumulatedDX = 0.0;
+            this.accumulatedDY = 0.0;
+            ci.cancel();
+        }
+    }
+
     @Redirect(
             method = "turnPlayer",
             at = @At(
@@ -92,7 +96,19 @@ public abstract class MouseHandlerMixin {
 
     @Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)
     private void onMouseScroll(long window, double horizontal, double vertical, CallbackInfo ci) {
-        if (FreecamHandler.onMouseScroll(vertical) || ZoomHandler.onMouseScrolled(vertical)) {
+        if (com.client.mod.PanicHandler.isPanicActive()) {
+            return;
+        }
+        double mouseX = 0.0;
+        double mouseY = 0.0;
+        if (this.minecraft != null && this.minecraft.getWindow() != null) {
+            Window win = this.minecraft.getWindow();
+            mouseX = this.getScaledXPos(win);
+            mouseY = this.getScaledYPos(win);
+        }
+        if (FreecamHandler.onMouseScroll(vertical)
+                || ZoomHandler.onMouseScrolled(vertical)
+                || PlayerListHudRenderer.onMouseScroll(this.minecraft, mouseX, mouseY, vertical)) {
             ci.cancel();
         }
     }

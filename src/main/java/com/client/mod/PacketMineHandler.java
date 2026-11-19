@@ -84,6 +84,10 @@ public final class PacketMineHandler {
     }
 
     public static void tick(MultiPlayerGameMode gameMode, boolean vanillaDestroying, float vanillaProgress) {
+        tick(gameMode, vanillaDestroying, vanillaProgress, null);
+    }
+
+    public static void tick(MultiPlayerGameMode gameMode, boolean vanillaDestroying, float vanillaProgress, BlockPos vanillaPos) {
         ModConfig cfg = ModConfig.getInstance();
         if (!cfg.packetMine) {
             if (STATE.hasTarget() || crackPos != null) {
@@ -107,12 +111,13 @@ public final class PacketMineHandler {
         boolean isAir = blockState.isAir();
         boolean unbreakable = !isAir && blockState.getDestroySpeed(mc.level, pos) < 0.0f;
 
-        if (vanillaDestroying) {
+        boolean matchingVanilla = vanillaDestroying && (vanillaPos == null || vanillaPos.equals(pos));
+        if (matchingVanilla) {
             STATE.syncExternalProgress(vanillaProgress);
         }
 
-        // Only advance background progress when vanilla continueDestroyBlock is not driving it
-        float perTick = (!isAir && !unbreakable && !vanillaDestroying)
+        // Only advance background progress when vanilla continueDestroyBlock is not driving this exact block
+        float perTick = (!isAir && !unbreakable && !matchingVanilla)
                 ? blockState.getDestroyProgress(mc.player, mc.level, pos)
                 : 0.0f;
 
@@ -132,13 +137,13 @@ public final class PacketMineHandler {
             sendStopAndBreak(mc, gameMode, pos, dir);
         } else if (action == PacketMineState.TickAction.CLEAR) {
             clearCrackOverlay(mc.level, mc.player.getId());
-        } else if (!vanillaDestroying && STATE.getPhase() == PacketMineState.Phase.MINING) {
+        } else if (!matchingVanilla && STATE.getPhase() == PacketMineState.Phase.MINING) {
             int stage = STATE.getDestroyStage();
             if (stage >= 0) {
                 mc.level.destroyBlockProgress(mc.player.getId(), pos, stage);
                 crackPos = pos.immutable();
             }
-        } else if (vanillaDestroying || STATE.getPhase() == PacketMineState.Phase.READY_REBREAK) {
+        } else if (matchingVanilla || STATE.getPhase() == PacketMineState.Phase.READY_REBREAK) {
             clearCrackOverlay(mc.level, mc.player.getId());
         }
     }

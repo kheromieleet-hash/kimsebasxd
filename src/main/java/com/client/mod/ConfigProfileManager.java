@@ -136,6 +136,9 @@ public final class ConfigProfileManager {
     ) {
         ModConfig copy = source != null ? source.copy() : new ModConfig();
         copy.sanitize();
+        // Never leak personal /login passwords or private chat URLs into profiles or share codes
+        copy.accountPasswords = new java.util.HashMap<>();
+        copy.clientChatUrl = "";
         ProfileEnvelope env = new ProfileEnvelope();
         env.format = PROFILE_FORMAT;
         env.schemaVersion = SCHEMA_VERSION;
@@ -170,7 +173,18 @@ public final class ConfigProfileManager {
         if (envelope == null || envelope.config == null) {
             throw new IllegalArgumentException("Profile has no config data");
         }
-        return encodeShareCode(COMPACT_GSON.toJson(envelope));
+        ProfileEnvelope sanitized = new ProfileEnvelope();
+        sanitized.format = envelope.format;
+        sanitized.schemaVersion = envelope.schemaVersion;
+        sanitized.name = envelope.name;
+        sanitized.savedAtEpochMs = envelope.savedAtEpochMs;
+        sanitized.activeCount = envelope.activeCount;
+        sanitized.inventoryHud = envelope.inventoryHud;
+        ModConfig cleanConfig = envelope.config.copy();
+        cleanConfig.accountPasswords = new java.util.HashMap<>();
+        cleanConfig.clientChatUrl = "";
+        sanitized.config = cleanConfig;
+        return encodeShareCode(COMPACT_GSON.toJson(sanitized));
     }
 
     private static String encodeShareCode(String compactJson) {
@@ -287,10 +301,12 @@ public final class ConfigProfileManager {
             throw new IllegalArgumentException("Profile or target config is null");
         }
         String preservedChatUrl = target.clientChatUrl;
+        java.util.Map<String, String> preservedPasswords = target.accountPasswords != null
+                ? new java.util.HashMap<>(target.accountPasswords)
+                : new java.util.HashMap<>();
         target.copyFrom(envelope.config);
-        if ((target.clientChatUrl == null || target.clientChatUrl.isEmpty()) && preservedChatUrl != null && !preservedChatUrl.isEmpty()) {
-            target.clientChatUrl = preservedChatUrl;
-        }
+        target.clientChatUrl = preservedChatUrl;
+        target.accountPasswords = preservedPasswords;
         target.sanitize();
         if (envelope.inventoryHud != null) {
             envelope.inventoryHud.applyTo(inv);

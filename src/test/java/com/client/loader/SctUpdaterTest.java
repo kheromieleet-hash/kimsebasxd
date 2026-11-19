@@ -66,6 +66,7 @@ public class SctUpdaterTest {
         testMinLoaderCodeTooHighWritesOutdatedNotice();
         testMaliciousVersionStringSanitized();
         testNewerEmbeddedFallbackPreventsRemoteDowngrade();
+        testOlderEmbeddedZipFallbackSkipsPromotion();
         System.out.println("ALL SctUpdaterTest ASSERTIONS PASSED!");
     }
 
@@ -77,7 +78,7 @@ public class SctUpdaterTest {
             SctUpdater updater = new SctUpdater(
                     workDir,
                     "http://127.0.0.1:1/version.json",
-                    "https://github.com/kheromieallah/sestia/releases/latest",
+                    "https://github.com/kheromieleet-hash/kimsebasxd/releases/latest",
                     () -> new ByteArrayInputStream(fallbackBytes),
                     listener
             );
@@ -125,7 +126,7 @@ public class SctUpdaterTest {
             SctUpdater updater = new SctUpdater(
                     workDir,
                     "http://127.0.0.1:" + port + "/version.json",
-                    "https://github.com/kheromieallah/sestia/releases/latest",
+                    "https://github.com/kheromieleet-hash/kimsebasxd/releases/latest",
                     () -> new ByteArrayInputStream(oldFallback),
                     listener
             );
@@ -173,7 +174,7 @@ public class SctUpdaterTest {
 
             SctUpdater firstRun = new SctUpdater(
                     workDir, "http://127.0.0.1:" + port + "/version.json",
-                    "https://github.com/kheromieallah/sestia/releases/latest",
+                    "https://github.com/kheromieleet-hash/kimsebasxd/releases/latest",
                     () -> new ByteArrayInputStream("INIT".getBytes(StandardCharsets.UTF_8)),
                     new RecordingListener()
             );
@@ -184,7 +185,7 @@ public class SctUpdaterTest {
             RecordingListener secondListener = new RecordingListener();
             SctUpdater secondRun = new SctUpdater(
                     workDir, "http://127.0.0.1:" + port + "/version.json",
-                    "https://github.com/kheromieallah/sestia/releases/latest",
+                    "https://github.com/kheromieleet-hash/kimsebasxd/releases/latest",
                     () -> new ByteArrayInputStream("INIT".getBytes(StandardCharsets.UTF_8)),
                     secondListener
             );
@@ -226,7 +227,7 @@ public class SctUpdaterTest {
 
             SctUpdater updater = new SctUpdater(
                     workDir, "http://127.0.0.1:" + port + "/version.json",
-                    "https://github.com/kheromieallah/sestia/releases/latest",
+                    "https://github.com/kheromieleet-hash/kimsebasxd/releases/latest",
                     () -> new ByteArrayInputStream(baseline),
                     new RecordingListener()
             );
@@ -267,7 +268,7 @@ public class SctUpdaterTest {
 
             SctUpdater updater = new SctUpdater(
                     workDir, "http://127.0.0.1:" + port + "/version.json",
-                    "https://github.com/kheromieallah/sestia/releases/latest",
+                    "https://github.com/kheromieleet-hash/kimsebasxd/releases/latest",
                     () -> new ByteArrayInputStream(baseline),
                     new RecordingListener()
             );
@@ -302,7 +303,7 @@ public class SctUpdaterTest {
             RecordingListener listener = new RecordingListener();
             SctUpdater updater = new SctUpdater(
                     workDir, "http://127.0.0.1:" + port + "/version.json",
-                    "https://github.com/kheromieallah/sestia/releases/latest",
+                    "https://github.com/kheromieleet-hash/kimsebasxd/releases/latest",
                     () -> new ByteArrayInputStream(baseline),
                     listener
             );
@@ -324,7 +325,7 @@ public class SctUpdaterTest {
             int port = server.getAddress().getPort();
 
             String manifest = String.format(
-                    "{\"versionCode\":9,\"version\":\"2.0.0\",\"changelog\":\"Major\",\"downloadUrl\":\"http://127.0.0.1:%d/core.jar\",\"sha256\":\"deadbeef\",\"minLoaderCode\":99,\"loaderUrl\":\"https://github.com/kheromieallah/sestia/releases/latest\"}",
+                    "{\"versionCode\":9,\"version\":\"2.0.0\",\"changelog\":\"Major\",\"downloadUrl\":\"http://127.0.0.1:%d/core.jar\",\"sha256\":\"deadbeef\",\"minLoaderCode\":99,\"loaderUrl\":\"https://github.com/kheromieleet-hash/kimsebasxd/releases/latest\"}",
                     port
             );
 
@@ -343,7 +344,7 @@ public class SctUpdaterTest {
             RecordingListener listener = new RecordingListener();
             SctUpdater updater = new SctUpdater(
                     workDir, "http://127.0.0.1:" + port + "/version.json",
-                    "https://github.com/kheromieallah/sestia/releases/latest",
+                    "https://github.com/kheromieleet-hash/kimsebasxd/releases/latest",
                     () -> new ByteArrayInputStream(baseline),
                     listener
             );
@@ -383,7 +384,7 @@ public class SctUpdaterTest {
 
             SctUpdater updater = new SctUpdater(
                     workDir, "http://127.0.0.1:" + port + "/version.json",
-                    "https://github.com/kheromieallah/sestia/releases/latest",
+                    "https://github.com/kheromieleet-hash/kimsebasxd/releases/latest",
                     () -> new ByteArrayInputStream("INIT".getBytes(StandardCharsets.UTF_8)),
                     new RecordingListener()
             );
@@ -432,7 +433,7 @@ public class SctUpdaterTest {
             SctUpdater updater = new SctUpdater(
                     workDir,
                     "http://127.0.0.1:" + port + "/version.json",
-                    "https://github.com/kheromieallah/sestia/releases/latest",
+                    "https://github.com/kheromieleet-hash/kimsebasxd/releases/latest",
                     () -> new ByteArrayInputStream(newerEmbeddedJar),
                     listener
             );
@@ -443,6 +444,51 @@ public class SctUpdaterTest {
             assert listener.events.contains("ready:1.0.1:false") : "Expected ready:1.0.1:false, got " + listener.events;
         } finally {
             server.stop(0);
+            deleteRecursive(workDir);
+        }
+    }
+
+    private static void testOlderEmbeddedZipFallbackSkipsPromotion() throws Exception {
+        Path workDir = Files.createTempDirectory("sct-test-zipskip-");
+        try {
+            ByteArrayOutputStream jarBuf = new ByteArrayOutputStream();
+            try (ZipOutputStream zos = new ZipOutputStream(jarBuf)) {
+                zos.putNextEntry(new ZipEntry("sct-core-meta.properties"));
+                zos.write("version=1.0.0\nversionCode=1\n".getBytes(StandardCharsets.UTF_8));
+                zos.closeEntry();
+                zos.putNextEntry(new ZipEntry("dummy/big.bin"));
+                zos.write(new byte[4096]);
+                zos.closeEntry();
+            }
+            byte[] olderEmbeddedJar = jarBuf.toByteArray();
+            byte[] cachedPayload = "CACHED-CORE-1.0.5".getBytes(StandardCharsets.UTF_8);
+            Path coreDir = workDir.resolve("core");
+            Files.createDirectories(coreDir);
+            Path cachedJar = coreDir.resolve("sestia-core-1.0.5.jar");
+            Files.write(cachedJar, cachedPayload);
+            String stateJson = String.format(
+                    "{\"versionCode\":5,\"version\":\"1.0.5\",\"coreFile\":\"sestia-core-1.0.5.jar\",\"sha256\":\"%s\"}",
+                    sha256Hex(cachedPayload)
+            );
+            Files.writeString(workDir.resolve("state.json"), stateJson, StandardCharsets.UTF_8);
+
+            AtomicInteger openCount = new AtomicInteger(0);
+            SctUpdater updater = new SctUpdater(
+                    workDir,
+                    "http://127.0.0.1:1/version.json",
+                    "https://github.com/kheromieleet-hash/kimsebasxd/releases/latest",
+                    () -> {
+                        openCount.incrementAndGet();
+                        return new ByteArrayInputStream(olderEmbeddedJar);
+                    },
+                    new RecordingListener()
+            );
+            Path resolved = updater.resolveAndEnsureCore();
+            assert resolved.equals(cachedJar.toAbsolutePath().normalize())
+                    : "Expected cached jar to remain active, got " + resolved;
+            assert openCount.get() == 1 : "Expected in-memory check only once without second stage copy, got " + openCount.get();
+            assert !Files.exists(coreDir.resolve("fallback-check.part")) : "Leftover stage file must not exist";
+        } finally {
             deleteRecursive(workDir);
         }
     }

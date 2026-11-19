@@ -99,7 +99,7 @@ public final class AutoFishHandler {
         if (!isHoldingFishingRod(mc.player)) {
             return;
         }
-        String norm = normalizeChatForLookup(rawText);
+        String norm = AutoSpawnerModule.normalizeTurkishText(rawText);
         if (norm.contains("etrafina bakmadin")
                 || norm.contains("kamerani oynat")
                 || norm.contains("kamerayi oynat")
@@ -210,7 +210,7 @@ public final class AutoFishHandler {
         if (rawTitle == null || rawTitle.isEmpty()) {
             return;
         }
-        String normTitle = normalizeChatForLookup(rawTitle);
+        String normTitle = AutoSpawnerModule.normalizeTurkishText(rawTitle);
         boolean isVerification = normTitle.contains("dogrulama") || normTitle.contains("captcha");
         if (!isVerification) {
             return;
@@ -315,43 +315,6 @@ public final class AutoFishHandler {
             int base = (cfg != null) ? Math.max(6, Math.min(40, cfg.autoFishRecastDelay / 2)) : 8;
             recastCountdownTicks = base + ThreadLocalRandom.current().nextInt(4);
         }
-    }
-
-    private static String normalizeChatForLookup(String raw) {
-        String clean = raw.replaceAll("§.", "").toLowerCase(Locale.ROOT);
-        StringBuilder sb = new StringBuilder(clean.length());
-        for (int i = 0; i < clean.length(); i++) {
-            char c = clean.charAt(i);
-            char mapped = switch (c) {
-                case 'ı', 'і', 'ɪ', 'i', 'İ' -> 'i';
-                case 'ü', 'ᴜ' -> 'u';
-                case 'ö', 'ᴏ' -> 'o';
-                case 'ş', 's', 'ꜱ' -> 's';
-                case 'ç', 'ᴄ' -> 'c';
-                case 'ğ', 'ɢ' -> 'g';
-                case 'ᴀ' -> 'a';
-                case 'ʙ' -> 'b';
-                case 'ᴅ' -> 'd';
-                case 'ᴇ' -> 'e';
-                case 'ғ', 'ꜰ' -> 'f';
-                case 'ʜ' -> 'h';
-                case 'ᴊ' -> 'j';
-                case 'ᴋ' -> 'k';
-                case 'ʟ' -> 'l';
-                case 'ᴍ' -> 'm';
-                case 'ɴ' -> 'n';
-                case 'ᴘ' -> 'p';
-                case 'ʀ' -> 'r';
-                case 'ᴛ' -> 't';
-                case 'ᴠ' -> 'v';
-                case 'ᴡ' -> 'w';
-                case 'ʏ' -> 'y';
-                case 'ᴢ' -> 'z';
-                default -> c;
-            };
-            sb.append(mapped);
-        }
-        return sb.toString();
     }
 
     private static void resetSession() {

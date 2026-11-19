@@ -2,7 +2,7 @@ param(
     [string]$Version = "1.0.0",
     [int]$VersionCode = 1,
     [string]$Changelog = "Initial release",
-    [string]$Repo = "kheromieallah/sestia",
+    [string]$Repo = "kheromieleet-hash/kimsebasxd",
     [switch]$Upload
 )
 
@@ -39,7 +39,8 @@ $libJars = @(Get-ChildItem -Path "C:\Users\PC\.gradle\caches\modules-2" -Recurse
     $_.Length -gt 1024
 } | Select-Object -ExpandProperty FullName)
 
-$allCp = @($repoRoot, $preferredLoader, "C:\Users\PC\.gradle\caches\fabric-loom\26.3\minecraft-merged.jar") + $fapiJars + $loomJars + $libJars
+$sodiumJars = @(Get-ChildItem -Path "C:\Users\PC\AppData\Roaming\PrismLauncher\instances\26.3\minecraft\mods" -Filter "sodium-fabric*.jar" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)
+$allCp = @($repoRoot, $preferredLoader, "C:\Users\PC\.gradle\caches\fabric-loom\26.3\minecraft-merged.jar") + $fapiJars + $loomJars + $libJars + $sodiumJars
 $cpString = (($allCp | Select-Object -Unique) -join ";").Replace('\', '/')
 $cpFile = Join-Path $buildTmp "javac_args.txt"
 [IO.File]::WriteAllText($cpFile, "-cp `"$cpString`"", [Text.Encoding]::ASCII)
@@ -238,10 +239,17 @@ if ($Upload) {
         Write-Host "Uploading release $tag to $Repo via GitHub CLI..."
         $exists = $false
         try { & gh release view $tag --repo $Repo *> $null; if ($LASTEXITCODE -eq 0) { $exists = $true } } catch {}
-        if ($exists) {
-            & gh release upload $tag $coreJarOut $manifestOut $loaderJarOut --repo $Repo --clobber
-        } else {
-            & gh release create $tag $coreJarOut $manifestOut $loaderJarOut --repo $Repo --title "Sestia Client $tag" --notes $Changelog
+        $emptyNotes = Join-Path $distDir ".empty-notes.txt"
+        [IO.File]::WriteAllText($emptyNotes, "", (New-Object System.Text.UTF8Encoding($false)))
+        try {
+            if ($exists) {
+                & gh release upload $tag $coreJarOut $manifestOut $loaderJarOut --repo $Repo --clobber
+                if ($LASTEXITCODE -eq 0) { & gh release edit $tag --repo $Repo --notes-file $emptyNotes }
+            } else {
+                & gh release create $tag $coreJarOut $manifestOut $loaderJarOut --repo $Repo --title "Sestia Client $tag" --notes-file $emptyNotes
+            }
+        } finally {
+            if (Test-Path $emptyNotes) { Remove-Item $emptyNotes -Force }
         }
         if ($LASTEXITCODE -ne 0) { throw "gh release upload failed!" }
         Write-Host "Uploaded $tag to https://github.com/$Repo/releases/tag/$tag"
@@ -252,7 +260,7 @@ if ($Upload) {
             Accept        = "application/vnd.github+json"
             "User-Agent"  = "SestiaClient-Publisher"
         }
-        $relBody = @{ tag_name = $tag; name = "Sestia Client $tag"; body = $Changelog; draft = $false; prerelease = $false } | ConvertTo-Json
+        $relBody = @{ tag_name = $tag; name = "Sestia Client $tag"; body = ""; draft = $false; prerelease = $false } | ConvertTo-Json
         try {
             $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/tags/$tag" -Headers $headers -Method Get
         } catch {

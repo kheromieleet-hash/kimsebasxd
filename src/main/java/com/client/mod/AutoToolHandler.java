@@ -13,10 +13,6 @@ public class AutoToolHandler {
     private static int switchCooldown = 0;
     private static boolean isMining = false;
 
-    public static boolean isMining() {
-        return isMining;
-    }
-
     public static void onStartMining(BlockPos pos) {
         ModConfig cfg = ModConfig.getInstance();
         if (!cfg.autoTool) return;

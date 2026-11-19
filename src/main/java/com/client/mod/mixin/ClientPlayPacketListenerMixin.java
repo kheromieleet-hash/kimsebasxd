@@ -1,23 +1,32 @@
 package com.client.mod.mixin;
 
 import com.client.mod.AutoFishHandler;
+import com.client.mod.BlockEspHandler;
 import com.client.mod.ExploitPacketRules;
 import com.client.mod.ModConfig;
 import com.client.mod.PacketMineHandler;
+import com.client.mod.StatsHudRenderer;
 import com.client.mod.WorldRenderToolsHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundClearTitlesPacket;
 import net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacket;
 import net.minecraft.network.protocol.game.ClientboundExplodePacket;
+import net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket;
+import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
+import net.minecraft.network.protocol.game.ClientboundLoginPacket;
 import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
+import net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTimePacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
 import net.minecraft.world.entity.Entity;
@@ -46,7 +55,21 @@ public abstract class ClientPlayPacketListenerMixin {
     private boolean customclient$replayingBacktrack = false;
 
     @Unique
-    private Vec3 customclient$preVelocity = null;
+    private volatile Vec3 customclient$preVelocity = null;
+
+    @Inject(method = "handleLogin", at = @At("TAIL"))
+    private void onHandleLoginTail(ClientboundLoginPacket packet, CallbackInfo ci) {
+        if (Minecraft.getInstance().isSameThread()) {
+            StatsHudRenderer.onGameJoin();
+        }
+    }
+
+    @Inject(method = "handleSetTime", at = @At("TAIL"))
+    private void onHandleSetTimeTail(ClientboundSetTimePacket packet, CallbackInfo ci) {
+        if (Minecraft.getInstance().isSameThread()) {
+            StatsHudRenderer.onTimePacket();
+        }
+    }
 
     @Inject(method = "handleParticleEvent", at = @At("HEAD"), cancellable = true)
     private void onHandleParticleEvent(ClientboundLevelParticlesPacket packet, CallbackInfo ci) {
@@ -73,10 +96,6 @@ public abstract class ClientPlayPacketListenerMixin {
     @Inject(method = "handleExplosion", at = @At("HEAD"), cancellable = true)
     private void onHandleExplosion(ClientboundExplodePacket packet, CallbackInfo ci) {
         ModConfig cfg = ModConfig.getInstance();
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player != null) {
-            customclient$preVelocity = mc.player.getDeltaMovement();
-        }
         if (!cfg.exploitGuard) {
             return;
         }
@@ -97,17 +116,36 @@ public abstract class ClientPlayPacketListenerMixin {
         }
     }
 
+    @Inject(
+            method = "handleExplosion",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/network/PacketProcessor;)V",
+                    shift = At.Shift.AFTER
+            )
+    )
+    private void onHandleExplosionMainThreadHead(ClientboundExplodePacket packet, CallbackInfo ci) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null && packet.playerKnockback().isPresent()) {
+            customclient$preVelocity = mc.player.getDeltaMovement();
+        } else {
+            customclient$preVelocity = null;
+        }
+    }
+
     @Inject(method = "handleExplosion", at = @At("TAIL"))
     private void onHandleExplosionTail(ClientboundExplodePacket packet, CallbackInfo ci) {
         ModConfig cfg = ModConfig.getInstance();
         Minecraft mc = Minecraft.getInstance();
+        Vec3 pre = customclient$preVelocity;
+        customclient$preVelocity = null;
         if (!cfg.newVelocityEnabled || !cfg.newVelocityExplosions || mc.player == null || packet.playerKnockback().isEmpty()) {
             return;
         }
         if (java.util.concurrent.ThreadLocalRandom.current().nextInt(100) >= cfg.newVelocityChance) {
             return;
         }
-        Vec3 pre = customclient$preVelocity != null ? customclient$preVelocity : Vec3.ZERO;
+        if (pre == null) pre = Vec3.ZERO;
         Vec3 kb = packet.playerKnockback().get();
         double h = cfg.newVelocityHorizontal / 100.0;
         double v = cfg.newVelocityVertical / 100.0;
@@ -117,10 +155,6 @@ public abstract class ClientPlayPacketListenerMixin {
     @Inject(method = "handleSetEntityMotion", at = @At("HEAD"), cancellable = true)
     private void onHandleSetEntityMotion(ClientboundSetEntityMotionPacket packet, CallbackInfo ci) {
         ModConfig cfg = ModConfig.getInstance();
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player != null && packet.id() == mc.player.getId()) {
-            customclient$preVelocity = mc.player.getDeltaMovement();
-        }
         if (!cfg.exploitGuard) {
             return;
         }
@@ -130,17 +164,33 @@ public abstract class ClientPlayPacketListenerMixin {
         }
     }
 
+    @Inject(
+            method = "handleSetEntityMotion",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/network/PacketProcessor;)V",
+                    shift = At.Shift.AFTER
+            )
+    )
+    private void onHandleSetEntityMotionMainThreadHead(ClientboundSetEntityMotionPacket packet, CallbackInfo ci) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null && packet.id() == mc.player.getId()) {
+            customclient$preVelocity = mc.player.getDeltaMovement();
+        }
+    }
+
     @Inject(method = "handleSetEntityMotion", at = @At("TAIL"))
     private void onHandleSetEntityMotionTail(ClientboundSetEntityMotionPacket packet, CallbackInfo ci) {
         ModConfig cfg = ModConfig.getInstance();
         Minecraft mc = Minecraft.getInstance();
         if (!cfg.newVelocityEnabled || mc.player == null || packet.id() != mc.player.getId()) {
-            return;
-        }
-        if (java.util.concurrent.ThreadLocalRandom.current().nextInt(100) >= cfg.newVelocityChance) {
+            if (mc.player != null && packet.id() == mc.player.getId()) {
+                customclient$preVelocity = null;
+            }
             return;
         }
         Vec3 pre = customclient$preVelocity != null ? customclient$preVelocity : Vec3.ZERO;
+        customclient$preVelocity = null;
         Vec3 kb = packet.movement();
         if (cfg.newVelocityMode == 1) {
             if (mc.player.onGround() && kb.horizontalDistanceSqr() > 0.0004) {
@@ -242,6 +292,36 @@ public abstract class ClientPlayPacketListenerMixin {
         this.customclient$backtrackQueue.clear();
         PacketMineHandler.clear();
         WorldRenderToolsHandler.clearLightCache();
+        BlockEspHandler.clearCache();
+    }
+
+    @Inject(method = "handleBlockUpdate", at = @At("TAIL"))
+    private void onHandleBlockUpdate(ClientboundBlockUpdatePacket packet, CallbackInfo ci) {
+        if (Minecraft.getInstance().isSameThread() && packet != null) {
+            BlockPos pos = packet.getPos();
+            BlockEspHandler.markBlockPosDirty(pos.getX(), pos.getZ());
+        }
+    }
+
+    @Inject(method = "handleChunkBlocksUpdate", at = @At("TAIL"))
+    private void onHandleChunkBlocksUpdate(ClientboundSectionBlocksUpdatePacket packet, CallbackInfo ci) {
+        if (Minecraft.getInstance().isSameThread() && packet != null) {
+            packet.runUpdates((pos, state) -> BlockEspHandler.markBlockPosDirty(pos.getX(), pos.getZ()));
+        }
+    }
+
+    @Inject(method = "handleLevelChunkWithLight", at = @At("TAIL"))
+    private void onHandleLevelChunkWithLight(ClientboundLevelChunkWithLightPacket packet, CallbackInfo ci) {
+        if (Minecraft.getInstance().isSameThread() && packet != null) {
+            BlockEspHandler.markChunkDirty(packet.x(), packet.z());
+        }
+    }
+
+    @Inject(method = "handleForgetLevelChunk", at = @At("TAIL"))
+    private void onHandleForgetLevelChunk(ClientboundForgetLevelChunkPacket packet, CallbackInfo ci) {
+        if (Minecraft.getInstance().isSameThread() && packet != null) {
+            BlockEspHandler.removeChunkFromCache(packet.pos().x(), packet.pos().z());
+        }
     }
 
     @Inject(method = "setTitleText", at = @At("TAIL"))

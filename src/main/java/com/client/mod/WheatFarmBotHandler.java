@@ -52,9 +52,6 @@ public final class WheatFarmBotHandler {
     private static boolean holdingMoveKeys = false;
     private static int actionCooldown = 0;
     private static long lastStickRightMs = 0L;
-    private static BlockPos jitterForPos = null;
-    private static double jitterX = 0.0;
-    private static double jitterZ = 0.0;
     private static Vec3 lastPlayerPos = null;
     private static int alarmTicksRemaining = 0;
     private static int isFlyRetryTicks = 0;
@@ -116,7 +113,6 @@ public final class WheatFarmBotHandler {
     public static void onLeftWorld() {
         releaseMovementKeys(Minecraft.getInstance());
         actionCooldown = 0;
-        jitterForPos = null;
         lastPlayerPos = null;
         alarmTicksRemaining = 0;
     }
@@ -155,7 +151,6 @@ public final class WheatFarmBotHandler {
         if (cfg == null || !cfg.wheatFarmEnabled || mc == null || mc.player == null || mc.level == null || mc.gameMode == null) {
             releaseMovementKeys(mc);
             actionCooldown = 0;
-            jitterForPos = null;
             lastPlayerPos = null;
             isFlyRetryTicks = 0;
             isFlyAttempts = 0;
@@ -369,15 +364,6 @@ public final class WheatFarmBotHandler {
         actionCooldown = baseDelay + ThreadLocalRandom.current().nextInt(3);
     }
 
-    private static void updateBlockJitter(BlockPos pos) {
-        if (!pos.equals(jitterForPos)) {
-            jitterForPos = pos;
-            ThreadLocalRandom rnd = ThreadLocalRandom.current();
-            jitterX = rnd.nextDouble(-0.09, 0.09);
-            jitterZ = rnd.nextDouble(-0.09, 0.09);
-        }
-    }
-
     private static float easeRotatePlayer(Minecraft mc, LocalPlayer player, float targetYaw, float targetPitch, float turnSpeedSetting) {
         float yawDiff = Mth.wrapDegrees(targetYaw - player.getYRot());
         float pitchDiff = Mth.clamp(targetPitch, -89.5f, 89.5f) - player.getXRot();
@@ -448,6 +434,15 @@ public final class WheatFarmBotHandler {
         return new float[]{yaw, pitch};
     }
 
+    private static int cachedPathX1;
+    private static int cachedPathY1;
+    private static int cachedPathZ1;
+    private static int cachedPathX2;
+    private static int cachedPathY2;
+    private static int cachedPathZ2;
+    private static boolean hasCachedSerpentinePath = false;
+    private static List<BlockPos> cachedSerpentinePath = List.of();
+
     private static List<BlockPos> buildSerpentinePath(ModConfig cfg) {
         int x1 = cfg.wheatFarmX1;
         int y1 = cfg.wheatFarmY1;
@@ -456,14 +451,35 @@ public final class WheatFarmBotHandler {
         int y2 = cfg.wheatFarmY2;
         int z2 = cfg.wheatFarmZ2;
 
+        if (hasCachedSerpentinePath
+                && cachedPathX1 == x1 && cachedPathY1 == y1 && cachedPathZ1 == z1
+                && cachedPathX2 == x2 && cachedPathY2 == y2 && cachedPathZ2 == z2) {
+            return cachedSerpentinePath;
+        }
+
         int stepX = x2 >= x1 ? 1 : -1;
         int stepY = y2 >= y1 ? 1 : -1;
         int stepZ = z2 >= z1 ? 1 : -1;
 
-        int spanX = Math.abs(x2 - x1);
-        int spanZ = Math.abs(z2 - z1);
+        long spanX = Math.abs((long) x2 - x1);
+        long spanY = Math.abs((long) y2 - y1);
+        long spanZ = Math.abs((long) z2 - z1);
 
-        List<BlockPos> path = new ArrayList<>((spanX + 1) * (spanZ + 1));
+        long area = (spanX + 1L) * (spanZ + 1L);
+        long total = area * (spanY + 1L);
+        if (total <= 0L || total > 200_000L) {
+            cachedPathX1 = x1;
+            cachedPathY1 = y1;
+            cachedPathZ1 = z1;
+            cachedPathX2 = x2;
+            cachedPathY2 = y2;
+            cachedPathZ2 = z2;
+            cachedSerpentinePath = List.of();
+            hasCachedSerpentinePath = true;
+            return cachedSerpentinePath;
+        }
+
+        List<BlockPos> path = new ArrayList<>((int) Math.min(total, 65536L));
         for (int y = y1; y != y2 + stepY; y += stepY) {
             if (spanZ >= spanX) {
                 int row = 0;
@@ -491,13 +507,28 @@ public final class WheatFarmBotHandler {
                 }
             }
         }
-        return path;
+        cachedPathX1 = x1;
+        cachedPathY1 = y1;
+        cachedPathZ1 = z1;
+        cachedPathX2 = x2;
+        cachedPathY2 = y2;
+        cachedPathZ2 = z2;
+        cachedSerpentinePath = java.util.Collections.unmodifiableList(path);
+        hasCachedSerpentinePath = true;
+        return cachedSerpentinePath;
     }
 
     private static FarmTask findNextSerpentineTask(Minecraft mc, ModConfig cfg, boolean hasHoe, boolean hasSeeds) {
         Vec3 eyePos = mc.player.getEyePosition(1.0f);
+        double eyeX = eyePos.x;
+        double eyeY = eyePos.y;
+        double eyeZ = eyePos.z;
+        double maxDistSq = INTERACT_RANGE * INTERACT_RANGE;
+        boolean checkDist = !cfg.wheatFarmWalk && !cfg.wheatFarmFly;
+        BlockPos.MutableBlockPos abovePos = new BlockPos.MutableBlockPos();
+
         for (BlockPos pos : buildSerpentinePath(cfg)) {
-            TaskType type = classifyBlock(mc.level, pos);
+            TaskType type = classifyBlock(mc.level, pos, abovePos);
             if (type == null) {
                 continue;
             }
@@ -507,9 +538,11 @@ public final class WheatFarmBotHandler {
             if (type == TaskType.PLANT && !hasSeeds) {
                 continue;
             }
-            if (!cfg.wheatFarmWalk && !cfg.wheatFarmFly) {
-                double distSq = new Vec3(pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5).distanceToSqr(eyePos);
-                if (distSq > INTERACT_RANGE * INTERACT_RANGE) {
+            if (checkDist) {
+                double dx = (pos.getX() + 0.5) - eyeX;
+                double dy = (pos.getY() + 1.0) - eyeY;
+                double dz = (pos.getZ() + 0.5) - eyeZ;
+                if (dx * dx + dy * dy + dz * dz > maxDistSq) {
                     continue;
                 }
             }
@@ -530,10 +563,13 @@ public final class WheatFarmBotHandler {
         int maxZ = Math.max(cfg.wheatFarmZ1, cfg.wheatFarmZ2);
 
         int count = 0;
+        BlockPos.MutableBlockPos scanPos = new BlockPos.MutableBlockPos();
+        BlockPos.MutableBlockPos abovePos = new BlockPos.MutableBlockPos();
         for (int y = minY; y <= maxY; y++) {
             for (int x = minX; x <= maxX; x++) {
                 for (int z = minZ; z <= maxZ; z++) {
-                    if (classifyBlock(level, new BlockPos(x, y, z)) != null) {
+                    scanPos.set(x, y, z);
+                    if (classifyBlock(level, scanPos, abovePos) != null) {
                         count++;
                     }
                 }
@@ -542,8 +578,9 @@ public final class WheatFarmBotHandler {
         return count;
     }
 
-    private static TaskType classifyBlock(Level level, BlockPos pos) {
-        if (!level.getBlockState(pos.above()).isAir()) {
+    private static TaskType classifyBlock(Level level, BlockPos pos, BlockPos.MutableBlockPos abovePos) {
+        abovePos.set(pos.getX(), pos.getY() + 1, pos.getZ());
+        if (!level.getBlockState(abovePos).isAir()) {
             return null;
         }
         Block block = level.getBlockState(pos).getBlock();

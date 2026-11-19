@@ -34,15 +34,15 @@ public class AutoCrafterHandler {
             new CraftTarget("coal_block", "Coal", Set.of("coal_block")),
             new CraftTarget("copper_block", "Copper", Set.of("copper_block")),
             new CraftTarget("netherite_block", "Netherite", Set.of("netherite_block")),
-            new CraftTarget("raw_blocks", "Raw Ores", Set.of("raw_iron_block", "raw_gold_block", "raw_copper_block")),
+            new CraftTarget("raw_iron_block", "Raw Iron", Set.of("raw_iron_block")),
+            new CraftTarget("raw_gold_block", "Raw Gold", Set.of("raw_gold_block")),
+            new CraftTarget("raw_copper_block", "Raw Copper", Set.of("raw_copper_block")),
             new CraftTarget("slime_block", "Slime", Set.of("slime_block")),
             new CraftTarget("honey_block", "Honey", Set.of("honey_block")),
             new CraftTarget("hay_block", "Hay", Set.of("hay_block")),
             new CraftTarget("bone_block", "Bone", Set.of("bone_block")),
-            new CraftTarget("glowstone", "Glowstone", Set.of("glowstone", "quartz_block", "amethyst_block")),
-            new CraftTarget("nuggets", "Nuggets", Set.of("iron_ingot", "gold_ingot")),
-            new CraftTarget("decraft", "Uncraft", Set.of("iron_ingot", "gold_ingot", "diamond", "emerald", "lapis_lazuli", "redstone", "coal", "copper_ingot", "netherite_ingot", "slime_ball", "bone_meal", "wheat")),
-            new CraftTarget("food_paper", "Food/Paper", Set.of("bread", "sugar", "paper"))
+            new CraftTarget("glowstone", "Glowstone", Set.of("glowstone")),
+            new CraftTarget("quartz_block", "Quartz", Set.of("quartz_block"))
     );
 
     public static void reset() {

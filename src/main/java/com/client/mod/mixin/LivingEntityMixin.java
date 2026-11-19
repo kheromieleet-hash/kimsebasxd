@@ -44,7 +44,7 @@ public class LivingEntityMixin {
         }
         LivingEntity self = (LivingEntity) (Object) this;
         if (config.vmNoBowSwing && self.isHolding(Items.BOW)) {
-            cir.setReturnValue(0);
+            cir.setReturnValue(1);
             return;
         }
         if (config.vmSwingSpeed > 0) {
@@ -59,6 +59,10 @@ public class LivingEntityMixin {
     @Inject(method = "swing(Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/item/component/SwingAnimation;Z)Z", at = @At("HEAD"), cancellable = true)
     private void onSwing(InteractionHand hand, SwingAnimation swingAnimation, boolean sendToSelf, CallbackInfoReturnable<Boolean> cir) {
         if ((Object) this != Minecraft.getInstance().player) {
+            return;
+        }
+        if (com.client.mod.FreecamHandler.isActive()) {
+            cir.setReturnValue(false);
             return;
         }
         ModConfig config = ModConfig.getInstance();

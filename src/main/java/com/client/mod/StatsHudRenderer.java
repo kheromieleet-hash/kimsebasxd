@@ -89,44 +89,42 @@ public class StatsHudRenderer {
         int screenH = graphics.guiHeight();
         int lineSpacing = 11;
 
-        List<Component> statsLines = config.hudTelemetryEnabled ? buildStatsLines(mc, config) : List.of();
+        List<Component> statsLines = config.hudTelemetryEnabled
+                ? buildStatsLines(mc, config)
+                : List.of();
         if (!statsLines.isEmpty()) {
-            int statsW = measureMaxWidth(mc.font, statsLines);
-            int statsH = statsLines.size() * lineSpacing;
-            int statsX = Mth.clamp(config.statsHudX, 2, Math.max(2, screenW - statsW - 2));
-            int statsY = Mth.clamp(config.statsHudY, 2, Math.max(2, screenH - statsH - 2));
+            int[] sb = resolveStatsBoundsForLines(mc.font, screenW, screenH, config, statsLines);
             for (int i = 0; i < statsLines.size(); i++) {
-                graphics.text(mc.font, statsLines.get(i), statsX, statsY + i * lineSpacing, -1, true);
+                graphics.text(mc.font, statsLines.get(i), sb[0], sb[1] + i * lineSpacing, -1, true);
             }
         }
 
         List<Component> posLines = config.hudPositionEnabled ? buildPositionLines(mc, config) : List.of();
         if (!posLines.isEmpty()) {
-            int posW = measureMaxWidth(mc.font, posLines);
-            int posH = posLines.size() * lineSpacing;
-            int posX = config.posHudX < 0
-                    ? Math.max(2, screenW - 4 - posW)
-                    : Mth.clamp(config.posHudX, 2, Math.max(2, screenW - posW - 2));
-            int posY = config.posHudY < 0
-                    ? Math.max(2, screenH - 4 - posH)
-                    : Mth.clamp(config.posHudY, 2, Math.max(2, screenH - posH - 2));
-            boolean alignRight = config.posHudX < 0 || (posX + posW / 2) > (screenW / 2);
+            int[] pb = resolvePositionBoundsForLines(mc.font, screenW, screenH, config, posLines);
+            boolean alignRight = config.posHudX < 0 || (pb[0] + pb[2] / 2) > (screenW / 2);
             for (int i = 0; i < posLines.size(); i++) {
                 Component line = posLines.get(i);
-                int lineX = alignRight ? (posX + posW - mc.font.width(line)) : posX;
-                graphics.text(mc.font, line, lineX, posY + i * lineSpacing, -1, true);
+                int lineX = alignRight ? (pb[0] + pb[2] - mc.font.width(line)) : pb[0];
+                graphics.text(mc.font, line, lineX, pb[1] + i * lineSpacing, -1, true);
             }
         }
 
         if (config.hudShowClock) {
             Component clockLine = buildClockLine();
-            int[] cb = resolveClockBounds(mc.font, screenW, screenH, config);
+            int[] cb = resolveClockBoundsForLine(mc.font, screenW, screenH, config, clockLine);
             graphics.text(mc.font, clockLine, cb[0], cb[1], -1, true);
         }
     }
 
+    private static long lastClockEpochSecond = Long.MIN_VALUE;
+    private static Component cachedClockLine;
+
     public static int[] resolveClockBounds(Font font, int screenW, int screenH, ModConfig config) {
-        Component line = buildClockLine();
+        return resolveClockBoundsForLine(font, screenW, screenH, config, buildClockLine());
+    }
+
+    private static int[] resolveClockBoundsForLine(Font font, int screenW, int screenH, ModConfig config, Component line) {
         int w = Math.max(46, font.width(line));
         int h = 11;
         int x = config.clockHudX < 0
@@ -139,8 +137,13 @@ public class StatsHudRenderer {
     }
 
     private static Component buildClockLine() {
-        String timeStr = ZonedDateTime.now(ISTANBUL_ZONE).format(CLOCK_FORMATTER);
-        return Component.literal(timeStr).setStyle(PRIMARY_STYLE);
+        long epochSec = System.currentTimeMillis() / 1000L;
+        if (epochSec != lastClockEpochSecond || cachedClockLine == null) {
+            String timeStr = java.time.Instant.ofEpochSecond(epochSec).atZone(ISTANBUL_ZONE).format(CLOCK_FORMATTER);
+            cachedClockLine = Component.literal(timeStr).setStyle(PRIMARY_STYLE);
+            lastClockEpochSecond = epochSec;
+        }
+        return cachedClockLine;
     }
 
     public static int[] resolveStatsBounds(Font font, int screenW, int screenH, ModConfig config) {
@@ -148,10 +151,17 @@ public class StatsHudRenderer {
         List<Component> lines = (mc.player != null && mc.level != null)
                 ? buildStatsLines(mc, config)
                 : buildDummyStatsLines(config);
+        return resolveStatsBoundsForLines(font, screenW, screenH, config, lines);
+    }
+
+    private static int[] resolveStatsBoundsForLines(Font font, int screenW, int screenH, ModConfig config, List<Component> lines) {
         int w = Math.max(74, measureMaxWidth(font, lines));
         int h = Math.max(11, lines.size() * 11);
+        int rawY = (config.hudWatermarkEnabled && config.statsHudX == 4 && config.statsHudY == 4)
+                ? 24
+                : config.statsHudY;
         int x = Mth.clamp(config.statsHudX, 2, Math.max(2, screenW - w - 2));
-        int y = Mth.clamp(config.statsHudY, 2, Math.max(2, screenH - h - 2));
+        int y = Mth.clamp(rawY, 2, Math.max(2, screenH - h - 2));
         return new int[]{x, y, w, h};
     }
 
@@ -160,6 +170,10 @@ public class StatsHudRenderer {
         List<Component> lines = (mc.player != null && mc.level != null)
                 ? buildPositionLines(mc, config)
                 : buildDummyPositionLines(config);
+        return resolvePositionBoundsForLines(font, screenW, screenH, config, lines);
+    }
+
+    private static int[] resolvePositionBoundsForLines(Font font, int screenW, int screenH, ModConfig config, List<Component> lines) {
         int w = Math.max(96, measureMaxWidth(font, lines));
         int h = Math.max(11, lines.size() * 11);
         int x = config.posHudX < 0
@@ -171,6 +185,40 @@ public class StatsHudRenderer {
         return new int[]{x, y, w, h};
     }
 
+    private static List<Component> buildStatsLines(Minecraft mc, ModConfig config) {
+        return formatVerticalStatsLines(config, mc.getFps(), getTickRate(), getPing(mc), getPlayerSpeed(mc));
+    }
+
+    private static List<Component> buildDummyStatsLines(ModConfig config) {
+        return formatVerticalStatsLines(config, 144, 20.0f, 24, 4.3);
+    }
+
+    private static List<Component> formatVerticalStatsLines(ModConfig config, int fps, float tps, int ping, double speed) {
+        boolean colored = config.hudUnifiedGlass;
+        java.util.ArrayList<Component> lines = new java.util.ArrayList<>(4);
+        if (config.hudShowFps) {
+            int col = fps >= 60 ? 0xFF4ADE80 : (fps >= 30 ? 0xFFFACC15 : 0xFFF87171);
+            lines.add(colored ? buildColoredPair("FPS: ", Integer.toString(fps), col) : buildPair("FPS: ", Integer.toString(fps)));
+        }
+        if (config.hudShowTps) {
+            int col = tps >= 18.0f ? 0xFF4ADE80 : (tps >= 14.0f ? 0xFFFACC15 : 0xFFF87171);
+            lines.add(colored ? buildColoredPair("TPS: ", formatRound1(tps), col) : buildPair("TPS: ", formatRound1(tps)));
+        }
+        if (config.hudShowPing) {
+            int col = ping < 70 ? 0xFF4ADE80 : (ping < 150 ? 0xFFFACC15 : 0xFFF87171);
+            lines.add(colored ? buildColoredPair("Ping: ", ping + "ms", col) : buildPair("Ping: ", Integer.toString(ping)));
+        }
+        if (config.hudShowSpeed) {
+            lines.add(buildPair("Speed: ", formatRound1(speed)));
+        }
+        return lines;
+    }
+
+    private static MutableComponent buildColoredPair(String label, String value, int valueColor) {
+        return Component.literal(label).setStyle(PRIMARY_STYLE)
+                .append(Component.literal(value).setStyle(Style.EMPTY.withColor(valueColor)));
+    }
+
     private static int measureMaxWidth(Font font, List<Component> lines) {
         int max = 0;
         for (Component c : lines) {
@@ -178,32 +226,6 @@ public class StatsHudRenderer {
             if (w > max) max = w;
         }
         return max;
-    }
-
-    private static List<Component> buildStatsLines(Minecraft mc, ModConfig config) {
-        java.util.ArrayList<Component> lines = new java.util.ArrayList<>(4);
-        if (config.hudShowFps) {
-            lines.add(buildPair("FPS: ", Integer.toString(mc.getFps())));
-        }
-        if (config.hudShowTps) {
-            lines.add(buildPair("TPS: ", formatRound1(getTickRate())));
-        }
-        if (config.hudShowPing) {
-            lines.add(buildPair("Ping: ", Integer.toString(getPing(mc))));
-        }
-        if (config.hudShowSpeed) {
-            lines.add(buildPair("Speed: ", formatRound1(getPlayerSpeed(mc))));
-        }
-        return lines;
-    }
-
-    private static List<Component> buildDummyStatsLines(ModConfig config) {
-        java.util.ArrayList<Component> lines = new java.util.ArrayList<>(4);
-        if (config.hudShowFps) lines.add(buildPair("FPS: ", "144"));
-        if (config.hudShowTps) lines.add(buildPair("TPS: ", "20"));
-        if (config.hudShowPing) lines.add(buildPair("Ping: ", "24"));
-        if (config.hudShowSpeed) lines.add(buildPair("Speed: ", "4.3"));
-        return lines;
     }
 
     private static List<Component> buildPositionLines(Minecraft mc, ModConfig config) {

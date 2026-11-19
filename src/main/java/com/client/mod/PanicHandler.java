@@ -14,8 +14,11 @@ import java.util.List;
  * - Can be restored with .unpanic
  */
 public final class PanicHandler {
-    private static boolean panicActive = false;
+    private static volatile boolean panicActive = false;
     private static ModConfig savedSnapshot = null;
+    private static boolean savedInvActive = false;
+    private static boolean savedInvArmor = false;
+    private static boolean savedInvPotions = false;
 
     private PanicHandler() {
     }
@@ -26,10 +29,29 @@ public final class PanicHandler {
 
     public static void enablePanic(Minecraft mc) {
         ModConfig cfg = ModConfig.getInstance();
+        boolean hadCustomAssets = false;
         if (cfg != null && !panicActive) {
             savedSnapshot = cfg.copy();
+            hadCustomAssets = cfg.customCrosshair || cfg.customFont;
+            try {
+                savedInvActive = dlovin.inventoryhud.InventoryHUDCommon.isActive;
+                savedInvArmor = dlovin.inventoryhud.InventoryHUDCommon.armorHUD;
+                savedInvPotions = dlovin.inventoryhud.InventoryHUDCommon.potionHUD;
+            } catch (Throwable ignored) {
+            }
         }
         panicActive = true;
+
+        AutoSpawnerModule autoSpawner = AutoSpawnerModule.getInstance();
+        if (autoSpawner != null) {
+            autoSpawner.setEnabledFromConfig(false);
+        }
+        SpawnerAutoSellModule spawnerSell = SpawnerAutoSellModule.getInstance();
+        if (spawnerSell != null) {
+            spawnerSell.setEnabledFromConfig(false);
+        }
+        PacketMineHandler.clear();
+        AutoLoginHandler.onLeftWorld();
 
         if (cfg != null) {
             if (FreecamHandler.isActive()) {
@@ -68,6 +90,10 @@ public final class PanicHandler {
                 mc.options.keySprint.setDown(false);
                 mc.options.keyUp.setDown(false);
                 mc.options.keyDown.setDown(false);
+                mc.options.keyLeft.setDown(false);
+                mc.options.keyRight.setDown(false);
+                mc.options.keyAttack.setDown(false);
+                mc.options.keyUse.setDown(false);
                 mc.options.keyJump.setDown(false);
                 mc.options.keyShift.setDown(false);
             }
@@ -84,6 +110,12 @@ public final class PanicHandler {
                 } catch (Throwable ignored) {
                 }
             }
+            if (hadCustomAssets) {
+                try {
+                    mc.reloadResourcePacks();
+                } catch (Throwable ignored) {
+                }
+            }
             ModConfig.reloadChunks();
         }
     }
@@ -94,16 +126,24 @@ public final class PanicHandler {
         }
         panicActive = false;
         ModConfig cfg = ModConfig.getInstance();
+        boolean restoreCustomAssets = false;
         if (cfg != null && savedSnapshot != null) {
             cfg.copyFrom(savedSnapshot);
             savedSnapshot = null;
+            restoreCustomAssets = cfg.customCrosshair || cfg.customFont;
             try {
-                dlovin.inventoryhud.InventoryHUDCommon.isActive = cfg.inventoryHudEnabled;
-                dlovin.inventoryhud.InventoryHUDCommon.armorHUD = cfg.inventoryHudEnabled;
-                dlovin.inventoryhud.InventoryHUDCommon.potionHUD = cfg.inventoryHudEnabled;
+                dlovin.inventoryhud.InventoryHUDCommon.isActive = savedInvActive;
+                dlovin.inventoryhud.InventoryHUDCommon.armorHUD = savedInvArmor;
+                dlovin.inventoryhud.InventoryHUDCommon.potionHUD = savedInvPotions;
             } catch (Throwable ignored) {
             }
             SestiaChatClient.onConfigChanged();
+        }
+        if (restoreCustomAssets && mc != null) {
+            try {
+                mc.reloadResourcePacks();
+            } catch (Throwable ignored) {
+            }
         }
         ModConfig.reloadChunks();
     }

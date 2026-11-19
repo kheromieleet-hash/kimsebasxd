@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Cross-platform desktop notification and taskbar/dock attention helper.
@@ -14,6 +15,8 @@ final class DesktopAlertHelper {
     private static final String OS_NAME = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
     private static final boolean IS_WINDOWS = OS_NAME.contains("win");
     private static final boolean IS_MAC = OS_NAME.contains("mac");
+    private static final long NOTIFY_COOLDOWN_MS = 2000L;
+    private static final AtomicLong LAST_NOTIFY_MS = new AtomicLong(0L);
 
     private DesktopAlertHelper() {
     }
@@ -29,6 +32,11 @@ final class DesktopAlertHelper {
 
     static void showDesktopNotification(String title, String body, boolean warning, String threadName) {
         if (!IS_WINDOWS && !IS_MAC) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        long prev = LAST_NOTIFY_MS.get();
+        if (now - prev < NOTIFY_COOLDOWN_MS || !LAST_NOTIFY_MS.compareAndSet(prev, now)) {
             return;
         }
         final String safeTitle = sanitize(title, 64);

@@ -31,7 +31,7 @@ public class UpdateNoticeManagerTest {
         Path tmp = Files.createTempDirectory("sct-notice-test-");
         try {
             Path noticeFile = tmp.resolve("pending-notice.json");
-            String json = "{\"type\":\"UPDATED\",\"version\":\"1.0.2\",\"previousVersion\":\"1.0.0\",\"changelog\":\"New ClickGUI & HUD\",\"releaseUrl\":\"https://github.com/kheromieallah/sestia/releases/latest\"}";
+            String json = "{\"type\":\"UPDATED\",\"version\":\"1.0.2\",\"previousVersion\":\"1.0.0\",\"changelog\":\"New ClickGUI & HUD\",\"releaseUrl\":\"https://github.com/kheromieleet-hash/kimsebasxd/releases/latest\"}";
             Files.writeString(noticeFile, json, StandardCharsets.UTF_8);
 
             UpdateNoticeManager.Notice first = UpdateNoticeManager.consumePendingNotice(noticeFile);
@@ -53,12 +53,12 @@ public class UpdateNoticeManagerTest {
         Path tmp = Files.createTempDirectory("sct-notice-outdated-");
         try {
             Path noticeFile = tmp.resolve("pending-notice.json");
-            String json = "{\"type\":\"LOADER_OUTDATED\",\"version\":\"2.0.0\",\"previousVersion\":\"1.0.0\",\"changelog\":\"New loader needed\",\"releaseUrl\":\"https://github.com/kheromieallah/sestia/releases/latest\"}";
+            String json = "{\"type\":\"LOADER_OUTDATED\",\"version\":\"2.0.0\",\"previousVersion\":\"1.0.0\",\"changelog\":\"New loader needed\",\"releaseUrl\":\"https://github.com/kheromieleet-hash/kimsebasxd/releases/latest\"}";
             Files.writeString(noticeFile, json, StandardCharsets.UTF_8);
 
             UpdateNoticeManager.Notice notice = UpdateNoticeManager.consumePendingNotice(noticeFile);
             assert notice != null && "LOADER_OUTDATED".equals(notice.type);
-            assert notice.releaseUrl.contains("kheromieallah/sestia");
+            assert notice.releaseUrl.contains("kheromieleet-hash/kimsebasxd");
         } finally {
             deleteRecursive(tmp);
         }

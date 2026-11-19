@@ -44,6 +44,12 @@ public class AutoCrafterTargetMatchTest {
         assertFalse(AutoCrafterHandler.isExplicitTargetEnabled("", cfg), "empty id must be false");
         assertFalse(AutoCrafterHandler.isExplicitTargetEnabled(null, cfg), "null id must be false");
 
+        // All TARGETS entries must be canonical item IDs that survive sanitize()
+        cfg.setAllAutoCraftTargets(true);
+        int allCount = cfg.autoCrafterTargets.size();
+        cfg.sanitize();
+        assertTrue(cfg.autoCrafterTargets.size() == allCount, "all TARGETS entries must survive sanitize()");
+
         System.out.println("AutoCrafterTargetMatchTest PASSED");
     }
 }

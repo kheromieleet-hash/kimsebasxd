@@ -13,7 +13,6 @@ import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
@@ -25,8 +24,6 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public class ClickGuiScreen {
-    private static final Style COMFORTAA_STYLE = Style.EMPTY;
-
     private static final int PANEL_WIDTH = 124;
     private static final int MACRO_WIDTH = 178;
     private static final int HEADER_HEIGHT = 20;
@@ -42,7 +39,6 @@ public class ClickGuiScreen {
 
     public enum Category {
         COMBAT("combat", "Combat", "[C]", 220, 32, false),
-        FUN("fun", "Fun", "[F]", 354, 32, false),
         EXPLOIT("exploit", "Exploit", "[E]", 20, 60, false),
         WORLD("world", "World", "[W]", 154, 60, false),
         RENDER("render", "Render", "[R]", 288, 60, false),
@@ -166,11 +162,39 @@ public class ClickGuiScreen {
                 "Freecam", Category.RENDER,
                 () -> config.freecamEnabled,
                 val -> {
+                    Minecraft mc = Minecraft.getInstance();
                     config.freecamEnabled = val;
                     if (!val) {
-                        FreecamHandler.disable(Minecraft.getInstance());
+                        FreecamHandler.disable(mc);
                     } else {
-                        FreecamHandler.enable(Minecraft.getInstance());
+                        FreecamHandler.enable(mc);
+                        if (!FreecamHandler.isActive()) {
+                            config.freecamEnabled = false;
+                        }
+                    }
+                    config.save();
+                }
+        ));
+
+        // 3c. Xray (Render)
+        MODULES.add(new ModuleEntry(
+                "Xray", Category.RENDER,
+                () -> config.xrayEnabled,
+                val -> {
+                    config.xrayEnabled = val;
+                    config.save();
+                    ModConfig.reloadChunks();
+                }
+        ));
+
+        // 3d. Block ESP (Render)
+        MODULES.add(new ModuleEntry(
+                "Block ESP", Category.RENDER,
+                () -> config.blockEspEnabled,
+                val -> {
+                    config.blockEspEnabled = val;
+                    if (!val) {
+                        BlockEspHandler.clearCache();
                     }
                     config.save();
                 }
@@ -202,6 +226,16 @@ public class ClickGuiScreen {
                 () -> config.keybindsHudEnabled,
                 val -> {
                     config.keybindsHudEnabled = val;
+                    config.save();
+                }
+        ));
+
+        // 6b. Player List (Render)
+        MODULES.add(new ModuleEntry(
+                "Player List", Category.RENDER,
+                () -> config.playerListEnabled,
+                val -> {
+                    config.playerListEnabled = val;
                     config.save();
                 }
         ));
@@ -283,6 +317,36 @@ public class ClickGuiScreen {
                 }
         ));
 
+        // Auto Spawner (World)
+        MODULES.add(new ModuleEntry(
+                "Auto Spawner", Category.WORLD,
+                () -> config.autoSpawnerEnabled,
+                val -> {
+                    if (val && config.spawnerAutoSellEnabled) {
+                        config.spawnerAutoSellEnabled = false;
+                        SpawnerAutoSellModule.getInstance().setEnabledFromConfig(false);
+                    }
+                    config.autoSpawnerEnabled = val;
+                    AutoSpawnerModule.getInstance().setEnabledFromConfig(val);
+                    config.save();
+                }
+        ));
+
+        // Spawner Mode (World)
+        MODULES.add(new ModuleEntry(
+                "Spawner Mode", Category.WORLD,
+                () -> config.spawnerAutoSellEnabled,
+                val -> {
+                    if (val && config.autoSpawnerEnabled) {
+                        config.autoSpawnerEnabled = false;
+                        AutoSpawnerModule.getInstance().setEnabledFromConfig(false);
+                    }
+                    config.spawnerAutoSellEnabled = val;
+                    SpawnerAutoSellModule.getInstance().setEnabledFromConfig(val);
+                    config.save();
+                }
+        ));
+
         // 8. Inventory Tweaks (Player)
         MODULES.add(new ModuleEntry(
                 "Inventory Tweaks", Category.PLAYER,
@@ -359,6 +423,16 @@ public class ClickGuiScreen {
                 () -> config.autoSprint,
                 val -> {
                     config.autoSprint = val;
+                    config.save();
+                }
+        ));
+
+        // Auto Walk (Movement)
+        MODULES.add(new ModuleEntry(
+                "Auto Walk", Category.MOVEMENT,
+                () -> config.autoWalkEnabled,
+                val -> {
+                    config.autoWalkEnabled = val;
                     config.save();
                 }
         ));
@@ -1085,7 +1159,7 @@ public class ClickGuiScreen {
         int contentRows = getSubSettingsRowCount(activeSettingsModule);
         int subH = HEADER_HEIGHT + contentRows * 22 + 8;
         if ("Auto Crafter".equals(activeSettingsModule)) {
-            subH = HEADER_HEIGHT + 4 * 22 + ((AutoCrafterHandler.TARGETS.size() + 1) / 2) * 20 + 8;
+            subH = HEADER_HEIGHT + 3 * 22 + ((AutoCrafterHandler.TARGETS.size() + 1) / 2) * 20 + 8;
         }
         int screenH = graphics.guiHeight();
         if (subY + subH > screenH - 6) {
@@ -2533,7 +2607,6 @@ public class ClickGuiScreen {
                 } catch (Throwable ignored) {
                 }
             }
-            case "zoomFactor" -> config.zoomFactor = Math.round((1.5f + pct * 13.5f) * 10.0f) / 10.0f;
             case "invSortingDelay" -> config.invSortingDelay = Math.round(pct * 10.0f);
             case "fastUseCooldown" -> config.fastUseCooldown = Math.round(pct * 4.0f);
             case "autoReplenishMinCount" -> config.autoReplenishMinCount = Math.max(1, Math.min(63, Math.round(1 + pct * 62.0f)));

@@ -130,6 +130,17 @@ public final class SestiaChatClient {
         disconnect(false);
     }
 
+    public static void onSessionAccountChanged() {
+        ModConfig cfg = ModConfig.getInstance();
+        if (cfg != null && cfg.clientChatEnabled) {
+            synchronized (LOCK) {
+                silentAutoReconnect = true;
+                reconnectAttempts = 0;
+            }
+            connectAsync(0);
+        }
+    }
+
     public static List<String> getSuggestedPlayers() {
         Set<String> names = new LinkedHashSet<>();
         String self = activeNick != null ? activeNick : "";
@@ -298,22 +309,25 @@ public final class SestiaChatClient {
 
         builder.buildAsync(URI.create(connectUrl), new ChatListener(gen, nick))
                 .whenComplete((ws, err) -> {
-                    if (err != null) {
-                        if (gen == GENERATION.get()) {
-                            connecting = false;
-                            loggedIn = false;
-                            scheduleReconnect(gen, extractShortError(err));
-                        } else if (ws != null) {
-                            ws.abort();
+                    synchronized (LOCK) {
+                        if (err != null) {
+                            if (gen == GENERATION.get()) {
+                                connecting = false;
+                                loggedIn = false;
+                                scheduleReconnect(gen, extractShortError(err));
+                            } else if (ws != null) {
+                                ws.abort();
+                            }
+                            return;
                         }
-                        return;
+                        if (gen != GENERATION.get()) {
+                            ws.abort();
+                            return;
+                        }
+                        closeSocketOnly(true);
+                        activeSocket = ws;
+                        lastActivityAt = System.currentTimeMillis();
                     }
-                    if (gen != GENERATION.get()) {
-                        ws.abort();
-                        return;
-                    }
-                    activeSocket = ws;
-                    lastActivityAt = System.currentTimeMillis();
                     sendTextSerialized(ws, SestiaChatProtocol.buildHelloJson(nick), gen, false);
                 });
     }
@@ -417,12 +431,14 @@ public final class SestiaChatClient {
 
         switch (ev.type()) {
             case WELCOME -> {
-                connecting = false;
-                loggedIn = true;
-                reconnectAttempts = 0;
+                synchronized (LOCK) {
+                    connecting = false;
+                    loggedIn = true;
+                    reconnectAttempts = 0;
+                    lastActivityAt = System.currentTimeMillis();
+                }
                 activeNick = ev.from();
                 lastOnlineCount = ev.onlineCount();
-                lastActivityAt = System.currentTimeMillis();
                 if (ev.users() != null && !ev.users().isEmpty()) {
                     KNOWN_USERS.addAll(ev.users());
                 }
@@ -471,11 +487,17 @@ public final class SestiaChatClient {
     }
 
     private static void postChat(String text) {
+        if (PanicHandler.isPanicActive()) {
+            return;
+        }
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) {
             return;
         }
         mc.execute(() -> {
+            if (PanicHandler.isPanicActive()) {
+                return;
+            }
             if (mc.gui != null && mc.gui.hud != null && mc.gui.hud.getChat() != null) {
                 mc.gui.hud.getChat().addClientSystemMessage(Component.literal(text));
             }
@@ -492,6 +514,7 @@ public final class SestiaChatClient {
     }
 
     private static final class ChatListener implements WebSocket.Listener {
+        private static final int MAX_WS_FRAME_CHARS = 262_144;
         private final int generation;
         private final StringBuilder buffer = new StringBuilder();
 
@@ -508,6 +531,11 @@ public final class SestiaChatClient {
 
         @Override
         public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
+            if (buffer.length() + data.length() > MAX_WS_FRAME_CHARS) {
+                buffer.setLength(0);
+                webSocket.abort();
+                return null;
+            }
             buffer.append(data);
             if (last) {
                 String full = buffer.toString();

@@ -116,10 +116,12 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     Toggle on Damage (hasar alinca kapat), Allow Interact (etkilesime izin ver).
 
 17. HUD Info
-    Ne ise yarar: Ekranda canli FPS, TPS, Ping, Hiz, Yon, Overworld/Nether
-    koordinatlari ve Istanbul saatini gosterir.
+    Ne ise yarar: Ekranda renk kodlu canli FPS, TPS, Ping, Hiz, Yon,
+    Overworld/Nether koordinatlari, Istanbul saati, Sestia Watermark ve aktif
+    moduller listesini gosterir.
     Ayarlar: Show FPS, Show TPS, Show Ping, Show Speed, Show Direction, Show Nether,
-    Show Pos, Show Clock (HUD Editor uzerinden tasinabilir).
+    Show Pos, Show Clock, Unified Glass, Watermark, Active Modules (HUD Editor
+    uzerinden tasinabilir).
 
 18. Inventory HUD+
     Ne ise yarar: Oyun ekraninda canli envanter, zirh dayanakliligi ve iksir
@@ -135,6 +137,13 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     Ne ise yarar: Acik modulleri ve atanmis tus kisayollarini ekranda tablo
     olarak gosterir.
     Ayarlar: Only Active, Auto-Hide, Reset Position.
+
+20b. Player List
+     Ne ise yarar: Etrafindaki yakin oyunculari mesafe ve can bilgisiyle
+     ekranin ust kosesinde kaydirilabilir (scroll) liste olarak gosterir
+     (Sohbette fareyle uzerinde veya oyunda Alt + Tekerlek ile kaydirilir).
+     Ayarlar: Side (Top Right / Top Left), Show Distance, Show Health,
+     Ignore NPCs, Auto-Hide, Visible Rows (4 - 40), Reset Position.
 
 21. Light Overlay
     Ne ise yarar: Etrafindaki yurunebilir karanlik bloklari tarar; Kirmizi X
@@ -165,6 +174,20 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     Player Scale (0.10x - 2.00x), Offset X/Y/Z (-2.00..2.00),
     Scale X/Y/Z (0.00..5.00), Rotation X/Y/Z (-180..180°),
     Swing X/Y/Z (0.00..2.00), Reset Defaults.
+
+25b. Xray
+     Ne ise yarar: Secili maden ve bloklari yeraltindan gormeyi saglar
+     (Vanilla MC 26.3 ve Sodium 0.9.2+mc26.3 uyumlu + otomatik tam aydinlatma).
+     Ayarlar: Opacity (0 - 255 yari saydam arka plan / 0 = tam gizleme),
+     Exposed Only (yalnizca acik yuzu olan madenleri goster),
+     Select Blocks... (Ores / Storage / Nether onayarli blok secici).
+
+25c. Block ESP
+     Ne ise yarar: Secilen bloklari mesafe icinde chunk onbellekli tarama ile
+     3D kutu ve iz cizgisiyle isaretler (blok guncellemelerinde anlik yenilenir).
+     Ayarlar: Range (16 - 160b), Shape Mode (Lines / Sides / Both),
+     Default Color, Tracers, Select & Style Blocks... (blok bazli renk,
+     sekil ve tracer ozellestirme + Ores/Storage/Nether onayarlar).
 
 
 --------------------------------------------------------------------------------
@@ -211,6 +234,23 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
     ekrani acildiginda Windows masaustu bildirimi + sesli uyari + gorev cubugu
     parlamasi gonderir, dogrulamayi tamamladiginda oltayi otomatik tekrar atar.
     Ayarlar: Auto Recast, Click Delay (1 - 15t), Recast Delay (8 - 40t).
+
+32. Spawner Auto Sell (Spawner Mode)
+    Ne ise yarar: Odadaki tum spawnerlari tarar (kirmizi ESP), sirayla her
+    spawnerin yonetim menusunu acip Otomatik Satis ayarini secilen hedefe
+    (Gold Block / Acik veya Gold Nugget / Kapali) cevirir, tamamlananlari
+    yesil ESP yapar ve hepsi bitince otomatik durur. Canli durum HUD'u
+    Sestia temasinda gosterilir ve GUI Move (HUD Editor) uzerinden tasinabilir.
+    Ayarlar: Target (Gold Block (Acik) / Gold Nugget (Kapali)), Search Radius
+    (12 - 40b), Lock Mouse, Render ESP.
+
+33. Auto Spawner
+    Ne ise yarar: Odadaki spawnerlari S-Snake rotasiyla gezip demir kulcelerini
+    toplar, /craft ile blok yapar, sandiklara bosaltir ve Sestia temasinda canli
+    durum HUD'u gosterir. HUD konumu GUI Move (HUD Editor) uzerinden suruklenip
+    sifirlanabilir.
+    Ayarlar: Spawner Count (Auto / 1 - 256), Search Radius (12 - 40b),
+    Click Delay (2 - 8t), Lock Mouse, Render ESP.
 
 
 --------------------------------------------------------------------------------
@@ -347,9 +387,11 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
 - Low Fire: Ekrandaki yanma/ates efektini asagi indirerek gorusu acar.
 - Version Switcher (Multiplayer ekraninda): Baglanilan sunucuya farkli
   Minecraft protokol surumu gondererek surum degistirmeyi saglar.
-- Account Switcher + Auto-Login: Offline hesap eklerken kullanici adinin altina
-  istege bagli sunucu sifresi girilebilir; o hesapla sunucuya girildiginde /login
-  veya /register istendiginde kaydedilen sifreyi otomatik gonderir.
+- Account Switcher + Auto-Login: Tum hesap listesi, ekle/duzenle/sil onay,
+  Microsoft sifreleme/OAuth ve oturum acma/baglanma (Login) ekranlari vanilya
+  Minecraft tasarimiyla calisir. Offline hesap eklerken veya duzenlerken
+  kullanici adinin altina istege bagli sunucu sifresi girilebilir; sunucuya
+  girildiginde /login veya /register istendiginde kaydedilen sifreyi otomatik gonderir.
 - Sohbet Makrolari: Tek tusla sohbet komutu veya mesaj gonderme (Macros sekmesi).
 - Ayar Profilleri (Settings sekmesi): Acik modulleri, slider/mod ayarlarini,
   tus atamalarini, makrolari ve HUD ayarlarini yerel profil olarak kaydetme/yukleme,
@@ -358,10 +400,18 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
 - Slider Sayi Girisi: Tum modullerdeki slider deger etiketlerinin (orn. 1.00x,
   -0.21, 0.0°, 25t, 70%) uzerine tiklayip klavyeden istenen sayiyi dogrudan
   yazma (Enter/Tab veya disa tikla onayla, Esc ile iptal et).
-- Favori Moduller (Favorites Sekmesi & Yildiz Ikonu): Her modul kartinin sol ust
-  basinda bulunan yildiz (★) ikonuna tiklayarak modulu favorilere ekleme/cikarma;
-  hem sol menudeki "Favorites" sekmesinden hem de ust kategori cubugundaki
-  "★ Favorites" filtresinden favori modullere aninda ulasma.
+- Favori Moduller & Balanced Pro Kart Duzeni: Her modul kartinin sag ustunde
+  bulunan yildiz (★) ikonuyla modulu favorilere sabitleme (favoriler en uste
+  siralanir), sol altta tus atama kutusu + ayarlar butonu (yalnizca ayari olan
+  modullerde) ve sag altta acma/kapama anahtari yer alir; ozel klasorler sol
+  kenar cubugunda listelenir, ust filtre cubugu tek satirda kalir.
+- ClickGUI Arama & Klasor Yonetimi: Arama kutusunda `bind:M5` veya `bind:none`
+  gibi tus filtrelemesi, ozel klasor arac cubugunda Rename (yeniden adlandirma),
+  modul ayar akordiyonunda tek tik `Reset Defaults` ve Config sekmesinde mevcut
+  profilin uzerine yazma (`Save`) butonlari yer alir.
+- HUD Layout Editor Snap: HUD elemanlarini suruklerken merkez ve kenar
+  çizgilerine otomatik manyetik hizalama (`Shift` basili iken serbest) destegi
+  bulunur.
 - GUI Temalari (Settings -> GENERAL -> GUI Theme): Toplam 10 farkli tema arasinda
   (< / > tuslariyla) aninda gecis yapabilme:
   1. Sestia OLED (Neon Crimson & Koyu OLED)

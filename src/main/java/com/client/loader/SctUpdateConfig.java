@@ -11,7 +11,7 @@ import java.util.Properties;
  */
 public final class SctUpdateConfig {
     public static final int LOADER_CODE = 1;
-    public static final String REPO_SLUG = "kheromieallah/sestia";
+    public static final String REPO_SLUG = "kheromieleet-hash/kimsebasxd";
     public static final String DEFAULT_MANIFEST_URL =
             "https://github.com/" + REPO_SLUG + "/releases/latest/download/version.json";
     public static final String DEFAULT_RELEASES_URL =

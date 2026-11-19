@@ -23,6 +23,7 @@ import java.util.Locale;
 import java.util.Properties;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 
 /**
  * Resolves, downloads, SHA-256 verifies, and caches the active SCT Client Core JAR.
@@ -63,9 +64,9 @@ public final class SctUpdater {
     }
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Duration CONNECT_TIMEOUT = Duration.ofMillis(2500);
-    private static final Duration MANIFEST_TIMEOUT = Duration.ofMillis(4000);
-    private static final Duration DOWNLOAD_TIMEOUT = Duration.ofSeconds(30);
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(6);
+    private static final Duration MANIFEST_TIMEOUT = Duration.ofSeconds(12);
+    private static final Duration DOWNLOAD_TIMEOUT = Duration.ofSeconds(45);
 
     private final Path workDir;
     private final Path coreDir;
@@ -322,6 +323,18 @@ public final class SctUpdater {
         if (this.fallbackSupplier == null) {
             return localCore;
         }
+        // Check embedded metadata in-memory before writing the ~2 MB core JAR to disk.
+        if (localCore != null && Files.isRegularFile(localCore) && localState != null) {
+            try (InputStream checkIn = this.fallbackSupplier.openFallbackStream()) {
+                if (checkIn == null) {
+                    return localCore;
+                }
+                EmbeddedMeta meta = readEmbeddedCoreMeta(checkIn);
+                if (meta.versionCode() <= localState.versionCode) {
+                    return localCore;
+                }
+            }
+        }
         Path stagePart = this.coreDir.resolve("fallback-check.part").normalize();
         try {
             try (InputStream in = this.fallbackSupplier.openFallbackStream()) {
@@ -352,9 +365,22 @@ public final class SctUpdater {
         }
     }
 
+    private static EmbeddedMeta readEmbeddedCoreMeta(InputStream rawIn) {
+        try (ZipInputStream zis = new ZipInputStream(rawIn)) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                if ("sct-core-meta.properties".equals(entry.getName())) {
+                    Properties props = new Properties();
+                    props.load(zis);
+                    return parseEmbeddedMeta(props);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return new EmbeddedMeta(SctUpdateConfig.BASELINE_VERSION, SctUpdateConfig.BASELINE_VERSION_CODE);
+    }
+
     private static EmbeddedMeta readEmbeddedCoreMeta(Path jarPath) {
-        String ver = SctUpdateConfig.BASELINE_VERSION;
-        int code = SctUpdateConfig.BASELINE_VERSION_CODE;
         try (ZipFile zip = new ZipFile(jarPath.toFile())) {
             ZipEntry entry = zip.getEntry("sct-core-meta.properties");
             if (entry != null) {
@@ -362,16 +388,23 @@ public final class SctUpdater {
                 try (InputStream in = zip.getInputStream(entry)) {
                     props.load(in);
                 }
-                String v = props.getProperty("version");
-                if (v != null && !v.isBlank()) {
-                    ver = v.trim();
-                }
-                String c = props.getProperty("versionCode");
-                if (c != null && !c.isBlank()) {
-                    code = Math.max(1, Integer.parseInt(c.trim()));
-                }
+                return parseEmbeddedMeta(props);
             }
         } catch (Throwable ignored) {
+        }
+        return new EmbeddedMeta(SctUpdateConfig.BASELINE_VERSION, SctUpdateConfig.BASELINE_VERSION_CODE);
+    }
+
+    private static EmbeddedMeta parseEmbeddedMeta(Properties props) {
+        String ver = SctUpdateConfig.BASELINE_VERSION;
+        int code = SctUpdateConfig.BASELINE_VERSION_CODE;
+        String v = props.getProperty("version");
+        if (v != null && !v.isBlank()) {
+            ver = v.trim();
+        }
+        String c = props.getProperty("versionCode");
+        if (c != null && !c.isBlank()) {
+            code = Math.max(1, Integer.parseInt(c.trim()));
         }
         return new EmbeddedMeta(ver, code);
     }

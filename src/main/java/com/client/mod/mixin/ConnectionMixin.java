@@ -42,7 +42,7 @@ public abstract class ConnectionMixin {
 
     @ModifyVariable(method = "doSendPacket", at = @At("HEAD"), argsOnly = true)
     private Packet<?> onDoSendPacket(Packet<?> packet) {
-        if (packet instanceof ClientIntentionPacket orig) {
+        if (packet instanceof ClientIntentionPacket orig && !com.client.mod.PanicHandler.isPanicActive()) {
             ModConfig config = ModConfig.getInstance();
             if (config != null && config.targetProtocol > 0 && orig.protocolVersion() != config.targetProtocol) {
                 return new ClientIntentionPacket(

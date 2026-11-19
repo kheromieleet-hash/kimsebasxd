@@ -27,6 +27,9 @@ public final class ItemNotifierHudRenderer {
 
     private static final Map<Item, Integer> PREVIOUS_COUNTS = new HashMap<>();
     private static final Map<Item, ItemStack> SAMPLE_STACKS = new HashMap<>();
+    private static final Map<Item, Integer> CURRENT_COUNTS = new HashMap<>();
+    private static final Map<Item, ItemStack> CURRENT_FIRST_STACK = new HashMap<>();
+    private static final Set<Item> ALL_ITEMS = new HashSet<>();
     private static final List<NotificationEntry> ENTRIES = new ArrayList<>();
     private static int trackedPlayerId = -1;
 
@@ -52,6 +55,9 @@ public final class ItemNotifierHudRenderer {
     public static void reset() {
         PREVIOUS_COUNTS.clear();
         SAMPLE_STACKS.clear();
+        CURRENT_COUNTS.clear();
+        CURRENT_FIRST_STACK.clear();
+        ALL_ITEMS.clear();
         ENTRIES.clear();
         trackedPlayerId = -1;
     }
@@ -67,63 +73,70 @@ public final class ItemNotifierHudRenderer {
         long ttlMs = Math.max(500L, Math.round(cfg.itemNotifierDuration * 1000.0f));
         pruneExpired(now, ttlMs);
 
-        Map<Item, Integer> currentCounts = new HashMap<>();
-        Map<Item, ItemStack> currentSamples = new HashMap<>();
-
-        Inventory inv = client.player.getInventory();
-        int size = inv.getContainerSize();
-        for (int i = 0; i < size; i++) {
-            ItemStack stack = inv.getItem(i);
-            if (!stack.isEmpty()) {
-                Item item = stack.getItem();
-                currentCounts.merge(item, stack.getCount(), Integer::sum);
-                currentSamples.putIfAbsent(item, stack.copyWithCount(1));
+        CURRENT_COUNTS.clear();
+        CURRENT_FIRST_STACK.clear();
+        try {
+            Inventory inv = client.player.getInventory();
+            int size = inv.getContainerSize();
+            for (int i = 0; i < size; i++) {
+                ItemStack stack = inv.getItem(i);
+                if (!stack.isEmpty()) {
+                    Item item = stack.getItem();
+                    CURRENT_COUNTS.merge(item, stack.getCount(), Integer::sum);
+                    CURRENT_FIRST_STACK.putIfAbsent(item, stack);
+                }
             }
-        }
 
-        if (client.player.containerMenu != null) {
-            ItemStack carried = client.player.containerMenu.getCarried();
-            if (!carried.isEmpty()) {
-                Item item = carried.getItem();
-                currentCounts.merge(item, carried.getCount(), Integer::sum);
-                currentSamples.putIfAbsent(item, carried.copyWithCount(1));
+            if (client.player.containerMenu != null) {
+                ItemStack carried = client.player.containerMenu.getCarried();
+                if (!carried.isEmpty()) {
+                    Item item = carried.getItem();
+                    CURRENT_COUNTS.merge(item, carried.getCount(), Integer::sum);
+                    CURRENT_FIRST_STACK.putIfAbsent(item, carried);
+                }
             }
-        }
 
-        int playerId = client.player.getId();
-        if (trackedPlayerId != playerId) {
+            int playerId = client.player.getId();
+            if (trackedPlayerId != playerId) {
+                PREVIOUS_COUNTS.clear();
+                PREVIOUS_COUNTS.putAll(CURRENT_COUNTS);
+                SAMPLE_STACKS.clear();
+                for (Map.Entry<Item, ItemStack> e : CURRENT_FIRST_STACK.entrySet()) {
+                    SAMPLE_STACKS.put(e.getKey(), e.getValue().copyWithCount(1));
+                }
+                ENTRIES.clear();
+                trackedPlayerId = playerId;
+                return;
+            }
+
+            ALL_ITEMS.clear();
+            ALL_ITEMS.addAll(PREVIOUS_COUNTS.keySet());
+            ALL_ITEMS.addAll(CURRENT_COUNTS.keySet());
+
+            for (Item item : ALL_ITEMS) {
+                int prev = PREVIOUS_COUNTS.getOrDefault(item, 0);
+                int cur = CURRENT_COUNTS.getOrDefault(item, 0);
+                int diff = cur - prev;
+                if (diff != 0) {
+                    ItemStack raw = CURRENT_FIRST_STACK.get(item);
+                    ItemStack icon;
+                    if (raw != null) {
+                        icon = raw.copyWithCount(1);
+                        SAMPLE_STACKS.put(item, icon);
+                    } else {
+                        icon = SAMPLE_STACKS.get(item);
+                        if (icon == null) {
+                            icon = new ItemStack(item);
+                        }
+                    }
+                    recordChange(item, icon, diff, now, cfg.itemNotifierMaxItems);
+                }
+            }
+
             PREVIOUS_COUNTS.clear();
-            PREVIOUS_COUNTS.putAll(currentCounts);
-            SAMPLE_STACKS.clear();
-            SAMPLE_STACKS.putAll(currentSamples);
-            ENTRIES.clear();
-            trackedPlayerId = playerId;
-            return;
-        }
-
-        Set<Item> allItems = new HashSet<>(PREVIOUS_COUNTS.keySet());
-        allItems.addAll(currentCounts.keySet());
-
-        for (Item item : allItems) {
-            int prev = PREVIOUS_COUNTS.getOrDefault(item, 0);
-            int cur = currentCounts.getOrDefault(item, 0);
-            int diff = cur - prev;
-            if (diff != 0) {
-                ItemStack icon = currentSamples.get(item);
-                if (icon == null) {
-                    icon = SAMPLE_STACKS.get(item);
-                }
-                if (icon == null) {
-                    icon = new ItemStack(item);
-                }
-                recordChange(item, icon, diff, now, cfg.itemNotifierMaxItems);
-            }
-        }
-
-        PREVIOUS_COUNTS.clear();
-        PREVIOUS_COUNTS.putAll(currentCounts);
-        for (Map.Entry<Item, ItemStack> e : currentSamples.entrySet()) {
-            SAMPLE_STACKS.put(e.getKey(), e.getValue());
+            PREVIOUS_COUNTS.putAll(CURRENT_COUNTS);
+        } finally {
+            CURRENT_FIRST_STACK.clear();
         }
     }
 
@@ -191,6 +204,7 @@ public final class ItemNotifierHudRenderer {
         int x = bounds[0];
         int y = bounds[1];
 
+        int rowStride = ROW_HEIGHT;
         int count = Math.min(ENTRIES.size(), cfg.itemNotifierMaxItems);
         for (int i = 0; i < count; i++) {
             NotificationEntry entry = ENTRIES.get(i);
@@ -205,14 +219,13 @@ public final class ItemNotifierHudRenderer {
             }
 
             String countText = (entry.delta > 0 ? "+" : "") + entry.delta;
-            int baseCountColor = entry.delta > 0 ? 0x55FF55 : 0xFF5555;
+            int baseCountColor = entry.delta > 0 ? 0x4ADE80 : 0xF87171;
             int countColor = (alphaByte << 24) | baseCountColor;
             int nameColor = (alphaByte << 24) | 0xFFFFFF;
 
-            int rowY = y + i * ROW_HEIGHT;
-            int textY = rowY + 4;
+            int rowY = y + i * rowStride;
             int countW = font.width(countText);
-
+            int textY = rowY + 4;
             graphics.text(font, countText, x, textY, countColor, true);
             int iconX = x + countW + GAP;
             graphics.item(entry.icon, iconX, rowY);

@@ -85,7 +85,7 @@ public class ModernInspectorLayoutTest {
             }
         }
 
-        for (String oddMod : List.of("Keybinds HUD", "Better Chat", "Inventory Tweaks", "Packet Mine")) {
+        for (String oddMod : List.of("Keybinds HUD", "Auto Fish", "Freecam", "Packet Mine")) {
             List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(oddMod, cfg, actions);
             assert (controls.size() & 1) == 1 : "Expected odd control count for " + oddMod;
 
@@ -161,12 +161,16 @@ public class ModernInspectorLayoutTest {
         assert ModernModuleGridLayout.computeExpandedDescHeaderHeight(2) == 28;
         assert ModernModuleGridLayout.computeExpandedDescHeaderHeight(5) == 28;
 
-        // Empty / null controls must return 0 extra height
+        // Empty / null controls must return 0 extra height from computeCardExtraHeight,
+        // while computeAccordionExtraHeight allows description-only expansion when descHeaderHeight > 0
         assert ModernModuleGridLayout.computeCardExtraHeight(cardW, 28, List.of()) == 0
                 : "Empty controls must return 0 card extra height";
         assert ModernModuleGridLayout.computeCardExtraHeight(cardW, 28, null) == 0
                 : "Null controls must return 0 card extra height";
         assert ModernModuleGridLayout.computeCardExtraHeight(cardW, 0, List.of()) == 0;
+        assert ModernModuleGridLayout.computeExpandedDescHeaderHeight(3, 4) == 38;
+        assert ModernModuleGridLayout.computeAccordionExtraHeight(cardW, 28, List.of()) == 29;
+        assert ModernModuleGridLayout.computeAccordionExtraHeight(cardW, 0, List.of()) == 0;
 
         List<ModernModuleSettings.Control> vmControls = ModernModuleSettings.getControls("Viewmodel", cfg, actions);
         ModernInspectorLayout.ControlsFlow vmNarrowFlow =
@@ -183,12 +187,12 @@ public class ModernInspectorLayoutTest {
 
         // Single-column layout without horizontal overflow for all configurable modules inside 162px card
         List<String> configurableModules = List.of(
-                "Viewmodel", "Inventory HUD+", "Fullbright", "Keybinds HUD",
-                "Fast Place", "Auto Break", "FastBreak", "Inventory Tweaks",
+                "Viewmodel", "Inventory HUD+", "Keybinds HUD", "Player List",
+                "HUD Info", "Fast Place", "Auto Break", "FastBreak", "Inventory Tweaks",
                 "Auto Replenish", "Fast Use", "Auto Tool", "Auto Crafter",
-                "Better Chat", "Backtrack", "Disabler", "Exploit Guard",
+                "Auto Fish", "Freecam", "Backtrack", "Disabler", "Exploit Guard",
                 "No Mining Trace", "No Slowdown", "Packet Mine", "Ping Spoof",
-                "Chunk Borders", "Light Overlay", "Trajectories"
+                "Chunk Borders", "Light Overlay", "Trajectories", "Xray", "Block ESP"
         );
         for (String modName : configurableModules) {
             List<ModernModuleSettings.Control> controls = ModernModuleSettings.getControls(modName, cfg, actions);

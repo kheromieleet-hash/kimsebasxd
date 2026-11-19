@@ -7,15 +7,20 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.Mth;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.CraftingContainer;
+import net.minecraft.world.inventory.ResultContainer;
+import net.minecraft.world.inventory.ResultSlot;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.DyeColor;
@@ -58,7 +63,15 @@ public class InventoryTweaksHandler {
             this.returnSlot = returnSlot;
         }
 
-        void execute(int containerId, MultiPlayerGameMode gameMode, Player player) {
+        void execute(AbstractContainerMenu menu, MultiPlayerGameMode gameMode, Player player) {
+            int size = menu.slots.size();
+            if (fromSlot < 0 || fromSlot >= size || toSlot < 0 || toSlot >= size) {
+                return;
+            }
+            if (returnSlot != -1 && (returnSlot < 0 || returnSlot >= size)) {
+                return;
+            }
+            int containerId = menu.containerId;
             gameMode.handleContainerInput(containerId, fromSlot, 0, ContainerInput.PICKUP, player);
             gameMode.handleContainerInput(containerId, toSlot, 0, ContainerInput.PICKUP, player);
             if (returnSlot != -1) {
@@ -100,7 +113,7 @@ public class InventoryTweaksHandler {
         }
 
         AbstractContainerMenu menu = mc.player.containerMenu;
-        if (menu == null || menu.containerId != activeContainerId) {
+        if (menu == null || menu.containerId != activeContainerId || !menu.getCarried().isEmpty()) {
             reset();
             return;
         }
@@ -109,60 +122,81 @@ public class InventoryTweaksHandler {
         if (delay == 0) {
             while (!actionQueue.isEmpty()) {
                 Action act = actionQueue.remove(0);
-                act.execute(activeContainerId, mc.gameMode, mc.player);
+                act.execute(menu, mc.gameMode, mc.player);
             }
         } else {
             tickCounter++;
             if (tickCounter >= delay) {
                 tickCounter = 0;
                 Action act = actionQueue.remove(0);
-                act.execute(activeContainerId, mc.gameMode, mc.player);
+                act.execute(menu, mc.gameMode, mc.player);
             }
         }
     }
 
-    public static void sort(AbstractContainerScreen<?> screen, Slot clickedSlot) {
+    private static boolean isSortableExternalSlot(Slot s) {
+        return s != null
+                && !(s.container instanceof Inventory)
+                && !(s instanceof ResultSlot)
+                && !(s.container instanceof CraftingContainer)
+                && !(s.container instanceof ResultContainer);
+    }
+
+    public static boolean sort(AbstractContainerScreen<?> screen, Slot clickedSlot) {
         ModConfig config = ModConfig.getInstance();
         if (!config.invTweaksEnabled || !config.invSorting) {
-            return;
+            return false;
         }
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.gameMode == null) {
-            return;
+            return false;
         }
 
         if (mc.player.isCreative() && config.invDisableInCreative) {
-            return;
+            return false;
         }
 
         if (screen instanceof CreativeModeInventoryScreen) {
-            return;
+            return false;
         }
 
         AbstractContainerMenu menu = screen.getMenu();
         if (menu == null) {
-            return;
+            return false;
         }
 
         List<Slot> allSlots = menu.slots;
         if (allSlots == null || allSlots.isEmpty()) {
-            return;
+            return false;
         }
 
-        // Determine target slots
+        // Determine target slots (never sort crafting grids, result slots, armor, or offhand)
         List<Slot> targetSlots = new ArrayList<>();
-        boolean isExternalContainer = false;
+        Container externalContainer = null;
 
-        if (clickedSlot != null) {
-            isExternalContainer = !(clickedSlot.container instanceof Inventory);
+        if (screen instanceof InventoryScreen) {
+            externalContainer = null;
+        } else if (clickedSlot != null) {
+            if (clickedSlot.container instanceof Inventory) {
+                externalContainer = null;
+            } else if (isSortableExternalSlot(clickedSlot)) {
+                externalContainer = clickedSlot.container;
+            } else {
+                return false;
+            }
         } else {
-            isExternalContainer = allSlots.stream().anyMatch(s -> !(s.container instanceof Inventory));
+            for (Slot s : allSlots) {
+                if (isSortableExternalSlot(s)) {
+                    externalContainer = s.container;
+                    break;
+                }
+            }
         }
 
-        if (isExternalContainer) {
+        if (externalContainer != null) {
             for (Slot s : allSlots) {
-                if (!(s.container instanceof Inventory)) {
+                if (s.container == externalContainer && isSortableExternalSlot(s)) {
                     targetSlots.add(s);
                 }
             }
@@ -183,8 +217,8 @@ public class InventoryTweaksHandler {
             }
         }
 
-        if (targetSlots.isEmpty()) {
-            return;
+        if (targetSlots.size() < 2) {
+            return false;
         }
 
         // If cursor has item, place it into an empty slot first
@@ -196,7 +230,7 @@ public class InventoryTweaksHandler {
                 }
             }
             if (!menu.getCarried().isEmpty()) {
-                return;
+                return false;
             }
         }
 
@@ -253,7 +287,7 @@ public class InventoryTweaksHandler {
         }
 
         if (generatedActions.isEmpty()) {
-            return;
+            return true;
         }
 
         reset();
@@ -261,6 +295,7 @@ public class InventoryTweaksHandler {
         actionQueue.addAll(generatedActions);
 
         tick();
+        return true;
     }
 
     public static boolean renderShulkerTooltip(GuiGraphicsExtractor graphics, Slot hoveredSlot, ItemStack carried, int mouseX, int mouseY) {

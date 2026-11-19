@@ -12,6 +12,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class AbstractSelectionListMixin {
     @Inject(method = "extractListBackground", at = @At("HEAD"), cancellable = true)
     private void onExtractListBackground(GuiGraphicsExtractor graphics, CallbackInfo ci) {
+        if (com.client.mod.PanicHandler.isPanicActive()) {
+            return;
+        }
         AbstractWidget self = (AbstractWidget) (Object) this;
         graphics.fill(self.getX(), self.getY(), self.getX() + self.getWidth(), self.getY() + self.getHeight(), 0x28000000);
         ci.cancel();

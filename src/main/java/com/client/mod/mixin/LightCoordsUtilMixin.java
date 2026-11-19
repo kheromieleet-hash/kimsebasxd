@@ -1,6 +1,7 @@
 package com.client.mod.mixin;
 
 import com.client.mod.ModConfig;
+import com.client.mod.XrayHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.level.BlockAndLightGetter;
@@ -25,7 +26,7 @@ public class LightCoordsUtilMixin {
             CallbackInfoReturnable<Integer> cir
     ) {
         ModConfig cfg = ModConfig.getInstance();
-        if (cfg.fullbright && cfg.fullbrightForceMaxLight) {
+        if ((cfg.fullbright && cfg.fullbrightForceMaxLight) || XrayHandler.isEnabled()) {
             cir.setReturnValue(15728880);
         }
     }

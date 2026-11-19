@@ -25,16 +25,13 @@ final class ModernModuleGridLayout {
     static final int CARD_PAD_X = 10;
     static final int CARD_PADDING_X = 10;
     static final int TITLE_Y_OFFSET = 9;
-    static final int STAR_BOX_X_OFFSET = 6;
+    static final int STAR_BOX_RIGHT_INSET = 4;
     static final int STAR_BOX_Y_OFFSET = 6;
     static final int STAR_BOX_SIZE = 14;
-    static final int STAR_ICON_X_OFFSET = 8;
-    static final int STAR_ICON_Y_OFFSET = 8;
     static final int STAR_ICON_SIZE = 9;
-    static final int TITLE_WITH_STAR_X_OFFSET = 21;
     static final int CONTROL_Y_OFFSET = 25;
     static final int CONTROL_HEIGHT = 15;
-    static final int CONTROL_GAP = 5;
+    static final int CONTROL_GAP = 4;
     static final int SWITCH_WIDTH = 28;
     static final int TUNE_WIDTH = 17;
 
@@ -81,8 +78,8 @@ final class ModernModuleGridLayout {
             int tuneH,
             int titleMaxW
     ) {
-        int starX(int cardX) {
-            return cardX + STAR_BOX_X_OFFSET;
+        int starX(int cardX, int cardW) {
+            return cardX + cardW - STAR_BOX_SIZE - STAR_BOX_RIGHT_INSET;
         }
 
         int starY(int cardY) {
@@ -98,11 +95,11 @@ final class ModernModuleGridLayout {
         }
 
         int titleX(int cardX) {
-            return cardX + TITLE_WITH_STAR_X_OFFSET;
+            return cardX + CARD_PAD_X;
         }
 
         int titleMaxWWithStar(int cardW) {
-            return Math.max(24, cardW - TITLE_WITH_STAR_X_OFFSET - 6);
+            return Math.max(24, cardW - CARD_PAD_X - STAR_BOX_SIZE - STAR_BOX_RIGHT_INSET - 2);
         }
     }
 
@@ -165,12 +162,27 @@ final class ModernModuleGridLayout {
     }
 
     static int computeExpandedDescHeaderHeight(int descLineCount) {
-        if (descLineCount <= 0) {
+        return computeExpandedDescHeaderHeight(descLineCount, 2);
+    }
+
+    static int computeExpandedDescHeaderHeight(int descLineCount, int maxLines) {
+        if (descLineCount <= 0 || maxLines <= 0) {
             return 0;
         }
         return ACCORDION_TOP_DIVIDER_PAD
-                + Math.min(2, descLineCount) * ACCORDION_DESC_LINE_HEIGHT
+                + Math.min(maxLines, descLineCount) * ACCORDION_DESC_LINE_HEIGHT
                 + ACCORDION_TOP_DIVIDER_PAD;
+    }
+
+    static int computeAccordionExtraHeight(
+            int cardW,
+            int descHeaderHeight,
+            List<ModernModuleSettings.Control> controls
+    ) {
+        if (controls != null && !controls.isEmpty()) {
+            return computeCardExtraHeight(cardW, descHeaderHeight, controls);
+        }
+        return descHeaderHeight > 0 ? 1 + descHeaderHeight : 0;
     }
 
     static int computeCardExtraHeight(
@@ -244,8 +256,8 @@ final class ModernModuleGridLayout {
     }
 
     /**
-     * Computes the bottom control row. When a module has no settings, the bind
-     * pill consumes the tune-icon slot so it remains flush with the switch.
+     * Balanced Pro bottom control row: anchors keybind pill (and optional settings
+     * gear button for configurable modules) on bottom-left, toggle switch on bottom-right.
      */
     static CardControlLayout computeCardControlLayout(
             int cardX,
@@ -256,15 +268,39 @@ final class ModernModuleGridLayout {
     ) {
         int controlY = cardY + CONTROL_Y_OFFSET;
         int switchX = cardX + cardW - SWITCH_WIDTH - CARD_PAD_X;
-        int bindW = bindTextWidth + 8;
-        int bindX = switchX - bindW - CONTROL_GAP;
-        int tuneX = hasSettings ? bindX - TUNE_WIDTH - CONTROL_GAP : bindX;
+        int bindX = cardX + CARD_PAD_X;
+        int reservedTune = hasSettings ? TUNE_WIDTH + CONTROL_GAP : 0;
+        int maxBindW = Math.max(24, switchX - CONTROL_GAP - reservedTune - bindX);
+        int bindW = Math.min(bindTextWidth + 8, maxBindW);
+        int tuneX = bindX + bindW + CONTROL_GAP;
+        int tuneW = hasSettings ? TUNE_WIDTH : 0;
         int titleMaxW = Math.max(24, cardW - CARD_PAD_X * 2);
         return new CardControlLayout(
                 switchX, controlY, SWITCH_WIDTH, CONTROL_HEIGHT,
                 bindX, controlY, bindW, CONTROL_HEIGHT,
-                tuneX, controlY, TUNE_WIDTH, CONTROL_HEIGHT,
+                tuneX, controlY, tuneW, CONTROL_HEIGHT,
                 titleMaxW
+        );
+    }
+
+    /** Pins favorite items before non-favorites while preserving A-Z order within each group. */
+    static <T> void sortFavoritesFirstInPlace(
+            List<T> items,
+            Function<T, String> nameExtractor,
+            Predicate<T> favoriteMatcher
+    ) {
+        if (items == null || items.size() <= 1 || favoriteMatcher == null) {
+            return;
+        }
+        items.sort(
+                Comparator.<T, Boolean>comparing(item -> !favoriteMatcher.test(item))
+                        .thenComparing(
+                                item -> {
+                                    String name = nameExtractor.apply(item);
+                                    return name == null ? "" : name;
+                                },
+                                String.CASE_INSENSITIVE_ORDER
+                        )
         );
     }
 
@@ -352,7 +388,11 @@ final class ModernModuleGridLayout {
                 }
             }
         }
-        sortByNameInPlace(result, nameExtractor);
+        if (favoriteMatcher != null) {
+            sortFavoritesFirstInPlace(result, nameExtractor, favoriteMatcher);
+        } else {
+            sortByNameInPlace(result, nameExtractor);
+        }
         return result;
     }
 }

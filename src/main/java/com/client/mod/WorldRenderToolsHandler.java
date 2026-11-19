@@ -3,11 +3,13 @@ package com.client.mod;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.gizmos.GizmoStyle;
 import net.minecraft.gizmos.Gizmos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
@@ -37,6 +39,8 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 /**
  * Renders Chunk Borders, Light Overlay spawn markers, and Trajectories via MC 26.3 Gizmos.
@@ -79,6 +83,71 @@ public final class WorldRenderToolsHandler {
         }
         if (cfg.trajectories) {
             renderTrajectory(mc, mc.level, mc.player, cfg.trajectoriesShowPassive, cfg.trajectoriesBoxOutline);
+        }
+        BlockEspHandler.render(mc, cfg);
+        renderAutoSpawnerEsp(cfg);
+        renderSpawnerAutoSellEsp(cfg);
+    }
+
+    private static final GizmoStyle SPAWNER_DONE_STYLE =
+            GizmoStyle.strokeAndFill(0xFF22C55E, 2.0f, 0x3022C55E);
+    private static final GizmoStyle SPAWNER_PENDING_STYLE =
+            GizmoStyle.strokeAndFill(0xFFEF4444, 2.0f, 0x28EF4444);
+
+    /**
+     * Populates a color-coded countdown name tag above primed TNT and TNT minecart render states.
+     */
+    public static void applyTntTimerTag(EntityRenderState state, float fuseTicks, double yOffset) {
+        float clampedTicks = Math.max(0.0f, fuseTicks);
+        float seconds = clampedTicks / 20.0f;
+        String color;
+        if (seconds > 2.5f) {
+            color = "§a";
+        } else if (seconds > 1.5f) {
+            color = "§e";
+        } else if (seconds > 0.75f) {
+            color = "§6";
+        } else {
+            color = "§c§l";
+        }
+        state.nameTag = Component.literal(color + String.format(Locale.US, "%.2fs", seconds));
+        state.nameTagAttachment = new Vec3(0.0, yOffset, 0.0);
+    }
+
+    private static void renderSpawnerAutoSellEsp(ModConfig cfg) {
+        SpawnerAutoSellModule mod = SpawnerAutoSellModule.getInstance();
+        if (mod == null || !mod.isEnabled() || !cfg.spawnerAutoSellRenderEsp || PanicHandler.isPanicActive()) {
+            return;
+        }
+        renderSpawnerBoxesAndPath(mod.getScannedSpawners(), mod.getCompletedSpawners(), mod.getActivePath());
+    }
+
+    private static void renderSpawnerBoxesAndPath(List<BlockPos> scanned, Set<BlockPos> done, List<BlockPos> path) {
+        for (BlockPos spPos : scanned) {
+            Gizmos.cuboid(spPos, 0.005f, done.contains(spPos) ? SPAWNER_DONE_STYLE : SPAWNER_PENDING_STYLE);
+        }
+        if (path != null && path.size() >= 2) {
+            for (int i = 0; i < path.size() - 1; i++) {
+                BlockPos a = path.get(i);
+                BlockPos b = path.get(i + 1);
+                Gizmos.line(
+                        new Vec3(a.getX() + 0.5, a.getY() + 0.08, a.getZ() + 0.5),
+                        new Vec3(b.getX() + 0.5, b.getY() + 0.08, b.getZ() + 0.5),
+                        0xFF06B6D4,
+                        2.2f
+                );
+            }
+        }
+    }
+
+    private static void renderAutoSpawnerEsp(ModConfig cfg) {
+        AutoSpawnerModule spawner = AutoSpawnerModule.getInstance();
+        if (spawner == null || !spawner.isEnabled() || !cfg.autoSpawnerRenderEsp || PanicHandler.isPanicActive()) {
+            return;
+        }
+        renderSpawnerBoxesAndPath(spawner.getScannedSpawners(), spawner.getOpenedSpawners(), spawner.getActivePath());
+        for (BlockPos fullChest : spawner.getFullSpawnerChests()) {
+            Gizmos.cuboid(fullChest, 0.005f, SPAWNER_PENDING_STYLE);
         }
     }
 
@@ -167,6 +236,7 @@ public final class WorldRenderToolsHandler {
         int maxY = Math.min(level.getMaxY() - 2, center.getY() + LIGHT_SCAN_VERTICAL_RADIUS);
         BlockPos.MutableBlockPos floorPos = new BlockPos.MutableBlockPos();
         BlockPos.MutableBlockPos airPos = new BlockPos.MutableBlockPos();
+        BlockPos.MutableBlockPos headPos = new BlockPos.MutableBlockPos();
 
         for (int dx = -range; dx <= range; dx++) {
             for (int dz = -range; dz <= range; dz++) {
@@ -183,7 +253,7 @@ public final class WorldRenderToolsHandler {
                     if (!above.getFluidState().isEmpty() || !above.getCollisionShape(level, airPos).isEmpty()) {
                         continue;
                     }
-                    BlockPos headPos = airPos.above();
+                    headPos.set(bx, y + 1, bz);
                     BlockState head = level.getBlockState(headPos);
                     if (!head.getCollisionShape(level, headPos).isEmpty()) {
                         continue;

@@ -39,6 +39,9 @@ public abstract class AbstractContainerScreenMixin {
 
     @Inject(method = "mouseDragged", at = @At("HEAD"))
     private void onMouseDragged(MouseButtonEvent event, double deltaX, double deltaY, CallbackInfoReturnable<Boolean> cir) {
+        if (event.button() != 0) {
+            return;
+        }
         ModConfig config = ModConfig.getInstance();
         if (config.invTweaksEnabled && config.invMouseDrag) {
             Minecraft mc = Minecraft.getInstance();
@@ -52,13 +55,15 @@ public abstract class AbstractContainerScreenMixin {
         }
     }
 
-    @Inject(method = "mouseClicked", at = @At("HEAD"))
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void onMouseClicked(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
         ModConfig config = ModConfig.getInstance();
-        // Middle button click (button 2) triggers instant sorting
+        // Middle button click (button 2) triggers instant sorting and prevents vanilla Creative clone
         if (config.invTweaksEnabled && config.invSorting && event.button() == 2) {
             Slot hovered = this.getHoveredSlot(event.x(), event.y());
-            InventoryTweaksHandler.sort((AbstractContainerScreen<?>) (Object) this, hovered);
+            if (InventoryTweaksHandler.sort((AbstractContainerScreen<?>) (Object) this, hovered)) {
+                cir.setReturnValue(true);
+            }
         }
     }
 
@@ -80,6 +85,13 @@ public abstract class AbstractContainerScreenMixin {
 
     @Inject(method = "onClose", at = @At("HEAD"))
     private void onScreenClose(CallbackInfo ci) {
+        InventoryTweaksHandler.reset();
+        AutoCrafterHandler.reset();
+        lastDraggedSlot = null;
+    }
+
+    @Inject(method = "removed", at = @At("HEAD"))
+    private void onScreenRemoved(CallbackInfo ci) {
         InventoryTweaksHandler.reset();
         AutoCrafterHandler.reset();
         lastDraggedSlot = null;

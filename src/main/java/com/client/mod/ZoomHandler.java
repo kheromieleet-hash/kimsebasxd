@@ -25,8 +25,8 @@ public class ZoomHandler {
         if (mc == null || mc.player == null || (mc.gui != null && mc.gui.screen() != null)) {
             return false;
         }
-        if (zoomKey != null && zoomKey.isDown()) {
-            return true;
+        if (zoomKey != null) {
+            return zoomKey.isDown();
         }
         return InputConstants.isKeyDown(InputConstants.KEY_C);
     }

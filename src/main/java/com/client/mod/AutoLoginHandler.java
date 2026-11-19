@@ -31,7 +31,7 @@ public final class AutoLoginHandler {
     }
 
     public static void onChatMessage(String rawText) {
-        if (rawText == null || rawText.isEmpty()) {
+        if (PanicHandler.isPanicActive() || rawText == null || rawText.isEmpty()) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
@@ -59,7 +59,7 @@ public final class AutoLoginHandler {
     }
 
     public static void tick(Minecraft mc) {
-        if (mc == null || mc.player == null || mc.player.connection == null) {
+        if (PanicHandler.isPanicActive() || mc == null || mc.player == null || mc.player.connection == null) {
             return;
         }
         if (pendingCommand == null) {

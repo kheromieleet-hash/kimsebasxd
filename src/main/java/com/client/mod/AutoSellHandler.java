@@ -28,6 +28,12 @@ public final class AutoSellHandler {
     }
 
     public static void tick(Minecraft mc) {
+        if (PanicHandler.isPanicActive()) {
+            pausedAny = false;
+            pauseRestoreTicks = 0;
+            cooldownTicks = 0;
+            return;
+        }
         ModConfig config = ModConfig.getInstance();
 
         if (pauseRestoreTicks > 0) {

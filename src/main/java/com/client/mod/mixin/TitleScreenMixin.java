@@ -1,6 +1,6 @@
 package com.client.mod.mixin;
 
-import com.client.mod.CustomTitleMenu;
+import com.client.mod.SestiaAccountScreen;
 import net.minecraft.client.gui.components.SplashRenderer;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -25,8 +25,11 @@ public abstract class TitleScreenMixin extends Screen {
 
     @Inject(method = "init", at = @At("TAIL"))
     private void onInitTail(CallbackInfo ci) {
+        if (com.client.mod.PanicHandler.isPanicActive()) {
+            return;
+        }
         this.fading = false;
         this.splash = new SplashRenderer(Component.literal("sestia services"));
-        CustomTitleMenu.configureIasPosition();
+        SestiaAccountScreen.disableIasDefaultWidgets();
     }
 }

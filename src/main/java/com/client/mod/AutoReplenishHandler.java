@@ -68,7 +68,7 @@ public class AutoReplenishHandler {
         }
 
         if (moved) {
-            tickDelayLeft = Math.max(1, cfg.autoReplenishTickDelay);
+            tickDelayLeft = Math.max(0, cfg.autoReplenishTickDelay);
         }
     }
 
@@ -77,25 +77,18 @@ public class AutoReplenishHandler {
         ITEMS[slot] = currentStack.copy();
 
         int invIndex = (slot == 9) ? 40 : slot;
+        int selectedSlot = mc.player.getInventory().getSelectedSlot();
         int fromSlot = -1;
 
         if (currentStack.isStackable() && !currentStack.isEmpty() && currentStack.getCount() <= cfg.autoReplenishMinCount) {
-            fromSlot = findItem(mc, cfg, currentStack, invIndex, cfg.autoReplenishMinCount - currentStack.getCount() + 1, true);
+            fromSlot = findItem(mc, cfg, currentStack, invIndex, selectedSlot, cfg.autoReplenishMinCount - currentStack.getCount() + 1, true);
         } else if (prevStack.isStackable() && currentStack.isEmpty() && !prevStack.isEmpty()) {
-            fromSlot = findItem(mc, cfg, prevStack, invIndex, cfg.autoReplenishMinCount - currentStack.getCount() + 1, false);
+            fromSlot = findItem(mc, cfg, prevStack, invIndex, selectedSlot, cfg.autoReplenishMinCount - currentStack.getCount() + 1, false);
         } else if (cfg.autoReplenishUnstackable && !prevStack.isStackable() && currentStack.isEmpty() && !prevStack.isEmpty()) {
-            fromSlot = findItem(mc, cfg, prevStack, invIndex, 1, false);
+            fromSlot = findItem(mc, cfg, prevStack, invIndex, selectedSlot, 1, false);
         }
 
         if (fromSlot < 0) {
-            return false;
-        }
-
-        int selectedSlot = mc.player.getInventory().getSelectedSlot();
-        if (fromSlot == selectedSlot || fromSlot == 40) {
-            return false;
-        }
-        if (fromSlot < 9 && fromSlot < invIndex && invIndex != selectedSlot && invIndex != 40) {
             return false;
         }
 
@@ -104,14 +97,17 @@ public class AutoReplenishHandler {
         return true;
     }
 
-    private static int findItem(Minecraft mc, ModConfig cfg, ItemStack targetStack, int excludedSlot, int goodEnoughCount, boolean checkComponents) {
+    private static int findItem(Minecraft mc, ModConfig cfg, ItemStack targetStack, int excludedSlot, int selectedSlot, int goodEnoughCount, boolean checkComponents) {
         int bestSlot = -1;
         int bestCount = 0;
         Inventory inv = mc.player.getInventory();
         int minSlot = cfg.autoReplenishSearchHotbar ? 0 : 9;
 
         for (int i = 35; i >= minSlot; i--) {
-            if (i == excludedSlot) {
+            if (i == excludedSlot || i == selectedSlot || i == 40) {
+                continue;
+            }
+            if (i < 9 && i < excludedSlot && excludedSlot != selectedSlot && excludedSlot != 40) {
                 continue;
             }
             ItemStack stack = inv.getItem(i);

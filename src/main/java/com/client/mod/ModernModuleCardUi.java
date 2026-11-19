@@ -258,10 +258,11 @@ final class ModernModuleCardUi {
                     graphics.text(font, Component.literal(label), cx, cy, JelloTheme.TEXT, false);
                     if (valHovered) {
                         int pillX = Math.max(cx + 22, cx + cw - valW - 3);
-                        JelloTheme.fillRoundedCard(graphics, pillX, cy - 1, cx + cw + 2, cy + 10, 3, 0x2AFF1E2D, 0x88FF1E2D);
+                        JelloTheme.fillRoundedCard(graphics, pillX, cy - 1, cx + cw + 2, cy + 10, 3,
+                                withAlpha(JelloTheme.ACCENT, 0x2A), withAlpha(JelloTheme.ACCENT, 0x88));
                     }
                     graphics.text(font, Component.literal(valText), cx + cw - valW, cy,
-                            valHovered ? 0xFFFFFFFF : JelloTheme.TEXT_DIM, false);
+                            valHovered ? JelloTheme.TEXT : JelloTheme.TEXT_DIM, false);
                 }
                 sliderDrawer.draw(cx, cy + 12, cw, 6, s.key(), s.pctGetter().get());
             } else if (control instanceof ModernModuleSettings.ToggleControl t) {
@@ -270,7 +271,7 @@ final class ModernModuleCardUi {
                 int bg = active
                         ? (hovered ? JelloTheme.CARD_ACTIVE_HOVER : JelloTheme.CARD_ACTIVE)
                         : (hovered ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
-                int border = active ? 0xCCFF1E2D : JelloTheme.BORDER_SUBTLE;
+                int border = active ? withAlpha(JelloTheme.ACCENT, 0xCC) : JelloTheme.BORDER_SUBTLE;
                 JelloTheme.fillRoundedCard(graphics, cx, cy, cx + cw, cy + t.height(), 5, bg, border);
                 int swW = compact ? 24 : 28;
                 int swH = compact ? 12 : 14;
@@ -278,12 +279,13 @@ final class ModernModuleCardUi {
                 int swY = cy + (t.height() - swH) / 2;
                 int labelMaxW = compact ? Math.max(24, cw - 36) : Math.max(24, cw - 46);
                 String text = fitText(font, t.label(), labelMaxW);
-                graphics.text(font, Component.literal(text), cx + padX, cy + 6, active ? JelloTheme.TEXT : 0xFFCBD5E1, false);
+                graphics.text(font, Component.literal(text), cx + padX, cy + 6,
+                        active ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED, false);
                 switchDrawer.draw(swX, swY, swW, swH, "sub:" + modName + ":" + t.label(), active);
             } else if (control instanceof ModernModuleSettings.CycleControl c) {
                 boolean hovered = isInside(mouseX, mouseY, cx, cy, cw, c.height());
-                int bg = hovered ? 0x44FF1E2D : JelloTheme.CARD_INACTIVE;
-                int border = hovered ? JelloTheme.ACCENT : 0x99FF1E2D;
+                int bg = hovered ? withAlpha(JelloTheme.ACCENT, 0x44) : JelloTheme.CARD_INACTIVE;
+                int border = hovered ? JelloTheme.ACCENT : withAlpha(JelloTheme.ACCENT, 0x99);
                 JelloTheme.fillRoundedCard(graphics, cx, cy, cx + cw, cy + c.height(), 5, bg, border);
                 String valText = c.valueLabel().get();
                 int valW = font.width(valText);
@@ -292,8 +294,8 @@ final class ModernModuleCardUi {
                 graphics.text(font, Component.literal(valText), cx + cw - padX - valW, cy + 6, JelloTheme.ACCENT_HOVER, false);
             } else if (control instanceof ModernModuleSettings.ActionControl a) {
                 boolean hovered = isInside(mouseX, mouseY, cx, cy, cw, a.height());
-                int bg = hovered ? 0x66FF1E2D : 0x33FF1E2D;
-                int border = hovered ? JelloTheme.ACCENT : 0xAAFF1E2D;
+                int bg = hovered ? withAlpha(JelloTheme.ACCENT, 0x66) : withAlpha(JelloTheme.ACCENT, 0x33);
+                int border = hovered ? JelloTheme.ACCENT : withAlpha(JelloTheme.ACCENT, 0xAA);
                 JelloTheme.fillRoundedCard(graphics, cx, cy, cx + cw, cy + a.height(), 5, bg, border);
                 String label = fitText(font, a.labelSupplier().get(), Math.max(20, cw - padX * 2));
                 graphics.centeredText(font, Component.literal(label), cx + cw / 2, cy + 6, JelloTheme.TEXT);
@@ -301,6 +303,10 @@ final class ModernModuleCardUi {
                 renderChips(graphics, font, mouseX, mouseY, cx, cy, cw, placed.chipCols(), cc.options());
             }
         }
+    }
+
+    private static int withAlpha(int argb, int alphaByte) {
+        return ((alphaByte & 0xFF) << 24) | (argb & 0x00FFFFFF);
     }
 
     private static void renderChips(
@@ -324,9 +330,9 @@ final class ModernModuleCardUi {
             boolean active = opt.activeGetter().get();
             boolean hovered = isInside(mouseX, mouseY, cx, cy, chipW, ModernModuleSettings.CHIP_HEIGHT);
             int bg = active
-                    ? (hovered ? 0x77FF1E2D : 0x55FF1E2D)
+                    ? (hovered ? withAlpha(JelloTheme.ACCENT, 0x77) : withAlpha(JelloTheme.ACCENT, 0x55))
                     : (hovered ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
-            int border = active ? JelloTheme.ACCENT : (hovered ? 0x5594A3B8 : JelloTheme.BORDER_SUBTLE);
+            int border = active ? JelloTheme.ACCENT : (hovered ? JelloTheme.BORDER_ACTIVE_SOFT : JelloTheme.BORDER_SUBTLE);
             JelloTheme.fillRoundedCard(graphics, cx, cy, cx + chipW, cy + ModernModuleSettings.CHIP_HEIGHT, 4, bg, border);
             if (opt.icon() != null && !opt.icon().isEmpty()) {
                 int iconX = cx + (chipW - 16) / 2;
@@ -448,9 +454,13 @@ final class ModernModuleCardUi {
             case "Viewmodel" -> "Held item/hand viewmodel, Item & Player Scale, AirWalker";
             case "Inventory HUD+" -> "On-screen inventory, armor & potion status";
             case "Fullbright" -> "Full night vision & clear sight in caves";
+            case "Xray" -> "See selected ores/blocks with opacity & exposed filter";
+            case "Block ESP" -> "Highlight selected blocks & tracers per block color";
+            case "Freecam" -> "Detach camera to scout freely through blocks";
             case "HUD Info" -> "FPS, Ping, TPS & coordinates on screen";
             case "TNT Timer" -> "Accurate fuse ticks & detonation timer";
             case "Keybinds HUD" -> "Active toggles & bound keys overlay";
+            case "Player List" -> "Nearby players overlay with distance & health";
             case "TrueSight" -> "See invisible entities & players";
             case "Item ESP" -> "Glowing box around dropped items";
             case "Chunk Borders" -> "Show 16x16 chunk boundaries without F3";
@@ -470,7 +480,10 @@ final class ModernModuleCardUi {
             case "Better Place" -> "Place blocks in mid-air and from awkward angles";
             case "Auto Wheat Farm" -> "Human-like hoe & wheat seed planter inside .farm coordinates";
             case "Auto Fish" -> "Automatically right-click green bar minigame & recast rod";
+            case "Auto Spawner" -> "S-Snake spawner looter, /craft iron blocks & chest depositor";
+            case "Spawner Mode" -> "Toggle all spawners in room to Gold Block or Gold Nugget";
             case "Auto Sprint" -> "Keep sprinting automatically when moving";
+            case "Auto Walk" -> "Hold chosen movement direction automatically";
             case "Safe Walk" -> "Prevent falling off block edges like sneaking";
             case "Item Sucker" -> "Magnetically move toward & collect nearby dropped items";
             case "Better Chat" -> "Infinite chat history, anti-clear & copy";

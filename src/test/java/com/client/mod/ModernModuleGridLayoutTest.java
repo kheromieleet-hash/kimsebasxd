@@ -67,18 +67,31 @@ public class ModernModuleGridLayoutTest {
         int cardW = narrowFourCol.colWidth();
 
         assert cardW >= 115 : "Narrow 4-col width should remain >= 115px, got " + cardW;
-        ModernModuleGridLayout.CardControlLayout layout =
-                ModernModuleGridLayout.computeCardControlLayout(cardX, cardY, cardW, 30);
+        ModernModuleGridLayout.CardControlLayout withSettings =
+                ModernModuleGridLayout.computeCardControlLayout(cardX, cardY, cardW, 30, true);
 
-        assert layout.titleMaxW() >= 95 : "Title max width must keep module names readable, got " + layout.titleMaxW();
-        assert layout.tuneX() >= cardX + 6 : "Tune button leaked past card left bound: tuneX=" + layout.tuneX();
-        assert layout.tuneX() + layout.tuneW() < layout.bindX() : "Tune icon must sit left of Bind pill";
-        assert layout.bindX() + layout.bindW() < layout.switchX() : "Bind pill must sit left of Toggle switch";
-        assert layout.switchX() + layout.switchW() <= cardX + cardW - 8 : "Toggle switch leaked past card right bound";
-        assert layout.bindY() == layout.switchY() && layout.tuneY() == layout.bindY() : "Controls must align on same bottom row";
-        assert layout.bindY() + layout.bindH() < cardY + ModernModuleGridLayout.CARD_HEIGHT : "Controls must fit inside card height";
-        assert layout.starX(cardX) >= cardX && layout.starX(cardX) + layout.starW() <= layout.titleX(cardX) : "Favorite star hitbox must sit cleanly left of module title";
-        assert layout.titleMaxWWithStar(cardW) >= 85 : "Title max width with star must remain readable";
+        assert withSettings.titleMaxW() >= 95 : "Title max width must keep module names readable, got " + withSettings.titleMaxW();
+        assert withSettings.bindX() == cardX + ModernModuleGridLayout.CARD_PAD_X : "Bind pill must anchor bottom-left";
+        assert withSettings.bindX() + withSettings.bindW() < withSettings.tuneX() : "Bind pill must sit left of Tune button";
+        assert withSettings.tuneW() == ModernModuleGridLayout.TUNE_WIDTH : "Tune button must keep full width on configurable modules";
+        assert withSettings.tuneX() + withSettings.tuneW() < withSettings.switchX() : "Tune button must sit left of Toggle switch";
+        assert withSettings.switchX() + withSettings.switchW() <= cardX + cardW - 8 : "Toggle switch leaked past card right bound";
+        assert withSettings.bindY() == withSettings.switchY() && withSettings.tuneY() == withSettings.bindY() : "Controls must align on same bottom row";
+        assert withSettings.bindY() + withSettings.bindH() < cardY + ModernModuleGridLayout.CARD_HEIGHT : "Controls must fit inside card height";
+
+        int starLeft = withSettings.starX(cardX, cardW);
+        assert starLeft >= withSettings.titleX(cardX) + withSettings.titleMaxWWithStar(cardW) : "Favorite star hitbox must not overlap truncated title";
+        assert starLeft + withSettings.starW() <= cardX + cardW : "Favorite star hitbox leaked past card right bound";
+        assert withSettings.titleMaxWWithStar(cardW) >= 85 : "Title max width with star must remain readable, got " + withSettings.titleMaxWWithStar(cardW);
+
+        ModernModuleGridLayout.CardControlLayout noSettings =
+                ModernModuleGridLayout.computeCardControlLayout(cardX, cardY, cardW, 30, false);
+        assert noSettings.tuneW() == 0 : "Tune button must have 0 width when module has no settings";
+        assert noSettings.bindX() + noSettings.bindW() < noSettings.switchX() : "Bind pill must stay clear of switch when no settings";
+
+        ModernModuleGridLayout.CardControlLayout extremeBind =
+                ModernModuleGridLayout.computeCardControlLayout(cardX, cardY, cardW, 60, true);
+        assert extremeBind.tuneX() + extremeBind.tuneW() < extremeBind.switchX() : "Long bind pill must clamp cleanly before switch on narrow cards";
     }
 
     private static void assertAlphabeticalFilteringAndSorting() {
@@ -132,6 +145,32 @@ public class ModernModuleGridLayoutTest {
         );
         assert List.of("Auto Sprint", "Viewmodel")
                 .equals(favSorted.stream().map(StubModule::name).toList());
+
+        List<StubModule> pinned = new java.util.ArrayList<>(allSorted);
+        ModernModuleGridLayout.sortFavoritesFirstInPlace(
+                pinned,
+                StubModule::name,
+                m -> "Viewmodel".equals(m.name()) || "FastBreak".equals(m.name())
+        );
+        assert "FastBreak".equals(pinned.get(0).name()) && "Viewmodel".equals(pinned.get(1).name())
+                : "Favorites must pin to top A-Z";
+        assert "Abort Breaking".equals(pinned.get(2).name())
+                : "Non-favorites must follow favorites A-Z";
+
+        List<StubModule> singlePassPinned = ModernModuleGridLayout.filterAndSortModules(
+                unsorted,
+                StubModule::name,
+                StubModule::catId,
+                StubModule::catName,
+                "ALL",
+                "",
+                null,
+                m -> "Viewmodel".equals(m.name()) || "FastBreak".equals(m.name())
+        );
+        assert "FastBreak".equals(singlePassPinned.get(0).name())
+                && "Viewmodel".equals(singlePassPinned.get(1).name())
+                && "Abort Breaking".equals(singlePassPinned.get(2).name())
+                : "filterAndSortModules with favoriteMatcher must pin favorites in single pass";
     }
 
     private static void assertInlineAccordionGridPlan() {
