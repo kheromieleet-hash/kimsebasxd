@@ -54,6 +54,7 @@ public class ModernModuleSettingsTest {
         testInventoryHudActions();
         testNewExploitModulesControls();
         testViewmodelControlsAndReset();
+        testWingsControlsAndReset();
         testAllSlidersSupportDirectNumericInput();
         System.out.println("ALL ModernModuleSettingsTest ASSERTIONS PASSED!");
     }
@@ -80,7 +81,7 @@ public class ModernModuleSettingsTest {
         ModConfig cfg = new ModConfig();
         RecordingActions actions = new RecordingActions();
         List<String> configurable = List.of(
-                "Viewmodel", "Inventory HUD+", "HUD Info", "Keybinds HUD", "Player List",
+                "Viewmodel", "Wings", "Inventory HUD+", "HUD Info", "Keybinds HUD", "Player List",
                 "Fast Place", "Auto Break", "FastBreak", "Inventory Tweaks",
                 "Auto Replenish", "Fast Use", "Auto Tool", "Auto Crafter",
                 "Auto Fish", "Freecam", "Backtrack", "Disabler", "Exploit Guard",
@@ -316,11 +317,60 @@ public class ModernModuleSettingsTest {
         assert Math.abs(cfg.vmRotZ) < 0.001f && Math.abs(cfg.vmSwingY - 1.0f) < 0.001f;
     }
 
+    private static void testWingsControlsAndReset() {
+        ModConfig cfg = new ModConfig();
+        RecordingActions actions = new RecordingActions();
+
+        List<ModernModuleSettings.Control> linesControls = ModernModuleSettings.getControls("Wings", cfg, actions);
+        assert linesControls.size() == 10 : "Expected 10 Wings controls in Lines mode, got " + linesControls.size();
+        for (ModernModuleSettings.Control c : linesControls) {
+            if (c instanceof ModernModuleSettings.SliderControl sc) {
+                assert !"wingsBackOffset".equals(sc.key()) && !"wingsEquipmentOffset".equals(sc.key())
+                        : "Offset sliders must be removed from Wings settings: " + sc.key();
+            }
+        }
+
+        ModernModuleSettings.CycleControl modeCycle = (ModernModuleSettings.CycleControl) linesControls.get(0);
+        assert "Lines".equals(modeCycle.valueLabel().get());
+        modeCycle.onCycle().run();
+        assert cfg.wingsMode == WingsLogic.MODE_DRAGON && "Dragon".equals(modeCycle.valueLabel().get());
+
+        List<ModernModuleSettings.Control> dragonControls = ModernModuleSettings.getControls("Wings", cfg, actions);
+        assert dragonControls.size() == 7 : "Expected 7 Wings controls in Dragon mode, got " + dragonControls.size();
+
+        ModernModuleSettings.CycleControl colorCycle = (ModernModuleSettings.CycleControl) dragonControls.get(1);
+        assert "Cyan".equals(colorCycle.valueLabel().get());
+        colorCycle.onCycle().run();
+        assert cfg.wingsColorPreset == WingsLogic.COLOR_BLUE;
+
+        ModernModuleSettings.CycleControl targetCycle = (ModernModuleSettings.CycleControl) dragonControls.get(2);
+        targetCycle.onCycle().run();
+        assert cfg.wingsTarget == WingsLogic.TARGET_FRIENDS;
+
+        ((ModernModuleSettings.SliderControl) dragonControls.get(3)).pctSetter().accept(1.0f);
+        assert Math.abs(cfg.wingsLength - 2.50f) < 0.001f;
+
+        ((ModernModuleSettings.ToggleControl) dragonControls.get(6)).setter().accept(false);
+        assert !cfg.wingsShowDamage;
+
+        int beforePersist = actions.persistCalls;
+        ModernModuleSettings.resetModuleToDefaults("Wings", cfg, actions);
+        assert actions.persistCalls == beforePersist + 1;
+        assert cfg.wingsMode == WingsLogic.MODE_LINES;
+        assert cfg.wingsColorPreset == WingsLogic.COLOR_CYAN;
+        assert cfg.wingsTarget == WingsLogic.TARGET_ONLY_ME;
+        assert Math.abs(cfg.wingsLength - 1.15f) < 0.01f;
+        assert Math.abs(cfg.wingsWidth - 0.06f) < 0.005f;
+        assert cfg.wingsLinesCount == 5;
+        assert cfg.wingsShowDamage;
+        assert ModernModuleSettings.getControls("Wings", cfg, actions).size() == 10;
+    }
+
     private static void testAllSlidersSupportDirectNumericInput() {
         ModConfig cfg = new ModConfig();
         RecordingActions actions = new RecordingActions();
         List<String> sliderModules = List.of(
-                "Viewmodel", "Inventory HUD+", "Fast Place", "FastBreak",
+                "Viewmodel", "Wings", "Inventory HUD+", "Fast Place", "FastBreak",
                 "Inventory Tweaks", "Auto Replenish", "Fast Use", "Auto Crafter",
                 "Freecam", "Backtrack", "Exploit Guard", "Packet Mine", "Ping Spoof", "Light Overlay"
         );

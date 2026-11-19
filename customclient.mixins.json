@@ -49,6 +49,7 @@
     "MultiplayerScreenMixin",
     "AbstractSelectionListMixin",
     "ItemEntityRendererMixin",
+    "LivingEntityRendererAccessor",
     "LivingEntityRendererMixin",
     "EntityMixin",
     "ConnectionMixin",

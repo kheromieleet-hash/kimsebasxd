@@ -1,7 +1,7 @@
 ================================================================================
 SESTIA CLIENT - TUM MODULLER VE OZELLIKLER REHBERI
-Surum: v1.0.39 (VersionCode: 39) | Minecraft: 26.3 Fabric
-Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
+Surum: v1.0.200 (VersionCode: 200) | Minecraft: 26.3 Fabric
+Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
 ================================================================================
 
 --------------------------------------------------------------------------------
@@ -96,7 +96,7 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
 
 
 --------------------------------------------------------------------------------
-[2] RENDER KATEGORISI (11 Modul)
+[2] RENDER KATEGORISI (16 Modul)
 --------------------------------------------------------------------------------
 
 15. Chunk Borders
@@ -188,6 +188,17 @@ Toplam Kayitli Modul: 37 (+ 6 Yerlesik Sistem Ozelligi)
      Ayarlar: Range (16 - 160b), Shape Mode (Lines / Sides / Both),
      Default Color, Tracers, Select & Style Blocks... (blok bazli renk,
      sekil ve tracer ozellestirme + Ores/Storage/Nether onayarlar).
+
+25d. Wings
+     Ne ise yarar: Oyuncu sirtinda LiquidBounce tarzi kozmetik kanatlar cizer
+     (parlak Lines serit kanatlari ve sirtina dik oturan melek tarzi 3D cirpinan
+     Dragon ejderha kanatlari; 0.00 sabit sirt mesafesi ve gogusluk/elytra icin
+     otomatik +0.10 zirh payi uygular).
+     Ayarlar: Mode (Lines / Dragon), Color (Chroma / Sestia Red / Cyan / Blue /
+     Violet / Pink / Emerald / Gold / White), Show On (Only Me / Friends / All Players),
+     Length (0.40x - 2.50x), Width (0.02 - 0.20), Lines Count (2 - 12),
+     Fade Start (0.10 - 1.00), Height (-0.50 - 0.60), Flap Speed (0.0x - 3.0x),
+     Show Damage.
 
 
 --------------------------------------------------------------------------------

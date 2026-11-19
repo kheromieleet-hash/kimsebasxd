@@ -384,6 +384,7 @@ public final class ModernModuleSettings {
                     toggle("Allow Interact", () -> cfg.freecamAllowInteract, v -> cfg.freecamAllowInteract = v, actions, false),
                     toggle("Rotate", () -> cfg.freecamRotate, v -> cfg.freecamRotate = v, actions, false)
             );
+            case "Wings" -> buildWingsControls(cfg, actions);
             case "Xray" -> buildXrayControls(cfg, actions);
             case "Block ESP" -> buildBlockEspControls(cfg, actions);
             default -> List.of();
@@ -868,6 +869,46 @@ public final class ModernModuleSettings {
                 floatSlider("vmSwingY", "Swing Y", 0.0f, 2.0f, 100.0f, "%.2fx", () -> cfg.vmSwingY, v -> cfg.vmSwingY = v),
                 floatSlider("vmSwingZ", "Swing Z", 0.0f, 2.0f, 100.0f, "%.2fx", () -> cfg.vmSwingZ, v -> cfg.vmSwingZ = v)
         );
+    }
+
+    private static List<Control> buildWingsControls(ModConfig cfg, Actions actions) {
+        List<Control> controls = new ArrayList<>();
+        controls.add(new CycleControl("Mode",
+                () -> WingsLogic.modeName(cfg.wingsMode),
+                () -> {
+                    cfg.wingsMode = (cfg.wingsMode == WingsLogic.MODE_LINES)
+                            ? WingsLogic.MODE_DRAGON
+                            : WingsLogic.MODE_LINES;
+                    actions.persist(false);
+                }));
+        controls.add(new CycleControl("Color",
+                () -> WingsLogic.colorPresetName(cfg.wingsColorPreset),
+                () -> {
+                    cfg.wingsColorPreset = (WingsLogic.clampColorPreset(cfg.wingsColorPreset) + 1) % WingsLogic.colorCount();
+                    actions.persist(false);
+                }));
+        controls.add(new CycleControl("Show On",
+                () -> WingsLogic.targetName(cfg.wingsTarget),
+                () -> {
+                    cfg.wingsTarget = (WingsLogic.clampTarget(cfg.wingsTarget) + 1) % 3;
+                    actions.persist(false);
+                }));
+        controls.add(floatSlider("wingsLength", "Length", 0.40f, 2.50f, 20.0f, "%.2fx",
+                () -> cfg.wingsLength, v -> cfg.wingsLength = WingsLogic.clampLength(v)));
+        if (WingsLogic.clampMode(cfg.wingsMode) == WingsLogic.MODE_LINES) {
+            controls.add(floatSlider("wingsWidth", "Width", 0.02f, 0.20f, 100.0f, "%.2f",
+                    () -> cfg.wingsWidth, v -> cfg.wingsWidth = WingsLogic.clampWidth(v)));
+            controls.add(intSlider("wingsLinesCount", "Lines Count", 2, 12, "",
+                    () -> cfg.wingsLinesCount, v -> cfg.wingsLinesCount = WingsLogic.clampLinesCount(v)));
+            controls.add(floatSlider("wingsFadeStart", "Fade Start", 0.10f, 1.00f, 20.0f, "%.2f",
+                    () -> cfg.wingsFadeStart, v -> cfg.wingsFadeStart = WingsLogic.clampFadeStart(v)));
+        }
+        controls.add(floatSlider("wingsHeight", "Height", -0.50f, 0.60f, 20.0f, "%.2f",
+                () -> cfg.wingsHeight, v -> cfg.wingsHeight = WingsLogic.clampHeight(v)));
+        controls.add(floatSlider("wingsFlapSpeed", "Flap Speed", 0.0f, 3.0f, 10.0f, "%.1fx",
+                () -> cfg.wingsFlapSpeed, v -> cfg.wingsFlapSpeed = WingsLogic.clampFlapSpeed(v)));
+        controls.add(toggle("Show Damage", () -> cfg.wingsShowDamage, v -> cfg.wingsShowDamage = v, actions, false));
+        return controls;
     }
 
     private static List<Control> buildXrayControls(ModConfig cfg, Actions actions) {

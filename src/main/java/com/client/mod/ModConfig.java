@@ -235,6 +235,19 @@ public class ModConfig {
     public boolean freecamAllowInteract = false;
     public boolean freecamRotate = true;
 
+    // LiquidBounce Wings (Render: Lines & Dragon modes)
+    public boolean wingsEnabled = false;
+    public int wingsMode = WingsLogic.MODE_LINES;
+    public int wingsColorPreset = WingsLogic.COLOR_CYAN;
+    public float wingsLength = 1.15f;
+    public float wingsWidth = 0.06f;
+    public int wingsLinesCount = 5;
+    public float wingsFadeStart = 0.50f;
+    public float wingsHeight = 0.15f;
+    public float wingsFlapSpeed = 1.0f;
+    public boolean wingsShowDamage = true;
+    public int wingsTarget = WingsLogic.TARGET_ONLY_ME;
+
     // Xray (Meteor parity)
     public boolean xrayEnabled = false;
     public int xrayOpacity = 0; // 0 = hide non-targets, 1..254 = translucent, 255 = solid
@@ -852,6 +865,17 @@ public class ModConfig {
         this.freecamToggleOnDamage = other.freecamToggleOnDamage;
         this.freecamAllowInteract = other.freecamAllowInteract;
         this.freecamRotate = other.freecamRotate;
+        this.wingsEnabled = other.wingsEnabled;
+        this.wingsMode = WingsLogic.clampMode(other.wingsMode);
+        this.wingsColorPreset = WingsLogic.clampColorPreset(other.wingsColorPreset);
+        this.wingsLength = WingsLogic.clampLength(other.wingsLength);
+        this.wingsWidth = WingsLogic.clampWidth(other.wingsWidth);
+        this.wingsLinesCount = WingsLogic.clampLinesCount(other.wingsLinesCount);
+        this.wingsFadeStart = WingsLogic.clampFadeStart(other.wingsFadeStart);
+        this.wingsHeight = WingsLogic.clampHeight(other.wingsHeight);
+        this.wingsFlapSpeed = WingsLogic.clampFlapSpeed(other.wingsFlapSpeed);
+        this.wingsShowDamage = other.wingsShowDamage;
+        this.wingsTarget = WingsLogic.clampTarget(other.wingsTarget);
         this.xrayEnabled = other.xrayEnabled;
         this.xrayOpacity = XrayHandler.clampOpacity(other.xrayOpacity);
         this.xrayOpacityDefaultMigrated = other.xrayOpacityDefaultMigrated;
@@ -1013,6 +1037,15 @@ public class ModConfig {
             JelloTheme.applyTheme(this.guiTheme);
         }
         this.freecamSpeed = clampFloat(this.freecamSpeed, 0.2f, 5.0f, 1.0f);
+        this.wingsMode = WingsLogic.clampMode(this.wingsMode);
+        this.wingsColorPreset = WingsLogic.clampColorPreset(this.wingsColorPreset);
+        this.wingsLength = WingsLogic.clampLength(this.wingsLength);
+        this.wingsWidth = WingsLogic.clampWidth(this.wingsWidth);
+        this.wingsLinesCount = WingsLogic.clampLinesCount(this.wingsLinesCount);
+        this.wingsFadeStart = WingsLogic.clampFadeStart(this.wingsFadeStart);
+        this.wingsHeight = WingsLogic.clampHeight(this.wingsHeight);
+        this.wingsFlapSpeed = WingsLogic.clampFlapSpeed(this.wingsFlapSpeed);
+        this.wingsTarget = WingsLogic.clampTarget(this.wingsTarget);
         if (this.autoCrafterDelay < 0 || this.autoCrafterDelay > 10) this.autoCrafterDelay = 0;
         if (this.autoCrafterTargets == null) {
             resetDefaultAutoCraftTargets();
