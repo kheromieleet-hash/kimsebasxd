@@ -93,6 +93,28 @@ public class WingsRenderLayer extends RenderLayer<AvatarRenderState, PlayerModel
             0.08f,  0.22f, 0.32f,  0.70f, 0.045f, 0.022f
     };
 
+    // Normalized Galaxy constellation stars: [u, v, radius]
+    private static final float[] GALAXY_STARS = {
+            0.22f, -0.22f, 0.038f,
+            0.48f, -0.52f, 0.046f,
+            0.84f, -0.68f, 0.052f,
+            1.02f, -0.34f, 0.044f,
+            0.86f,  0.04f, 0.048f,
+            0.56f, -0.12f, 0.040f,
+            0.58f,  0.34f, 0.042f,
+            0.28f,  0.22f, 0.036f
+    };
+
+    // Normalized Bone skeletal phalanges: [knuckleU, knuckleV, midU, midV, tipU, tipV]
+    private static final float[] BONE_FINGERS = {
+            0.46f, -0.54f, 0.86f, -0.66f, 1.20f, -0.46f,
+            0.46f, -0.54f, 0.82f, -0.36f, 1.10f, -0.02f,
+            0.44f, -0.50f, 0.68f, -0.14f, 0.88f,  0.30f,
+            0.40f, -0.46f, 0.52f,  0.04f, 0.62f,  0.48f,
+            0.34f, -0.40f, 0.36f,  0.14f, 0.38f,  0.54f,
+            0.22f, -0.26f, 0.20f,  0.16f, 0.18f,  0.44f
+    };
+
     private final DragonWingsModel dragonWingsModel;
 
     public WingsRenderLayer(RenderLayerParent<AvatarRenderState, PlayerModel> parent, EntityModelSet modelSet) {
@@ -225,6 +247,18 @@ public class WingsRenderLayer extends RenderLayer<AvatarRenderState, PlayerModel
                     case WingsLogic.MODE_SERAPH -> renderSeraphGeometry(
                             pose, vc, length, flapSpeed, colorPreset, customRgb, ageInTicks, isFallFlying, isCrouching, damageFlash);
                     case WingsLogic.MODE_VOID -> renderVoidGeometry(
+                            pose, vc, length, flapSpeed, colorPreset, customRgb, ageInTicks, isFallFlying, isCrouching, damageFlash);
+                    case WingsLogic.MODE_VALKYRIE -> renderValkyrieGeometry(
+                            pose, vc, length, flapSpeed, colorPreset, customRgb, ageInTicks, isFallFlying, isCrouching, damageFlash);
+                    case WingsLogic.MODE_GALAXY -> renderGalaxyGeometry(
+                            pose, vc, length, flapSpeed, colorPreset, customRgb, ageInTicks, isFallFlying, isCrouching, damageFlash);
+                    case WingsLogic.MODE_STEAMPUNK -> renderSteampunkGeometry(
+                            pose, vc, length, flapSpeed, colorPreset, customRgb, ageInTicks, isFallFlying, isCrouching, damageFlash);
+                    case WingsLogic.MODE_THUNDER -> renderThunderGeometry(
+                            pose, vc, length, flapSpeed, colorPreset, customRgb, ageInTicks, isFallFlying, isCrouching, damageFlash);
+                    case WingsLogic.MODE_SAKURA -> renderSakuraGeometry(
+                            pose, vc, length, flapSpeed, colorPreset, customRgb, ageInTicks, isFallFlying, isCrouching, damageFlash);
+                    case WingsLogic.MODE_BONE -> renderBoneGeometry(
                             pose, vc, length, flapSpeed, colorPreset, customRgb, ageInTicks, isFallFlying, isCrouching, damageFlash);
                     default -> renderLinesGeometry(
                             pose, vc, linesCount, length, width, fadeStart, flapSpeed,
@@ -1072,6 +1106,482 @@ public class WingsRenderLayer extends RenderLayer<AvatarRenderState, PlayerModel
                     prevDxN = curDxN; prevDyN = curDyN; prevDzN = curDzN;
                     prevCoreW = curCoreW; prevGlowW = curGlowW;
                 }
+            }
+        }
+    }
+
+    private static void renderValkyrieGeometry(
+            PoseStack.Pose pose,
+            VertexConsumer vc,
+            float length,
+            float flapSpeed,
+            int colorPreset,
+            int customRgb,
+            float ageInTicks,
+            boolean isFallFlying,
+            boolean isCrouching,
+            boolean damageFlash
+    ) {
+        float phase = WingsLogic.computeFlapPhase(ageInTicks, flapSpeed, 0.12f, isFallFlying, 1.85f);
+        float armSweep = WingsLogic.computeWingSweepRad(24.0f, 15.0f, phase, 0.0f, isFallFlying, isCrouching);
+        float cosA = (float) Math.cos(armSweep), sinA = (float) Math.sin(armSweep);
+
+        int baseRgb = WingsLogic.resolveRgb(colorPreset, customRgb, ageInTicks, 0.0f, damageFlash);
+        int goldArmorRgb = WingsLogic.blendRgb(0xFFE79B, baseRgb, damageFlash ? 0.85f : 0.28f);
+        int ar = (goldArmorRgb >> 16) & 0xFF, ag = (goldArmorRgb >> 8) & 0xFF, ab = goldArmorRgb & 0xFF;
+
+        for (int s = 0; s < 2; s++) {
+            float side = (s == 0) ? -1.0f : 1.0f;
+
+            // Armored Valkyrie upper shoulder pauldron arch
+            float p0x = side * 0.07f * length * cosA, p0y = -0.04f * length, p0z = 0.07f * length * sinA;
+            float p1x = side * 0.34f * length * cosA, p1y = -0.38f * length, p1z = 0.34f * length * sinA;
+            float p2x = side * 0.68f * length * cosA, p2y = -0.50f * length, p2z = 0.68f * length * sinA;
+            emitTaperedPrism(pose, vc, p0x, p0y, p0z, p1x, p1y, p1z, 0.032f * length, 0.026f * length, ar, ag, ab, 250);
+            emitTaperedPrism(pose, vc, p1x, p1y, p1z, p2x, p2y, p2z, 0.026f * length, 0.016f * length, ar, ag, ab, 250);
+
+            // 7 Interlocking metallic spear-feathers hanging & fanning from the armored arch
+            int spears = 7;
+            for (int i = 0; i < spears; i++) {
+                float fn = (float) i / (spears - 1);
+                int spearRgb = WingsLogic.resolveRgb(colorPreset, customRgb, ageInTicks, fn * 0.14f, damageFlash);
+                int edgeRgb = WingsLogic.blendRgb(0xFFFFFF, spearRgb, 0.55f);
+                int sr = (spearRgb >> 16) & 0xFF, sg = (spearRgb >> 8) & 0xFF, sb = spearRgb & 0xFF;
+                int er = (edgeRgb >> 16) & 0xFF, eg = (edgeRgb >> 8) & 0xFF, eb = edgeRgb & 0xFF;
+
+                float spSweep = WingsLogic.computeWingSweepRad(
+                        24.0f + i * 1.5f, 16.0f, phase, fn * 0.45f, isFallFlying, isCrouching);
+                float cosS = (float) Math.cos(spSweep), sinS = (float) Math.sin(spSweep);
+
+                float u0 = (0.14f + fn * 0.52f) * length;
+                float v0 = (-0.12f - (float) Math.sin(fn * Math.PI * 0.85f) * 0.34f) * length;
+                float u2 = (0.48f + (1.0f - fn * 0.35f) * 0.74f) * length;
+                float v2 = (0.56f - fn * 0.92f) * length;
+
+                float u1 = u0 + (u2 - u0) * 0.24f;
+                float v1 = v0 + (v2 - v0) * 0.24f;
+                float uMid = u0 + (u2 - u0) * 0.74f;
+                float vMid = v0 + (v2 - v0) * 0.74f;
+
+                float du = u2 - u0, dv = v2 - v0;
+                float invL = 1.0f / Math.max(0.001f, (float) Math.sqrt(du * du + dv * dv));
+                float nu = -dv * invL, nv = du * invL;
+                float hw = (0.056f - fn * 0.012f) * length;
+
+                float x0 = side * u0 * cosS, y0 = v0, z0 = u0 * sinS;
+                float x1 = side * u1 * cosS, y1 = v1, z1 = u1 * sinS;
+                float xm = side * uMid * cosS, ym = vMid, zm = uMid * sinS;
+                float x2 = side * u2 * cosS, y2 = v2, z2 = u2 * sinS;
+                float dxN = side * nu * cosS, dyN = nv, dzN = nu * sinS;
+
+                // Golden armored spear collar at root -> main beveled spear shaft -> razor spearhead tip
+                emitQuad4(pose, vc,
+                        x0 - hw * 0.6f * dxN, y0 - hw * 0.6f * dyN, z0 - hw * 0.6f * dzN, ar, ag, ab, 245,
+                        x0 + hw * 0.6f * dxN, y0 + hw * 0.6f * dyN, z0 + hw * 0.6f * dzN, ar, ag, ab, 245,
+                        x1 + hw * dxN, y1 + hw * dyN, z1 + hw * dzN, ar, ag, ab, 235,
+                        x1 - hw * dxN, y1 - hw * dyN, z1 - hw * dzN, ar, ag, ab, 235);
+                emitQuad4(pose, vc,
+                        x1 - hw * dxN, y1 - hw * dyN, z1 - hw * dzN, er, eg, eb, 230,
+                        x1 + hw * dxN, y1 + hw * dyN, z1 + hw * dzN, sr, sg, sb, 230,
+                        xm + hw * 0.75f * dxN, ym + hw * 0.75f * dyN, zm + hw * 0.75f * dzN, sr, sg, sb, 215,
+                        xm - hw * 0.75f * dxN, ym - hw * 0.75f * dyN, zm - hw * 0.75f * dzN, er, eg, eb, 215);
+                emitQuad4(pose, vc,
+                        xm - hw * 0.75f * dxN, ym - hw * 0.75f * dyN, zm - hw * 0.75f * dzN, er, eg, eb, 215,
+                        xm + hw * 0.75f * dxN, ym + hw * 0.75f * dyN, zm + hw * 0.75f * dzN, sr, sg, sb, 215,
+                        x2, y2, z2, 255, 255, 255, 245,
+                        x2, y2, z2, 255, 255, 255, 245);
+            }
+        }
+    }
+
+    private static void renderGalaxyGeometry(
+            PoseStack.Pose pose,
+            VertexConsumer vc,
+            float length,
+            float flapSpeed,
+            int colorPreset,
+            int customRgb,
+            float ageInTicks,
+            boolean isFallFlying,
+            boolean isCrouching,
+            boolean damageFlash
+    ) {
+        float safeTicks = Float.isFinite(ageInTicks) ? ageInTicks : 0.0f;
+        float phase = WingsLogic.computeFlapPhase(ageInTicks, flapSpeed, 0.11f, isFallFlying, 1.85f);
+        float sweep = WingsLogic.computeWingSweepRad(26.0f, 18.0f, phase, 0.0f, isFallFlying, isCrouching);
+        float cosS = (float) Math.cos(sweep), sinS = (float) Math.sin(sweep);
+
+        int mainRgb = WingsLogic.resolveRgb(colorPreset, customRgb, ageInTicks, 0.0f, damageFlash);
+        int altRgb = WingsLogic.resolveRgb(colorPreset, customRgb, ageInTicks, 0.28f, damageFlash);
+        int cosmicDark = WingsLogic.blendRgb(0x0B0720, mainRgb, 0.22f);
+        int dr = (cosmicDark >> 16) & 0xFF, dg = (cosmicDark >> 8) & 0xFF, db = cosmicDark & 0xFF;
+        int mr = (mainRgb >> 16) & 0xFF, mg = (mainRgb >> 8) & 0xFF, mb = mainRgb & 0xFF;
+        int ar = (altRgb >> 16) & 0xFF, ag = (altRgb >> 8) & 0xFF, ab = altRgb & 0xFF;
+
+        int starCount = GALAXY_STARS.length / 3;
+        for (int s = 0; s < 2; s++) {
+            float side = (s == 0) ? -1.0f : 1.0f;
+
+            // Translucent cosmic nebula veil fanning from shoulder to stars
+            float cx = side * 0.16f * length * cosS, cy = -0.04f * length, cz = 0.16f * length * sinS;
+            for (int i = 0; i < starCount - 1; i++) {
+                float uA = GALAXY_STARS[i * 3] * length, vA = GALAXY_STARS[i * 3 + 1] * length;
+                float uB = GALAXY_STARS[(i + 1) * 3] * length, vB = GALAXY_STARS[(i + 1) * 3 + 1] * length;
+                float ax = side * uA * cosS, ay = vA, az = uA * sinS;
+                float bx = side * uB * cosS, by = vB, bz = uB * sinS;
+
+                emitQuad4(pose, vc,
+                        cx, cy, cz, dr, dg, db, 185,
+                        cx, cy, cz, dr, dg, db, 185,
+                        bx, by, bz, ar, ag, ab, 115,
+                        ax, ay, az, mr, mg, mb, 130);
+
+                // Astral constellation connection line between star i and star i+1
+                float lw = 0.009f * length;
+                emitQuad4(pose, vc,
+                        ax, ay - lw, az + 0.002f, 255, 255, 255, 190,
+                        ax, ay + lw, az + 0.002f, 255, 255, 255, 190,
+                        bx, by + lw, bz + 0.002f, mr, mg, mb, 190,
+                        bx, by - lw, bz + 0.002f, mr, mg, mb, 190);
+            }
+
+            // Twinkling 4-pointed diamond constellation stars
+            for (int i = 0; i < starCount; i++) {
+                float u = GALAXY_STARS[i * 3] * length;
+                float v = GALAXY_STARS[i * 3 + 1] * length;
+                float twinkle = 0.65f + 0.35f * (float) Math.sin(safeTicks * 0.22f + i * 1.7f);
+                float r = GALAXY_STARS[i * 3 + 2] * length * twinkle;
+                float sx = side * u * cosS, sy = v, sz = u * sinS + 0.004f;
+                float rxOff = side * r * cosS, rzOff = r * sinS;
+
+                // Outer star glow
+                float gr = r * 1.8f;
+                emitQuad4(pose, vc,
+                        sx, sy - gr, sz, mr, mg, mb, 110,
+                        sx + side * gr * cosS, sy, sz + gr * sinS, mr, mg, mb, 110,
+                        sx, sy + gr, sz, mr, mg, mb, 110,
+                        sx - side * gr * cosS, sy, sz - gr * sinS, mr, mg, mb, 110);
+                // Bright white star core
+                emitQuad4(pose, vc,
+                        sx, sy - r, sz + 0.001f, 255, 255, 255, 250,
+                        sx + rxOff, sy, sz + rzOff + 0.001f, 255, 255, 255, 250,
+                        sx, sy + r, sz + 0.001f, 255, 255, 255, 250,
+                        sx - rxOff, sy, sz - rzOff + 0.001f, 255, 255, 255, 250);
+            }
+        }
+    }
+
+    private static void renderSteampunkGeometry(
+            PoseStack.Pose pose,
+            VertexConsumer vc,
+            float length,
+            float flapSpeed,
+            int colorPreset,
+            int customRgb,
+            float ageInTicks,
+            boolean isFallFlying,
+            boolean isCrouching,
+            boolean damageFlash
+    ) {
+        float safeTicks = Float.isFinite(ageInTicks) ? ageInTicks : 0.0f;
+        float phase = WingsLogic.computeFlapPhase(ageInTicks, flapSpeed, 0.12f, isFallFlying, 1.85f);
+        float sweep = WingsLogic.computeWingSweepRad(25.0f, 15.0f, phase, 0.0f, isFallFlying, isCrouching);
+        float cosS = (float) Math.cos(sweep), sinS = (float) Math.sin(sweep);
+
+        int accentRgb = WingsLogic.resolveRgb(colorPreset, customRgb, ageInTicks, 0.0f, damageFlash);
+        int brassRgb = WingsLogic.blendRgb(0xC88A32, accentRgb, damageFlash ? 0.80f : 0.25f);
+        int darkIronRgb = WingsLogic.blendRgb(0x2A2421, accentRgb, 0.15f);
+        int br = (brassRgb >> 16) & 0xFF, bg = (brassRgb >> 8) & 0xFF, bb = brassRgb & 0xFF;
+        int ir = (darkIronRgb >> 16) & 0xFF, ig = (darkIronRgb >> 8) & 0xFF, ib = darkIronRgb & 0xFF;
+        int ar = (accentRgb >> 16) & 0xFF, ag = (accentRgb >> 8) & 0xFF, ab = accentRgb & 0xFF;
+
+        for (int s = 0; s < 2; s++) {
+            float side = (s == 0) ? -1.0f : 1.0f;
+
+            // Spinning 8-tooth clockwork brass cogwheel on each shoulder blade
+            float gearU = 0.18f * length, gearV = -0.10f * length;
+            float gearR = 0.13f * length, toothR = 0.165f * length, innerR = 0.07f * length;
+            float rot = side * safeTicks * 0.055f;
+            for (int k = 0; k < 8; k++) {
+                float a0 = rot + k * (float) (Math.PI / 4.0);
+                float a1 = rot + (k + 1) * (float) (Math.PI / 4.0);
+                float am = (a0 + a1) * 0.5f;
+                float u0i = gearU + (float) Math.cos(a0) * innerR, v0i = gearV + (float) Math.sin(a0) * innerR;
+                float u1i = gearU + (float) Math.cos(a1) * innerR, v1i = gearV + (float) Math.sin(a1) * innerR;
+                float u0o = gearU + (float) Math.cos(a0) * gearR, v0o = gearV + (float) Math.sin(a0) * gearR;
+                float u1o = gearU + (float) Math.cos(a1) * gearR, v1o = gearV + (float) Math.sin(a1) * gearR;
+                float ut = gearU + (float) Math.cos(am) * toothR, vt = gearV + (float) Math.sin(am) * toothR;
+
+                emitQuad4(pose, vc,
+                        side * u0i * cosS, v0i, u0i * sinS + 0.02f, br, bg, bb, 245,
+                        side * u0o * cosS, v0o, u0o * sinS + 0.02f, br, bg, bb, 245,
+                        side * u1o * cosS, v1o, u1o * sinS + 0.02f, ir, ig, ib, 245,
+                        side * u1i * cosS, v1i, u1i * sinS + 0.02f, ir, ig, ib, 245);
+                emitQuad4(pose, vc,
+                        side * u0o * cosS, v0o, u0o * sinS + 0.02f, br, bg, bb, 245,
+                        side * ut * cosS, vt, ut * sinS + 0.02f, ar, ag, ab, 250,
+                        side * ut * cosS, vt, ut * sinS + 0.02f, ar, ag, ab, 250,
+                        side * u1o * cosS, v1o, u1o * sinS + 0.02f, br, bg, bb, 245);
+            }
+
+            // Articulated brass linkage beams + piston rod
+            float gX = side * gearU * cosS, gY = gearV, gZ = gearU * sinS;
+            float eX = side * 0.54f * length * cosS, eY = -0.44f * length, eZ = 0.54f * length * sinS;
+            float tX = side * 1.02f * length * cosS, tY = -0.34f * length, tZ = 1.02f * length * sinS;
+            float lX = side * 0.44f * length * cosS, lY = 0.14f * length, lZ = 0.44f * length * sinS;
+            emitTaperedPrism(pose, vc, gX, gY, gZ, eX, eY, eZ, 0.028f * length, 0.022f * length, br, bg, bb, 250);
+            emitTaperedPrism(pose, vc, eX, eY, eZ, tX, tY, tZ, 0.022f * length, 0.014f * length, br, bg, bb, 250);
+            emitTaperedPrism(pose, vc, gX, gY, gZ, lX, lY, lZ, 0.022f * length, 0.016f * length, ir, ig, ib, 250);
+            emitTaperedPrism(pose, vc, lX, lY, lZ, eX, eY, eZ, 0.016f * length, 0.016f * length, ar, ag, ab, 240);
+
+            // 5 Hinged copper/energy mechanical pinion blades
+            for (int i = 0; i < 5; i++) {
+                float fn = i / 4.0f;
+                float bu0 = (0.30f + fn * 0.66f) * length;
+                float bv0 = (-0.26f - (1.0f - Math.abs(fn - 0.35f)) * 0.16f) * length;
+                float bu1 = bu0 + (0.14f - fn * 0.06f) * length;
+                float bv1 = bv0 + (0.66f - fn * 0.18f) * length;
+                float hw = 0.046f * length;
+
+                float x0 = side * bu0 * cosS, y0 = bv0, z0 = bu0 * sinS;
+                float x1 = side * bu1 * cosS, y1 = bv1, z1 = bu1 * sinS;
+                float dxW = side * hw * cosS, dzW = hw * sinS;
+
+                emitQuad4(pose, vc,
+                        x0 - dxW, y0, z0 - dzW, br, bg, bb, 235,
+                        x0 + dxW, y0, z0 + dzW, br, bg, bb, 235,
+                        x1 + dxW * 0.4f, y1, z1 + dzW * 0.4f, ar, ag, ab, 200,
+                        x1 - dxW * 0.4f, y1, z1 - dzW * 0.4f, ir, ig, ib, 210);
+            }
+        }
+    }
+
+    private static void renderThunderGeometry(
+            PoseStack.Pose pose,
+            VertexConsumer vc,
+            float length,
+            float flapSpeed,
+            int colorPreset,
+            int customRgb,
+            float ageInTicks,
+            boolean isFallFlying,
+            boolean isCrouching,
+            boolean damageFlash
+    ) {
+        float safeTicks = Float.isFinite(ageInTicks) ? ageInTicks : 0.0f;
+        float phase = WingsLogic.computeFlapPhase(ageInTicks, flapSpeed, 0.14f, isFallFlying, 1.95f);
+
+        for (int s = 0; s < 2; s++) {
+            float side = (s == 0) ? -1.0f : 1.0f;
+            int bolts = 7;
+            for (int i = 0; i < bolts; i++) {
+                float fn = (float) i / (bolts - 1);
+                int boltRgb = WingsLogic.resolveRgb(colorPreset, customRgb, ageInTicks, fn * 0.15f, damageFlash);
+                int br = (boltRgb >> 16) & 0xFF, bg = (boltRgb >> 8) & 0xFF, bb = boltRgb & 0xFF;
+
+                float sweep = WingsLogic.computeWingSweepRad(
+                        24.0f + i * 2.0f, 17.0f, phase, fn * 0.45f, isFallFlying, isCrouching);
+                float cosS = (float) Math.cos(sweep), sinS = (float) Math.sin(sweep);
+
+                float startU = 0.07f * length;
+                float startV = (-0.06f + fn * 0.24f) * length;
+                float endU = (1.18f - fn * 0.50f) * length;
+                float endV = (-0.70f + fn * 1.24f) * length;
+                float du = endU - startU, dv = endV - startV;
+                float invL = 1.0f / Math.max(0.001f, (float) Math.sqrt(du * du + dv * dv));
+                float nu = -dv * invL, nv = du * invL;
+
+                float prevX = side * startU * cosS, prevY = startV, prevZ = startU * sinS;
+                float dxN = side * nu * cosS, dyN = nv, dzN = nu * sinS;
+
+                final int segs = 5;
+                for (int seg = 1; seg <= segs; seg++) {
+                    float f = (float) seg / segs;
+                    float zigSign = ((seg & 1) == 0) ? -1.0f : 1.0f;
+                    float jitter = (seg == segs) ? 0.0f
+                            : (zigSign * 0.065f + 0.025f * (float) Math.sin(safeTicks * 0.65f + i * 2.1f + seg * 3.3f)) * length;
+                    float u = startU + du * f + nu * jitter;
+                    float v = startV + dv * f + nv * jitter;
+                    float curX = side * u * cosS, curY = v, curZ = u * sinS;
+
+                    float coreW = (0.018f * (1.15f - f * 0.7f)) * length;
+                    float glowW = coreW * 2.8f;
+
+                    // Outer high-voltage plasma corona
+                    emitQuad4(pose, vc,
+                            prevX - glowW * dxN, prevY - glowW * dyN, prevZ - glowW * dzN, br, bg, bb, 155,
+                            prevX + glowW * dxN, prevY + glowW * dyN, prevZ + glowW * dzN, br, bg, bb, 155,
+                            curX + glowW * dxN, curY + glowW * dyN, curZ + glowW * dzN, br, bg, bb, 130,
+                            curX - glowW * dxN, curY - glowW * dyN, curZ - glowW * dzN, br, bg, bb, 130);
+                    // Blinding white lightning core
+                    emitQuad4(pose, vc,
+                            prevX - coreW * dxN, prevY - coreW * dyN, prevZ - coreW * dzN + 0.002f, 255, 255, 255, 250,
+                            prevX + coreW * dxN, prevY + coreW * dyN, prevZ + coreW * dzN + 0.002f, 255, 255, 255, 250,
+                            curX + coreW * dxN, curY + coreW * dyN, curZ + coreW * dzN + 0.002f, 255, 255, 255, 240,
+                            curX - coreW * dxN, curY - coreW * dyN, curZ - coreW * dzN + 0.002f, 255, 255, 255, 240);
+
+                    prevX = curX; prevY = curY; prevZ = curZ;
+                }
+            }
+        }
+    }
+
+    private static void renderSakuraGeometry(
+            PoseStack.Pose pose,
+            VertexConsumer vc,
+            float length,
+            float flapSpeed,
+            int colorPreset,
+            int customRgb,
+            float ageInTicks,
+            boolean isFallFlying,
+            boolean isCrouching,
+            boolean damageFlash
+    ) {
+        float safeTicks = Float.isFinite(ageInTicks) ? ageInTicks : 0.0f;
+        float phase = WingsLogic.computeFlapPhase(ageInTicks, flapSpeed, 0.11f, isFallFlying, 1.80f);
+
+        for (int s = 0; s < 2; s++) {
+            float side = (s == 0) ? -1.0f : 1.0f;
+            int petals = 8;
+            for (int i = 0; i < petals; i++) {
+                float fn = (float) i / (petals - 1);
+                int petalRgb = WingsLogic.resolveRgb(colorPreset, customRgb, ageInTicks, fn * 0.14f, damageFlash);
+                int blushBase = WingsLogic.blendRgb(0xFFF0F6, petalRgb, damageFlash ? 0.85f : 0.28f);
+                int br = (blushBase >> 16) & 0xFF, bg = (blushBase >> 8) & 0xFF, bb = blushBase & 0xFF;
+                int pr = (petalRgb >> 16) & 0xFF, pg = (petalRgb >> 8) & 0xFF, pb = petalRgb & 0xFF;
+
+                float sweep = WingsLogic.computeWingSweepRad(
+                        24.0f + i * 1.5f, 17.0f, phase, fn * 0.55f, isFallFlying, isCrouching);
+                float cosS = (float) Math.cos(sweep), sinS = (float) Math.sin(sweep);
+
+                float u0 = (0.08f + fn * 0.08f) * length;
+                float v0 = (-0.06f + fn * 0.22f) * length;
+                float u2 = (1.06f - fn * 0.44f) * length;
+                float v2 = (-0.64f + fn * 1.12f) * length;
+
+                float u1 = u0 + (u2 - u0) * 0.62f;
+                float v1 = v0 + (v2 - v0) * 0.62f;
+                // Sakura cleft notch pulled slightly inward at center tip
+                float uNotch = u0 + (u2 - u0) * 0.90f;
+                float vNotch = v0 + (v2 - v0) * 0.90f;
+
+                float du = u2 - u0, dv = v2 - v0;
+                float invL = 1.0f / Math.max(0.001f, (float) Math.sqrt(du * du + dv * dv));
+                float nu = -dv * invL, nv = du * invL;
+                float bellyW = 0.082f * length;
+                float tipForkW = 0.044f * length;
+
+                float x0 = side * u0 * cosS, y0 = v0, z0 = u0 * sinS;
+                float x1 = side * u1 * cosS, y1 = v1, z1 = u1 * sinS;
+                float xn = side * uNotch * cosS, yn = vNotch, zn = uNotch * sinS;
+                float x2 = side * u2 * cosS, y2 = v2, z2 = u2 * sinS;
+                float dxN = side * nu * cosS, dyN = nv, dzN = nu * sinS;
+
+                // Rounded petal belly + heart-cleft forked blossom tip
+                emitQuad4(pose, vc,
+                        x0, y0, z0, br, bg, bb, 240,
+                        x1 + bellyW * dxN, y1 + bellyW * dyN, z1 + bellyW * dzN, pr, pg, pb, 215,
+                        x1, y1, z1, br, bg, bb, 235,
+                        x1 - bellyW * dxN, y1 - bellyW * dyN, z1 - bellyW * dzN, pr, pg, pb, 215);
+                emitQuad4(pose, vc,
+                        x1, y1, z1, br, bg, bb, 235,
+                        x1 + bellyW * dxN, y1 + bellyW * dyN, z1 + bellyW * dzN, pr, pg, pb, 215,
+                        x2 + tipForkW * dxN, y2 + tipForkW * dyN, z2 + tipForkW * dzN, pr, pg, pb, 195,
+                        xn, yn, zn, pr, pg, pb, 210);
+                emitQuad4(pose, vc,
+                        x1, y1, z1, br, bg, bb, 235,
+                        xn, yn, zn, pr, pg, pb, 210,
+                        x2 - tipForkW * dxN, y2 - tipForkW * dyN, z2 - tipForkW * dzN, pr, pg, pb, 195,
+                        x1 - bellyW * dxN, y1 - bellyW * dyN, z1 - bellyW * dzN, pr, pg, pb, 215);
+            }
+
+            // 5 Drifting detached blossom petals fluttering behind the wingtips
+            int pRgb = WingsLogic.resolveRgb(colorPreset, customRgb, ageInTicks, 0.22f, damageFlash);
+            int pr = (pRgb >> 16) & 0xFF, pg = (pRgb >> 8) & 0xFF, pb = pRgb & 0xFF;
+            float baseSw = WingsLogic.computeWingSweepRad(30.0f, 16.0f, phase, 0.4f, isFallFlying, isCrouching);
+            float cosB = (float) Math.cos(baseSw), sinB = (float) Math.sin(baseSw);
+            for (int k = 0; k < 5; k++) {
+                float driftU = (0.72f + k * 0.11f + 0.07f * (float) Math.sin(safeTicks * 0.09f + k * 1.4f)) * length;
+                float driftV = (-0.48f + k * 0.24f + 0.06f * (float) Math.cos(safeTicks * 0.11f + k * 1.9f)) * length;
+                float r = 0.042f * length;
+                float px = side * driftU * cosB, py = driftV, pz = driftU * sinB + 0.03f * length;
+                emitQuad4(pose, vc,
+                        px, py - r, pz, 255, 240, 248, 225,
+                        px + side * r * cosB, py, pz + r * sinB, pr, pg, pb, 215,
+                        px, py + r, pz, pr, pg, pb, 200,
+                        px - side * r * cosB, py, pz - r * sinB, 255, 240, 248, 215);
+            }
+        }
+    }
+
+    private static void renderBoneGeometry(
+            PoseStack.Pose pose,
+            VertexConsumer vc,
+            float length,
+            float flapSpeed,
+            int colorPreset,
+            int customRgb,
+            float ageInTicks,
+            boolean isFallFlying,
+            boolean isCrouching,
+            boolean damageFlash
+    ) {
+        float safeTicks = Float.isFinite(ageInTicks) ? ageInTicks : 0.0f;
+        float phase = WingsLogic.computeFlapPhase(ageInTicks, flapSpeed, 0.12f, isFallFlying, 1.9f);
+        float armSweep = WingsLogic.computeWingSweepRad(27.0f, 16.0f, phase, 0.0f, isFallFlying, isCrouching);
+        float tipSweep = WingsLogic.computeWingSweepRad(37.0f, 20.0f, phase, 0.65f, isFallFlying, isCrouching);
+        float midSweep = armSweep * 0.55f + tipSweep * 0.45f;
+
+        float cosA = (float) Math.cos(armSweep), sinA = (float) Math.sin(armSweep);
+        float cosM = (float) Math.cos(midSweep), sinM = (float) Math.sin(midSweep);
+        float cosT = (float) Math.cos(tipSweep), sinT = (float) Math.sin(tipSweep);
+
+        int soulRgb = WingsLogic.resolveRgb(colorPreset, customRgb, ageInTicks, 0.0f, damageFlash);
+        int ivoryRgb = WingsLogic.blendRgb(0xEFE8D8, soulRgb, damageFlash ? 0.80f : 0.14f);
+        int br = (ivoryRgb >> 16) & 0xFF, bg = (ivoryRgb >> 8) & 0xFF, bb = ivoryRgb & 0xFF;
+        int sr = (soulRgb >> 16) & 0xFF, sg = (soulRgb >> 8) & 0xFF, sb = soulRgb & 0xFF;
+
+        float thick = 0.028f * length;
+        int fingerCount = BONE_FINGERS.length / 6;
+
+        for (int s = 0; s < 2; s++) {
+            float side = (s == 0) ? -1.0f : 1.0f;
+
+            // Heavy skeletal humerus & radius arm + sharp upper bone spur
+            float rU = 0.06f * length, rV = -0.02f * length;
+            float eU = 0.46f * length, eV = -0.54f * length;
+            float spU = 0.50f * length, spV = -0.70f * length;
+            float rx = side * rU * cosA, ry = rV, rz = rU * sinA;
+            float ex = side * eU * cosA, ey = eV, ez = eU * sinA;
+            float spx = side * spU * cosA, spy = spV, spz = spU * sinA;
+
+            emitTaperedPrism(pose, vc, rx, ry, rz, ex, ey, ez, thick * 1.25f, thick * 0.95f, br, bg, bb, 255);
+            emitTaperedPrism(pose, vc, ex, ey, ez, spx, spy, spz, thick * 0.80f, thick * 0.18f, br, bg, bb, 255);
+
+            // 6 Exposed 3D skeletal phalanges (zero webbing) + glowing soul-fire marrow wisps
+            for (int i = 0; i < fingerCount; i++) {
+                int idx = i * 6;
+                float kU = BONE_FINGERS[idx] * length, kV = BONE_FINGERS[idx + 1] * length;
+                float mU = BONE_FINGERS[idx + 2] * length, mV = BONE_FINGERS[idx + 3] * length;
+                float tU = BONE_FINGERS[idx + 4] * length, tV = BONE_FINGERS[idx + 5] * length;
+
+                float kx = side * kU * cosA, ky = kV, kz = kU * sinA;
+                float mx = side * mU * cosM, my = mV, mz = mU * sinM;
+                float tx = side * tU * cosT, ty = tV, tz = tU * sinT;
+
+                float fR = thick * (0.78f - i * 0.08f);
+                emitTaperedPrism(pose, vc, kx, ky, kz, mx, my, mz, fR, fR * 0.72f, br, bg, bb, 255);
+                emitTaperedPrism(pose, vc, mx, my, mz, tx, ty, tz, fR * 0.72f, fR * 0.20f, br, bg, bb, 255);
+
+                // Ethereal soul-fire wisp burning along each bone joint
+                float wispLift = (float) Math.sin(safeTicks * 0.20f + i * 1.2f) * 0.035f * length;
+                float wx = mx, wy = my - 0.05f * length + wispLift, wz = mz + 0.03f * length;
+                emitQuad4(pose, vc,
+                        kx, ky, kz + 0.01f, sr, sg, sb, 175,
+                        mx, my, mz + 0.01f, sr, sg, sb, 195,
+                        wx, wy, wz, 255, 255, 255, 0,
+                        tx, ty, tz + 0.01f, sr, sg, sb, 140);
             }
         }
     }

@@ -12,7 +12,7 @@ public class WingsLogicTest {
     }
 
     private static void testClampingAndNaNGuards() {
-        assert WingsLogic.modeCount() == 10;
+        assert WingsLogic.modeCount() == 16;
         assert WingsLogic.clampMode(-1) == WingsLogic.MODE_LINES;
         assert WingsLogic.clampMode(99) == WingsLogic.MODE_LINES;
         assert WingsLogic.clampMode(WingsLogic.MODE_DRAGON) == WingsLogic.MODE_DRAGON;
@@ -24,6 +24,12 @@ public class WingsLogicTest {
         assert WingsLogic.clampMode(WingsLogic.MODE_CRYSTAL) == WingsLogic.MODE_CRYSTAL;
         assert WingsLogic.clampMode(WingsLogic.MODE_SERAPH) == WingsLogic.MODE_SERAPH;
         assert WingsLogic.clampMode(WingsLogic.MODE_VOID) == WingsLogic.MODE_VOID;
+        assert WingsLogic.clampMode(WingsLogic.MODE_VALKYRIE) == WingsLogic.MODE_VALKYRIE;
+        assert WingsLogic.clampMode(WingsLogic.MODE_GALAXY) == WingsLogic.MODE_GALAXY;
+        assert WingsLogic.clampMode(WingsLogic.MODE_STEAMPUNK) == WingsLogic.MODE_STEAMPUNK;
+        assert WingsLogic.clampMode(WingsLogic.MODE_THUNDER) == WingsLogic.MODE_THUNDER;
+        assert WingsLogic.clampMode(WingsLogic.MODE_SAKURA) == WingsLogic.MODE_SAKURA;
+        assert WingsLogic.clampMode(WingsLogic.MODE_BONE) == WingsLogic.MODE_BONE;
         assert "Lines".equals(WingsLogic.modeName(0));
         assert "Dragon".equals(WingsLogic.modeName(1));
         assert "Angel".equals(WingsLogic.modeName(2));
@@ -34,6 +40,12 @@ public class WingsLogicTest {
         assert "Crystal".equals(WingsLogic.modeName(7));
         assert "Seraph".equals(WingsLogic.modeName(8));
         assert "Void".equals(WingsLogic.modeName(9));
+        assert "Valkyrie".equals(WingsLogic.modeName(10));
+        assert "Galaxy".equals(WingsLogic.modeName(11));
+        assert "Steampunk".equals(WingsLogic.modeName(12));
+        assert "Thunder".equals(WingsLogic.modeName(13));
+        assert "Sakura".equals(WingsLogic.modeName(14));
+        assert "Bone".equals(WingsLogic.modeName(15));
 
         assert WingsLogic.clampColorPreset(-1) == WingsLogic.COLOR_CYAN;
         assert WingsLogic.clampColorPreset(99) == WingsLogic.COLOR_CYAN;

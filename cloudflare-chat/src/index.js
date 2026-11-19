@@ -33,7 +33,7 @@ function sanitizeWings(raw) {
   const clamp = (v, min, max, def) => Math.max(min, Math.min(max, num(v, def)));
   return {
     enabled: Boolean(raw.enabled),
-    mode: Math.max(0, Math.min(9, num(raw.mode, 0) | 0)),
+    mode: Math.max(0, Math.min(15, num(raw.mode, 0) | 0)),
     color: Math.max(0, Math.min(9, num(raw.color, 2) | 0)),
     rgb: Math.max(0, Math.min(0xFFFFFF, num(raw.rgb, 0x00D4FF) | 0)),
     length: Number(clamp(raw.length, 0.4, 2.5, 1.15).toFixed(3)),

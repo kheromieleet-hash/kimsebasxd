@@ -1,6 +1,6 @@
 ================================================================================
 SESTIA CLIENT - TUM MODULLER VE OZELLIKLER REHBERI
-Surum: v1.0.202 (VersionCode: 202) | Minecraft: 26.3 Fabric
+Surum: v1.0.203 (VersionCode: 203) | Minecraft: 26.3 Fabric
 Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
 ================================================================================
 
@@ -192,15 +192,19 @@ Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
 25d. Wings
      Ne ise yarar: Oyuncunun kendi sirtinda ve (SestiaChat WebSocket senkronizasyonu
      ile) diger Sestia Client kullanicilarinin sirtinda herkesin kendi sectigi
-     10 farkli 3D kozmetik kanat modelini cizer (Lines enerji seritleri, dik melek duruslu 3D Dragon, 3 katmanli tuylu
-     Angel melek kanadi, oyuk zarli ve kemikli Demon iblis kanadi, yanardoner
-     Butterfly kelebek kanadi, suzulen plazma bicakli Cyber kanadi, alev dilli ve
-     kuyruk seritli Phoenix anka kanadi, 3D prizma parcali Crystal kristal kanadi,
-     6 kanatli ve donen kutsal halkali Seraph basmelek kanadi ve karanlik bosluk
-     kamcili Void kanadi; 0.00 sabit sirt mesafesi ve gogusluk/elytra icin
-     otomatik +0.10 zirh payi uygular).
+     16 farkli 3D kozmetik kanat modelini cizer (Lines enerji seritleri, dik melek
+     duruslu 3D Dragon, 3 katmanli tuylu Angel melek kanadi, oyuk zarli ve kemikli
+     Demon iblis kanadi, yanardoner Butterfly kelebek kanadi, suzulen plazma
+     bicakli Cyber kanadi, alev dilli ve kuyruk seritli Phoenix anka kanadi, 3D
+     prizma parcali Crystal kristal kanadi, 6 kanatli ve donen kutsal halkali
+     Seraph basmelek kanadi, karanlik bosluk kamcili Void kanadi, zirhli mizrak
+     tuylu Valkyrie savas melegi kanadi, parlayan takimyildizli Galaxy kozmik
+     nebula kanadi, donen disli carkli Steampunk mekanik kanat, cakan zig-zag
+     yildirimli Thunder firtina kanadi, ucusan kiraz cicegi yaprakli Sakura kanadi
+     ve saf 3D kemik iskeletli + ruh atesli Bone kanadi; 0.00 sabit sirt mesafesi
+     ve gogusluk/elytra icin otomatik +0.10 zirh payi uygular).
      Ayarlar: Mode (Lines / Dragon / Angel / Demon / Butterfly / Cyber / Phoenix /
-     Crystal / Seraph / Void),
+     Crystal / Seraph / Void / Valkyrie / Galaxy / Steampunk / Thunder / Sakura / Bone),
      Color (Chroma / Sestia Red / Cyan / Blue / Violet / Pink / Emerald / Gold /
      White / Custom #RRGGBB + interaktif 12 hazir renk kutusu ve 360° Hue /
      Doygunluk / Parlaklik renk paleti), Length (0.40x - 2.50x), Width (0.02 - 0.20),

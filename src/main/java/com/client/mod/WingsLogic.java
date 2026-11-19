@@ -20,6 +20,12 @@ public final class WingsLogic {
     public static final int MODE_CRYSTAL = 7;
     public static final int MODE_SERAPH = 8;
     public static final int MODE_VOID = 9;
+    public static final int MODE_VALKYRIE = 10;
+    public static final int MODE_GALAXY = 11;
+    public static final int MODE_STEAMPUNK = 12;
+    public static final int MODE_THUNDER = 13;
+    public static final int MODE_SAKURA = 14;
+    public static final int MODE_BONE = 15;
 
     private static final String[] MODE_NAMES = {
             "Lines",
@@ -31,7 +37,13 @@ public final class WingsLogic {
             "Phoenix",
             "Crystal",
             "Seraph",
-            "Void"
+            "Void",
+            "Valkyrie",
+            "Galaxy",
+            "Steampunk",
+            "Thunder",
+            "Sakura",
+            "Bone"
     };
 
     public static final int COLOR_CHROMA = 0;

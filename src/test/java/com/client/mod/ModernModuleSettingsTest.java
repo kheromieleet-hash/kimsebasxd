@@ -336,7 +336,8 @@ public class ModernModuleSettingsTest {
         ModernModuleSettings.CycleControl modeCycle = (ModernModuleSettings.CycleControl) linesControls.get(0);
         String[] expectedModes = {
                 "Lines", "Dragon", "Angel", "Demon", "Butterfly",
-                "Cyber", "Phoenix", "Crystal", "Seraph", "Void"
+                "Cyber", "Phoenix", "Crystal", "Seraph", "Void",
+                "Valkyrie", "Galaxy", "Steampunk", "Thunder", "Sakura", "Bone"
         };
         for (int i = 0; i < expectedModes.length; i++) {
             assert expectedModes[i].equals(modeCycle.valueLabel().get())
