@@ -7,3 +7,4 @@
 
 ## User
 - [user] Keep `c:\Users\PC\Desktop\client\MODULLER.txt` updated in Turkish whenever any module or feature is added, changed, or removed → user-preferences.md
+- [user] Always audit newly uploaded/added code across 4 categories (Bugs/Crash/Mixin bytecode, Performance/FPS allocations, UI/HUD/ClickGUI UX, Dead code/duplication) and report issues → user-preferences.md
