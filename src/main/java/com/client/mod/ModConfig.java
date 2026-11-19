@@ -246,7 +246,6 @@ public class ModConfig {
     public float wingsHeight = 0.15f;
     public float wingsFlapSpeed = 1.0f;
     public boolean wingsShowDamage = true;
-    public int wingsTarget = WingsLogic.TARGET_ONLY_ME;
 
     // Xray (Meteor parity)
     public boolean xrayEnabled = false;
@@ -875,7 +874,6 @@ public class ModConfig {
         this.wingsHeight = WingsLogic.clampHeight(other.wingsHeight);
         this.wingsFlapSpeed = WingsLogic.clampFlapSpeed(other.wingsFlapSpeed);
         this.wingsShowDamage = other.wingsShowDamage;
-        this.wingsTarget = WingsLogic.clampTarget(other.wingsTarget);
         this.xrayEnabled = other.xrayEnabled;
         this.xrayOpacity = XrayHandler.clampOpacity(other.xrayOpacity);
         this.xrayOpacityDefaultMigrated = other.xrayOpacityDefaultMigrated;
@@ -1045,7 +1043,6 @@ public class ModConfig {
         this.wingsFadeStart = WingsLogic.clampFadeStart(this.wingsFadeStart);
         this.wingsHeight = WingsLogic.clampHeight(this.wingsHeight);
         this.wingsFlapSpeed = WingsLogic.clampFlapSpeed(this.wingsFlapSpeed);
-        this.wingsTarget = WingsLogic.clampTarget(this.wingsTarget);
         if (this.autoCrafterDelay < 0 || this.autoCrafterDelay > 10) this.autoCrafterDelay = 0;
         if (this.autoCrafterTargets == null) {
             resetDefaultAutoCraftTargets();

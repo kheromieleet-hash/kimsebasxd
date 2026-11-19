@@ -12,17 +12,20 @@ public class WingsLogicTest {
     }
 
     private static void testClampingAndNaNGuards() {
+        assert WingsLogic.modeCount() == 6;
         assert WingsLogic.clampMode(-1) == WingsLogic.MODE_LINES;
         assert WingsLogic.clampMode(99) == WingsLogic.MODE_LINES;
         assert WingsLogic.clampMode(WingsLogic.MODE_DRAGON) == WingsLogic.MODE_DRAGON;
+        assert WingsLogic.clampMode(WingsLogic.MODE_ANGEL) == WingsLogic.MODE_ANGEL;
+        assert WingsLogic.clampMode(WingsLogic.MODE_DEMON) == WingsLogic.MODE_DEMON;
+        assert WingsLogic.clampMode(WingsLogic.MODE_BUTTERFLY) == WingsLogic.MODE_BUTTERFLY;
+        assert WingsLogic.clampMode(WingsLogic.MODE_CYBER) == WingsLogic.MODE_CYBER;
         assert "Lines".equals(WingsLogic.modeName(0));
         assert "Dragon".equals(WingsLogic.modeName(1));
-
-        assert WingsLogic.clampTarget(-5) == WingsLogic.TARGET_ONLY_ME;
-        assert WingsLogic.clampTarget(10) == WingsLogic.TARGET_ONLY_ME;
-        assert "Only Me".equals(WingsLogic.targetName(0));
-        assert "Friends".equals(WingsLogic.targetName(1));
-        assert "All Players".equals(WingsLogic.targetName(2));
+        assert "Angel".equals(WingsLogic.modeName(2));
+        assert "Demon".equals(WingsLogic.modeName(3));
+        assert "Butterfly".equals(WingsLogic.modeName(4));
+        assert "Cyber".equals(WingsLogic.modeName(5));
 
         assert WingsLogic.clampColorPreset(-1) == WingsLogic.COLOR_CYAN;
         assert WingsLogic.clampColorPreset(99) == WingsLogic.COLOR_CYAN;
@@ -71,19 +74,11 @@ public class WingsLogicTest {
     }
 
     private static void testTargetFilteringAndPanic() {
-        assert !WingsLogic.shouldRenderTarget(false, false, false, false, WingsLogic.TARGET_ALL, true, true);
-        assert !WingsLogic.shouldRenderTarget(true, true, false, false, WingsLogic.TARGET_ALL, true, true);
-        assert !WingsLogic.shouldRenderTarget(true, false, true, false, WingsLogic.TARGET_ALL, true, true);
-        assert !WingsLogic.shouldRenderTarget(true, false, false, true, WingsLogic.TARGET_ALL, true, true);
-
-        assert WingsLogic.shouldRenderTarget(true, false, false, false, WingsLogic.TARGET_ONLY_ME, true, false);
-        assert !WingsLogic.shouldRenderTarget(true, false, false, false, WingsLogic.TARGET_ONLY_ME, false, true);
-
-        assert WingsLogic.shouldRenderTarget(true, false, false, false, WingsLogic.TARGET_FRIENDS, true, false);
-        assert WingsLogic.shouldRenderTarget(true, false, false, false, WingsLogic.TARGET_FRIENDS, false, true);
-        assert !WingsLogic.shouldRenderTarget(true, false, false, false, WingsLogic.TARGET_FRIENDS, false, false);
-
-        assert WingsLogic.shouldRenderTarget(true, false, false, false, WingsLogic.TARGET_ALL, false, false);
+        assert !WingsLogic.shouldRender(false, false, false, false);
+        assert !WingsLogic.shouldRender(true, true, false, false);
+        assert !WingsLogic.shouldRender(true, false, true, false);
+        assert !WingsLogic.shouldRender(true, false, false, true);
+        assert WingsLogic.shouldRender(true, false, false, false);
     }
 
     private static void testBackOffsetAndAnchorGeometry() {
@@ -144,5 +139,27 @@ public class WingsLogicTest {
 
         float sweep0 = WingsLogic.computeFeatherSweepDeg(0.5f, 10.0f, 0.0f, false);
         assert Math.abs(sweep0 - 29.0f) < 0.001f;
+
+        assert WingsLogic.blendRgb(0x000000, 0xFFFFFF, 0.0f) == 0x000000;
+        assert WingsLogic.blendRgb(0x000000, 0xFFFFFF, 1.0f) == 0xFFFFFF;
+        assert WingsLogic.blendRgb(0xFF0000, 0x0000FF, 0.5f) == 0x800080;
+
+        assert WingsLogic.computeFlapPhase(50.0f, 0.0f, 0.12f, false, 1.8f) == 0.0f;
+        assert WingsLogic.computeFlapPhase(10.0f, 1.0f, 0.12f, true, 2.0f)
+                > WingsLogic.computeFlapPhase(10.0f, 1.0f, 0.12f, false, 2.0f);
+
+        float staticSweep = WingsLogic.computeWingSweepRad(28.0f, 18.0f, 0.0f, 0.0f, false, false);
+        float glideSweep = WingsLogic.computeWingSweepRad(28.0f, 18.0f, 0.0f, 0.0f, true, false);
+        float crouchSweep = WingsLogic.computeWingSweepRad(28.0f, 18.0f, 0.0f, 0.0f, false, true);
+        assert staticSweep >= 0.14f && glideSweep > staticSweep && crouchSweep > staticSweep;
+        for (int t = 0; t <= 100; t += 2) {
+            float p = WingsLogic.computeFlapPhase((float) t, 1.0f, 0.12f, false, 1.8f);
+            float sw = WingsLogic.computeWingSweepRad(28.0f, 18.0f, p, 0.2f, false, false);
+            assert sw >= 0.14f : "Custom 3D wing sweep must stay behind back: " + sw;
+        }
+
+        float p0 = WingsLogic.computeCyberPulse(0.0f, 1.0f, 0.0f);
+        float p1 = WingsLogic.computeCyberPulse(8.0f, 1.0f, 0.0f);
+        assert p0 >= 0.0f && p0 <= 1.0f && p1 >= 0.0f && p1 <= 1.0f && p0 != p1;
     }
 }

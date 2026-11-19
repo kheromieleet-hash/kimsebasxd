@@ -876,21 +876,13 @@ public final class ModernModuleSettings {
         controls.add(new CycleControl("Mode",
                 () -> WingsLogic.modeName(cfg.wingsMode),
                 () -> {
-                    cfg.wingsMode = (cfg.wingsMode == WingsLogic.MODE_LINES)
-                            ? WingsLogic.MODE_DRAGON
-                            : WingsLogic.MODE_LINES;
+                    cfg.wingsMode = (WingsLogic.clampMode(cfg.wingsMode) + 1) % WingsLogic.modeCount();
                     actions.persist(false);
                 }));
         controls.add(new CycleControl("Color",
                 () -> WingsLogic.colorPresetName(cfg.wingsColorPreset),
                 () -> {
                     cfg.wingsColorPreset = (WingsLogic.clampColorPreset(cfg.wingsColorPreset) + 1) % WingsLogic.colorCount();
-                    actions.persist(false);
-                }));
-        controls.add(new CycleControl("Show On",
-                () -> WingsLogic.targetName(cfg.wingsTarget),
-                () -> {
-                    cfg.wingsTarget = (WingsLogic.clampTarget(cfg.wingsTarget) + 1) % 3;
                     actions.persist(false);
                 }));
         controls.add(floatSlider("wingsLength", "Length", 0.40f, 2.50f, 20.0f, "%.2fx",

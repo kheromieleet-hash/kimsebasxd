@@ -457,7 +457,7 @@ final class ModernModuleCardUi {
             case "Xray" -> "See selected ores/blocks with opacity & exposed filter";
             case "Block ESP" -> "Highlight selected blocks & tracers per block color";
             case "Freecam" -> "Detach camera to scout freely through blocks";
-            case "Wings" -> "LiquidBounce cosmetic back wings (Lines & Dragon modes)";
+            case "Wings" -> "3D back wings: Lines, Dragon, Angel, Demon, Butterfly & Cyber";
             case "HUD Info" -> "FPS, Ping, TPS & coordinates on screen";
             case "TNT Timer" -> "Accurate fuse ticks & detonation timer";
             case "Keybinds HUD" -> "Active toggles & bound keys overlay";

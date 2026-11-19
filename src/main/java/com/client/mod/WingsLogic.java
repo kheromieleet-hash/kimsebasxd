@@ -8,10 +8,19 @@ public final class WingsLogic {
 
     public static final int MODE_LINES = 0;
     public static final int MODE_DRAGON = 1;
+    public static final int MODE_ANGEL = 2;
+    public static final int MODE_DEMON = 3;
+    public static final int MODE_BUTTERFLY = 4;
+    public static final int MODE_CYBER = 5;
 
-    public static final int TARGET_ONLY_ME = 0;
-    public static final int TARGET_FRIENDS = 1;
-    public static final int TARGET_ALL = 2;
+    private static final String[] MODE_NAMES = {
+            "Lines",
+            "Dragon",
+            "Angel",
+            "Demon",
+            "Butterfly",
+            "Cyber"
+    };
 
     public static final int COLOR_CHROMA = 0;
     public static final int COLOR_SESTIA_RED = 1;
@@ -59,20 +68,16 @@ public final class WingsLogic {
     private WingsLogic() {
     }
 
+    public static int modeCount() {
+        return MODE_NAMES.length;
+    }
+
     public static int colorCount() {
         return COLOR_NAMES.length;
     }
 
     public static String modeName(int mode) {
-        return clampMode(mode) == MODE_DRAGON ? "Dragon" : "Lines";
-    }
-
-    public static String targetName(int targetMode) {
-        return switch (clampTarget(targetMode)) {
-            case TARGET_FRIENDS -> "Friends";
-            case TARGET_ALL -> "All Players";
-            default -> "Only Me";
-        };
+        return MODE_NAMES[clampMode(mode)];
     }
 
     public static String colorPresetName(int colorPreset) {
@@ -80,14 +85,10 @@ public final class WingsLogic {
     }
 
     public static int clampMode(int mode) {
-        return mode == MODE_DRAGON ? MODE_DRAGON : MODE_LINES;
-    }
-
-    public static int clampTarget(int targetMode) {
-        if (targetMode < TARGET_ONLY_ME || targetMode > TARGET_ALL) {
-            return TARGET_ONLY_ME;
+        if (mode < 0 || mode >= MODE_NAMES.length) {
+            return MODE_LINES;
         }
-        return targetMode;
+        return mode;
     }
 
     public static int clampColorPreset(int preset) {
@@ -124,24 +125,13 @@ public final class WingsLogic {
         return clampFloat(flapSpeed, 0.0f, 3.0f, 1.0f);
     }
 
-    public static boolean shouldRenderTarget(
+    public static boolean shouldRender(
             boolean enabled,
             boolean panicActive,
             boolean invisible,
-            boolean spectator,
-            int targetMode,
-            boolean isSelf,
-            boolean isFriend
+            boolean spectator
     ) {
-        if (!enabled || panicActive || invisible || spectator) {
-            return false;
-        }
-        return switch (clampTarget(targetMode)) {
-            case TARGET_ONLY_ME -> isSelf;
-            case TARGET_FRIENDS -> isSelf || isFriend;
-            case TARGET_ALL -> true;
-            default -> false;
-        };
+        return enabled && !panicActive && !invisible && !spectator;
     }
 
     public static float computeBackZ(boolean hasChestEquipment) {
@@ -225,6 +215,59 @@ public final class WingsLogic {
                 ? 0.0f
                 : (float) Math.sin(safeTicks * 0.14f * speed * mult - t * 0.65f) * (isFallFlying ? 15.0f : 11.0f);
         return 24.0f + 10.0f * t + wave;
+    }
+
+    public static int blendRgb(int rgbA, int rgbB, float t) {
+        float u = clampUnit(t);
+        int ar = (rgbA >> 16) & 0xFF;
+        int ag = (rgbA >> 8) & 0xFF;
+        int ab = rgbA & 0xFF;
+        int br = (rgbB >> 16) & 0xFF;
+        int bg = (rgbB >> 8) & 0xFF;
+        int bb = rgbB & 0xFF;
+        int rr = Math.round(ar + (br - ar) * u);
+        int rg = Math.round(ag + (bg - ag) * u);
+        int rb = Math.round(ab + (bb - ab) * u);
+        return (rr << 16) | (rg << 8) | rb;
+    }
+
+    public static float computeFlapPhase(
+            float ageInTicks,
+            float flapSpeed,
+            float baseRate,
+            boolean isFallFlying,
+            float glideMult
+    ) {
+        float speed = clampFlapSpeed(flapSpeed);
+        if (speed <= 0.001f) {
+            return 0.0f;
+        }
+        float safeTicks = Float.isFinite(ageInTicks) ? ageInTicks : 0.0f;
+        float mult = isFallFlying ? glideMult : 1.0f;
+        return safeTicks * baseRate * speed * mult;
+    }
+
+    public static float computeWingSweepRad(
+            float baseDeg,
+            float ampDeg,
+            float phase,
+            float lagOffset,
+            boolean isFallFlying,
+            boolean isCrouching
+    ) {
+        float deg = baseDeg + (isFallFlying ? 10.0f : 0.0f) + (isCrouching ? 6.0f : 0.0f);
+        if (phase != 0.0f) {
+            deg += (float) Math.sin(phase - lagOffset) * ampDeg;
+        }
+        float clampedDeg = clampFloat(deg, 8.5f, 82.0f, 24.0f);
+        return clampedDeg * (float) (Math.PI / 180.0);
+    }
+
+    public static float computeCyberPulse(float ageInTicks, float flapSpeed, float bladeNorm) {
+        float safeTicks = Float.isFinite(ageInTicks) ? ageInTicks : 0.0f;
+        float speed = Math.max(0.35f, clampFlapSpeed(flapSpeed));
+        float wave = 0.5f + 0.5f * (float) Math.sin(safeTicks * 0.22f * speed - clampUnit(bladeNorm) * 2.4f);
+        return clampUnit(wave);
     }
 
     /**

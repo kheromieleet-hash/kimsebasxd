@@ -322,35 +322,47 @@ public class ModernModuleSettingsTest {
         RecordingActions actions = new RecordingActions();
 
         List<ModernModuleSettings.Control> linesControls = ModernModuleSettings.getControls("Wings", cfg, actions);
-        assert linesControls.size() == 10 : "Expected 10 Wings controls in Lines mode, got " + linesControls.size();
+        assert linesControls.size() == 9 : "Expected 9 Wings controls in Lines mode, got " + linesControls.size();
         for (ModernModuleSettings.Control c : linesControls) {
             if (c instanceof ModernModuleSettings.SliderControl sc) {
                 assert !"wingsBackOffset".equals(sc.key()) && !"wingsEquipmentOffset".equals(sc.key())
                         : "Offset sliders must be removed from Wings settings: " + sc.key();
+            } else if (c instanceof ModernModuleSettings.CycleControl cc) {
+                assert !"Show On".equals(cc.label())
+                        : "Show On control must be removed from Wings settings";
             }
         }
 
         ModernModuleSettings.CycleControl modeCycle = (ModernModuleSettings.CycleControl) linesControls.get(0);
-        assert "Lines".equals(modeCycle.valueLabel().get());
-        modeCycle.onCycle().run();
-        assert cfg.wingsMode == WingsLogic.MODE_DRAGON && "Dragon".equals(modeCycle.valueLabel().get());
+        String[] expectedModes = {"Lines", "Dragon", "Angel", "Demon", "Butterfly", "Cyber"};
+        for (int i = 0; i < expectedModes.length; i++) {
+            assert expectedModes[i].equals(modeCycle.valueLabel().get())
+                    : "Expected mode " + expectedModes[i] + ", got " + modeCycle.valueLabel().get();
+            List<ModernModuleSettings.Control> modeControls = ModernModuleSettings.getControls("Wings", cfg, actions);
+            int expectedSize = (i == 0) ? 9 : 6;
+            assert modeControls.size() == expectedSize
+                    : "Expected " + expectedSize + " controls in " + expectedModes[i] + ", got " + modeControls.size();
+            modeCycle.onCycle().run();
+        }
+        assert cfg.wingsMode == WingsLogic.MODE_LINES && "Lines".equals(modeCycle.valueLabel().get());
 
-        List<ModernModuleSettings.Control> dragonControls = ModernModuleSettings.getControls("Wings", cfg, actions);
-        assert dragonControls.size() == 7 : "Expected 7 Wings controls in Dragon mode, got " + dragonControls.size();
+        // Advance to Angel mode (non-Lines) and verify shared Length & Show Damage controls
+        modeCycle.onCycle().run(); // Dragon
+        modeCycle.onCycle().run(); // Angel
+        assert cfg.wingsMode == WingsLogic.MODE_ANGEL && "Angel".equals(modeCycle.valueLabel().get());
 
-        ModernModuleSettings.CycleControl colorCycle = (ModernModuleSettings.CycleControl) dragonControls.get(1);
+        List<ModernModuleSettings.Control> angelControls = ModernModuleSettings.getControls("Wings", cfg, actions);
+        assert angelControls.size() == 6 : "Expected 6 Wings controls in Angel mode, got " + angelControls.size();
+
+        ModernModuleSettings.CycleControl colorCycle = (ModernModuleSettings.CycleControl) angelControls.get(1);
         assert "Cyan".equals(colorCycle.valueLabel().get());
         colorCycle.onCycle().run();
         assert cfg.wingsColorPreset == WingsLogic.COLOR_BLUE;
 
-        ModernModuleSettings.CycleControl targetCycle = (ModernModuleSettings.CycleControl) dragonControls.get(2);
-        targetCycle.onCycle().run();
-        assert cfg.wingsTarget == WingsLogic.TARGET_FRIENDS;
-
-        ((ModernModuleSettings.SliderControl) dragonControls.get(3)).pctSetter().accept(1.0f);
+        ((ModernModuleSettings.SliderControl) angelControls.get(2)).pctSetter().accept(1.0f);
         assert Math.abs(cfg.wingsLength - 2.50f) < 0.001f;
 
-        ((ModernModuleSettings.ToggleControl) dragonControls.get(6)).setter().accept(false);
+        ((ModernModuleSettings.ToggleControl) angelControls.get(5)).setter().accept(false);
         assert !cfg.wingsShowDamage;
 
         int beforePersist = actions.persistCalls;
@@ -358,12 +370,11 @@ public class ModernModuleSettingsTest {
         assert actions.persistCalls == beforePersist + 1;
         assert cfg.wingsMode == WingsLogic.MODE_LINES;
         assert cfg.wingsColorPreset == WingsLogic.COLOR_CYAN;
-        assert cfg.wingsTarget == WingsLogic.TARGET_ONLY_ME;
         assert Math.abs(cfg.wingsLength - 1.15f) < 0.01f;
         assert Math.abs(cfg.wingsWidth - 0.06f) < 0.005f;
         assert cfg.wingsLinesCount == 5;
         assert cfg.wingsShowDamage;
-        assert ModernModuleSettings.getControls("Wings", cfg, actions).size() == 10;
+        assert ModernModuleSettings.getControls("Wings", cfg, actions).size() == 9;
     }
 
     private static void testAllSlidersSupportDirectNumericInput() {

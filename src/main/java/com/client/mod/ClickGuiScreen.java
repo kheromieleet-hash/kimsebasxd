@@ -2410,9 +2410,7 @@ public class ClickGuiScreen {
                     config.save();
                     playClickSound();
                 } else if (specificRow == 1) {
-                    config.wingsMode = (config.wingsMode == WingsLogic.MODE_LINES)
-                            ? WingsLogic.MODE_DRAGON
-                            : WingsLogic.MODE_LINES;
+                    config.wingsMode = (WingsLogic.clampMode(config.wingsMode) + 1) % WingsLogic.modeCount();
                     config.save();
                     playClickSound();
                 }
