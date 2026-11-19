@@ -12,7 +12,7 @@ public class WingsLogicTest {
     }
 
     private static void testClampingAndNaNGuards() {
-        assert WingsLogic.modeCount() == 6;
+        assert WingsLogic.modeCount() == 10;
         assert WingsLogic.clampMode(-1) == WingsLogic.MODE_LINES;
         assert WingsLogic.clampMode(99) == WingsLogic.MODE_LINES;
         assert WingsLogic.clampMode(WingsLogic.MODE_DRAGON) == WingsLogic.MODE_DRAGON;
@@ -20,20 +20,35 @@ public class WingsLogicTest {
         assert WingsLogic.clampMode(WingsLogic.MODE_DEMON) == WingsLogic.MODE_DEMON;
         assert WingsLogic.clampMode(WingsLogic.MODE_BUTTERFLY) == WingsLogic.MODE_BUTTERFLY;
         assert WingsLogic.clampMode(WingsLogic.MODE_CYBER) == WingsLogic.MODE_CYBER;
+        assert WingsLogic.clampMode(WingsLogic.MODE_PHOENIX) == WingsLogic.MODE_PHOENIX;
+        assert WingsLogic.clampMode(WingsLogic.MODE_CRYSTAL) == WingsLogic.MODE_CRYSTAL;
+        assert WingsLogic.clampMode(WingsLogic.MODE_SERAPH) == WingsLogic.MODE_SERAPH;
+        assert WingsLogic.clampMode(WingsLogic.MODE_VOID) == WingsLogic.MODE_VOID;
         assert "Lines".equals(WingsLogic.modeName(0));
         assert "Dragon".equals(WingsLogic.modeName(1));
         assert "Angel".equals(WingsLogic.modeName(2));
         assert "Demon".equals(WingsLogic.modeName(3));
         assert "Butterfly".equals(WingsLogic.modeName(4));
         assert "Cyber".equals(WingsLogic.modeName(5));
+        assert "Phoenix".equals(WingsLogic.modeName(6));
+        assert "Crystal".equals(WingsLogic.modeName(7));
+        assert "Seraph".equals(WingsLogic.modeName(8));
+        assert "Void".equals(WingsLogic.modeName(9));
 
         assert WingsLogic.clampColorPreset(-1) == WingsLogic.COLOR_CYAN;
         assert WingsLogic.clampColorPreset(99) == WingsLogic.COLOR_CYAN;
-        assert WingsLogic.colorCount() == 9;
+        assert WingsLogic.colorCount() == 10;
         assert "Chroma".equals(WingsLogic.colorPresetName(0));
         assert "Sestia Red".equals(WingsLogic.colorPresetName(1));
         assert "Cyan".equals(WingsLogic.colorPresetName(2));
         assert "White".equals(WingsLogic.colorPresetName(8));
+        assert "Custom".equals(WingsLogic.colorPresetName(9));
+        assert WingsLogic.PALETTE_SWATCHES.length == 12;
+        assert "#FF3355".equals(WingsLogic.formatHexRgb(0xFF3355));
+        float[] hsv = WingsLogic.rgbToHsv(0xFF0000);
+        assert Math.abs(hsv[0]) < 0.01f && Math.abs(hsv[1] - 1.0f) < 0.01f && Math.abs(hsv[2] - 1.0f) < 0.01f;
+        assert WingsLogic.resolveRgb(WingsLogic.COLOR_CUSTOM, 0x12AB34, 5.0f, 0.0f, false) == 0x12AB34;
+        assert WingsLogic.resolveRgb(WingsLogic.COLOR_CUSTOM, 0x12AB34, 5.0f, 0.0f, true) == WingsLogic.DAMAGE_RGB;
 
         assert Math.abs(WingsLogic.clampLength(Float.NaN) - 1.15f) < 0.0001f;
         assert Math.abs(WingsLogic.clampLength(0.01f) - 0.40f) < 0.0001f;
@@ -74,11 +89,42 @@ public class WingsLogicTest {
     }
 
     private static void testTargetFilteringAndPanic() {
-        assert !WingsLogic.shouldRender(false, false, false, false);
-        assert !WingsLogic.shouldRender(true, true, false, false);
-        assert !WingsLogic.shouldRender(true, false, true, false);
-        assert !WingsLogic.shouldRender(true, false, false, true);
-        assert WingsLogic.shouldRender(true, false, false, false);
+        assert !WingsLogic.shouldRender(false, false, false, false, true);
+        assert !WingsLogic.shouldRender(true, true, false, false, true);
+        assert !WingsLogic.shouldRender(true, false, true, false, true);
+        assert !WingsLogic.shouldRender(true, false, false, true, true);
+        assert !WingsLogic.shouldRender(true, false, false, false, false);
+        assert WingsLogic.shouldRender(true, false, false, false, true);
+
+        WingsLogic.clearRemoteProfiles();
+        ModConfig cfg = new ModConfig();
+        cfg.wingsEnabled = true;
+        cfg.wingsMode = WingsLogic.MODE_ANGEL;
+        cfg.wingsColorPreset = WingsLogic.COLOR_WHITE;
+
+        // Self gets own config profile
+        WingsLogic.WingProfile selfP = WingsLogic.resolveRenderProfile(cfg, false, false, false, true, "Me");
+        assert selfP != null && selfP.mode() == WingsLogic.MODE_ANGEL && selfP.colorPreset() == WingsLogic.COLOR_WHITE;
+
+        // Random non-Sestia player gets null (no wings)
+        assert WingsLogic.resolveRenderProfile(cfg, false, false, false, false, "RandomPlayer") == null;
+
+        // Remote Sestia user gets their own chosen different wing model & color!
+        WingsLogic.putRemoteProfile("Friend_TR", new WingsLogic.WingProfile(
+                true, WingsLogic.MODE_DEMON, WingsLogic.COLOR_SESTIA_RED,
+                1.40f, 0.06f, 5, 0.50f, 0.20f, 1.5f, true));
+        WingsLogic.WingProfile friendP = WingsLogic.resolveRenderProfile(cfg, false, false, false, false, "friend_tr");
+        assert friendP != null
+                && friendP.mode() == WingsLogic.MODE_DEMON
+                && friendP.colorPreset() == WingsLogic.COLOR_SESTIA_RED
+                && Math.abs(friendP.length() - 1.40f) < 0.001f;
+
+        // Even if local player turns their own wings off, remote Sestia friend's wings still render unless Panic is active
+        cfg.wingsEnabled = false;
+        assert WingsLogic.resolveRenderProfile(cfg, false, false, false, true, "Me") == null;
+        assert WingsLogic.resolveRenderProfile(cfg, false, false, false, false, "Friend_TR") != null;
+        assert WingsLogic.resolveRenderProfile(cfg, true, false, false, false, "Friend_TR") == null;
+        WingsLogic.clearRemoteProfiles();
     }
 
     private static void testBackOffsetAndAnchorGeometry() {

@@ -1,5 +1,9 @@
 package com.client.mod;
 
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * Pure math, clamping, animation, and target-filtering helpers for the LiquidBounce Wings module.
  * Kept free of Minecraft/LWJGL imports so unit tests can exercise all wing math directly.
@@ -12,6 +16,10 @@ public final class WingsLogic {
     public static final int MODE_DEMON = 3;
     public static final int MODE_BUTTERFLY = 4;
     public static final int MODE_CYBER = 5;
+    public static final int MODE_PHOENIX = 6;
+    public static final int MODE_CRYSTAL = 7;
+    public static final int MODE_SERAPH = 8;
+    public static final int MODE_VOID = 9;
 
     private static final String[] MODE_NAMES = {
             "Lines",
@@ -19,7 +27,11 @@ public final class WingsLogic {
             "Angel",
             "Demon",
             "Butterfly",
-            "Cyber"
+            "Cyber",
+            "Phoenix",
+            "Crystal",
+            "Seraph",
+            "Void"
     };
 
     public static final int COLOR_CHROMA = 0;
@@ -31,8 +43,24 @@ public final class WingsLogic {
     public static final int COLOR_EMERALD = 6;
     public static final int COLOR_GOLD = 7;
     public static final int COLOR_WHITE = 8;
+    public static final int COLOR_CUSTOM = 9;
 
     public static final int DAMAGE_RGB = 0xFF3434;
+
+    public static final int[] PALETTE_SWATCHES = {
+            0xFF3355, // Sestia Red
+            0x00D4FF, // Cyan
+            0x3B82F6, // Blue
+            0xA855F7, // Violet
+            0xEC4899, // Pink
+            0x22C55E, // Emerald
+            0xF59E0B, // Gold
+            0xFF6B00, // Sunset Orange
+            0x14F1D9, // Mint Aqua
+            0xDC143C, // Crimson
+            0xC4B5FD, // Ice Lavender
+            0xFFFFFF  // Pure White
+    };
 
     public static final float FIXED_BACK_OFFSET = 0.00f;
     public static final float FIXED_EQUIPMENT_OFFSET = 0.10f;
@@ -47,7 +75,8 @@ public final class WingsLogic {
             "Pink",
             "Emerald",
             "Gold",
-            "White"
+            "White",
+            "Custom"
     };
 
     private static final int[] COLOR_VALUES = {
@@ -59,13 +88,120 @@ public final class WingsLogic {
             0xEC4899, // Pink
             0x22C55E, // Emerald
             0xF59E0B, // Gold
-            0xFFFFFF  // White
+            0xFFFFFF, // White
+            0x00D4FF  // Custom fallback
     };
 
     public record DragonAnimState(float wingXRot, float wingYRot, float wingZRot, float tipYRot, float tipZRot) {
     }
 
+    public record WingProfile(
+            boolean enabled,
+            int mode,
+            int colorPreset,
+            int customRgb,
+            float length,
+            float width,
+            int linesCount,
+            float fadeStart,
+            float height,
+            float flapSpeed,
+            boolean showDamage
+    ) {
+        public WingProfile(
+                boolean enabled,
+                int mode,
+                int colorPreset,
+                float length,
+                float width,
+                int linesCount,
+                float fadeStart,
+                float height,
+                float flapSpeed,
+                boolean showDamage
+        ) {
+            this(enabled, mode, colorPreset, 0x00D4FF, length, width, linesCount, fadeStart, height, flapSpeed, showDamage);
+        }
+
+        public WingProfile sanitized() {
+            return new WingProfile(
+                    enabled,
+                    clampMode(mode),
+                    clampColorPreset(colorPreset),
+                    clampRgb(customRgb),
+                    clampLength(length),
+                    clampWidth(width),
+                    clampLinesCount(linesCount),
+                    clampFadeStart(fadeStart),
+                    clampHeight(height),
+                    clampFlapSpeed(flapSpeed),
+                    showDamage
+            );
+        }
+    }
+
+    private static final Map<String, WingProfile> REMOTE_PROFILES = new ConcurrentHashMap<>();
+
     private WingsLogic() {
+    }
+
+    public static WingProfile fromConfig(ModConfig cfg) {
+        if (cfg == null) {
+            return new WingProfile(false, MODE_LINES, COLOR_CYAN, 0x00D4FF, 1.15f, 0.06f, 5, 0.50f, 0.15f, 1.0f, true);
+        }
+        return new WingProfile(
+                cfg.wingsEnabled,
+                cfg.wingsMode,
+                cfg.wingsColorPreset,
+                cfg.wingsCustomRgb,
+                cfg.wingsLength,
+                cfg.wingsWidth,
+                cfg.wingsLinesCount,
+                cfg.wingsFadeStart,
+                cfg.wingsHeight,
+                cfg.wingsFlapSpeed,
+                cfg.wingsShowDamage
+        ).sanitized();
+    }
+
+    public static void putRemoteProfile(String playerName, WingProfile profile) {
+        if (playerName == null || playerName.isBlank() || profile == null) {
+            return;
+        }
+        REMOTE_PROFILES.put(playerName.trim().toLowerCase(Locale.ROOT), profile.sanitized());
+    }
+
+    public static WingProfile getRemoteProfile(String playerName) {
+        if (playerName == null || playerName.isBlank()) {
+            return null;
+        }
+        return REMOTE_PROFILES.get(playerName.trim().toLowerCase(Locale.ROOT));
+    }
+
+    public static boolean hasRemoteProfiles() {
+        return !REMOTE_PROFILES.isEmpty();
+    }
+
+    public static void clearRemoteProfiles() {
+        REMOTE_PROFILES.clear();
+    }
+
+    public static WingProfile resolveRenderProfile(
+            ModConfig cfg,
+            boolean panicActive,
+            boolean invisible,
+            boolean spectator,
+            boolean isSelf,
+            String remotePlayerName
+    ) {
+        if (cfg == null || panicActive || invisible || spectator) {
+            return null;
+        }
+        if (isSelf) {
+            return cfg.wingsEnabled ? fromConfig(cfg) : null;
+        }
+        WingProfile remote = getRemoteProfile(remotePlayerName);
+        return (remote != null && remote.enabled()) ? remote : null;
     }
 
     public static int modeCount() {
@@ -129,9 +265,10 @@ public final class WingsLogic {
             boolean enabled,
             boolean panicActive,
             boolean invisible,
-            boolean spectator
+            boolean spectator,
+            boolean isSelf
     ) {
-        return enabled && !panicActive && !invisible && !spectator;
+        return enabled && !panicActive && !invisible && !spectator && isSelf;
     }
 
     public static float computeBackZ(boolean hasChestEquipment) {
@@ -142,7 +279,19 @@ public final class WingsLogic {
         return 0.25f - clampHeight(height);
     }
 
+    public static int clampRgb(int rgb) {
+        return rgb & 0xFFFFFF;
+    }
+
+    public static String formatHexRgb(int rgb) {
+        return String.format(Locale.ROOT, "#%06X", clampRgb(rgb));
+    }
+
     public static int resolveRgb(int colorPreset, float ageInTicks, float phaseOffset, boolean showDamageActive) {
+        return resolveRgb(colorPreset, 0x00D4FF, ageInTicks, phaseOffset, showDamageActive);
+    }
+
+    public static int resolveRgb(int colorPreset, int customRgb, float ageInTicks, float phaseOffset, boolean showDamageActive) {
         if (showDamageActive) {
             return DAMAGE_RGB;
         }
@@ -153,6 +302,9 @@ public final class WingsLogic {
             float rawHue = safeTicks * 0.012f + safePhase;
             float hue = rawHue - (float) Math.floor(rawHue);
             return hsvToRgb(hue, 0.85f, 1.0f);
+        }
+        if (clamped == COLOR_CUSTOM) {
+            return clampRgb(customRgb);
         }
         return COLOR_VALUES[clamped];
     }
@@ -300,6 +452,29 @@ public final class WingsLogic {
         int gi = Math.max(0, Math.min(255, Math.round(g * 255.0f)));
         int bi = Math.max(0, Math.min(255, Math.round(b * 255.0f)));
         return (ri << 16) | (gi << 8) | bi;
+    }
+
+    public static float[] rgbToHsv(int rgb) {
+        int clamped = clampRgb(rgb);
+        float r = ((clamped >> 16) & 0xFF) / 255.0f;
+        float g = ((clamped >> 8) & 0xFF) / 255.0f;
+        float b = (clamped & 0xFF) / 255.0f;
+        float max = Math.max(r, Math.max(g, b));
+        float min = Math.min(r, Math.min(g, b));
+        float d = max - min;
+        float h;
+        if (d < 1.0e-5f) {
+            h = 0.0f;
+        } else if (max == r) {
+            h = ((g - b) / d) / 6.0f;
+            if (h < 0.0f) h += 1.0f;
+        } else if (max == g) {
+            h = (((b - r) / d) + 2.0f) / 6.0f;
+        } else {
+            h = (((r - g) / d) + 4.0f) / 6.0f;
+        }
+        float s = (max < 1.0e-5f) ? 0.0f : (d / max);
+        return new float[]{clampUnit(h), clampUnit(s), clampUnit(max)};
     }
 
     private static float clampUnit(float value) {

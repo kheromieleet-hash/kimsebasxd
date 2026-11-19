@@ -67,6 +67,9 @@ public final class SestiaChatClient {
     private static volatile int lastOnlineCount = 0;
     private static volatile long lastActivityAt = 0L;
     private static ScheduledFuture<?> pendingReconnect = null;
+    private static ScheduledFuture<?> pendingWingsBroadcast = null;
+    private static volatile long lastWingsBroadcastAt = 0L;
+    private static volatile String lastBroadcastWingsJson = "";
     private static int reconnectAttempts = 0;
 
     static {
@@ -328,8 +331,53 @@ public final class SestiaChatClient {
                         activeSocket = ws;
                         lastActivityAt = System.currentTimeMillis();
                     }
-                    sendTextSerialized(ws, SestiaChatProtocol.buildHelloJson(nick), gen, false);
+                    WingsLogic.WingProfile wp = WingsLogic.fromConfig(ModConfig.getInstance());
+                    lastBroadcastWingsJson = SestiaChatProtocol.buildWingsJson(wp);
+                    lastWingsBroadcastAt = System.currentTimeMillis();
+                    sendTextSerialized(ws, SestiaChatProtocol.buildHelloJson(nick, wp), gen, false);
                 });
+    }
+
+    public static void broadcastWingsUpdate() {
+        try {
+            if (!loggedIn || activeSocket == null || PanicHandler.isPanicActive()) {
+                return;
+            }
+            ModConfig cfg = ModConfig.getInstance();
+            if (cfg == null || !cfg.clientChatEnabled) {
+                return;
+            }
+            String json = SestiaChatProtocol.buildWingsJson(WingsLogic.fromConfig(cfg));
+            if (json.equals(lastBroadcastWingsJson)) {
+                return;
+            }
+            lastBroadcastWingsJson = json;
+            long now = System.currentTimeMillis();
+            long elapsed = now - lastWingsBroadcastAt;
+            if (elapsed >= 160L) {
+                lastWingsBroadcastAt = now;
+                WebSocket ws = activeSocket;
+                if (ws != null && loggedIn) {
+                    sendTextSerialized(ws, json, GENERATION.get(), false);
+                }
+            } else {
+                synchronized (LOCK) {
+                    if (pendingWingsBroadcast != null) {
+                        pendingWingsBroadcast.cancel(false);
+                    }
+                    long wait = Math.max(25L, 160L - elapsed);
+                    pendingWingsBroadcast = SCHEDULER.schedule(() -> {
+                        lastWingsBroadcastAt = System.currentTimeMillis();
+                        WebSocket ws = activeSocket;
+                        String latest = lastBroadcastWingsJson;
+                        if (ws != null && loggedIn && latest != null) {
+                            sendTextSerialized(ws, latest, GENERATION.get(), false);
+                        }
+                    }, wait, TimeUnit.MILLISECONDS);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
     }
 
     private static void sendHeartbeatSafely() {
@@ -481,6 +529,11 @@ public final class SestiaChatClient {
             }
             case SYSTEM -> postChat("§8[§cSestiaChat§8] §7" + ev.text());
             case ERROR -> postChat("§8[§cSestiaChat§8] §c" + ev.text());
+            case WINGS -> {
+                if (!ev.from().isBlank()) {
+                    KNOWN_USERS.add(ev.from());
+                }
+            }
             case UNKNOWN -> {
             }
         }

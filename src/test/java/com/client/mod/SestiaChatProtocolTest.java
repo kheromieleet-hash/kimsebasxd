@@ -116,6 +116,25 @@ public class SestiaChatProtocolTest {
         assert List.of("Mehmet", "Ali").equals(list.users());
 
         assert SestiaChatProtocol.parseServerEvent("not json").type() == SestiaChatProtocol.EventType.UNKNOWN;
+
+        // Live Wing Sync JSON round-trip (hello, wings event, welcome wingsMap)
+        WingsLogic.clearRemoteProfiles();
+        WingsLogic.WingProfile wp = new WingsLogic.WingProfile(
+                true, WingsLogic.MODE_CYBER, WingsLogic.COLOR_CHROMA,
+                1.35f, 0.08f, 6, 0.55f, 0.18f, 1.4f, true);
+        JsonObject helloWings = JsonParser.parseString(
+                SestiaChatProtocol.buildHelloJson("SestiaKing", wp)).getAsJsonObject();
+        assert helloWings.has("wings") && helloWings.getAsJsonObject("wings").get("mode").getAsInt() == WingsLogic.MODE_CYBER;
+
+        String wingsBroadcast = "{\"type\":\"wings\",\"from\":\"Kanka_01\",\"wings\":"
+                + SestiaChatProtocol.serializeWingProfile(wp) + "}";
+        SestiaChatProtocol.ServerEvent wingsEv = SestiaChatProtocol.parseServerEvent(wingsBroadcast);
+        assert wingsEv.type() == SestiaChatProtocol.EventType.WINGS && "Kanka_01".equals(wingsEv.from());
+        WingsLogic.WingProfile synced = WingsLogic.getRemoteProfile("kanka_01");
+        assert synced != null && synced.enabled()
+                && synced.mode() == WingsLogic.MODE_CYBER
+                && synced.colorPreset() == WingsLogic.COLOR_CHROMA;
+        WingsLogic.clearRemoteProfiles();
     }
 
     private static void testMuteListOperations() {

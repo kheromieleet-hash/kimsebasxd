@@ -23,6 +23,7 @@ public final class ModernModuleSettings {
     public static final int SLIDER_HEIGHT = 24;
     public static final int ROW_HEIGHT = 20;
     public static final int CHIP_HEIGHT = 17;
+    public static final int COLOR_PALETTE_HEIGHT = 48;
     public static final int CHIP_GAP_Y = 3;
     public static final int CONTROL_GAP = 4;
     public static final int SECTION_TOP_PAD = 6;
@@ -69,7 +70,7 @@ public final class ModernModuleSettings {
         InventoryBridge inventory();
     }
 
-    public sealed interface Control permits SliderControl, ToggleControl, CycleControl, ActionControl, ChipsControl {
+    public sealed interface Control permits SliderControl, ToggleControl, CycleControl, ActionControl, ChipsControl, ColorPaletteControl {
         int height();
     }
 
@@ -138,6 +139,26 @@ public final class ModernModuleSettings {
         public int height() {
             int rows = (this.options.size() + 1) / 2;
             return Math.max(CHIP_HEIGHT, rows * CHIP_HEIGHT + Math.max(0, rows - 1) * CHIP_GAP_Y);
+        }
+    }
+
+    public record ColorPaletteControl(
+            String key,
+            BooleanSupplier chromaGetter,
+            Runnable onSelectChroma,
+            java.util.function.IntSupplier activeRgbGetter,
+            java.util.function.IntConsumer onSelectSwatch,
+            FloatSupplier hueGetter,
+            FloatConsumer hueSetter,
+            FloatSupplier satGetter,
+            FloatConsumer satSetter,
+            FloatSupplier valGetter,
+            FloatConsumer valSetter,
+            Runnable onReset
+    ) implements Control {
+        @Override
+        public int height() {
+            return COLOR_PALETTE_HEIGHT;
         }
     }
 
@@ -228,6 +249,14 @@ public final class ModernModuleSettings {
                             }
                             changed = true;
                         }
+                        break;
+                    }
+                }
+            } else if (def instanceof ColorPaletteControl dc) {
+                for (Control live : liveControls) {
+                    if (live instanceof ColorPaletteControl lc && dc.key().equals(lc.key())) {
+                        lc.onReset().run();
+                        changed = true;
                         break;
                     }
                 }
@@ -880,11 +909,69 @@ public final class ModernModuleSettings {
                     actions.persist(false);
                 }));
         controls.add(new CycleControl("Color",
-                () -> WingsLogic.colorPresetName(cfg.wingsColorPreset),
+                () -> {
+                    int preset = WingsLogic.clampColorPreset(cfg.wingsColorPreset);
+                    if (preset == WingsLogic.COLOR_CUSTOM) {
+                        return "Custom " + WingsLogic.formatHexRgb(cfg.wingsCustomRgb);
+                    }
+                    return WingsLogic.colorPresetName(preset);
+                },
                 () -> {
                     cfg.wingsColorPreset = (WingsLogic.clampColorPreset(cfg.wingsColorPreset) + 1) % WingsLogic.colorCount();
+                    if (cfg.wingsColorPreset != WingsLogic.COLOR_CHROMA && cfg.wingsColorPreset != WingsLogic.COLOR_CUSTOM) {
+                        int presetRgb = WingsLogic.resolveRgb(cfg.wingsColorPreset, cfg.wingsCustomRgb, 0.0f, 0.0f, false);
+                        float[] hsv = WingsLogic.rgbToHsv(presetRgb);
+                        cfg.wingsCustomHue = hsv[0];
+                        cfg.wingsCustomSat = hsv[1];
+                        cfg.wingsCustomVal = Math.max(0.10f, hsv[2]);
+                        cfg.wingsCustomRgb = presetRgb;
+                    }
                     actions.persist(false);
                 }));
+        controls.add(new ColorPaletteControl(
+                "wingsColorPalette",
+                () -> WingsLogic.clampColorPreset(cfg.wingsColorPreset) == WingsLogic.COLOR_CHROMA,
+                () -> {
+                    cfg.wingsColorPreset = WingsLogic.COLOR_CHROMA;
+                    actions.persist(false);
+                },
+                () -> WingsLogic.resolveRgb(cfg.wingsColorPreset, cfg.wingsCustomRgb, 0.0f, 0.0f, false),
+                rgb -> {
+                    int clean = WingsLogic.clampRgb(rgb);
+                    float[] hsv = WingsLogic.rgbToHsv(clean);
+                    cfg.wingsCustomHue = hsv[0];
+                    cfg.wingsCustomSat = hsv[1];
+                    cfg.wingsCustomVal = Math.max(0.10f, hsv[2]);
+                    cfg.wingsCustomRgb = clean;
+                    cfg.wingsColorPreset = WingsLogic.COLOR_CUSTOM;
+                    actions.persist(false);
+                },
+                () -> cfg.wingsCustomHue,
+                h -> {
+                    cfg.wingsCustomHue = Math.max(0.0f, Math.min(1.0f, h));
+                    cfg.wingsCustomRgb = WingsLogic.hsvToRgb(cfg.wingsCustomHue, cfg.wingsCustomSat, cfg.wingsCustomVal);
+                    cfg.wingsColorPreset = WingsLogic.COLOR_CUSTOM;
+                },
+                () -> cfg.wingsCustomSat,
+                s -> {
+                    cfg.wingsCustomSat = Math.max(0.0f, Math.min(1.0f, s));
+                    cfg.wingsCustomRgb = WingsLogic.hsvToRgb(cfg.wingsCustomHue, cfg.wingsCustomSat, cfg.wingsCustomVal);
+                    cfg.wingsColorPreset = WingsLogic.COLOR_CUSTOM;
+                },
+                () -> cfg.wingsCustomVal,
+                v -> {
+                    cfg.wingsCustomVal = Math.max(0.10f, Math.min(1.0f, v));
+                    cfg.wingsCustomRgb = WingsLogic.hsvToRgb(cfg.wingsCustomHue, cfg.wingsCustomSat, cfg.wingsCustomVal);
+                    cfg.wingsColorPreset = WingsLogic.COLOR_CUSTOM;
+                },
+                () -> {
+                    cfg.wingsColorPreset = WingsLogic.COLOR_CYAN;
+                    cfg.wingsCustomRgb = 0x00D4FF;
+                    cfg.wingsCustomHue = 0.528f;
+                    cfg.wingsCustomSat = 1.00f;
+                    cfg.wingsCustomVal = 1.00f;
+                }
+        ));
         controls.add(floatSlider("wingsLength", "Length", 0.40f, 2.50f, 20.0f, "%.2fx",
                 () -> cfg.wingsLength, v -> cfg.wingsLength = WingsLogic.clampLength(v)));
         if (WingsLogic.clampMode(cfg.wingsMode) == WingsLogic.MODE_LINES) {

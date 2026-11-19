@@ -45,6 +45,7 @@ public final class SestiaChatProtocol {
         CHAT,
         DM,
         LIST,
+        WINGS,
         SYSTEM,
         ERROR,
         UNKNOWN
@@ -206,10 +207,61 @@ public final class SestiaChatProtocol {
     }
 
     public static String buildHelloJson(String nick) {
+        return buildHelloJson(nick, null);
+    }
+
+    public static String buildHelloJson(String nick, WingsLogic.WingProfile wings) {
         JsonObject obj = new JsonObject();
         obj.addProperty("type", "hello");
         obj.addProperty("nick", sanitizeNick(nick));
+        if (wings != null) {
+            obj.add("wings", serializeWingProfile(wings));
+        }
         return obj.toString();
+    }
+
+    public static String buildWingsJson(WingsLogic.WingProfile wings) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("type", "wings");
+        if (wings != null) {
+            obj.add("wings", serializeWingProfile(wings));
+        }
+        return obj.toString();
+    }
+
+    public static JsonObject serializeWingProfile(WingsLogic.WingProfile raw) {
+        WingsLogic.WingProfile p = raw.sanitized();
+        JsonObject w = new JsonObject();
+        w.addProperty("enabled", p.enabled());
+        w.addProperty("mode", p.mode());
+        w.addProperty("color", p.colorPreset());
+        w.addProperty("rgb", p.customRgb());
+        w.addProperty("length", p.length());
+        w.addProperty("width", p.width());
+        w.addProperty("lines", p.linesCount());
+        w.addProperty("fade", p.fadeStart());
+        w.addProperty("height", p.height());
+        w.addProperty("speed", p.flapSpeed());
+        w.addProperty("damage", p.showDamage());
+        return w;
+    }
+
+    public static WingsLogic.WingProfile parseWingProfile(JsonObject w) {
+        if (w == null) {
+            return null;
+        }
+        boolean enabled = w.has("enabled") && w.get("enabled").isJsonPrimitive() && w.get("enabled").getAsBoolean();
+        int mode = w.has("mode") && w.get("mode").isJsonPrimitive() ? w.get("mode").getAsInt() : WingsLogic.MODE_LINES;
+        int color = w.has("color") && w.get("color").isJsonPrimitive() ? w.get("color").getAsInt() : WingsLogic.COLOR_CYAN;
+        int rgb = w.has("rgb") && w.get("rgb").isJsonPrimitive() ? w.get("rgb").getAsInt() : 0x00D4FF;
+        float length = w.has("length") && w.get("length").isJsonPrimitive() ? w.get("length").getAsFloat() : 1.15f;
+        float width = w.has("width") && w.get("width").isJsonPrimitive() ? w.get("width").getAsFloat() : 0.06f;
+        int lines = w.has("lines") && w.get("lines").isJsonPrimitive() ? w.get("lines").getAsInt() : 5;
+        float fade = w.has("fade") && w.get("fade").isJsonPrimitive() ? w.get("fade").getAsFloat() : 0.50f;
+        float height = w.has("height") && w.get("height").isJsonPrimitive() ? w.get("height").getAsFloat() : 0.15f;
+        float speed = w.has("speed") && w.get("speed").isJsonPrimitive() ? w.get("speed").getAsFloat() : 1.0f;
+        boolean damage = !w.has("damage") || !w.get("damage").isJsonPrimitive() || w.get("damage").getAsBoolean();
+        return new WingsLogic.WingProfile(enabled, mode, color, rgb, length, width, lines, fade, height, speed, damage).sanitized();
     }
 
     public static String buildChatJson(String text) {
@@ -245,6 +297,7 @@ public final class SestiaChatProtocol {
                 case "chat" -> EventType.CHAT;
                 case "dm" -> EventType.DM;
                 case "list" -> EventType.LIST;
+                case "wings" -> EventType.WINGS;
                 case "system" -> EventType.SYSTEM;
                 case "error" -> EventType.ERROR;
                 default -> EventType.UNKNOWN;
@@ -252,6 +305,27 @@ public final class SestiaChatProtocol {
             String from = sanitizeNick(getString(obj, "from"));
             if (type == EventType.WELCOME) {
                 from = sanitizeNick(getString(obj, "nick"));
+                if (obj.has("wingsMap") && obj.get("wingsMap").isJsonArray()) {
+                    for (JsonElement el : obj.getAsJsonArray("wingsMap")) {
+                        if (el.isJsonObject()) {
+                            JsonObject entry = el.getAsJsonObject();
+                            String entryNick = sanitizeNick(getString(entry, "nick"));
+                            if (!entryNick.isEmpty() && entry.has("wings") && entry.get("wings").isJsonObject()) {
+                                WingsLogic.WingProfile wp = parseWingProfile(entry.getAsJsonObject("wings"));
+                                if (wp != null) {
+                                    WingsLogic.putRemoteProfile(entryNick, wp);
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if (type == EventType.WINGS) {
+                if (!from.isEmpty() && obj.has("wings") && obj.get("wings").isJsonObject()) {
+                    WingsLogic.WingProfile wp = parseWingProfile(obj.getAsJsonObject("wings"));
+                    if (wp != null) {
+                        WingsLogic.putRemoteProfile(from, wp);
+                    }
+                }
             }
             String to = sanitizeNick(getString(obj, "to"));
             String text = sanitizeText(getString(obj, "text"));

@@ -239,6 +239,10 @@ public class ModConfig {
     public boolean wingsEnabled = false;
     public int wingsMode = WingsLogic.MODE_LINES;
     public int wingsColorPreset = WingsLogic.COLOR_CYAN;
+    public int wingsCustomRgb = 0x00D4FF;
+    public float wingsCustomHue = 0.528f;
+    public float wingsCustomSat = 1.00f;
+    public float wingsCustomVal = 1.00f;
     public float wingsLength = 1.15f;
     public float wingsWidth = 0.06f;
     public int wingsLinesCount = 5;
@@ -867,6 +871,10 @@ public class ModConfig {
         this.wingsEnabled = other.wingsEnabled;
         this.wingsMode = WingsLogic.clampMode(other.wingsMode);
         this.wingsColorPreset = WingsLogic.clampColorPreset(other.wingsColorPreset);
+        this.wingsCustomRgb = WingsLogic.clampRgb(other.wingsCustomRgb);
+        this.wingsCustomHue = clampFloat(other.wingsCustomHue, 0.0f, 1.0f, 0.528f);
+        this.wingsCustomSat = clampFloat(other.wingsCustomSat, 0.0f, 1.0f, 1.0f);
+        this.wingsCustomVal = clampFloat(other.wingsCustomVal, 0.10f, 1.0f, 1.0f);
         this.wingsLength = WingsLogic.clampLength(other.wingsLength);
         this.wingsWidth = WingsLogic.clampWidth(other.wingsWidth);
         this.wingsLinesCount = WingsLogic.clampLinesCount(other.wingsLinesCount);
@@ -1037,6 +1045,10 @@ public class ModConfig {
         this.freecamSpeed = clampFloat(this.freecamSpeed, 0.2f, 5.0f, 1.0f);
         this.wingsMode = WingsLogic.clampMode(this.wingsMode);
         this.wingsColorPreset = WingsLogic.clampColorPreset(this.wingsColorPreset);
+        this.wingsCustomRgb = WingsLogic.clampRgb(this.wingsCustomRgb);
+        this.wingsCustomHue = clampFloat(this.wingsCustomHue, 0.0f, 1.0f, 0.528f);
+        this.wingsCustomSat = clampFloat(this.wingsCustomSat, 0.0f, 1.0f, 1.0f);
+        this.wingsCustomVal = clampFloat(this.wingsCustomVal, 0.10f, 1.0f, 1.0f);
         this.wingsLength = WingsLogic.clampLength(this.wingsLength);
         this.wingsWidth = WingsLogic.clampWidth(this.wingsWidth);
         this.wingsLinesCount = WingsLogic.clampLinesCount(this.wingsLinesCount);
@@ -1254,6 +1266,7 @@ public class ModConfig {
             return;
         }
         XrayHandler.invalidateBlockCache();
+        SestiaChatClient.broadcastWingsUpdate();
         File file = getConfigFile();
         try {
             if (!file.getParentFile().exists()) {

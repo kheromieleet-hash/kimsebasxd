@@ -77,6 +77,17 @@ final class ModernInspectorLayout {
                 curY += chipH + ModernModuleSettings.CONTROL_GAP;
                 continue;
             }
+            if (control instanceof ModernModuleSettings.ColorPaletteControl cp) {
+                if (rowCol > 0) {
+                    curY += rowMaxH + ModernModuleSettings.CONTROL_GAP;
+                    rowCol = 0;
+                    rowMaxH = 0;
+                }
+                int palH = cp.height();
+                items.add(new PlacedControl(control, x, curY, w, palH, 1));
+                curY += palH + ModernModuleSettings.CONTROL_GAP;
+                continue;
+            }
 
             int itemH = control.height();
             int itemX = x + rowCol * (cellW + CONTROLS_COL_GAP);

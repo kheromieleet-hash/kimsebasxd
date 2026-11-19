@@ -1,6 +1,6 @@
 ================================================================================
 SESTIA CLIENT - TUM MODULLER VE OZELLIKLER REHBERI
-Surum: v1.0.201 (VersionCode: 201) | Minecraft: 26.3 Fabric
+Surum: v1.0.202 (VersionCode: 202) | Minecraft: 26.3 Fabric
 Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
 ================================================================================
 
@@ -190,16 +190,22 @@ Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
      sekil ve tracer ozellestirme + Ores/Storage/Nether onayarlar).
 
 25d. Wings
-     Ne ise yarar: Tum oyuncularin sirtinda 6 farkli 3D kozmetik kanat modeli
-     cizer (Lines enerji seritleri, dik melek duruslu 3D Dragon, 3 katmanli tuylu
+     Ne ise yarar: Oyuncunun kendi sirtinda ve (SestiaChat WebSocket senkronizasyonu
+     ile) diger Sestia Client kullanicilarinin sirtinda herkesin kendi sectigi
+     10 farkli 3D kozmetik kanat modelini cizer (Lines enerji seritleri, dik melek duruslu 3D Dragon, 3 katmanli tuylu
      Angel melek kanadi, oyuk zarli ve kemikli Demon iblis kanadi, yanardoner
-     Butterfly kelebek kanadi ve suzulen plazma bicakli Cyber kanadi; 0.00 sabit
-     sirt mesafesi ve gogusluk/elytra icin otomatik +0.10 zirh payi uygular).
-     Ayarlar: Mode (Lines / Dragon / Angel / Demon / Butterfly / Cyber),
-     Color (Chroma / Sestia Red / Cyan / Blue / Violet / Pink / Emerald / Gold / White),
-     Length (0.40x - 2.50x), Width (0.02 - 0.20), Lines Count (2 - 12),
-     Fade Start (0.10 - 1.00), Height (-0.50 - 0.60), Flap Speed (0.0x - 3.0x),
-     Show Damage.
+     Butterfly kelebek kanadi, suzulen plazma bicakli Cyber kanadi, alev dilli ve
+     kuyruk seritli Phoenix anka kanadi, 3D prizma parcali Crystal kristal kanadi,
+     6 kanatli ve donen kutsal halkali Seraph basmelek kanadi ve karanlik bosluk
+     kamcili Void kanadi; 0.00 sabit sirt mesafesi ve gogusluk/elytra icin
+     otomatik +0.10 zirh payi uygular).
+     Ayarlar: Mode (Lines / Dragon / Angel / Demon / Butterfly / Cyber / Phoenix /
+     Crystal / Seraph / Void),
+     Color (Chroma / Sestia Red / Cyan / Blue / Violet / Pink / Emerald / Gold /
+     White / Custom #RRGGBB + interaktif 12 hazir renk kutusu ve 360° Hue /
+     Doygunluk / Parlaklik renk paleti), Length (0.40x - 2.50x), Width (0.02 - 0.20),
+     Lines Count (2 - 12), Fade Start (0.10 - 1.00), Height (-0.50 - 0.60),
+     Flap Speed (0.0x - 3.0x), Show Damage.
 
 
 --------------------------------------------------------------------------------

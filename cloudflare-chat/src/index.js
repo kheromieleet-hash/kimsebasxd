@@ -22,6 +22,30 @@ function sanitizeText(raw, maxLen = MAX_TEXT_LENGTH) {
     .slice(0, maxLen);
 }
 
+function sanitizeWings(raw) {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+  const num = (v, def) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : def;
+  };
+  const clamp = (v, min, max, def) => Math.max(min, Math.min(max, num(v, def)));
+  return {
+    enabled: Boolean(raw.enabled),
+    mode: Math.max(0, Math.min(9, num(raw.mode, 0) | 0)),
+    color: Math.max(0, Math.min(9, num(raw.color, 2) | 0)),
+    rgb: Math.max(0, Math.min(0xFFFFFF, num(raw.rgb, 0x00D4FF) | 0)),
+    length: Number(clamp(raw.length, 0.4, 2.5, 1.15).toFixed(3)),
+    width: Number(clamp(raw.width, 0.02, 0.2, 0.06).toFixed(3)),
+    lines: Math.max(2, Math.min(12, num(raw.lines, 5) | 0)),
+    fade: Number(clamp(raw.fade, 0.1, 1.0, 0.5).toFixed(3)),
+    height: Number(clamp(raw.height, -0.5, 0.6, 0.15).toFixed(3)),
+    speed: Number(clamp(raw.speed, 0.0, 3.0, 1.0).toFixed(3)),
+    damage: raw.damage !== false,
+  };
+}
+
 function sendJson(ws, obj) {
   try {
     ws.send(JSON.stringify(obj));
@@ -122,23 +146,68 @@ export class ChatRoom extends DurableObject {
         const firstHello = !state.greeted;
         state.nick = nextNick;
         state.greeted = true;
+        const incomingWings = sanitizeWings(packet.wings);
+        if (incomingWings) {
+          state.wings = incomingWings;
+        }
         ws.serializeAttachment(state);
 
         const sockets = this.ctx.getWebSockets();
+        const wingsMap = [];
+        for (const client of sockets) {
+          const att = client.deserializeAttachment();
+          if (att && att.nick && att.wings) {
+            wingsMap.push({ nick: att.nick, wings: att.wings });
+          }
+        }
         sendJson(ws, {
           type: "welcome",
           nick: state.nick,
           online: sockets.length,
+          wingsMap,
         });
 
-        if (firstHello) {
-          for (const client of sockets) {
-            if (client !== ws) {
+        for (const client of sockets) {
+          if (client !== ws) {
+            if (firstHello) {
               sendJson(client, {
                 type: "system",
                 text: `${state.nick} joined global chat.`,
               });
             }
+            if (state.wings) {
+              sendJson(client, {
+                type: "wings",
+                from: state.nick,
+                wings: state.wings,
+              });
+            }
+          }
+        }
+        break;
+      }
+
+      case "wings": {
+        const now = Date.now();
+        if (now - (state.lastWingsAt || 0) < 120) {
+          return;
+        }
+        const wings = sanitizeWings(packet.wings);
+        if (!wings) {
+          return;
+        }
+        state.wings = wings;
+        state.lastWingsAt = now;
+        ws.serializeAttachment(state);
+
+        const out = {
+          type: "wings",
+          from: state.nick,
+          wings,
+        };
+        for (const client of this.ctx.getWebSockets()) {
+          if (client !== ws) {
+            sendJson(client, out);
           }
         }
         break;

@@ -301,6 +301,8 @@ final class ModernModuleCardUi {
                 graphics.centeredText(font, Component.literal(label), cx + cw / 2, cy + 6, JelloTheme.TEXT);
             } else if (control instanceof ModernModuleSettings.ChipsControl cc) {
                 renderChips(graphics, font, mouseX, mouseY, cx, cy, cw, placed.chipCols(), cc.options());
+            } else if (control instanceof ModernModuleSettings.ColorPaletteControl cp) {
+                renderColorPalette(graphics, font, mouseX, mouseY, cx, cy, cw, cp);
             }
         }
     }
@@ -405,6 +407,11 @@ final class ModernModuleCardUi {
                         return true;
                     }
                 }
+                if (control instanceof ModernModuleSettings.ColorPaletteControl cp) {
+                    if (handleColorPaletteClick(mouseX, mouseY, cx, cy, cw, cp, sliderStartHandler, soundPlayer)) {
+                        return true;
+                    }
+                }
             }
         }
         return false;
@@ -449,6 +456,167 @@ final class ModernModuleCardUi {
         return false;
     }
 
+    private static void renderColorPalette(
+            GuiGraphicsExtractor graphics,
+            Font font,
+            int mouseX,
+            int mouseY,
+            int x,
+            int y,
+            int w,
+            ModernModuleSettings.ColorPaletteControl cp
+    ) {
+        boolean isChroma = cp.chromaGetter().get();
+        int activeRgb = cp.activeRgbGetter().getAsInt() & 0xFFFFFF;
+        float hue = Mth.clamp(cp.hueGetter().get(), 0.0f, 1.0f);
+        float sat = Mth.clamp(cp.satGetter().get(), 0.0f, 1.0f);
+        float val = Mth.clamp(cp.valGetter().get(), 0.10f, 1.0f);
+
+        // Row 1 (y .. y+14): Chroma rainbow chip + 12 quick color swatches
+        int chromaW = 24;
+        int row1H = 14;
+        graphics.fill(x - 1, y - 1, x + chromaW + 1, y + row1H + 1, isChroma ? 0xFFFFFFFF : JelloTheme.BORDER_SUBTLE);
+        for (int i = 0; i < 6; i++) {
+            int sx0 = x + (i * chromaW) / 6;
+            int sx1 = x + ((i + 1) * chromaW) / 6;
+            int cRgb = WingsLogic.hsvToRgb(i / 6.0f, 0.9f, 1.0f);
+            graphics.fill(sx0, y, sx1, y + row1H, 0xFF000000 | cRgb);
+        }
+        graphics.centeredText(font, Component.literal("C"), x + chromaW / 2, y + 3, 0xFFFFFFFF);
+
+        int[] swatches = WingsLogic.PALETTE_SWATCHES;
+        int swStart = x + chromaW + 4;
+        int swTotalW = Math.max(24, w - chromaW - 4);
+        int gap = 2;
+        int cellW = Math.max(6, (swTotalW - gap * (swatches.length - 1)) / swatches.length);
+        for (int i = 0; i < swatches.length; i++) {
+            int sx = swStart + i * (cellW + gap);
+            int sw = (i == swatches.length - 1) ? Math.max(cellW, (x + w) - sx) : cellW;
+            int rgb = swatches[i] & 0xFFFFFF;
+            boolean selected = !isChroma && activeRgb == rgb;
+            boolean hovered = isInside(mouseX, mouseY, sx, y, sw, row1H);
+            int border = selected ? 0xFFFFFFFF : (hovered ? JelloTheme.ACCENT_HOVER : JelloTheme.BORDER_SUBTLE);
+            graphics.fill(sx - 1, y - 1, sx + sw + 1, y + row1H + 1, border);
+            graphics.fill(sx, y, sx + sw, y + row1H, 0xFF000000 | rgb);
+        }
+
+        // Row 2 (y+18 .. y+29): 360-degree Rainbow Hue Spectrum Bar
+        int hueY = y + 18;
+        int barH = 11;
+        graphics.fill(x - 1, hueY - 1, x + w + 1, hueY + barH + 1, JelloTheme.BORDER_SUBTLE);
+        int slices = 24;
+        for (int i = 0; i < slices; i++) {
+            int bx0 = x + (i * w) / slices;
+            int bx1 = x + ((i + 1) * w) / slices;
+            int hRgb = WingsLogic.hsvToRgb((i + 0.5f) / slices, 1.0f, 1.0f);
+            graphics.fill(bx0, hueY, bx1, hueY + barH, 0xFF000000 | hRgb);
+        }
+        int hueThumbX = x + Math.round(hue * Math.max(1, w - 3));
+        graphics.fill(hueThumbX - 1, hueY - 1, hueThumbX + 3, hueY + barH + 1, 0xFF000000);
+        graphics.fill(hueThumbX, hueY - 1, hueThumbX + 2, hueY + barH + 1, 0xFFFFFFFF);
+
+        // Row 3 (y+33 .. y+44): Split Saturation (left) & Brightness (right) Gradient Bars
+        int row3Y = y + 33;
+        int satW = (w - 6) / 2;
+        int valW = w - 6 - satW;
+        int valX = x + satW + 6;
+        int gradSteps = 12;
+
+        graphics.fill(x - 1, row3Y - 1, x + satW + 1, row3Y + barH + 1, JelloTheme.BORDER_SUBTLE);
+        for (int i = 0; i < gradSteps; i++) {
+            int bx0 = x + (i * satW) / gradSteps;
+            int bx1 = x + ((i + 1) * satW) / gradSteps;
+            int sRgb = WingsLogic.hsvToRgb(hue, (i + 0.5f) / gradSteps, val);
+            graphics.fill(bx0, row3Y, bx1, row3Y + barH, 0xFF000000 | sRgb);
+        }
+        int satThumbX = x + Math.round(sat * Math.max(1, satW - 3));
+        graphics.fill(satThumbX - 1, row3Y - 1, satThumbX + 3, row3Y + barH + 1, 0xFF000000);
+        graphics.fill(satThumbX, row3Y - 1, satThumbX + 2, row3Y + barH + 1, 0xFFFFFFFF);
+
+        graphics.fill(valX - 1, row3Y - 1, valX + valW + 1, row3Y + barH + 1, JelloTheme.BORDER_SUBTLE);
+        for (int i = 0; i < gradSteps; i++) {
+            int bx0 = valX + (i * valW) / gradSteps;
+            int bx1 = valX + ((i + 1) * valW) / gradSteps;
+            float stepV = 0.10f + 0.90f * ((i + 0.5f) / gradSteps);
+            int vRgb = WingsLogic.hsvToRgb(hue, sat, stepV);
+            graphics.fill(bx0, row3Y, bx1, row3Y + barH, 0xFF000000 | vRgb);
+        }
+        float valPct = Mth.clamp((val - 0.10f) / 0.90f, 0.0f, 1.0f);
+        int valThumbX = valX + Math.round(valPct * Math.max(1, valW - 3));
+        graphics.fill(valThumbX - 1, row3Y - 1, valThumbX + 3, row3Y + barH + 1, 0xFF000000);
+        graphics.fill(valThumbX, row3Y - 1, valThumbX + 2, row3Y + barH + 1, 0xFFFFFFFF);
+    }
+
+    private static boolean handleColorPaletteClick(
+            int mouseX,
+            int mouseY,
+            int x,
+            int y,
+            int w,
+            ModernModuleSettings.ColorPaletteControl cp,
+            SliderStartHandler sliderStartHandler,
+            Runnable soundPlayer
+    ) {
+        int chromaW = 24;
+        if (mouseY >= y - 1 && mouseY <= y + 15) {
+            if (mouseX >= x - 1 && mouseX <= x + chromaW + 1) {
+                cp.onSelectChroma().run();
+                soundPlayer.run();
+                return true;
+            }
+            int[] swatches = WingsLogic.PALETTE_SWATCHES;
+            int swStart = x + chromaW + 4;
+            int swTotalW = Math.max(24, w - chromaW - 4);
+            int gap = 2;
+            int cellW = Math.max(6, (swTotalW - gap * (swatches.length - 1)) / swatches.length);
+            for (int i = 0; i < swatches.length; i++) {
+                int sx = swStart + i * (cellW + gap);
+                int sw = (i == swatches.length - 1) ? Math.max(cellW, (x + w) - sx) : cellW;
+                if (mouseX >= sx - 1 && mouseX <= sx + sw + 1) {
+                    cp.onSelectSwatch().accept(swatches[i]);
+                    soundPlayer.run();
+                    return true;
+                }
+            }
+            return false;
+        }
+        if (mouseY >= y + 17 && mouseY <= y + 30) {
+            float pct = Mth.clamp((float) (mouseX - x) / (float) Math.max(1, w), 0.0f, 1.0f);
+            ModernModuleSettings.SliderControl hueDrag = new ModernModuleSettings.SliderControl(
+                    cp.key() + ":hue", "Hue", cp.hueGetter(), cp.hueSetter(),
+                    () -> "", false, () -> "", t -> false);
+            sliderStartHandler.onStart(hueDrag, x, w, pct);
+            soundPlayer.run();
+            return true;
+        }
+        if (mouseY >= y + 32 && mouseY <= y + cp.height()) {
+            int satW = (w - 6) / 2;
+            int valW = w - 6 - satW;
+            int valX = x + satW + 6;
+            if (mouseX <= x + satW + 2) {
+                float pct = Mth.clamp((float) (mouseX - x) / (float) Math.max(1, satW), 0.0f, 1.0f);
+                ModernModuleSettings.SliderControl satDrag = new ModernModuleSettings.SliderControl(
+                        cp.key() + ":sat", "Sat", cp.satGetter(), cp.satSetter(),
+                        () -> "", false, () -> "", t -> false);
+                sliderStartHandler.onStart(satDrag, x, satW, pct);
+                soundPlayer.run();
+                return true;
+            }
+            if (mouseX >= valX - 2) {
+                float pct = Mth.clamp((float) (mouseX - valX) / (float) Math.max(1, valW), 0.0f, 1.0f);
+                ModernModuleSettings.SliderControl valDrag = new ModernModuleSettings.SliderControl(
+                        cp.key() + ":val", "Val",
+                        () -> Mth.clamp((cp.valGetter().get() - 0.10f) / 0.90f, 0.0f, 1.0f),
+                        p -> cp.valSetter().accept(0.10f + Mth.clamp(p, 0.0f, 1.0f) * 0.90f),
+                        () -> "", false, () -> "", t -> false);
+                sliderStartHandler.onStart(valDrag, valX, valW, pct);
+                soundPlayer.run();
+                return true;
+            }
+        }
+        return false;
+    }
+
     static String getModuleDescription(String name, String fallbackCategory) {
         return switch (name) {
             case "Viewmodel" -> "Held item/hand viewmodel, Item & Player Scale, AirWalker";
@@ -457,7 +625,7 @@ final class ModernModuleCardUi {
             case "Xray" -> "See selected ores/blocks with opacity & exposed filter";
             case "Block ESP" -> "Highlight selected blocks & tracers per block color";
             case "Freecam" -> "Detach camera to scout freely through blocks";
-            case "Wings" -> "3D back wings: Lines, Dragon, Angel, Demon, Butterfly & Cyber";
+            case "Wings" -> "10 3D wings: Lines, Dragon, Angel, Demon, Butterfly, Cyber, Phoenix...";
             case "HUD Info" -> "FPS, Ping, TPS & coordinates on screen";
             case "TNT Timer" -> "Accurate fuse ticks & detonation timer";
             case "Keybinds HUD" -> "Active toggles & bound keys overlay";
