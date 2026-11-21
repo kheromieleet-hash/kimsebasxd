@@ -1090,5 +1090,44 @@ public class AutoSpawnerTest {
         assert fourChests.size() == 4;
         assert AutoSpawnerModule.buildSequentialChestCandidates(fourChests, 4, Set.of()).get(0)
                 .equals(fourChests.get(0)) : "With 4 horizontal chests, 5th deposit must wrap to 1st chest";
+
+        // 4. Starting in the middle of Wall A walks a clean continuous perimeter ring without zig-zagging across walls
+        List<BlockPos> midOrdered = SpawnerRoomScanner.orderChestColumnsSequentially(
+                tenChestsShuffled, new BlockPos(1, 64, 4));
+        assert midOrdered.size() == 10 && midOrdered.get(0).equals(new BlockPos(0, 66, 4))
+                : "Mid-wall anchor should start at (0,66,4), got " + midOrdered;
+        int wallCrossings = 0;
+        for (int i = 0; i < midOrdered.size(); i++) {
+            BlockPos cur = midOrdered.get(i);
+            BlockPos nxt = midOrdered.get((i + 1) % midOrdered.size());
+            if (cur.getX() != nxt.getX()) wallCrossings++;
+            assert Math.hypot(nxt.getX() - cur.getX(), nxt.getZ() - cur.getZ()) <= 6.1
+                    : "Ring must stay continuous around perimeter at index " + i + ": " + midOrdered;
+        }
+        assert wallCrossings == 2 : "Perimeter ring must cross between walls exactly twice, got " + wallCrossings + ": " + midOrdered;
+
+        // 5. Doorway gap on Wall A/B (z=0,2 and z=6,8 separated by 4 blocks on x=0 vs x=2) never jumps across corridor
+        List<BlockPos> doorwayWalls = List.of(
+                new BlockPos(2, 66, 6), new BlockPos(0, 66, 2), new BlockPos(2, 66, 0), new BlockPos(0, 66, 8),
+                new BlockPos(0, 66, 0), new BlockPos(2, 66, 8), new BlockPos(0, 66, 6), new BlockPos(2, 66, 2)
+        );
+        List<BlockPos> doorwayOrdered = SpawnerRoomScanner.orderChestColumnsSequentially(
+                doorwayWalls, new BlockPos(0, 64, 0));
+        List<BlockPos> expectedDoorway = List.of(
+                new BlockPos(0, 66, 0), new BlockPos(0, 66, 2), new BlockPos(0, 66, 6), new BlockPos(0, 66, 8),
+                new BlockPos(2, 66, 8), new BlockPos(2, 66, 6), new BlockPos(2, 66, 2), new BlockPos(2, 66, 0)
+        );
+        assert doorwayOrdered.equals(expectedDoorway)
+                : "Doorway gap must stay on x=0 wall first, expected " + expectedDoorway + ", got " + doorwayOrdered;
+
+        // 6. Single-wall linear room orders strictly from anchor end to far end
+        List<BlockPos> singleWall = SpawnerRoomScanner.orderChestColumnsSequentially(List.of(
+                new BlockPos(0, 65, 6), new BlockPos(0, 65, 2), new BlockPos(0, 65, 8),
+                new BlockPos(0, 65, 0), new BlockPos(0, 65, 4)
+        ), new BlockPos(0, 64, 8));
+        assert singleWall.equals(List.of(
+                new BlockPos(0, 65, 8), new BlockPos(0, 65, 6), new BlockPos(0, 65, 4),
+                new BlockPos(0, 65, 2), new BlockPos(0, 65, 0)
+        )) : "Single wall from z=8 should descend linearly: " + singleWall;
     }
 }

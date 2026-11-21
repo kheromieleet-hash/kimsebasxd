@@ -957,7 +957,8 @@ public class AutoSpawnerModule {
         this.spawnersView = Collections.unmodifiableList(this.spawners);
         this.enclosure = SpawnerRoomScanner.computeSpawnerEnclosure(level, player, found, anchor, enclosure);
         this.homePos = anchor;
-        this.scannedChests = scanRoomChests(level, player, anchor, this.enclosure);
+        BlockPos chestAnchor = !this.spawners.isEmpty() ? this.spawners.get(0) : anchor;
+        this.scannedChests = scanRoomChests(level, player, anchor, this.enclosure, chestAnchor);
         this.scannedChestsView = Collections.unmodifiableList(this.scannedChests);
 
         if (lastScanCount != found.size()) {
@@ -1726,8 +1727,9 @@ public class AutoSpawnerModule {
 
         if (candidateChests == null || candidateChests.isEmpty() || chestIndex == 0) {
             BlockPos origin = homePos != null ? homePos : player.blockPosition();
+            BlockPos chestAnchor = !this.spawners.isEmpty() ? this.spawners.get(0) : origin;
             if (scannedChests == null || scannedChests.isEmpty()) {
-                scannedChests = scanRoomChests(level, player, origin, enclosure);
+                scannedChests = scanRoomChests(level, player, origin, enclosure, chestAnchor);
                 scannedChestsView = Collections.unmodifiableList(scannedChests);
             }
             List<BlockPos> rawChests = new ArrayList<>(scannedChests);
@@ -1735,7 +1737,7 @@ public class AutoSpawnerModule {
                 List<BlockPos> fallback = SpawnerRoomScanner.findNearbyContainerPositions(
                         level, player.position(), origin, 26
                 );
-                rawChests = SpawnerRoomScanner.orderChestColumnsSequentially(fallback, origin);
+                rawChests = SpawnerRoomScanner.orderChestColumnsSequentially(fallback, chestAnchor);
                 if (!rawChests.isEmpty()) {
                     scannedChests = new ArrayList<>(rawChests);
                     scannedChestsView = Collections.unmodifiableList(scannedChests);
@@ -2046,14 +2048,16 @@ public class AutoSpawnerModule {
             ClientLevel level,
             LocalPlayer player,
             BlockPos origin,
-            SpawnerEnclosure enc
+            SpawnerEnclosure enc,
+            BlockPos chestOrderAnchor
     ) {
+        BlockPos orderAnchor = chestOrderAnchor != null ? chestOrderAnchor : origin;
         int radius = Math.max(searchRadius, 26);
         List<BlockPos> raw = SpawnerRoomScanner.findNearbyContainerPositions(
                 level, player.position(), origin, radius
         );
         if (enc == null || raw.isEmpty()) {
-            return SpawnerRoomScanner.orderChestColumnsSequentially(raw, origin);
+            return SpawnerRoomScanner.orderChestColumnsSequentially(raw, orderAnchor);
         }
         List<BlockPos> bounded = new ArrayList<>();
         for (BlockPos c : raw) {
@@ -2066,7 +2070,7 @@ public class AutoSpawnerModule {
                 bounded.add(c);
             }
         }
-        return SpawnerRoomScanner.orderChestColumnsSequentially(bounded.isEmpty() ? raw : bounded, origin);
+        return SpawnerRoomScanner.orderChestColumnsSequentially(bounded.isEmpty() ? raw : bounded, orderAnchor);
     }
 
     public static List<BlockPos> buildSequentialChestCandidates(

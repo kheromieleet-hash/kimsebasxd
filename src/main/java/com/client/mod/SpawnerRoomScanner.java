@@ -657,7 +657,10 @@ public final class SpawnerRoomScanner {
                 }
             }
         }
-        return deduplicateChestColumns(found, partners, playerPos);
+        Vec3 stableRef = originPos != null
+                ? new Vec3(originPos.getX() + 0.5, playerPos.y, originPos.getZ() + 0.5)
+                : playerPos;
+        return deduplicateChestColumns(found, partners, stableRef);
     }
 
     /**
@@ -773,116 +776,132 @@ public final class SpawnerRoomScanner {
     }
 
     /**
-     * Orders horizontal chest columns into a deterministic perimeter walk:
-     * starts at the chest column closest to {@code anchorPos}, walks step-by-step
-     * along that wall, crosses to the nearest opposite-wall chest at the end of the row,
-     * and returns along the other side so cycling wraps seamlessly back to chest #1.
+     * Orders horizontal chest columns into an exact geometric perimeter ring:
+     * starts at the chest column closest to {@code anchorPos}, walks consecutively along
+     * the starting wall without zig-zagging or jumping across doorway gaps, crosses cleanly
+     * to the opposite wall at the end of the row, and returns back to chest #1.
      */
     public static List<BlockPos> orderChestColumnsSequentially(List<BlockPos> columns, BlockPos anchorPos) {
         if (columns == null || columns.isEmpty()) return List.of();
-        List<BlockPos> remaining = new ArrayList<>(columns.size());
+        List<BlockPos> ring = new ArrayList<>(columns.size());
         for (BlockPos c : columns) {
-            if (c != null) remaining.add(c.immutable());
+            if (c != null) ring.add(c.immutable());
         }
-        if (remaining.size() <= 1) return remaining;
+        int n = ring.size();
+        if (n <= 1) return ring;
 
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+        int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
+        double sumX = 0.0, sumZ = 0.0;
         Map<Integer, Integer> countByX = new HashMap<>();
         Map<Integer, Integer> countByZ = new HashMap<>();
-        for (BlockPos p : remaining) {
-            countByX.merge(p.getX(), 1, Integer::sum);
-            countByZ.merge(p.getZ(), 1, Integer::sum);
+        for (BlockPos p : ring) {
+            int x = p.getX();
+            int z = p.getZ();
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (z < minZ) minZ = z;
+            if (z > maxZ) maxZ = z;
+            sumX += x + 0.5;
+            sumZ += z + 0.5;
+            countByX.merge(x, 1, Integer::sum);
+            countByZ.merge(z, 1, Integer::sum);
         }
 
         int anchorX = anchorPos != null ? anchorPos.getX() : 0;
         int anchorZ = anchorPos != null ? anchorPos.getZ() : 0;
 
+        // Single-wall linear room: sort directly along the primary axis starting near anchor
+        if ((maxX - minX) <= 1 || (maxZ - minZ) <= 1) {
+            boolean primaryZ = (maxZ - minZ) >= (maxX - minX);
+            int startEnd = primaryZ ? minZ : minX;
+            int farEnd = primaryZ ? maxZ : maxX;
+            int anchorCoord = primaryZ ? anchorZ : anchorX;
+            boolean ascending = Math.abs(anchorCoord - startEnd) <= Math.abs(anchorCoord - farEnd);
+            ring.sort((a, b) -> {
+                int ca = primaryZ ? a.getZ() : a.getX();
+                int cb = primaryZ ? b.getZ() : b.getX();
+                if (ca != cb) return ascending ? Integer.compare(ca, cb) : Integer.compare(cb, ca);
+                return compareXZ(a, b);
+            });
+            return ring;
+        }
+
+        double cx = sumX / n;
+        double cz = sumZ / n;
+
+        // 1. Sort all columns around the room centroid by polar angle
+        ring.sort((a, b) -> {
+            double angA = Math.atan2((a.getZ() + 0.5) - cz, (a.getX() + 0.5) - cx);
+            double angB = Math.atan2((b.getZ() + 0.5) - cz, (b.getX() + 0.5) - cx);
+            int cmp = Double.compare(angA, angB);
+            if (cmp != 0) return cmp;
+            double rA = Math.hypot((a.getX() + 0.5) - cx, (a.getZ() + 0.5) - cz);
+            double rB = Math.hypot((b.getX() + 0.5) - cx, (b.getZ() + 0.5) - cz);
+            int rCmp = Double.compare(rA, rB);
+            if (rCmp != 0) return rCmp;
+            return compareXZ(a, b);
+        });
+
+        // 2. Rotate so index 0 is the chest column closest horizontally to anchorPos
         int startIdx = 0;
         double bestAnchorDistSq = Double.POSITIVE_INFINITY;
-        for (int i = 0; i < remaining.size(); i++) {
-            BlockPos p = remaining.get(i);
+        for (int i = 0; i < n; i++) {
+            BlockPos p = ring.get(i);
             double dx = p.getX() - anchorX;
             double dz = p.getZ() - anchorZ;
             double dSq = dx * dx + dz * dz;
             if (dSq < bestAnchorDistSq - 1e-6 || (Math.abs(dSq - bestAnchorDistSq) <= 1e-6
-                    && compareXZ(p, remaining.get(startIdx)) < 0)) {
+                    && compareXZ(p, ring.get(startIdx)) < 0)) {
                 bestAnchorDistSq = dSq;
                 startIdx = i;
             }
         }
 
-        List<BlockPos> ordered = new ArrayList<>(remaining.size());
-        BlockPos current = remaining.remove(startIdx);
-        ordered.add(current);
-
-        int prevDirX = 0;
-        int prevDirZ = 0;
-
-        while (!remaining.isEmpty()) {
-            int bestIdx = 0;
-            double bestScore = Double.POSITIVE_INFINITY;
-            double bestDist = Double.POSITIVE_INFINITY;
-
-            for (int i = 0; i < remaining.size(); i++) {
-                BlockPos cand = remaining.get(i);
-                int dx = cand.getX() - current.getX();
-                int dz = cand.getZ() - current.getZ();
-                double dist = Math.hypot(dx, dz);
-
-                double mult = 1.0;
-                if (prevDirX != 0 || prevDirZ != 0) {
-                    boolean sameDir = (prevDirX != 0 && dz == 0 && Integer.signum(dx) == prevDirX)
-                            || (prevDirZ != 0 && dx == 0 && Integer.signum(dz) == prevDirZ);
-                    if (sameDir) {
-                        mult = 0.65;
-                    } else if (dx == 0 && countByX.getOrDefault(current.getX(), 0) >= 2) {
-                        mult = 0.72;
-                    } else if (dz == 0 && countByZ.getOrDefault(current.getZ(), 0) >= 2) {
-                        mult = 0.72;
-                    }
-                } else {
-                    int xLineCount = (dx == 0) ? countByX.getOrDefault(current.getX(), 0) : 0;
-                    int zLineCount = (dz == 0) ? countByZ.getOrDefault(current.getZ(), 0) : 0;
-                    if (xLineCount >= 2 || zLineCount >= 2) {
-                        int lineCount = Math.max(xLineCount, zLineCount);
-                        mult = lineCount >= 3 ? 0.55 : 0.70;
-                    }
-                }
-
-                double score = dist * mult;
-                boolean better = score < bestScore - 1e-6;
-                if (!better && Math.abs(score - bestScore) <= 1e-6) {
-                    if (dist < bestDist - 1e-6) {
-                        better = true;
-                    } else if (Math.abs(dist - bestDist) <= 1e-6 && compareXZ(cand, remaining.get(bestIdx)) < 0) {
-                        better = true;
-                    }
-                }
-                if (better) {
-                    bestScore = score;
-                    bestDist = dist;
-                    bestIdx = i;
-                }
-            }
-
-            BlockPos next = remaining.remove(bestIdx);
-            int stepDx = next.getX() - current.getX();
-            int stepDz = next.getZ() - current.getZ();
-            if (stepDx != 0 && stepDz == 0) {
-                prevDirX = Integer.signum(stepDx);
-                prevDirZ = 0;
-            } else if (stepDz != 0 && stepDx == 0) {
-                prevDirX = 0;
-                prevDirZ = Integer.signum(stepDz);
-            } else {
-                prevDirX = 0;
-                prevDirZ = 0;
-            }
-
-            ordered.add(next);
-            current = next;
+        List<BlockPos> rotated = new ArrayList<>(n);
+        for (int offset = 0; offset < n; offset++) {
+            rotated.add(ring.get((startIdx + offset) % n));
         }
 
-        return ordered;
+        if (n >= 3) {
+            BlockPos first = rotated.get(0);
+            BlockPos fwd = rotated.get(1);
+            BlockPos bwd = rotated.get(n - 1);
+            double fwdDist = Math.hypot(fwd.getX() - first.getX(), fwd.getZ() - first.getZ());
+            double bwdDist = Math.hypot(bwd.getX() - first.getX(), bwd.getZ() - first.getZ());
+
+            boolean reverse = false;
+            if (bwdDist < fwdDist - 1e-6) {
+                reverse = true;
+            } else if (Math.abs(fwdDist - bwdDist) <= 1e-6) {
+                int fwdAlign = sharedWallChestCount(first, fwd, countByX, countByZ);
+                int bwdAlign = sharedWallChestCount(first, bwd, countByX, countByZ);
+                if (bwdAlign > fwdAlign) {
+                    reverse = true;
+                }
+            }
+            if (reverse) {
+                List<BlockPos> reversed = new ArrayList<>(n);
+                reversed.add(first);
+                for (int i = n - 1; i >= 1; i--) {
+                    reversed.add(rotated.get(i));
+                }
+                return reversed;
+            }
+        }
+        return rotated;
+    }
+
+    private static int sharedWallChestCount(
+            BlockPos a,
+            BlockPos b,
+            Map<Integer, Integer> countByX,
+            Map<Integer, Integer> countByZ
+    ) {
+        int best = 0;
+        if (a.getX() == b.getX()) best = Math.max(best, countByX.getOrDefault(a.getX(), 0));
+        if (a.getZ() == b.getZ()) best = Math.max(best, countByZ.getOrDefault(a.getZ(), 0));
+        return best;
     }
 
     private static int compareXZ(BlockPos a, BlockPos b) {
