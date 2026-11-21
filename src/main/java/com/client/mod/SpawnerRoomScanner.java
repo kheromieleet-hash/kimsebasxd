@@ -15,9 +15,11 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -636,8 +638,8 @@ public final class SpawnerRoomScanner {
     ) {
         if (level == null || playerPos == null) return List.of();
         BlockPos base = originPos != null ? originPos : BlockPos.containing(playerPos);
-        record ChestCandidate(BlockPos pos, double dist) {}
-        List<ChestCandidate> chests = new ArrayList<>();
+        List<BlockPos> found = new ArrayList<>();
+        Map<BlockPos, BlockPos> partners = new HashMap<>();
 
         for (int dx = -maxDist; dx <= maxDist; dx++) {
             for (int dy = -5; dy <= 5; dy++) {
@@ -645,24 +647,247 @@ public final class SpawnerRoomScanner {
                     BlockPos checkPos = base.offset(dx, dy, dz);
                     BlockState st = level.getBlockState(checkPos);
                     if (isFarmContainerBlock(st)) {
-                        double dist = playerPos.distanceTo(Vec3.atCenterOf(checkPos));
-                        chests.add(new ChestCandidate(checkPos.immutable(), dist));
+                        BlockPos imm = checkPos.immutable();
+                        found.add(imm);
+                        BlockPos partner = getConnectedChestPos(level, imm);
+                        if (partner != null) {
+                            partners.put(imm, partner);
+                        }
                     }
                 }
             }
         }
-        chests.sort(Comparator.comparingDouble(ChestCandidate::dist));
-        List<BlockPos> result = new ArrayList<>(chests.size());
-        Set<BlockPos> coveredDoubleChestHalves = new HashSet<>();
-        for (ChestCandidate c : chests) {
-            if (coveredDoubleChestHalves.contains(c.pos)) continue;
-            result.add(c.pos);
-            BlockPos partner = getConnectedChestPos(level, c.pos);
-            if (partner != null) {
-                coveredDoubleChestHalves.add(partner);
+        return deduplicateChestColumns(found, partners, playerPos);
+    }
+
+    /**
+     * Collapses vertically stacked chests in the same (x, z) column (including stacked double-chest
+     * towers) into a single representative chest per column, selecting the topmost reachable chest.
+     */
+    public static List<BlockPos> deduplicateChestColumns(
+            List<BlockPos> rawChests,
+            Map<BlockPos, BlockPos> doubleChestPartners,
+            Vec3 playerPos
+    ) {
+        if (rawChests == null || rawChests.isEmpty()) return List.of();
+
+        Map<Long, Long> parent = new HashMap<>();
+        for (BlockPos p : rawChests) {
+            if (p == null) continue;
+            long col = packColumnKey(p.getX(), p.getZ());
+            parent.putIfAbsent(col, col);
+        }
+        if (parent.isEmpty()) return List.of();
+
+        if (doubleChestPartners != null && !doubleChestPartners.isEmpty()) {
+            for (BlockPos p : rawChests) {
+                if (p == null) continue;
+                BlockPos partner = doubleChestPartners.get(p);
+                if (partner == null) continue;
+                long c1 = packColumnKey(p.getX(), p.getZ());
+                long c2 = packColumnKey(partner.getX(), partner.getZ());
+                parent.putIfAbsent(c2, c2);
+                long r1 = findColumnRoot(parent, c1);
+                long r2 = findColumnRoot(parent, c2);
+                if (r1 != r2) {
+                    parent.put(r2, r1);
+                }
             }
         }
-        return result;
+
+        Map<Long, List<BlockPos>> groups = new HashMap<>();
+        for (BlockPos p : rawChests) {
+            if (p == null) continue;
+            long root = findColumnRoot(parent, packColumnKey(p.getX(), p.getZ()));
+            groups.computeIfAbsent(root, ignored -> new ArrayList<>()).add(p.immutable());
+        }
+
+        int maxReachY = playerPos != null ? (int) Math.floor(playerPos.y) + 4 : Integer.MAX_VALUE;
+        List<BlockPos> representatives = new ArrayList<>(groups.size());
+        for (List<BlockPos> group : groups.values()) {
+            boolean hasReachable = false;
+            for (BlockPos p : group) {
+                if (p.getY() <= maxReachY) {
+                    hasReachable = true;
+                    break;
+                }
+            }
+
+            BlockPos best = null;
+            for (BlockPos p : group) {
+                if (hasReachable && p.getY() > maxReachY) continue;
+                if (best == null || isBetterColumnChest(p, best, playerPos)) {
+                    best = p;
+                }
+            }
+            if (best != null) {
+                representatives.add(best);
+            }
+        }
+
+        if (playerPos != null) {
+            representatives.sort(Comparator.comparingDouble(
+                    p -> playerPos.distanceToSqr(p.getX() + 0.5, p.getY() + 0.5, p.getZ() + 0.5)
+            ));
+        } else {
+            representatives.sort(Comparator.<BlockPos>comparingInt(BlockPos::getY)
+                    .thenComparingInt(BlockPos::getX)
+                    .thenComparingInt(BlockPos::getZ));
+        }
+        return representatives;
+    }
+
+    private static long packColumnKey(int x, int z) {
+        return (((long) x) << 32) | (z & 0xFFFFFFFFL);
+    }
+
+    private static long findColumnRoot(Map<Long, Long> parent, long key) {
+        long cur = key;
+        while (true) {
+            long p = parent.getOrDefault(cur, cur);
+            if (p == cur) break;
+            long gp = parent.getOrDefault(p, p);
+            parent.put(cur, gp);
+            cur = p;
+        }
+        return cur;
+    }
+
+    private static boolean isBetterColumnChest(BlockPos candidate, BlockPos currentBest, Vec3 playerPos) {
+        if (candidate.getY() != currentBest.getY()) {
+            return candidate.getY() > currentBest.getY();
+        }
+        if (playerPos != null) {
+            double candDistSq = playerPos.distanceToSqr(
+                    candidate.getX() + 0.5, candidate.getY() + 0.5, candidate.getZ() + 0.5);
+            double bestDistSq = playerPos.distanceToSqr(
+                    currentBest.getX() + 0.5, currentBest.getY() + 0.5, currentBest.getZ() + 0.5);
+            if (Math.abs(candDistSq - bestDistSq) > 1e-6) {
+                return candDistSq < bestDistSq;
+            }
+        }
+        if (candidate.getX() != currentBest.getX()) {
+            return candidate.getX() < currentBest.getX();
+        }
+        return candidate.getZ() < currentBest.getZ();
+    }
+
+    /**
+     * Orders horizontal chest columns into a deterministic perimeter walk:
+     * starts at the chest column closest to {@code anchorPos}, walks step-by-step
+     * along that wall, crosses to the nearest opposite-wall chest at the end of the row,
+     * and returns along the other side so cycling wraps seamlessly back to chest #1.
+     */
+    public static List<BlockPos> orderChestColumnsSequentially(List<BlockPos> columns, BlockPos anchorPos) {
+        if (columns == null || columns.isEmpty()) return List.of();
+        List<BlockPos> remaining = new ArrayList<>(columns.size());
+        for (BlockPos c : columns) {
+            if (c != null) remaining.add(c.immutable());
+        }
+        if (remaining.size() <= 1) return remaining;
+
+        Map<Integer, Integer> countByX = new HashMap<>();
+        Map<Integer, Integer> countByZ = new HashMap<>();
+        for (BlockPos p : remaining) {
+            countByX.merge(p.getX(), 1, Integer::sum);
+            countByZ.merge(p.getZ(), 1, Integer::sum);
+        }
+
+        int anchorX = anchorPos != null ? anchorPos.getX() : 0;
+        int anchorZ = anchorPos != null ? anchorPos.getZ() : 0;
+
+        int startIdx = 0;
+        double bestAnchorDistSq = Double.POSITIVE_INFINITY;
+        for (int i = 0; i < remaining.size(); i++) {
+            BlockPos p = remaining.get(i);
+            double dx = p.getX() - anchorX;
+            double dz = p.getZ() - anchorZ;
+            double dSq = dx * dx + dz * dz;
+            if (dSq < bestAnchorDistSq - 1e-6 || (Math.abs(dSq - bestAnchorDistSq) <= 1e-6
+                    && compareXZ(p, remaining.get(startIdx)) < 0)) {
+                bestAnchorDistSq = dSq;
+                startIdx = i;
+            }
+        }
+
+        List<BlockPos> ordered = new ArrayList<>(remaining.size());
+        BlockPos current = remaining.remove(startIdx);
+        ordered.add(current);
+
+        int prevDirX = 0;
+        int prevDirZ = 0;
+
+        while (!remaining.isEmpty()) {
+            int bestIdx = 0;
+            double bestScore = Double.POSITIVE_INFINITY;
+            double bestDist = Double.POSITIVE_INFINITY;
+
+            for (int i = 0; i < remaining.size(); i++) {
+                BlockPos cand = remaining.get(i);
+                int dx = cand.getX() - current.getX();
+                int dz = cand.getZ() - current.getZ();
+                double dist = Math.hypot(dx, dz);
+
+                double mult = 1.0;
+                if (prevDirX != 0 || prevDirZ != 0) {
+                    boolean sameDir = (prevDirX != 0 && dz == 0 && Integer.signum(dx) == prevDirX)
+                            || (prevDirZ != 0 && dx == 0 && Integer.signum(dz) == prevDirZ);
+                    if (sameDir) {
+                        mult = 0.65;
+                    } else if (dx == 0 && countByX.getOrDefault(current.getX(), 0) >= 2) {
+                        mult = 0.72;
+                    } else if (dz == 0 && countByZ.getOrDefault(current.getZ(), 0) >= 2) {
+                        mult = 0.72;
+                    }
+                } else {
+                    int xLineCount = (dx == 0) ? countByX.getOrDefault(current.getX(), 0) : 0;
+                    int zLineCount = (dz == 0) ? countByZ.getOrDefault(current.getZ(), 0) : 0;
+                    if (xLineCount >= 2 || zLineCount >= 2) {
+                        int lineCount = Math.max(xLineCount, zLineCount);
+                        mult = lineCount >= 3 ? 0.55 : 0.70;
+                    }
+                }
+
+                double score = dist * mult;
+                boolean better = score < bestScore - 1e-6;
+                if (!better && Math.abs(score - bestScore) <= 1e-6) {
+                    if (dist < bestDist - 1e-6) {
+                        better = true;
+                    } else if (Math.abs(dist - bestDist) <= 1e-6 && compareXZ(cand, remaining.get(bestIdx)) < 0) {
+                        better = true;
+                    }
+                }
+                if (better) {
+                    bestScore = score;
+                    bestDist = dist;
+                    bestIdx = i;
+                }
+            }
+
+            BlockPos next = remaining.remove(bestIdx);
+            int stepDx = next.getX() - current.getX();
+            int stepDz = next.getZ() - current.getZ();
+            if (stepDx != 0 && stepDz == 0) {
+                prevDirX = Integer.signum(stepDx);
+                prevDirZ = 0;
+            } else if (stepDz != 0 && stepDx == 0) {
+                prevDirX = 0;
+                prevDirZ = Integer.signum(stepDz);
+            } else {
+                prevDirX = 0;
+                prevDirZ = 0;
+            }
+
+            ordered.add(next);
+            current = next;
+        }
+
+        return ordered;
+    }
+
+    private static int compareXZ(BlockPos a, BlockPos b) {
+        if (a.getX() != b.getX()) return Integer.compare(a.getX(), b.getX());
+        return Integer.compare(a.getZ(), b.getZ());
     }
 
     public static BlockPos getConnectedChestPos(ClientLevel level, BlockPos pos) {

@@ -65,6 +65,8 @@ public class AutoSpawnerTest {
         testLegitKinematicsAndNonSnapDisable();
         testReachBatchingAndWeightedChestRouting();
         testChatPauseAndResume();
+        testStackedChestColumnDeduplication();
+        testSequentialPerimeterChestCycling();
         System.out.println("ALL AutoSpawnerTest ASSERTIONS PASSED!");
     }
 
@@ -943,5 +945,150 @@ public class AutoSpawnerTest {
         } finally {
             mod.onDisable();
         }
+    }
+
+    private static void testStackedChestColumnDeduplication() {
+        assert SpawnerRoomScanner.deduplicateChestColumns(null, null, null).isEmpty();
+        assert SpawnerRoomScanner.deduplicateChestColumns(List.of(), Map.of(), Vec3.ZERO).isEmpty();
+
+        Vec3 playerAt64 = new Vec3(0.5, 64.0, 5.5);
+
+        // 1. Single-chest vertical stack -> collapses to 1 representative (topmost Y=67)
+        List<BlockPos> singleStack = List.of(
+                new BlockPos(10, 64, 5),
+                new BlockPos(10, 65, 5),
+                new BlockPos(10, 66, 5),
+                new BlockPos(10, 67, 5)
+        );
+        List<BlockPos> singleOut = SpawnerRoomScanner.deduplicateChestColumns(singleStack, Map.of(), playerAt64);
+        assert singleOut.size() == 1 : "Vertical chest stack should collapse to 1, got " + singleOut.size();
+        assert singleOut.get(0).equals(new BlockPos(10, 67, 5))
+                : "Expected topmost chest Y=67, got " + singleOut.get(0);
+
+        // 2. Hopper-gapped stack (Y=64 + Y=66) -> collapses to Y=66
+        List<BlockPos> gappedStack = List.of(
+                new BlockPos(10, 64, 5),
+                new BlockPos(10, 66, 5)
+        );
+        List<BlockPos> gappedOut = SpawnerRoomScanner.deduplicateChestColumns(gappedStack, Map.of(), playerAt64);
+        assert gappedOut.size() == 1 && gappedOut.get(0).equals(new BlockPos(10, 66, 5))
+                : "Hopper-gapped stack should collapse to top Y=66, got " + gappedOut;
+
+        // 3. Double-chest tower {(10,5),(11,5)} at Y=64..66 -> collapses to 1 chest at Y=66 closer half (x=10)
+        List<BlockPos> doubleTower = List.of(
+                new BlockPos(10, 64, 5), new BlockPos(11, 64, 5),
+                new BlockPos(10, 65, 5), new BlockPos(11, 65, 5),
+                new BlockPos(10, 66, 5), new BlockPos(11, 66, 5)
+        );
+        Map<BlockPos, BlockPos> doublePartners = new HashMap<>();
+        for (int y = 64; y <= 66; y++) {
+            BlockPos left = new BlockPos(10, y, 5);
+            BlockPos right = new BlockPos(11, y, 5);
+            doublePartners.put(left, right);
+            doublePartners.put(right, left);
+        }
+        List<BlockPos> doubleOut = SpawnerRoomScanner.deduplicateChestColumns(doubleTower, doublePartners, playerAt64);
+        assert doubleOut.size() == 1 : "Double-chest tower should collapse to 1, got " + doubleOut.size();
+        assert doubleOut.get(0).equals(new BlockPos(10, 66, 5))
+                : "Expected closer top half (10,66,5), got " + doubleOut.get(0);
+
+        // 4. Adjacent separate single chests (no partner) stay 2 separate columns
+        List<BlockPos> twoSingles = List.of(
+                new BlockPos(10, 64, 5),
+                new BlockPos(11, 64, 5)
+        );
+        List<BlockPos> twoSinglesOut = SpawnerRoomScanner.deduplicateChestColumns(twoSingles, Map.of(), playerAt64);
+        assert twoSinglesOut.size() == 2 : "Adjacent separate single chests must remain 2";
+
+        // 5. Two side-by-side double-chest towers stay 2 separate towers
+        List<BlockPos> twoDoubleTowers = new ArrayList<>(doubleTower);
+        Map<BlockPos, BlockPos> twoTowerPartners = new HashMap<>(doublePartners);
+        for (int y = 64; y <= 66; y++) {
+            BlockPos l2 = new BlockPos(12, y, 5);
+            BlockPos r2 = new BlockPos(13, y, 5);
+            twoDoubleTowers.add(l2);
+            twoDoubleTowers.add(r2);
+            twoTowerPartners.put(l2, r2);
+            twoTowerPartners.put(r2, l2);
+        }
+        List<BlockPos> twoTowersOut = SpawnerRoomScanner.deduplicateChestColumns(
+                twoDoubleTowers, twoTowerPartners, playerAt64);
+        assert twoTowersOut.size() == 2 : "Two double-chest towers must remain 2 columns, got " + twoTowersOut.size();
+        assert twoTowersOut.get(0).equals(new BlockPos(10, 66, 5));
+        assert twoTowersOut.get(1).equals(new BlockPos(12, 66, 5));
+
+        // 6. Tall stack Y=64..69 with player at Y=64 -> prefers Y=68 (<= 64 + 4) over Y=69
+        List<BlockPos> tallStack = List.of(
+                new BlockPos(10, 64, 5),
+                new BlockPos(10, 68, 5),
+                new BlockPos(10, 69, 5)
+        );
+        List<BlockPos> tallOut = SpawnerRoomScanner.deduplicateChestColumns(tallStack, Map.of(), playerAt64);
+        assert tallOut.size() == 1 && tallOut.get(0).equals(new BlockPos(10, 68, 5))
+                : "Expected reachable cap Y=68 over Y=69, got " + tallOut;
+    }
+
+    private static void testSequentialPerimeterChestCycling() {
+        assert SpawnerRoomScanner.orderChestColumnsSequentially(null, null).isEmpty();
+        assert AutoSpawnerModule.buildSequentialChestCandidates(List.of(), 0, Set.of()).isEmpty();
+
+        // 1. Two opposite walls of 5 chests each (N = 10), starting near (0, 66, 0)
+        List<BlockPos> tenChestsShuffled = List.of(
+                new BlockPos(6, 66, 4), new BlockPos(0, 66, 8), new BlockPos(0, 66, 2),
+                new BlockPos(6, 66, 0), new BlockPos(0, 66, 6), new BlockPos(6, 66, 8),
+                new BlockPos(0, 66, 0), new BlockPos(6, 66, 2), new BlockPos(0, 66, 4),
+                new BlockPos(6, 66, 6)
+        );
+        List<BlockPos> ordered10 = SpawnerRoomScanner.orderChestColumnsSequentially(
+                tenChestsShuffled, new BlockPos(1, 64, 0));
+        List<BlockPos> expected10 = List.of(
+                new BlockPos(0, 66, 0), new BlockPos(0, 66, 2), new BlockPos(0, 66, 4),
+                new BlockPos(0, 66, 6), new BlockPos(0, 66, 8),
+                new BlockPos(6, 66, 8), new BlockPos(6, 66, 6), new BlockPos(6, 66, 4),
+                new BlockPos(6, 66, 2), new BlockPos(6, 66, 0)
+        );
+        assert ordered10.equals(expected10) : "Expected perimeter order " + expected10 + ", got " + ordered10;
+
+        // Spawners 1..10 hit Chests #1..#10, and spawner 11 wraps back to Chest #1
+        for (int spawnerTurn = 0; spawnerTurn < 12; spawnerTurn++) {
+            List<BlockPos> cands = AutoSpawnerModule.buildSequentialChestCandidates(ordered10, spawnerTurn, Set.of());
+            assert cands.get(0).equals(expected10.get(spawnerTurn % 10))
+                    : "Turn " + spawnerTurn + " expected chest " + expected10.get(spawnerTurn % 10)
+                    + ", got " + cands.get(0);
+        }
+
+        // Skipping a full chest picks the very next non-full chest in perimeter sequence
+        Set<BlockPos> full = Set.of(expected10.get(2)); // #3 full
+        List<BlockPos> skipFull = AutoSpawnerModule.buildSequentialChestCandidates(ordered10, 2, full);
+        assert skipFull.get(0).equals(expected10.get(3)) : "Should skip full #3 and pick #4";
+        assert skipFull.get(skipFull.size() - 1).equals(expected10.get(2)) : "Full chest must move to end";
+
+        // 2. Narrow 2-block corridor (x=0 vs x=2, z=0,2,4,6,8) must walk x=0 wall first, not zig-zag
+        List<BlockPos> narrowCorridor = List.of(
+                new BlockPos(0, 66, 0), new BlockPos(2, 66, 0),
+                new BlockPos(0, 66, 2), new BlockPos(2, 66, 2),
+                new BlockPos(0, 66, 4), new BlockPos(2, 66, 4),
+                new BlockPos(0, 66, 6), new BlockPos(2, 66, 6),
+                new BlockPos(0, 66, 8), new BlockPos(2, 66, 8)
+        );
+        List<BlockPos> narrowOrdered = SpawnerRoomScanner.orderChestColumnsSequentially(
+                narrowCorridor, new BlockPos(0, 64, 0));
+        for (int i = 0; i < 5; i++) {
+            assert narrowOrdered.get(i).equals(new BlockPos(0, 66, i * 2))
+                    : "Narrow corridor should walk wall x=0 first at i=" + i + ", got " + narrowOrdered;
+        }
+        for (int i = 0; i < 5; i++) {
+            assert narrowOrdered.get(5 + i).equals(new BlockPos(2, 66, (4 - i) * 2))
+                    : "Narrow corridor should return along wall x=2 at i=" + i + ", got " + narrowOrdered;
+        }
+
+        // 3. Dynamic count adaptation: N=4 chests wraps on turn 4 (5th spawner -> 1st chest)
+        List<BlockPos> fourChests = SpawnerRoomScanner.orderChestColumnsSequentially(List.of(
+                new BlockPos(4, 65, 2), new BlockPos(0, 65, 0),
+                new BlockPos(4, 65, 0), new BlockPos(0, 65, 2)
+        ), new BlockPos(0, 64, 0));
+        assert fourChests.size() == 4;
+        assert AutoSpawnerModule.buildSequentialChestCandidates(fourChests, 4, Set.of()).get(0)
+                .equals(fourChests.get(0)) : "With 4 horizontal chests, 5th deposit must wrap to 1st chest";
     }
 }

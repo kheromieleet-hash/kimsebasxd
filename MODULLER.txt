@@ -294,6 +294,12 @@ Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
       - Sohbet Duraklatma: Modul acikken sohbet ekrani acildiginda otomatik
         olarak duraklar (Paused (Chat)) ve sohbet kapatilinca kaldigi
         adimdan devam eder.
+      - Sutun Sandik Tekillestirme ve Sirali Dongu: Ayni (x, z) sutununda ust
+        uste duran sandiklari (ve ust uste cift sandik kulelerini) tek sandik
+        sayip erisilebilen en ust sandigi hedefler. Yakindaki sandiktan baslayip
+        duvar boyunca yan yana sirayla bosaltir, sonrasinda karsi duvar
+        sandiklarina gecer ve odadaki N yatay sandik sutunu tamamlaninca
+        (N+1. adimda) tekrar 1. sandiga doner.
 
 
 --------------------------------------------------------------------------------

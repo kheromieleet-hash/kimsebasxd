@@ -83,6 +83,7 @@ public class AutoSpawnerModule {
         final List<BlockPos> scannedChests;
         final Set<BlockPos> fullSpawnerChests;
         final Map<BlockPos, Integer> chestDepositCounts;
+        final int chestCycleCursor;
         final int totalDepositedBlocks;
         final int passCount;
         final long elapsedBeforeDisconnectMs;
@@ -95,6 +96,7 @@ public class AutoSpawnerModule {
                 List<BlockPos> scannedChests,
                 Set<BlockPos> fullSpawnerChests,
                 Map<BlockPos, Integer> chestDepositCounts,
+                int chestCycleCursor,
                 int totalDepositedBlocks,
                 int passCount,
                 long elapsedBeforeDisconnectMs,
@@ -106,6 +108,7 @@ public class AutoSpawnerModule {
             this.scannedChests = new ArrayList<>(scannedChests);
             this.fullSpawnerChests = new HashSet<>(fullSpawnerChests);
             this.chestDepositCounts = new HashMap<>(chestDepositCounts);
+            this.chestCycleCursor = Math.max(0, chestCycleCursor);
             this.totalDepositedBlocks = totalDepositedBlocks;
             this.passCount = passCount;
             this.elapsedBeforeDisconnectMs = elapsedBeforeDisconnectMs;
@@ -195,6 +198,7 @@ public class AutoSpawnerModule {
     private List<BlockPos> scannedChestsView = Collections.unmodifiableList(scannedChests);
     private List<BlockPos> candidateChests = new ArrayList<>();
     private int chestIndex = 0;
+    private int chestCycleCursor = 0;
     private int chestDepositSlotIdx = -1;
     private int chestPrevSlotCount = -1;
     private boolean chestPreferAltSpot = false;
@@ -559,6 +563,7 @@ public class AutoSpawnerModule {
         scannedChestsView = Collections.unmodifiableList(scannedChests);
         candidateChests = new ArrayList<>();
         chestIndex = 0;
+        chestCycleCursor = 0;
         chestDepositSlotIdx = -1;
         chestPrevSlotCount = -1;
         chestPreferAltSpot = false;
@@ -604,6 +609,7 @@ public class AutoSpawnerModule {
                 scannedChests,
                 fullSpawnerChests,
                 chestDepositCounts,
+                chestCycleCursor,
                 totalDepositedBlocks,
                 passNumber,
                 elapsed,
@@ -663,6 +669,7 @@ public class AutoSpawnerModule {
         this.scannedChestsView = Collections.unmodifiableList(this.scannedChests);
         this.fullSpawnerChests.addAll(cp.fullSpawnerChests);
         this.chestDepositCounts.putAll(cp.chestDepositCounts);
+        this.chestCycleCursor = this.scannedChests.isEmpty() ? 0 : Math.floorMod(cp.chestCycleCursor, this.scannedChests.size());
         this.totalDepositedBlocks = cp.totalDepositedBlocks;
         this.passNumber = Math.max(1, cp.passCount);
 
@@ -1718,51 +1725,27 @@ public class AutoSpawnerModule {
         }
 
         if (candidateChests == null || candidateChests.isEmpty() || chestIndex == 0) {
+            BlockPos origin = homePos != null ? homePos : player.blockPosition();
             if (scannedChests == null || scannedChests.isEmpty()) {
-                BlockPos origin = homePos != null ? homePos : player.blockPosition();
                 scannedChests = scanRoomChests(level, player, origin, enclosure);
                 scannedChestsView = Collections.unmodifiableList(scannedChests);
             }
             List<BlockPos> rawChests = new ArrayList<>(scannedChests);
             if (rawChests.isEmpty()) {
-                rawChests = SpawnerRoomScanner.findNearbyContainerPositions(
-                        level, player.position(), homePos != null ? homePos : player.blockPosition(), 26
+                List<BlockPos> fallback = SpawnerRoomScanner.findNearbyContainerPositions(
+                        level, player.position(), origin, 26
                 );
+                rawChests = SpawnerRoomScanner.orderChestColumnsSequentially(fallback, origin);
                 if (!rawChests.isEmpty()) {
                     scannedChests = new ArrayList<>(rawChests);
                     scannedChestsView = Collections.unmodifiableList(scannedChests);
                 }
             }
 
-            List<BlockPos> nonFull = new ArrayList<>();
-            List<BlockPos> fullOnes = new ArrayList<>();
-            for (BlockPos c : rawChests) {
-                if (fullSpawnerChests.contains(c)) {
-                    fullOnes.add(c);
-                } else {
-                    nonFull.add(c);
-                }
-            }
-            if (nonFull.isEmpty()) {
+            if (rawChests.stream().allMatch(fullSpawnerChests::contains)) {
                 fullSpawnerChests.clear();
-                nonFull.addAll(rawChests);
-                fullOnes.clear();
             }
-
-            // Distance-weighted balanced chest routing: prefer lowest (depositCount * 6.0 + horizDist)
-            double px = player.getX();
-            double pz = player.getZ();
-            Comparator<BlockPos> scoreComparator = Comparator.comparingDouble(c -> {
-                int count = chestDepositCounts.getOrDefault(c, 0);
-                double horizDist = Math.hypot((c.getX() + 0.5) - px, (c.getZ() + 0.5) - pz);
-                return SpawnerPathfinder.scoreChestCandidate(count, horizDist);
-            });
-            nonFull.sort(scoreComparator);
-            fullOnes.sort(scoreComparator);
-
-            candidateChests = new ArrayList<>(nonFull.size() + fullOnes.size());
-            candidateChests.addAll(nonFull);
-            candidateChests.addAll(fullOnes);
+            candidateChests = buildSequentialChestCandidates(rawChests, chestCycleCursor, fullSpawnerChests);
         }
 
         if (candidateChests.isEmpty() || chestIndex >= candidateChests.size()) {
@@ -1970,7 +1953,7 @@ public class AutoSpawnerModule {
             chestDepositSlotIdx++;
         }
 
-        // All iron_block stacks deposited from inventory
+        // All iron_block stacks deposited from inventory -> advance sequential cursor for next spawner
         if (nav.currentNavTarget != null) {
             BlockPos chestKey = nav.currentNavTarget.immutable();
             chestDepositCounts.merge(chestKey, 1, Integer::sum);
@@ -1978,6 +1961,11 @@ public class AutoSpawnerModule {
             if (partner != null) {
                 chestDepositCounts.merge(partner, 1, Integer::sum);
             }
+        }
+        if (scannedChests != null && !scannedChests.isEmpty()) {
+            int depositedIdx = nav.currentNavTarget != null ? scannedChests.indexOf(nav.currentNavTarget) : -1;
+            int baseIdx = depositedIdx >= 0 ? depositedIdx : chestCycleCursor;
+            chestCycleCursor = Math.floorMod(baseIdx + 1, scannedChests.size());
         }
         closeOpenScreenIfAny(mc, player);
         waitTicks = scaleTicks(4);
@@ -2064,7 +2052,9 @@ public class AutoSpawnerModule {
         List<BlockPos> raw = SpawnerRoomScanner.findNearbyContainerPositions(
                 level, player.position(), origin, radius
         );
-        if (enc == null || raw.isEmpty()) return raw;
+        if (enc == null || raw.isEmpty()) {
+            return SpawnerRoomScanner.orderChestColumnsSequentially(raw, origin);
+        }
         List<BlockPos> bounded = new ArrayList<>();
         for (BlockPos c : raw) {
             if (c.getY() < enc.minY - 1 || c.getY() > enc.maxY + 3) continue;
@@ -2076,7 +2066,34 @@ public class AutoSpawnerModule {
                 bounded.add(c);
             }
         }
-        return bounded.isEmpty() ? raw : bounded;
+        return SpawnerRoomScanner.orderChestColumnsSequentially(bounded.isEmpty() ? raw : bounded, origin);
+    }
+
+    public static List<BlockPos> buildSequentialChestCandidates(
+            List<BlockPos> orderedChests,
+            int startCursor,
+            Set<BlockPos> fullChests
+    ) {
+        if (orderedChests == null || orderedChests.isEmpty()) {
+            return List.of();
+        }
+        int n = orderedChests.size();
+        int start = Math.floorMod(startCursor, n);
+        List<BlockPos> nonFull = new ArrayList<>(n);
+        List<BlockPos> fullOnes = new ArrayList<>();
+        for (int offset = 0; offset < n; offset++) {
+            BlockPos c = orderedChests.get((start + offset) % n);
+            if (c == null) continue;
+            if (fullChests != null && fullChests.contains(c)) {
+                fullOnes.add(c);
+            } else {
+                nonFull.add(c);
+            }
+        }
+        List<BlockPos> result = new ArrayList<>(nonFull.size() + fullOnes.size());
+        result.addAll(nonFull);
+        result.addAll(fullOnes);
+        return result;
     }
 
     private void advanceSpawnerAttemptOrSkip(ClientLevel level, LocalPlayer player) {
