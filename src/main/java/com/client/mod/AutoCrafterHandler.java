@@ -46,7 +46,7 @@ public class AutoCrafterHandler {
     );
 
     public static void reset() {
-        cooldown = 1;
+        cooldown = 0;
         craftedSomethingThisOpen = false;
     }
 

@@ -1118,5 +1118,19 @@ public class AutoSpawnerTest {
                 new BlockPos(0, 65, 8), new BlockPos(0, 65, 6), new BlockPos(0, 65, 4),
                 new BlockPos(0, 65, 2), new BlockPos(0, 65, 0)
         )) : "Single wall from z=8 should descend linearly: " + singleWall;
+
+        // 6. Burst click scaling by clickDelayTicks
+        AutoSpawnerModule mod = AutoSpawnerModule.getInstance();
+        mod.clickDelayTicks = 2;
+        assert mod.resolveBurstClicksPerStep() == 4 : "Delay 2 should burst 4 clicks/step";
+        assert mod.resolveBurstStepWaitTicks() == 1 : "Delay 2 should wait 1 tick between bursts";
+        mod.clickDelayTicks = 3;
+        assert mod.resolveBurstClicksPerStep() == 4 : "Delay 3 should burst 4 clicks/step";
+        assert mod.resolveBurstStepWaitTicks() == 1 : "Delay 3 should wait 1 tick between bursts";
+        mod.clickDelayTicks = 5;
+        assert mod.resolveBurstClicksPerStep() == 2 : "Delay 5 should burst 2 clicks/step";
+        mod.clickDelayTicks = 7;
+        assert mod.resolveBurstClicksPerStep() == 1 : "Delay 7 should burst 1 click/step";
+        mod.clickDelayTicks = 3;
     }
 }

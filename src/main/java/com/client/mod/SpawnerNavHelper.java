@@ -431,7 +431,7 @@ public final class SpawnerNavHelper {
         double nodeCenterZ = targetNode.getZ() + 0.5;
         double hDist = Math.hypot(nodeCenterX - curPos.x, nodeCenterZ - curPos.z);
         boolean isLastNode = this.pathIdx == this.activePath.size() - 1;
-        double reachThreshold = isLastNode ? 0.28 : 0.42;
+        double reachThreshold = isLastNode ? 0.34 : 0.56;
 
         if (hDist <= reachThreshold && Math.abs(targetNode.getY() - (curPos.y + 0.2)) <= 1.25) {
             this.pathIdx++;
@@ -467,15 +467,18 @@ public final class SpawnerNavHelper {
         }
         float sway = (destHoriz > 4.0) ? (float) (Math.sin(this.totalWalkTicks * 0.14) * 0.45) : 0.0f;
         if (!isSpawner) {
-            double lookDy = lookTarget.y - curEye.y;
-            float destYaw = (float) (Math.toDegrees(Math.atan2(lookDz, lookDx)) - 90.0);
-            float destPitch = Mth.clamp((float) -Math.toDegrees(Math.atan2(lookDy, Math.max(0.25, lookHoriz))) + sway, -35.0f, 35.0f);
+            double lookDy = targetCenter.y - curEye.y;
+            float destYaw = (float) (Math.toDegrees(Math.atan2(targetCenter.z - curPos.z, targetCenter.x - curPos.x)) - 90.0);
+            float destPitch = Mth.clamp((float) -Math.toDegrees(Math.atan2(lookDy, Math.max(0.25, destHoriz))) + sway, -55.0f, 45.0f);
             AutoSpawnerModule.applyHumanRotation(player, destYaw, destPitch, true);
-        } else if (destHoriz > 3.5) {
+        } else if (destHoriz > 3.8) {
             float destYaw = (float) (Math.toDegrees(Math.atan2(lookDz, lookDx)) - 90.0);
             AutoSpawnerModule.applyHumanRotation(player, destYaw, 18.0f + sway, true);
-        } else if (player.getXRot() > 48.0f) {
-            AutoSpawnerModule.applyHumanRotation(player, player.getYRot(), 32.0f, true);
+        } else {
+            double spDy = targetCenter.y - curEye.y;
+            float destYaw = (float) (Math.toDegrees(Math.atan2(targetCenter.z - curPos.z, targetCenter.x - curPos.x)) - 90.0);
+            float destPitch = Mth.clamp((float) -Math.toDegrees(Math.atan2(spDy, Math.max(0.25, destHoriz))), -45.0f, 78.0f);
+            AutoSpawnerModule.applyHumanRotation(player, destYaw, destPitch, true);
         }
 
         double dx = nodeCenterX - curPos.x;
@@ -741,8 +744,8 @@ public final class SpawnerNavHelper {
         if (this.sprintPhaseTicksRemaining <= 0) {
             this.sprintBurstActive = !this.sprintBurstActive;
             this.sprintPhaseTicksRemaining = this.sprintBurstActive
-                    ? 18 + ThreadLocalRandom.current().nextInt(25)
-                    : 5 + ThreadLocalRandom.current().nextInt(10);
+                    ? 26 + ThreadLocalRandom.current().nextInt(20)
+                    : 2 + ThreadLocalRandom.current().nextInt(3);
         }
         this.sprintPhaseTicksRemaining--;
         return this.sprintBurstActive;
@@ -773,14 +776,14 @@ public final class SpawnerNavHelper {
             );
             if (p != null) {
                 selectedPath = p.isEmpty() ? List.of(cand.spot()) : p;
-                this.stopHorizReach = Math.max(cand.isDirectlyAdjacent() == 0 ? 1.98 : 2.65, cand.horizDist() + 0.35);
+                this.stopHorizReach = Math.max(2.65, cand.horizDist() + 0.35);
                 break;
             }
         }
         if (selectedPath == null && !spots.isEmpty()) {
             SpotCandidate fallback = spots.get(0);
             selectedPath = List.of(fallback.spot());
-            this.stopHorizReach = Math.max(2.35, fallback.horizDist() + 0.35);
+            this.stopHorizReach = Math.max(2.65, fallback.horizDist() + 0.35);
         }
         return selectedPath;
     }
@@ -803,8 +806,8 @@ public final class SpawnerNavHelper {
         double curEyeDist = player.getEyePosition().distanceTo(targetCenter);
         double maxAxisDist = Math.max(Math.abs(pos.x - targetCenter.x), Math.abs(pos.z - targetCenter.z));
 
-        double desiredHoriz = isSpawner ? 1.98 : 3.65;
-        double desiredEye = 4.25;
+        double desiredHoriz = isSpawner ? 2.65 : 3.85;
+        double desiredEye = 4.35;
         BlockPos stand = SpawnerRoomScanner.getSpawnerBotStandPos(level, player, enclosure);
 
         return (onTop || (maxAxisDist >= 0.80 && curHorizDist >= 0.85))
