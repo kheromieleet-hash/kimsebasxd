@@ -804,7 +804,7 @@ public final class SpawnerNavHelper {
         double maxAxisDist = Math.max(Math.abs(pos.x - targetCenter.x), Math.abs(pos.z - targetCenter.z));
 
         double desiredHoriz = isSpawner ? 1.98 : 3.65;
-        double desiredEye = isSpawner ? 4.25 : 3.85;
+        double desiredEye = 4.25;
         BlockPos stand = SpawnerRoomScanner.getSpawnerBotStandPos(level, player, enclosure);
 
         return (onTop || (maxAxisDist >= 0.80 && curHorizDist >= 0.85))

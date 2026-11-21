@@ -1026,13 +1026,26 @@ public class AutoSpawnerTest {
         List<BlockPos> tallOut = SpawnerRoomScanner.deduplicateChestColumns(tallStack, Map.of(), playerAt64);
         assert tallOut.size() == 1 && tallOut.get(0).equals(new BlockPos(10, 68, 5))
                 : "Expected reachable cap Y=68 over Y=69, got " + tallOut;
+
+        // 7. Staircase 3-tier hopper system (floor chest at Y=294 offset 1 block horizontally at x=1,
+        // middle chest at Y=296 x=0, top chest at Y=298 x=0) -> keeps ONLY top tier Y=298
+        Vec3 playerAt295 = new Vec3(2.5, 295.0, 5.5);
+        List<BlockPos> staircase = List.of(
+                new BlockPos(1, 294, 5), // floor storage chest sticking out 1 block
+                new BlockPos(0, 296, 5), // middle hopper chest
+                new BlockPos(0, 298, 5)  // top input chest
+        );
+        List<BlockPos> stairOut = SpawnerRoomScanner.deduplicateChestColumns(staircase, Map.of(), playerAt295);
+        assert stairOut.size() == 1 && stairOut.get(0).equals(new BlockPos(0, 298, 5))
+                : "Staircase hopper system must keep ONLY top tier Y=298, got " + stairOut;
     }
 
     private static void testSequentialPerimeterChestCycling() {
         assert SpawnerRoomScanner.orderChestColumnsSequentially(null, null).isEmpty();
         assert AutoSpawnerModule.buildSequentialChestCandidates(List.of(), 0, Set.of()).isEmpty();
 
-        // 1. Two opposite walls of 5 chests each (N = 10), starting near (0, 66, 0)
+        // 1. Two opposite walls of 5 chests each (N = 10), starting near (0, 66, 0):
+        // Wall 1 (x=0): 1..5 in direction z=0->8; Wall 2 (x=6): 6..10 in the SAME parallel direction z=0->8
         List<BlockPos> tenChestsShuffled = List.of(
                 new BlockPos(6, 66, 4), new BlockPos(0, 66, 8), new BlockPos(0, 66, 2),
                 new BlockPos(6, 66, 0), new BlockPos(0, 66, 6), new BlockPos(6, 66, 8),
@@ -1044,10 +1057,10 @@ public class AutoSpawnerTest {
         List<BlockPos> expected10 = List.of(
                 new BlockPos(0, 66, 0), new BlockPos(0, 66, 2), new BlockPos(0, 66, 4),
                 new BlockPos(0, 66, 6), new BlockPos(0, 66, 8),
-                new BlockPos(6, 66, 8), new BlockPos(6, 66, 6), new BlockPos(6, 66, 4),
-                new BlockPos(6, 66, 2), new BlockPos(6, 66, 0)
+                new BlockPos(6, 66, 0), new BlockPos(6, 66, 2), new BlockPos(6, 66, 4),
+                new BlockPos(6, 66, 6), new BlockPos(6, 66, 8)
         );
-        assert ordered10.equals(expected10) : "Expected perimeter order " + expected10 + ", got " + ordered10;
+        assert ordered10.equals(expected10) : "Expected parallel wall order " + expected10 + ", got " + ordered10;
 
         // Spawners 1..10 hit Chests #1..#10, and spawner 11 wraps back to Chest #1
         for (int spawnerTurn = 0; spawnerTurn < 12; spawnerTurn++) {
@@ -1057,56 +1070,23 @@ public class AutoSpawnerTest {
                     + ", got " + cands.get(0);
         }
 
-        // Skipping a full chest picks the very next non-full chest in perimeter sequence
+        // Skipping a full chest picks the very next non-full chest in sequence
         Set<BlockPos> full = Set.of(expected10.get(2)); // #3 full
         List<BlockPos> skipFull = AutoSpawnerModule.buildSequentialChestCandidates(ordered10, 2, full);
         assert skipFull.get(0).equals(expected10.get(3)) : "Should skip full #3 and pick #4";
         assert skipFull.get(skipFull.size() - 1).equals(expected10.get(2)) : "Full chest must move to end";
 
-        // 2. Narrow 2-block corridor (x=0 vs x=2, z=0,2,4,6,8) must walk x=0 wall first, not zig-zag
-        List<BlockPos> narrowCorridor = List.of(
-                new BlockPos(0, 66, 0), new BlockPos(2, 66, 0),
-                new BlockPos(0, 66, 2), new BlockPos(2, 66, 2),
-                new BlockPos(0, 66, 4), new BlockPos(2, 66, 4),
-                new BlockPos(0, 66, 6), new BlockPos(2, 66, 6),
-                new BlockPos(0, 66, 8), new BlockPos(2, 66, 8)
-        );
-        List<BlockPos> narrowOrdered = SpawnerRoomScanner.orderChestColumnsSequentially(
-                narrowCorridor, new BlockPos(0, 64, 0));
+        // 2. Starting at the z=8 end orders both walls descending (z=8->0 on Wall 1, then z=8->0 on Wall 2)
+        List<BlockPos> revOrdered = SpawnerRoomScanner.orderChestColumnsSequentially(
+                tenChestsShuffled, new BlockPos(1, 64, 8));
         for (int i = 0; i < 5; i++) {
-            assert narrowOrdered.get(i).equals(new BlockPos(0, 66, i * 2))
-                    : "Narrow corridor should walk wall x=0 first at i=" + i + ", got " + narrowOrdered;
-        }
-        for (int i = 0; i < 5; i++) {
-            assert narrowOrdered.get(5 + i).equals(new BlockPos(2, 66, (4 - i) * 2))
-                    : "Narrow corridor should return along wall x=2 at i=" + i + ", got " + narrowOrdered;
+            assert revOrdered.get(i).equals(new BlockPos(0, 66, (4 - i) * 2))
+                    : "Wall 1 from z=8 should descend at i=" + i + ", got " + revOrdered;
+            assert revOrdered.get(5 + i).equals(new BlockPos(6, 66, (4 - i) * 2))
+                    : "Wall 2 from z=8 should descend in parallel at i=" + i + ", got " + revOrdered;
         }
 
-        // 3. Dynamic count adaptation: N=4 chests wraps on turn 4 (5th spawner -> 1st chest)
-        List<BlockPos> fourChests = SpawnerRoomScanner.orderChestColumnsSequentially(List.of(
-                new BlockPos(4, 65, 2), new BlockPos(0, 65, 0),
-                new BlockPos(4, 65, 0), new BlockPos(0, 65, 2)
-        ), new BlockPos(0, 64, 0));
-        assert fourChests.size() == 4;
-        assert AutoSpawnerModule.buildSequentialChestCandidates(fourChests, 4, Set.of()).get(0)
-                .equals(fourChests.get(0)) : "With 4 horizontal chests, 5th deposit must wrap to 1st chest";
-
-        // 4. Starting in the middle of Wall A walks a clean continuous perimeter ring without zig-zagging across walls
-        List<BlockPos> midOrdered = SpawnerRoomScanner.orderChestColumnsSequentially(
-                tenChestsShuffled, new BlockPos(1, 64, 4));
-        assert midOrdered.size() == 10 && midOrdered.get(0).equals(new BlockPos(0, 66, 4))
-                : "Mid-wall anchor should start at (0,66,4), got " + midOrdered;
-        int wallCrossings = 0;
-        for (int i = 0; i < midOrdered.size(); i++) {
-            BlockPos cur = midOrdered.get(i);
-            BlockPos nxt = midOrdered.get((i + 1) % midOrdered.size());
-            if (cur.getX() != nxt.getX()) wallCrossings++;
-            assert Math.hypot(nxt.getX() - cur.getX(), nxt.getZ() - cur.getZ()) <= 6.1
-                    : "Ring must stay continuous around perimeter at index " + i + ": " + midOrdered;
-        }
-        assert wallCrossings == 2 : "Perimeter ring must cross between walls exactly twice, got " + wallCrossings + ": " + midOrdered;
-
-        // 5. Doorway gap on Wall A/B (z=0,2 and z=6,8 separated by 4 blocks on x=0 vs x=2) never jumps across corridor
+        // 3. Doorway gap on Wall A/B (z=0,2 and z=6,8 separated by 4 blocks on x=0 vs x=2) stays on Wall 1 first
         List<BlockPos> doorwayWalls = List.of(
                 new BlockPos(2, 66, 6), new BlockPos(0, 66, 2), new BlockPos(2, 66, 0), new BlockPos(0, 66, 8),
                 new BlockPos(0, 66, 0), new BlockPos(2, 66, 8), new BlockPos(0, 66, 6), new BlockPos(2, 66, 2)
@@ -1115,12 +1095,21 @@ public class AutoSpawnerTest {
                 doorwayWalls, new BlockPos(0, 64, 0));
         List<BlockPos> expectedDoorway = List.of(
                 new BlockPos(0, 66, 0), new BlockPos(0, 66, 2), new BlockPos(0, 66, 6), new BlockPos(0, 66, 8),
-                new BlockPos(2, 66, 8), new BlockPos(2, 66, 6), new BlockPos(2, 66, 2), new BlockPos(2, 66, 0)
+                new BlockPos(2, 66, 0), new BlockPos(2, 66, 2), new BlockPos(2, 66, 6), new BlockPos(2, 66, 8)
         );
         assert doorwayOrdered.equals(expectedDoorway)
                 : "Doorway gap must stay on x=0 wall first, expected " + expectedDoorway + ", got " + doorwayOrdered;
 
-        // 6. Single-wall linear room orders strictly from anchor end to far end
+        // 4. Dynamic count adaptation: N=4 chests wraps on turn 4 (5th spawner -> 1st chest)
+        List<BlockPos> fourChests = SpawnerRoomScanner.orderChestColumnsSequentially(List.of(
+                new BlockPos(4, 65, 2), new BlockPos(0, 65, 0),
+                new BlockPos(4, 65, 0), new BlockPos(0, 65, 2)
+        ), new BlockPos(0, 64, 0));
+        assert fourChests.size() == 4;
+        assert AutoSpawnerModule.buildSequentialChestCandidates(fourChests, 4, Set.of()).get(0)
+                .equals(fourChests.get(0)) : "With 4 horizontal chests, 5th deposit must wrap to 1st chest";
+
+        // 5. Single-wall linear room orders strictly from anchor end to far end
         List<BlockPos> singleWall = SpawnerRoomScanner.orderChestColumnsSequentially(List.of(
                 new BlockPos(0, 65, 6), new BlockPos(0, 65, 2), new BlockPos(0, 65, 8),
                 new BlockPos(0, 65, 0), new BlockPos(0, 65, 4)

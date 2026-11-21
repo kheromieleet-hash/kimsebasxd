@@ -957,8 +957,7 @@ public class AutoSpawnerModule {
         this.spawnersView = Collections.unmodifiableList(this.spawners);
         this.enclosure = SpawnerRoomScanner.computeSpawnerEnclosure(level, player, found, anchor, enclosure);
         this.homePos = anchor;
-        BlockPos chestAnchor = !this.spawners.isEmpty() ? this.spawners.get(0) : anchor;
-        this.scannedChests = scanRoomChests(level, player, anchor, this.enclosure, chestAnchor);
+        this.scannedChests = scanRoomChests(level, player, anchor, this.enclosure, anchor);
         this.scannedChestsView = Collections.unmodifiableList(this.scannedChests);
 
         if (lastScanCount != found.size()) {
@@ -1727,9 +1726,8 @@ public class AutoSpawnerModule {
 
         if (candidateChests == null || candidateChests.isEmpty() || chestIndex == 0) {
             BlockPos origin = homePos != null ? homePos : player.blockPosition();
-            BlockPos chestAnchor = !this.spawners.isEmpty() ? this.spawners.get(0) : origin;
             if (scannedChests == null || scannedChests.isEmpty()) {
-                scannedChests = scanRoomChests(level, player, origin, enclosure, chestAnchor);
+                scannedChests = scanRoomChests(level, player, origin, enclosure, origin);
                 scannedChestsView = Collections.unmodifiableList(scannedChests);
             }
             List<BlockPos> rawChests = new ArrayList<>(scannedChests);
@@ -1737,7 +1735,7 @@ public class AutoSpawnerModule {
                 List<BlockPos> fallback = SpawnerRoomScanner.findNearbyContainerPositions(
                         level, player.position(), origin, 26
                 );
-                rawChests = SpawnerRoomScanner.orderChestColumnsSequentially(fallback, chestAnchor);
+                rawChests = SpawnerRoomScanner.orderChestColumnsSequentially(fallback, origin);
                 if (!rawChests.isEmpty()) {
                     scannedChests = new ArrayList<>(rawChests);
                     scannedChestsView = Collections.unmodifiableList(scannedChests);
@@ -1832,19 +1830,13 @@ public class AutoSpawnerModule {
         }
 
         if (!SpawnerPathfinder.hasClearClipRaycast(level, player.getEyePosition(), interactAimPoint, nav.currentNavTarget)) {
-            interactRaycastMissTicks++;
-            if (interactRaycastMissTicks < 4) {
-                interactAimPoint = interactRaycastMissTicks == 3
-                        ? computeBlockInteractPoint(nav.currentNavTarget, face, false)
-                        : computeBlockInteractPoint(nav.currentNavTarget, face, legitMode);
-                return;
-            }
-            clearInteractAimState();
-            stateTimeoutTicks = 0;
-            chestPreferAltSpot = true;
-            chestIndex++;
-            state = State.FIND_NEXT_CHEST;
-            return;
+            // Chest VoxelShape is inset by 1/16 and may sit directly above a hopper rim;
+            // fall back to the upper-center of the chest rather than skipping the chest.
+            interactAimPoint = new Vec3(
+                    nav.currentNavTarget.getX() + 0.5,
+                    nav.currentNavTarget.getY() + 0.58,
+                    nav.currentNavTarget.getZ() + 0.5
+            );
         }
         interactRaycastMissTicks = 0;
 

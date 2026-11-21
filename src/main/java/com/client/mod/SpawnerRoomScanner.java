@@ -728,16 +728,36 @@ public final class SpawnerRoomScanner {
             }
         }
 
+        // Filter out lower staircase/hopper storage tiers (e.g. floor chests offset 1-2 blocks
+        // horizontally beneath top hopper-fed chests) so only the top input tier is targeted.
+        List<BlockPos> topTier = new ArrayList<>(representatives.size());
+        for (BlockPos cand : representatives) {
+            boolean hasHigherNearby = false;
+            for (BlockPos other : representatives) {
+                if (other == cand) continue;
+                if (other.getY() > cand.getY()
+                        && Math.abs(other.getX() - cand.getX()) <= 2
+                        && Math.abs(other.getZ() - cand.getZ()) <= 2) {
+                    hasHigherNearby = true;
+                    break;
+                }
+            }
+            if (!hasHigherNearby) {
+                topTier.add(cand);
+            }
+        }
+        List<BlockPos> finalReps = topTier.isEmpty() ? representatives : topTier;
+
         if (playerPos != null) {
-            representatives.sort(Comparator.comparingDouble(
+            finalReps.sort(Comparator.comparingDouble(
                     p -> playerPos.distanceToSqr(p.getX() + 0.5, p.getY() + 0.5, p.getZ() + 0.5)
             ));
         } else {
-            representatives.sort(Comparator.<BlockPos>comparingInt(BlockPos::getY)
+            finalReps.sort(Comparator.<BlockPos>comparingInt(BlockPos::getY)
                     .thenComparingInt(BlockPos::getX)
                     .thenComparingInt(BlockPos::getZ));
         }
-        return representatives;
+        return finalReps;
     }
 
     private static long packColumnKey(int x, int z) {
@@ -776,131 +796,117 @@ public final class SpawnerRoomScanner {
     }
 
     /**
-     * Orders horizontal chest columns into an exact geometric perimeter ring:
-     * starts at the chest column closest to {@code anchorPos}, walks consecutively along
-     * the starting wall without zig-zagging or jumping across doorway gaps, crosses cleanly
-     * to the opposite wall at the end of the row, and returns back to chest #1.
+     * Orders horizontal chest columns wall-by-wall in parallel direction starting from {@code anchorPos}:
+     * Wall 1 (closest to {@code anchorPos}) is ordered from the {@code anchorPos} end to its far end
+     * (1 -> 2 -> 3 -> 4 -> 5), then Wall 2 (opposite wall) is ordered in the exact same direction
+     * from the {@code anchorPos} end to its far end (6 -> 7 -> 8 -> 9 -> 10), wrapping 10 -> 1.
      */
     public static List<BlockPos> orderChestColumnsSequentially(List<BlockPos> columns, BlockPos anchorPos) {
         if (columns == null || columns.isEmpty()) return List.of();
-        List<BlockPos> ring = new ArrayList<>(columns.size());
+        List<BlockPos> clean = new ArrayList<>(columns.size());
         for (BlockPos c : columns) {
-            if (c != null) ring.add(c.immutable());
+            if (c != null) clean.add(c.immutable());
         }
-        int n = ring.size();
-        if (n <= 1) return ring;
-
-        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
-        int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
-        double sumX = 0.0, sumZ = 0.0;
-        Map<Integer, Integer> countByX = new HashMap<>();
-        Map<Integer, Integer> countByZ = new HashMap<>();
-        for (BlockPos p : ring) {
-            int x = p.getX();
-            int z = p.getZ();
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (z < minZ) minZ = z;
-            if (z > maxZ) maxZ = z;
-            sumX += x + 0.5;
-            sumZ += z + 0.5;
-            countByX.merge(x, 1, Integer::sum);
-            countByZ.merge(z, 1, Integer::sum);
-        }
+        int n = clean.size();
+        if (n <= 1) return clean;
 
         int anchorX = anchorPos != null ? anchorPos.getX() : 0;
         int anchorZ = anchorPos != null ? anchorPos.getZ() : 0;
 
-        // Single-wall linear room: sort directly along the primary axis starting near anchor
-        if ((maxX - minX) <= 1 || (maxZ - minZ) <= 1) {
-            boolean primaryZ = (maxZ - minZ) >= (maxX - minX);
-            int startEnd = primaryZ ? minZ : minX;
-            int farEnd = primaryZ ? maxZ : maxX;
-            int anchorCoord = primaryZ ? anchorZ : anchorX;
-            boolean ascending = Math.abs(anchorCoord - startEnd) <= Math.abs(anchorCoord - farEnd);
-            ring.sort((a, b) -> {
-                int ca = primaryZ ? a.getZ() : a.getX();
-                int cb = primaryZ ? b.getZ() : b.getX();
-                if (ca != cb) return ascending ? Integer.compare(ca, cb) : Integer.compare(cb, ca);
-                return compareXZ(a, b);
-            });
-            return ring;
+        List<List<BlockPos>> clustersByX = clusterWallsByAxis(clean, true);
+        List<List<BlockPos>> clustersByZ = clusterWallsByAxis(clean, false);
+
+        boolean groupByX;
+        if (clustersByX.size() != clustersByZ.size()) {
+            groupByX = clustersByX.size() < clustersByZ.size();
+        } else {
+            int maxClusterX = maxClusterSize(clustersByX);
+            int maxClusterZ = maxClusterSize(clustersByZ);
+            groupByX = maxClusterX >= maxClusterZ;
         }
 
-        double cx = sumX / n;
-        double cz = sumZ / n;
+        List<List<BlockPos>> walls = groupByX ? clustersByX : clustersByZ;
+        boolean alongZ = groupByX; // Wall has near-constant X -> chests run along Z (and vice versa)
 
-        // 1. Sort all columns around the room centroid by polar angle
-        ring.sort((a, b) -> {
-            double angA = Math.atan2((a.getZ() + 0.5) - cz, (a.getX() + 0.5) - cx);
-            double angB = Math.atan2((b.getZ() + 0.5) - cz, (b.getX() + 0.5) - cx);
-            int cmp = Double.compare(angA, angB);
-            if (cmp != 0) return cmp;
-            double rA = Math.hypot((a.getX() + 0.5) - cx, (a.getZ() + 0.5) - cz);
-            double rB = Math.hypot((b.getX() + 0.5) - cx, (b.getZ() + 0.5) - cz);
-            int rCmp = Double.compare(rA, rB);
-            if (rCmp != 0) return rCmp;
-            return compareXZ(a, b);
+        // Sort walls so Wall 1 is the wall closest to anchorPos (where the player started)
+        walls.sort((w1, w2) -> {
+            double d1 = minWallHorizDistSq(w1, anchorX, anchorZ);
+            double d2 = minWallHorizDistSq(w2, anchorX, anchorZ);
+            if (Math.abs(d1 - d2) > 1e-6) return Double.compare(d1, d2);
+            return compareXZ(w1.get(0), w2.get(0));
         });
 
-        // 2. Rotate so index 0 is the chest column closest horizontally to anchorPos
-        int startIdx = 0;
-        double bestAnchorDistSq = Double.POSITIVE_INFINITY;
-        for (int i = 0; i < n; i++) {
-            BlockPos p = ring.get(i);
+        // Determine scan direction along the wall from Wall 1's end closest to anchorPos
+        List<BlockPos> firstWall = walls.get(0);
+        int minAlong = Integer.MAX_VALUE;
+        int maxAlong = Integer.MIN_VALUE;
+        for (BlockPos p : firstWall) {
+            int c = alongZ ? p.getZ() : p.getX();
+            if (c < minAlong) minAlong = c;
+            if (c > maxAlong) maxAlong = c;
+        }
+        int anchorAlong = alongZ ? anchorZ : anchorX;
+        boolean ascending = Math.abs(anchorAlong - minAlong) <= Math.abs(anchorAlong - maxAlong);
+
+        List<BlockPos> ordered = new ArrayList<>(n);
+        for (List<BlockPos> wall : walls) {
+            wall.sort((a, b) -> {
+                int ca = alongZ ? a.getZ() : a.getX();
+                int cb = alongZ ? b.getZ() : b.getX();
+                if (ca != cb) {
+                    return ascending ? Integer.compare(ca, cb) : Integer.compare(cb, ca);
+                }
+                return compareXZ(a, b);
+            });
+            ordered.addAll(wall);
+        }
+        return ordered;
+    }
+
+    private static List<List<BlockPos>> clusterWallsByAxis(List<BlockPos> points, boolean byX) {
+        List<BlockPos> sorted = new ArrayList<>(points);
+        sorted.sort((a, b) -> {
+            int ca = byX ? a.getX() : a.getZ();
+            int cb = byX ? b.getX() : b.getZ();
+            if (ca != cb) return Integer.compare(ca, cb);
+            return compareXZ(a, b);
+        });
+        List<List<BlockPos>> clusters = new ArrayList<>();
+        List<BlockPos> current = new ArrayList<>();
+        int prevCoord = 0;
+        for (BlockPos p : sorted) {
+            int coord = byX ? p.getX() : p.getZ();
+            if (current.isEmpty() || Math.abs(coord - prevCoord) <= 1) {
+                current.add(p);
+            } else {
+                clusters.add(current);
+                current = new ArrayList<>();
+                current.add(p);
+            }
+            prevCoord = coord;
+        }
+        if (!current.isEmpty()) {
+            clusters.add(current);
+        }
+        return clusters;
+    }
+
+    private static int maxClusterSize(List<List<BlockPos>> clusters) {
+        int max = 0;
+        for (List<BlockPos> c : clusters) {
+            if (c.size() > max) max = c.size();
+        }
+        return max;
+    }
+
+    private static double minWallHorizDistSq(List<BlockPos> wall, int anchorX, int anchorZ) {
+        double best = Double.POSITIVE_INFINITY;
+        for (BlockPos p : wall) {
             double dx = p.getX() - anchorX;
             double dz = p.getZ() - anchorZ;
             double dSq = dx * dx + dz * dz;
-            if (dSq < bestAnchorDistSq - 1e-6 || (Math.abs(dSq - bestAnchorDistSq) <= 1e-6
-                    && compareXZ(p, ring.get(startIdx)) < 0)) {
-                bestAnchorDistSq = dSq;
-                startIdx = i;
-            }
+            if (dSq < best) best = dSq;
         }
-
-        List<BlockPos> rotated = new ArrayList<>(n);
-        for (int offset = 0; offset < n; offset++) {
-            rotated.add(ring.get((startIdx + offset) % n));
-        }
-
-        if (n >= 3) {
-            BlockPos first = rotated.get(0);
-            BlockPos fwd = rotated.get(1);
-            BlockPos bwd = rotated.get(n - 1);
-            double fwdDist = Math.hypot(fwd.getX() - first.getX(), fwd.getZ() - first.getZ());
-            double bwdDist = Math.hypot(bwd.getX() - first.getX(), bwd.getZ() - first.getZ());
-
-            boolean reverse = false;
-            if (bwdDist < fwdDist - 1e-6) {
-                reverse = true;
-            } else if (Math.abs(fwdDist - bwdDist) <= 1e-6) {
-                int fwdAlign = sharedWallChestCount(first, fwd, countByX, countByZ);
-                int bwdAlign = sharedWallChestCount(first, bwd, countByX, countByZ);
-                if (bwdAlign > fwdAlign) {
-                    reverse = true;
-                }
-            }
-            if (reverse) {
-                List<BlockPos> reversed = new ArrayList<>(n);
-                reversed.add(first);
-                for (int i = n - 1; i >= 1; i--) {
-                    reversed.add(rotated.get(i));
-                }
-                return reversed;
-            }
-        }
-        return rotated;
-    }
-
-    private static int sharedWallChestCount(
-            BlockPos a,
-            BlockPos b,
-            Map<Integer, Integer> countByX,
-            Map<Integer, Integer> countByZ
-    ) {
-        int best = 0;
-        if (a.getX() == b.getX()) best = Math.max(best, countByX.getOrDefault(a.getX(), 0));
-        if (a.getZ() == b.getZ()) best = Math.max(best, countByZ.getOrDefault(a.getZ(), 0));
         return best;
     }
 

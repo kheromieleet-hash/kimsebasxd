@@ -297,7 +297,7 @@ public final class SpawnerPathfinder {
             BlockPos startStand
     ) {
         return findBestStandSpots(
-                level, player, targetBlockPos, enc, isTargetSpawner, preferAlternativeSpot, startStand, isTargetSpawner
+                level, player, targetBlockPos, enc, isTargetSpawner, preferAlternativeSpot, startStand, true
         );
     }
 
@@ -316,7 +316,7 @@ public final class SpawnerPathfinder {
         }
         int minY = enc != null ? enc.minY : targetBlockPos.getY() - 3;
         int maxY = (enc != null ? enc.maxY : targetBlockPos.getY() + 1) + (allowSpawnerFloor ? 1 : 0);
-        int searchRadius = isTargetSpawner ? 4 : 3;
+        int searchRadius = 4;
 
         Vec3 targetCenter = Vec3.atCenterOf(targetBlockPos);
         Vec3 botPos = player.position();
@@ -339,7 +339,7 @@ public final class SpawnerPathfinder {
                     double reachDist = eyeFromSpot.distanceTo(targetCenter);
                     double horizDist = Math.hypot((spot.getX() + 0.5) - targetCenter.x, (spot.getZ() + 0.5) - targetCenter.z);
 
-                    if (reachDist < 0.80 || reachDist > (isTargetSpawner ? 4.35 : 3.85)) continue;
+                    if (reachDist < 0.80 || reachDist > 4.35) continue;
                     if (!SpawnerRoomScanner.isSpawnerCorridorWalkable(level, spot, enc, allowSpawnerFloor)) continue;
                     if (!hasClearLineOfSightToSpawnerOrChest(level, spot, targetBlockPos)) continue;
 
@@ -363,8 +363,16 @@ public final class SpawnerPathfinder {
                 if (a.isOrthogonalAdjacent != b.isOrthogonalAdjacent) {
                     return Integer.compare(a.isOrthogonalAdjacent, b.isOrthogonalAdjacent);
                 }
+                if (a.yDiff != b.yDiff) return Integer.compare(a.yDiff, b.yDiff);
+                return Double.compare(a.distToPlayer, b.distToPlayer);
             }
             if (a.yDiff != b.yDiff) return Integer.compare(a.yDiff, b.yDiff);
+            if (a.isDirectlyAdjacent != b.isDirectlyAdjacent) {
+                return Integer.compare(a.isDirectlyAdjacent, b.isDirectlyAdjacent);
+            }
+            int hBandA = a.horizDist <= 2.6 ? 0 : 1;
+            int hBandB = b.horizDist <= 2.6 ? 0 : 1;
+            if (hBandA != hBandB) return Integer.compare(hBandA, hBandB);
             return Double.compare(a.distToPlayer, b.distToPlayer);
         });
 
