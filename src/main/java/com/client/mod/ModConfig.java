@@ -499,6 +499,16 @@ public class ModConfig {
     public boolean autoSpawnerRenderEsp = true;
     public int autoSpawnerHudX = -1;
     public int autoSpawnerHudY = -1;
+    public boolean autoSpawnerHudDetailed = true;
+    public int autoSpawnerEspDetail = 2;     // 0=Minimal, 1=Standard, 2=Tactical
+    public boolean autoSpawnerReachBatch = true;
+    public boolean autoSpawnerLegitMode = true;
+    public boolean autoSpawnerSafetyEnabled = true;
+    public int autoSpawnerSafetyRadius = 16; // 6 to 48 blocks
+    public int autoSpawnerSafetyAction = 1;  // 0=Pause & Alert, 1=Pause & Auto-Resume, 2=Disconnect
+    public int autoSpawnerSafetyResumeSec = 15; // 5 to 120 seconds
+    public boolean autoSpawnerTpsAdaptive = true;
+    public boolean autoSpawnerAutoResume = true;
 
     // Spawner Auto Sell (Toggle all spawners to Gold Block / Gold Nugget)
     public boolean spawnerAutoSellEnabled = false;
@@ -969,6 +979,16 @@ public class ModConfig {
         this.autoSpawnerRenderEsp = other.autoSpawnerRenderEsp;
         this.autoSpawnerHudX = other.autoSpawnerHudX;
         this.autoSpawnerHudY = other.autoSpawnerHudY;
+        this.autoSpawnerHudDetailed = other.autoSpawnerHudDetailed;
+        this.autoSpawnerEspDetail = clampInt(other.autoSpawnerEspDetail, 0, 2, 2);
+        this.autoSpawnerReachBatch = other.autoSpawnerReachBatch;
+        this.autoSpawnerLegitMode = other.autoSpawnerLegitMode;
+        this.autoSpawnerSafetyEnabled = other.autoSpawnerSafetyEnabled;
+        this.autoSpawnerSafetyRadius = clampInt(other.autoSpawnerSafetyRadius, 6, 48, 16);
+        this.autoSpawnerSafetyAction = clampInt(other.autoSpawnerSafetyAction, 0, 2, 1);
+        this.autoSpawnerSafetyResumeSec = clampInt(other.autoSpawnerSafetyResumeSec, 5, 120, 15);
+        this.autoSpawnerTpsAdaptive = other.autoSpawnerTpsAdaptive;
+        this.autoSpawnerAutoResume = other.autoSpawnerAutoResume;
         this.spawnerAutoSellEnabled = other.spawnerAutoSellEnabled;
         this.spawnerAutoSellTargetGoldBlock = other.spawnerAutoSellTargetGoldBlock;
         this.spawnerAutoSellSearchRadius = clampInt(other.spawnerAutoSellSearchRadius, 12, 40, 26);
@@ -1114,6 +1134,10 @@ public class ModConfig {
         this.autoSpawnerClickDelay = clampInt(this.autoSpawnerClickDelay, 2, 8, 3);
         if (this.autoSpawnerHudX < -1 || this.autoSpawnerHudX > 4000) this.autoSpawnerHudX = -1;
         if (this.autoSpawnerHudY < -1 || this.autoSpawnerHudY > 4000) this.autoSpawnerHudY = -1;
+        this.autoSpawnerEspDetail = clampInt(this.autoSpawnerEspDetail, 0, 2, 2);
+        this.autoSpawnerSafetyRadius = clampInt(this.autoSpawnerSafetyRadius, 6, 48, 16);
+        this.autoSpawnerSafetyAction = clampInt(this.autoSpawnerSafetyAction, 0, 2, 1);
+        this.autoSpawnerSafetyResumeSec = clampInt(this.autoSpawnerSafetyResumeSec, 5, 120, 15);
         this.spawnerAutoSellSearchRadius = clampInt(this.spawnerAutoSellSearchRadius, 12, 40, 26);
         if (this.spawnerAutoSellHudX < -1 || this.spawnerAutoSellHudX > 4000) this.spawnerAutoSellHudX = -1;
         if (this.spawnerAutoSellHudY < -1 || this.spawnerAutoSellHudY > 4000) this.spawnerAutoSellHudY = -1;

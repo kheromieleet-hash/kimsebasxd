@@ -790,7 +790,37 @@ public final class ModernModuleSettings {
                 intSlider("autoSpawnerClickDelay", "Click Delay", 2, 8, "t",
                         () -> cfg.autoSpawnerClickDelay, v -> cfg.autoSpawnerClickDelay = v),
                 toggle("Lock Mouse", () -> cfg.autoSpawnerLockMouse, v -> cfg.autoSpawnerLockMouse = v, actions, false),
-                toggle("Render ESP", () -> cfg.autoSpawnerRenderEsp, v -> cfg.autoSpawnerRenderEsp = v, actions, false)
+                toggle("Render ESP", () -> cfg.autoSpawnerRenderEsp, v -> cfg.autoSpawnerRenderEsp = v, actions, false),
+                toggle("Detailed HUD", () -> cfg.autoSpawnerHudDetailed, v -> cfg.autoSpawnerHudDetailed = v, actions, false),
+                new CycleControl("ESP Detail",
+                        () -> switch (cycleIndex(cfg.autoSpawnerEspDetail, 3, 2)) {
+                            case 0 -> "Minimal";
+                            case 1 -> "Standard";
+                            default -> "Tactical";
+                        },
+                        () -> {
+                            cfg.autoSpawnerEspDetail = (cycleIndex(cfg.autoSpawnerEspDetail, 3, 2) + 1) % 3;
+                            actions.persist(false);
+                        }),
+                toggle("Reach Batching", () -> cfg.autoSpawnerReachBatch, v -> cfg.autoSpawnerReachBatch = v, actions, false),
+                toggle("Legit Kinematics", () -> cfg.autoSpawnerLegitMode, v -> cfg.autoSpawnerLegitMode = v, actions, false),
+                toggle("Safety Guard", () -> cfg.autoSpawnerSafetyEnabled, v -> cfg.autoSpawnerSafetyEnabled = v, actions, false),
+                intSlider("autoSpawnerSafetyRadius", "Safety Radius", 6, 48, "b",
+                        () -> cfg.autoSpawnerSafetyRadius, v -> cfg.autoSpawnerSafetyRadius = v),
+                new CycleControl("Safety Action",
+                        () -> switch (cycleIndex(cfg.autoSpawnerSafetyAction, 3, 1)) {
+                            case 0 -> "Pause";
+                            case 2 -> "Disconnect";
+                            default -> "Auto-Resume";
+                        },
+                        () -> {
+                            cfg.autoSpawnerSafetyAction = (cycleIndex(cfg.autoSpawnerSafetyAction, 3, 1) + 1) % 3;
+                            actions.persist(false);
+                        }),
+                intSlider("autoSpawnerSafetyResumeSec", "Safe Resume Sec", 5, 120, "s",
+                        () -> cfg.autoSpawnerSafetyResumeSec, v -> cfg.autoSpawnerSafetyResumeSec = v),
+                toggle("TPS Adaptive", () -> cfg.autoSpawnerTpsAdaptive, v -> cfg.autoSpawnerTpsAdaptive = v, actions, false),
+                toggle("Reconnect Resume", () -> cfg.autoSpawnerAutoResume, v -> cfg.autoSpawnerAutoResume = v, actions, false)
         );
     }
 
@@ -1207,7 +1237,7 @@ public final class ModernModuleSettings {
         }
         while (!res.isEmpty()) {
             char last = res.charAt(res.length() - 1);
-            if (last == 'x' || last == '°' || last == 't' || last == '%' || last == 'm' || last == 'b') {
+            if (isUnitSuffixChar(last)) {
                 res = res.substring(0, res.length() - 1);
             } else {
                 break;
@@ -1244,7 +1274,7 @@ public final class ModernModuleSettings {
         s = s.replace("ms", "");
         while (!s.isEmpty()) {
             char last = s.charAt(s.length() - 1);
-            if (last == 'x' || last == 't' || last == '%' || last == '°' || last == 'm' || last == 'b' || last == ' ') {
+            if (isUnitSuffixChar(last) || last == ' ') {
                 s = s.substring(0, s.length() - 1);
             } else {
                 break;
@@ -1263,6 +1293,14 @@ public final class ModernModuleSettings {
 
     private static float roundToStep(float value, float scale) {
         return Math.round(value * scale) / scale;
+    }
+
+    private static boolean isUnitSuffixChar(char ch) {
+        return ch == 'x' || ch == '°' || ch == 't' || ch == '%' || ch == 'm' || ch == 'b' || ch == 's';
+    }
+
+    private static int cycleIndex(int value, int count, int fallback) {
+        return (value >= 0 && value < count) ? value : fallback;
     }
 
     private static int clampInt(int value, int min, int max) {

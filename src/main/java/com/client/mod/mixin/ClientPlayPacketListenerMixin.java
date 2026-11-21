@@ -1,16 +1,19 @@
 package com.client.mod.mixin;
 
 import com.client.mod.AutoFishHandler;
+import com.client.mod.AutoSpawnerModule;
 import com.client.mod.BlockEspHandler;
 import com.client.mod.ExploitPacketRules;
 import com.client.mod.ModConfig;
 import com.client.mod.PacketMineHandler;
+import com.client.mod.SpawnerSafetyGuard;
 import com.client.mod.StatsHudRenderer;
 import com.client.mod.WorldRenderToolsHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
@@ -22,12 +25,14 @@ import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundLoginPacket;
 import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
+import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTimePacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -57,6 +62,9 @@ public abstract class ClientPlayPacketListenerMixin {
     @Unique
     private volatile Vec3 customclient$preVelocity = null;
 
+    @Unique
+    private volatile Vec3 customclient$preMovePlayerPos = null;
+
     @Inject(method = "handleLogin", at = @At("TAIL"))
     private void onHandleLoginTail(ClientboundLoginPacket packet, CallbackInfo ci) {
         if (Minecraft.getInstance().isSameThread()) {
@@ -68,6 +76,34 @@ public abstract class ClientPlayPacketListenerMixin {
     private void onHandleSetTimeTail(ClientboundSetTimePacket packet, CallbackInfo ci) {
         if (Minecraft.getInstance().isSameThread()) {
             StatsHudRenderer.onTimePacket();
+        }
+    }
+
+    @Inject(
+            method = "handleMovePlayer",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/network/PacketProcessor;)V",
+                    shift = At.Shift.AFTER
+            )
+    )
+    private void onHandleMovePlayerMainThreadHead(ClientboundPlayerPositionPacket packet, CallbackInfo ci) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.isSameThread() && mc.player != null) {
+            this.customclient$preMovePlayerPos = mc.player.position();
+        } else {
+            this.customclient$preMovePlayerPos = null;
+        }
+    }
+
+    @Inject(method = "handleMovePlayer", at = @At("TAIL"))
+    private void onHandleMovePlayerTail(ClientboundPlayerPositionPacket packet, CallbackInfo ci) {
+        Vec3 before = this.customclient$preMovePlayerPos;
+        this.customclient$preMovePlayerPos = null;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.isSameThread() && mc.player != null && before != null) {
+            Vec3 after = mc.player.position();
+            AutoSpawnerModule.getInstance().onServerPositionSync(before, after);
         }
     }
 
@@ -290,6 +326,8 @@ public abstract class ClientPlayPacketListenerMixin {
     @Inject(method = "clearLevel", at = @At("HEAD"))
     private void onClearLevel(CallbackInfo ci) {
         this.customclient$backtrackQueue.clear();
+        this.customclient$preMovePlayerPos = null;
+        SpawnerSafetyGuard.clearPendingTextAlert();
         PacketMineHandler.clear();
         WorldRenderToolsHandler.clearLightCache();
         BlockEspHandler.clearCache();
@@ -326,22 +364,35 @@ public abstract class ClientPlayPacketListenerMixin {
 
     @Inject(method = "setTitleText", at = @At("TAIL"))
     private void onSetTitleText(ClientboundSetTitleTextPacket packet, CallbackInfo ci) {
-        if (Minecraft.getInstance().isSameThread()) {
-            AutoFishHandler.onTitlePacket(packet.text());
+        if (Minecraft.getInstance().isSameThread() && packet != null) {
+            Component text = packet.text();
+            AutoFishHandler.onTitlePacket(text);
+            customclient$forwardSafetyText(text);
         }
     }
 
     @Inject(method = "setSubtitleText", at = @At("TAIL"))
     private void onSetSubtitleText(ClientboundSetSubtitleTextPacket packet, CallbackInfo ci) {
-        if (Minecraft.getInstance().isSameThread()) {
-            AutoFishHandler.onSubtitlePacket(packet.text());
+        if (Minecraft.getInstance().isSameThread() && packet != null) {
+            Component text = packet.text();
+            AutoFishHandler.onSubtitlePacket(text);
+            customclient$forwardSafetyText(text);
         }
     }
 
     @Inject(method = "setActionBarText", at = @At("TAIL"))
     private void onSetActionBarText(ClientboundSetActionBarTextPacket packet, CallbackInfo ci) {
-        if (Minecraft.getInstance().isSameThread()) {
-            AutoFishHandler.onActionBarPacket(packet.text());
+        if (Minecraft.getInstance().isSameThread() && packet != null) {
+            Component text = packet.text();
+            AutoFishHandler.onActionBarPacket(text);
+            customclient$forwardSafetyText(text);
+        }
+    }
+
+    @Inject(method = "handleSystemChat", at = @At("TAIL"))
+    private void onHandleSystemChat(ClientboundSystemChatPacket packet, CallbackInfo ci) {
+        if (Minecraft.getInstance().isSameThread() && packet != null) {
+            customclient$forwardSafetyText(packet.content());
         }
     }
 
@@ -349,6 +400,17 @@ public abstract class ClientPlayPacketListenerMixin {
     private void onHandleTitlesClear(ClientboundClearTitlesPacket packet, CallbackInfo ci) {
         if (Minecraft.getInstance().isSameThread()) {
             AutoFishHandler.onTitlesCleared();
+        }
+    }
+
+    @Unique
+    private static void customclient$forwardSafetyText(Component component) {
+        if (component == null) {
+            return;
+        }
+        String text = component.getString();
+        if (text != null && !text.isEmpty()) {
+            SpawnerSafetyGuard.onServerTextMessage(text);
         }
     }
 

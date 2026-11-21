@@ -270,9 +270,27 @@ Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
     Ne ise yarar: Odadaki spawnerlari S-Snake rotasiyla gezip demir kulcelerini
     toplar, /craft ile blok yapar, sandiklara bosaltir ve Sestia temasinda canli
     durum HUD'u gosterir. HUD konumu GUI Move (HUD Editor) uzerinden suruklenip
-    sifirlanabilir.
-    Ayarlar: Spawner Count (Auto / 1 - 256), Search Radius (12 - 40b),
-    Click Delay (2 - 8t), Lock Mouse, Render ESP.
+    sifirlanabilir. Gelismis modlari sayesinde tek noktadan erisilebilir
+    spawnerlari toplu acar, mesafe agirlikli sandik secer, takilma/setback
+    durumlarinda 3 kademeli ceza haritasiyla rota yeniler, TPS'e gore gecikmeleri
+    uyarlar, guvenlik tehdidinde duraklar/cikis yapar ve yeniden baglaninca
+    kaldigi odadan devam edebilir.
+    Ayarlar:
+      - Spawner Count (Auto / 1 - 256), Search Radius (12 - 40b),
+        Click Delay (2 - 8t), Lock Mouse, Render ESP.
+      - Detailed HUD: Canli HUD kartinda Blocks/hr hizi, Pass ETA ve sandik
+        doluluk ilerleme cubugunu gosterir.
+      - ESP Detail (Minimal / Standard / Tactical): Aktif hedef kutusu,
+        S-Snake sira onizlemesi, sandik doluluk isi haritasi ve oda siniri.
+      - Reach Batching: Tek duraktan 4.25b erisimdeki spawnerlari toplu acar.
+      - Legit Kinematics: Viraj oncesi yavaslama, dogal sprint patlamalari,
+        ileriyi goren kamera, ic %60 Gaussian tiklama ve raycast dogrulamasi.
+      - Safety Guard, Safety Radius (6 - 48b), Safety Action (Pause /
+        Auto-Resume / Disconnect), Safe Resume Sec (5 - 120s): Yakin oyuncu,
+        hasar/dusme veya ani isinlanmada koruma duraklamasi / baglanti kesme.
+      - TPS Adaptive: Sunucu TPS degerine gore tiklama ve zaman asimi olcegi.
+      - Reconnect Resume: Dunyadan cikista oturum durumunu koruyup ayni oda
+        yakinina donunce otomatik devam eder.
 
 
 --------------------------------------------------------------------------------

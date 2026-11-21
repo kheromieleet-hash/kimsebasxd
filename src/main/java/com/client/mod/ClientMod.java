@@ -49,6 +49,7 @@ public class ClientMod implements ClientModInitializer {
                 wasInWorld = true;
                 SestiaChatClient.onEnteredWorld();
                 AutoLoginHandler.onEnteredWorld();
+                AutoSpawnerModule.getInstance().onEnteredWorld();
             } else if (!inWorld && wasInWorld) {
                 wasInWorld = false;
                 AutoLoginHandler.onLeftWorld();

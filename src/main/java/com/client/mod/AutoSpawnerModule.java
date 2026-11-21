@@ -8,7 +8,9 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -27,13 +29,18 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.text.Normalizer;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
@@ -61,11 +68,60 @@ public class AutoSpawnerModule {
         INTERACT_CHEST,
         WAIT_CHEST_GUI,
         DEPOSIT_IRON_BLOCKS,
-        COOLDOWN_NEXT_PASS
+        COOLDOWN_NEXT_PASS,
+        PAUSED_SAFETY
+    }
+
+    private record DepositSample(long timestampMs, int blocks) {
+    }
+
+    private static final class SessionCheckpoint {
+        final BlockPos homePos;
+        final List<BlockPos> orderedSpawners;
+        final Set<BlockPos> openedSpawners;
+        final List<BlockPos> scannedChests;
+        final Set<BlockPos> fullSpawnerChests;
+        final Map<BlockPos, Integer> chestDepositCounts;
+        final int totalDepositedBlocks;
+        final int passCount;
+        final long elapsedBeforeDisconnectMs;
+        final long savedAtMs;
+
+        SessionCheckpoint(
+                BlockPos homePos,
+                List<BlockPos> orderedSpawners,
+                Set<BlockPos> openedSpawners,
+                List<BlockPos> scannedChests,
+                Set<BlockPos> fullSpawnerChests,
+                Map<BlockPos, Integer> chestDepositCounts,
+                int totalDepositedBlocks,
+                int passCount,
+                long elapsedBeforeDisconnectMs,
+                long savedAtMs
+        ) {
+            this.homePos = homePos.immutable();
+            this.orderedSpawners = new ArrayList<>(orderedSpawners);
+            this.openedSpawners = new HashSet<>(openedSpawners);
+            this.scannedChests = new ArrayList<>(scannedChests);
+            this.fullSpawnerChests = new HashSet<>(fullSpawnerChests);
+            this.chestDepositCounts = new HashMap<>(chestDepositCounts);
+            this.totalDepositedBlocks = totalDepositedBlocks;
+            this.passCount = passCount;
+            this.elapsedBeforeDisconnectMs = elapsedBeforeDisconnectMs;
+            this.savedAtMs = savedAtMs;
+        }
     }
 
     private static final AutoSpawnerModule INSTANCE = new AutoSpawnerModule();
     private static final Pattern DEPO_PAGE_PATTERN = Pattern.compile("(\\d+)\\s*/\\s*(\\d+)");
+    private static final long RATE_WINDOW_MS = 15L * 60_000L;
+    private static final int MAX_DEPOSIT_SAMPLES = 2048;
+    private static final long CHECKPOINT_TTL_MS = 5L * 60_000L;
+    private static final double CHECKPOINT_MAX_DIST_SQ = 48.0 * 48.0;
+    private static final int CHECKPOINT_WAIT_TICKS = 240;
+    private static final double DEFAULT_AVG_SEC_PER_SPAWNER = 2.5;
+    private static final double MAX_SPAWNER_BATCH_REACH = 4.25;
+    private static final int MAX_REACH_BATCH_SIZE = 4;
 
     public static AutoSpawnerModule getInstance() {
         return INSTANCE;
@@ -87,6 +143,7 @@ public class AutoSpawnerModule {
     private SpawnerEnclosure enclosure = null;
     private BlockPos homePos = null;
     private List<BlockPos> spawners = new ArrayList<>();
+    private List<BlockPos> spawnersView = Collections.unmodifiableList(spawners);
     private int spawnerIndex = 0;
     private int spawnerAttempt = 1;
     private int passNumber = 0;
@@ -96,8 +153,23 @@ public class AutoSpawnerModule {
 
     // Movement & Pathing Helper
     private final SpawnerNavHelper nav = new SpawnerNavHelper();
+    private final ArrayDeque<BlockPos> reachBatchQueue = new ArrayDeque<>();
+    private final Set<BlockPos> batchProcessedSpawners = new HashSet<>();
+    private final Set<BlockPos> quarantinedSpawners = new HashSet<>();
 
-    // Camera Restore & GUI Tracking
+    // Safety Guard State
+    private String safetyPauseReason = "";
+    private boolean safetyCritical = false;
+    private float lastSafetyHealth = -1.0f;
+    private State preSafetyState = null;
+    private final SpawnerSafetyGuard safetyGuard = new SpawnerSafetyGuard();
+
+    // Camera Restore, Sub-Face Aim & GUI Tracking
+    private final Random interactRandom = new Random();
+    private BlockPos interactAimTarget = null;
+    private Direction interactAimFace = null;
+    private Vec3 interactAimPoint = null;
+    private int interactRaycastMissTicks = 0;
     private Float savedYaw = null;
     private Float savedPitch = null;
     private int lastManagementContainerId = -1;
@@ -111,17 +183,65 @@ public class AutoSpawnerModule {
     private boolean lootWaitingForPageContent = false;
     private int lootContentWaitTicks = 0;
 
-    // Chest Deposit Tracking
+    // Chest Deposit & Economy Tracking
     private final Set<BlockPos> fullSpawnerChests = new HashSet<>();
+    private final Set<BlockPos> fullSpawnerChestsView = Collections.unmodifiableSet(fullSpawnerChests);
     private final Map<BlockPos, Integer> chestDepositCounts = new HashMap<>();
+    private final Map<BlockPos, Integer> chestDepositCountsView = Collections.unmodifiableMap(chestDepositCounts);
     private final Set<BlockPos> openedSpawners = new HashSet<>();
+    private final Set<BlockPos> openedSpawnersView = Collections.unmodifiableSet(openedSpawners);
     private List<BlockPos> scannedChests = new ArrayList<>();
+    private List<BlockPos> scannedChestsView = Collections.unmodifiableList(scannedChests);
     private List<BlockPos> candidateChests = new ArrayList<>();
     private int chestIndex = 0;
     private int chestDepositSlotIdx = -1;
     private int chestPrevSlotCount = -1;
+    private boolean chestPreferAltSpot = false;
     private int totalDepositedBlocks = 0;
     private long enabledStartMs = 0L;
+    private long passStartMs = 0L;
+    private long lastPassDurationMs = 0L;
+    private final Deque<DepositSample> depositSamples = new ArrayDeque<>();
+
+    // Adaptive TPS/Ping per-tick snapshot
+    private float currentTps = 20.0f;
+    private int currentPingMs = 0;
+    private boolean tpsAdaptiveEnabled = true;
+
+    // Reconnect Resume Checkpoint
+    private SessionCheckpoint savedCheckpoint = null;
+    private boolean pendingCheckpointResume = false;
+    private int checkpointResumeWaitTicks = 0;
+    private boolean suppressNextLeftWorldCheckpoint = false;
+
+    private static final class HudRowCache {
+        boolean valid = false;
+        boolean active = false;
+        boolean detailed = true;
+        boolean showBar = true;
+        int accentHover = 0;
+        State state = State.SCANNING_ROOM;
+        String safetyReason = "";
+        boolean safetyCritical = false;
+        int passNumber = 0;
+        int openedCount = 0;
+        int spawnerIndex = 0;
+        int spawnerTotal = 0;
+        int depositedBlocks = 0;
+        int rawFullChestsSize = 0;
+        int totalChests = 0;
+        long wallSecond = Long.MIN_VALUE;
+        long elapsedSec = -1L;
+        List<JelloTheme.HudStatRow> rows = List.of();
+
+        void invalidate() {
+            this.valid = false;
+            this.rows = List.of();
+        }
+    }
+
+    private static final HudRowCache PREVIEW_HUD_CACHE = new HudRowCache();
+    private final HudRowCache activeHudCache = new HudRowCache();
 
     private AutoSpawnerModule() {
     }
@@ -130,7 +250,14 @@ public class AutoSpawnerModule {
         return enabled && !PanicHandler.isPanicActive();
     }
 
+    public boolean isSafetyPaused() {
+        return state == State.PAUSED_SAFETY;
+    }
+
     public boolean isActiveLockingMouse() {
+        if (state == State.PAUSED_SAFETY) {
+            return false;
+        }
         Minecraft mc = Minecraft.getInstance();
         ModConfig cfg = ModConfig.getInstance();
         boolean activeLock = cfg != null ? (cfg.autoSpawnerEnabled && cfg.autoSpawnerLockMouse) : (enabled && lockMouse);
@@ -139,6 +266,9 @@ public class AutoSpawnerModule {
     }
 
     public boolean isControllingMovement() {
+        if (state == State.PAUSED_SAFETY) {
+            return false;
+        }
         Minecraft mc = Minecraft.getInstance();
         ModConfig cfg = ModConfig.getInstance();
         boolean cfgEnabled = cfg == null || cfg.autoSpawnerEnabled;
@@ -174,19 +304,44 @@ public class AutoSpawnerModule {
         return nav.activePath;
     }
 
+    public BlockPos getCurrentNavTarget() {
+        return nav.currentNavTarget;
+    }
+
+    public int getSpawnerIndex() {
+        return spawnerIndex;
+    }
+
+    public List<BlockPos> getOrderedSpawners() {
+        return spawnersView;
+    }
+
+    public SpawnerEnclosure getEnclosure() {
+        return enclosure;
+    }
+
+    public List<BlockPos> getScannedChests() {
+        return scannedChestsView;
+    }
+
+    public Map<BlockPos, Integer> getChestDepositCounts() {
+        return chestDepositCountsView;
+    }
+
     public Set<BlockPos> getFullSpawnerChests() {
-        return fullSpawnerChests;
+        return fullSpawnerChestsView;
     }
 
     public List<BlockPos> getScannedSpawners() {
-        return new ArrayList<>(spawners);
+        return spawnersView;
     }
 
     public Set<BlockPos> getOpenedSpawners() {
-        return new HashSet<>(openedSpawners);
+        return openedSpawnersView;
     }
 
     public void setEnabledFromConfig(boolean val) {
+        clearCheckpoint();
         if (val && !PanicHandler.isPanicActive()) {
             ModConfig cfg = ModConfig.getInstance();
             if (cfg != null && cfg.spawnerAutoSellEnabled) {
@@ -207,6 +362,17 @@ public class AutoSpawnerModule {
 
     public void onLeftWorld() {
         ModConfig cfg = ModConfig.getInstance();
+        boolean shouldSaveCheckpoint = this.enabled
+                && !suppressNextLeftWorldCheckpoint
+                && !PanicHandler.isPanicActive()
+                && cfg != null
+                && cfg.autoSpawnerAutoResume
+                && !cfg.spawnerAutoSellEnabled
+                && this.homePos != null
+                && !this.spawners.isEmpty();
+        suppressNextLeftWorldCheckpoint = false;
+        SessionCheckpoint captured = shouldSaveCheckpoint ? captureCheckpoint() : null;
+
         if (cfg != null && cfg.autoSpawnerEnabled) {
             cfg.autoSpawnerEnabled = false;
             cfg.save();
@@ -217,34 +383,95 @@ public class AutoSpawnerModule {
             clearMovementFlags();
             resetAllRuntimeState();
         }
+        this.savedCheckpoint = captured;
+        this.pendingCheckpointResume = false;
+        this.checkpointResumeWaitTicks = 0;
+    }
+
+    public void onEnteredWorld() {
+        if (savedCheckpoint == null) {
+            pendingCheckpointResume = false;
+            return;
+        }
+        ModConfig cfg = ModConfig.getInstance();
+        if (PanicHandler.isPanicActive()
+                || cfg == null
+                || !cfg.autoSpawnerAutoResume
+                || cfg.spawnerAutoSellEnabled
+                || isCheckpointExpired(savedCheckpoint)) {
+            clearCheckpoint();
+            return;
+        }
+        pendingCheckpointResume = true;
+        checkpointResumeWaitTicks = 0;
+        tryRestorePendingCheckpoint(Minecraft.getInstance(), cfg);
+    }
+
+    public void onServerPositionSync(Vec3 before, Vec3 after) {
+        if (!enabled || before == null || after == null) {
+            return;
+        }
+        ModConfig cfg = ModConfig.getInstance();
+        SpawnerSafetyGuard.MoveAnomaly anomaly = SpawnerSafetyGuard.classifyServerMove(
+                after.x - before.x,
+                after.y - before.y,
+                after.z - before.z
+        );
+        if (anomaly == SpawnerSafetyGuard.MoveAnomaly.TELEPORT) {
+            if (cfg != null && cfg.autoSpawnerSafetyEnabled) {
+                Minecraft mc = Minecraft.getInstance();
+                closeCurrentContainerIfOpen(mc);
+                clearMovementFlags();
+                nav.activePath = null;
+                clearCheckpoint();
+                SpawnerSafetyGuard.notifyDesktopSafety(
+                        "Sestia - Auto Spawner Safety",
+                        "Unexpected server teleport detected"
+                );
+                if (cfg.autoSpawnerSafetyAction == 2) {
+                    disconnectForSafety(mc, cfg, "Auto Spawner Safety: Unexpected teleport detected");
+                } else {
+                    enterSafetyPause(mc, "Teleported", true);
+                }
+            }
+        } else if (anomaly == SpawnerSafetyGuard.MoveAnomaly.RUBBERBAND) {
+            if (state != State.PAUSED_SAFETY) {
+                nav.onServerSetback(before, after);
+            }
+        }
     }
 
     public void onEnable() {
         Minecraft mc = Minecraft.getInstance();
+        ModConfig cfg = ModConfig.getInstance();
         enabled = true;
         clearMovementFlags();
         resetAllRuntimeState();
+        SpawnerSafetyGuard.clearPendingTextAlert();
         enabledStartMs = System.currentTimeMillis();
+        nav.setLegitMode(cfg == null || cfg.autoSpawnerLegitMode);
         if (mc != null && mc.player != null) {
             savedYaw = mc.player.getYRot();
             savedPitch = mc.player.getXRot();
+            lastSafetyHealth = mc.player.getHealth();
         }
         state = State.SCANNING_ROOM;
     }
 
     public void onDisable() {
         Minecraft mc = Minecraft.getInstance();
+        ModConfig cfg = ModConfig.getInstance();
+        boolean legit = cfg == null || cfg.autoSpawnerLegitMode;
         enabled = false;
         clearMovementFlags();
         if (mc != null && mc.player != null) {
-            if (mc.player.containerMenu != null && getCurrentScreen(mc) != null) {
-                mc.player.closeContainer();
-            }
-            if (savedYaw != null && savedPitch != null) {
+            closeCurrentContainerIfOpen(mc);
+            if (!legit && savedYaw != null && savedPitch != null) {
                 mc.player.setYRot(savedYaw);
                 mc.player.setXRot(savedPitch);
             }
         }
+        SpawnerSafetyGuard.clearPendingTextAlert();
         resetAllRuntimeState();
     }
 
@@ -260,6 +487,8 @@ public class AutoSpawnerModule {
         this.clickDelayTicks = Mth.clamp(cfg.autoSpawnerClickDelay, 2, 8);
         this.lockMouse = cfg.autoSpawnerLockMouse;
         this.renderEsp = cfg.autoSpawnerRenderEsp;
+        this.tpsAdaptiveEnabled = cfg.autoSpawnerTpsAdaptive;
+        nav.setLegitMode(cfg.autoSpawnerLegitMode);
     }
 
     private void resetAllRuntimeState() {
@@ -269,6 +498,7 @@ public class AutoSpawnerModule {
         enclosure = null;
         homePos = null;
         spawners = new ArrayList<>();
+        spawnersView = Collections.unmodifiableList(spawners);
         spawnerIndex = 0;
         spawnerAttempt = 1;
         passNumber = 0;
@@ -276,6 +506,15 @@ public class AutoSpawnerModule {
         waitingToFinishCurrentSpawner = false;
         pendingGreenSpawner = null;
         nav.resetAll(4.25);
+        reachBatchQueue.clear();
+        batchProcessedSpawners.clear();
+        quarantinedSpawners.clear();
+        safetyPauseReason = "";
+        safetyCritical = false;
+        lastSafetyHealth = -1.0f;
+        preSafetyState = null;
+        safetyGuard.reset();
+        clearInteractAimState();
         savedYaw = null;
         savedPitch = null;
         lootSafetyClicks = 0;
@@ -288,28 +527,270 @@ public class AutoSpawnerModule {
         lootWaitingForPageContent = false;
         lootContentWaitTicks = 0;
         scannedChests = new ArrayList<>();
+        scannedChestsView = Collections.unmodifiableList(scannedChests);
         candidateChests = new ArrayList<>();
         chestIndex = 0;
+        chestDepositSlotIdx = -1;
+        chestPrevSlotCount = -1;
+        chestPreferAltSpot = false;
         totalDepositedBlocks = 0;
         enabledStartMs = 0L;
+        passStartMs = 0L;
+        lastPassDurationMs = 0L;
+        depositSamples.clear();
         fullSpawnerChests.clear();
         chestDepositCounts.clear();
         openedSpawners.clear();
+        activeHudCache.invalidate();
     }
 
     private void clearMovementFlags() {
         nav.clearMovementFlags();
     }
 
+    private void clearInteractAimState() {
+        interactAimTarget = null;
+        interactAimFace = null;
+        interactAimPoint = null;
+        interactRaycastMissTicks = 0;
+    }
+
+    private void clearCheckpoint() {
+        savedCheckpoint = null;
+        pendingCheckpointResume = false;
+        checkpointResumeWaitTicks = 0;
+    }
+
+    private static boolean isCheckpointExpired(SessionCheckpoint cp) {
+        return cp == null || (System.currentTimeMillis() - cp.savedAtMs) > CHECKPOINT_TTL_MS;
+    }
+
+    private SessionCheckpoint captureCheckpoint() {
+        long elapsed = enabledStartMs > 0L ? Math.max(0L, System.currentTimeMillis() - enabledStartMs) : 0L;
+        return new SessionCheckpoint(
+                homePos,
+                spawners,
+                openedSpawners,
+                scannedChests,
+                fullSpawnerChests,
+                chestDepositCounts,
+                totalDepositedBlocks,
+                passNumber,
+                elapsed,
+                System.currentTimeMillis()
+        );
+    }
+
+    private void tryRestorePendingCheckpoint(Minecraft mc, ModConfig cfg) {
+        if (!pendingCheckpointResume || savedCheckpoint == null) {
+            return;
+        }
+        if (PanicHandler.isPanicActive()
+                || cfg == null
+                || !cfg.autoSpawnerAutoResume
+                || cfg.spawnerAutoSellEnabled
+                || isCheckpointExpired(savedCheckpoint)) {
+            clearCheckpoint();
+            return;
+        }
+        if (mc == null || mc.player == null || mc.level == null) {
+            checkpointResumeWaitTicks++;
+            if (checkpointResumeWaitTicks > CHECKPOINT_WAIT_TICKS) {
+                clearCheckpoint();
+            }
+            return;
+        }
+        double distSq = mc.player.blockPosition().distSqr(savedCheckpoint.homePos);
+        if (distSq > CHECKPOINT_MAX_DIST_SQ) {
+            checkpointResumeWaitTicks++;
+            if (checkpointResumeWaitTicks > CHECKPOINT_WAIT_TICKS) {
+                clearCheckpoint();
+            }
+            return;
+        }
+        // Give newly joined chunks a brief settle window so blocks are populated before scanning/pathing
+        if (checkpointResumeWaitTicks < 10) {
+            checkpointResumeWaitTicks++;
+            return;
+        }
+        restoreFromCheckpoint(mc, cfg, savedCheckpoint);
+    }
+
+    private void restoreFromCheckpoint(Minecraft mc, ModConfig cfg, SessionCheckpoint cp) {
+        clearCheckpoint();
+        resetAllRuntimeState();
+        SpawnerSafetyGuard.clearPendingTextAlert();
+
+        this.enabled = true;
+        cfg.autoSpawnerEnabled = true;
+        cfg.save();
+
+        this.homePos = cp.homePos;
+        this.spawners = new ArrayList<>(cp.orderedSpawners);
+        this.spawnersView = Collections.unmodifiableList(this.spawners);
+        this.openedSpawners.addAll(cp.openedSpawners);
+        this.scannedChests = new ArrayList<>(cp.scannedChests);
+        this.scannedChestsView = Collections.unmodifiableList(this.scannedChests);
+        this.fullSpawnerChests.addAll(cp.fullSpawnerChests);
+        this.chestDepositCounts.putAll(cp.chestDepositCounts);
+        this.totalDepositedBlocks = cp.totalDepositedBlocks;
+        this.passNumber = Math.max(1, cp.passCount);
+
+        long now = System.currentTimeMillis();
+        this.enabledStartMs = now - Math.max(0L, cp.elapsedBeforeDisconnectMs);
+        this.passStartMs = now;
+        this.lastSafetyHealth = mc.player.getHealth();
+        this.savedYaw = mc.player.getYRot();
+        this.savedPitch = mc.player.getXRot();
+
+        this.tpsAdaptiveEnabled = cfg.autoSpawnerTpsAdaptive;
+        nav.setLegitMode(cfg.autoSpawnerLegitMode);
+        this.enclosure = SpawnerRoomScanner.computeSpawnerEnclosure(
+                mc.level, mc.player, this.spawners, this.homePos, null
+        );
+
+        int idx = 0;
+        while (idx < this.spawners.size() && this.openedSpawners.contains(this.spawners.get(idx))) {
+            idx++;
+        }
+        this.spawnerIndex = idx;
+        this.spawnerAttempt = 1;
+
+        if (countPlayerInventoryItem(mc.player, Items.IRON_INGOT) >= 9) {
+            this.state = State.SEND_CRAFT_CMD;
+        } else if (countPlayerInventoryItem(mc.player, Items.IRON_BLOCK) > 0) {
+            this.candidateChests = List.of();
+            this.chestIndex = 0;
+            this.state = State.FIND_NEXT_CHEST;
+        } else if (this.spawnerIndex < this.spawners.size()) {
+            prepareSpawnerNavigation(mc.level, mc.player);
+        } else {
+            enterNextPassCooldown(scaleTicks(7));
+        }
+    }
+
     private static Screen getCurrentScreen(Minecraft mc) {
         return mc != null && mc.gui != null ? mc.gui.screen() : null;
     }
 
+    private static void closeCurrentContainerIfOpen(Minecraft mc) {
+        if (mc == null || mc.player == null) {
+            return;
+        }
+        if (getCurrentScreen(mc) != null
+                || (mc.player.containerMenu != null && mc.player.containerMenu != mc.player.inventoryMenu)) {
+            mc.player.closeContainer();
+        }
+    }
+
+    private static int getPlayerPingMs(Minecraft mc) {
+        if (mc == null || mc.player == null) {
+            return 0;
+        }
+        ClientPacketListener conn = mc.getConnection();
+        if (conn == null) {
+            return 0;
+        }
+        PlayerInfo info = conn.getPlayerInfo(mc.player.getUUID());
+        return info != null ? Math.max(0, info.getLatency()) : 0;
+    }
+
+    private int scaleTicks(int baseTicks) {
+        return StatsHudRenderer.scaleAdaptiveTicks(baseTicks, currentTps, currentPingMs, tpsAdaptiveEnabled);
+    }
+
+    private void enterSafetyPause(Minecraft mc, String reason, boolean critical) {
+        if (this.state != State.PAUSED_SAFETY) {
+            this.preSafetyState = this.state;
+        }
+        this.safetyPauseReason = reason != null ? reason : "Safety alert";
+        this.safetyCritical = critical;
+        this.state = State.PAUSED_SAFETY;
+        this.waitTicks = 0;
+        this.stateTimeoutTicks = 0;
+        this.safetyGuard.reset();
+        clearMovementFlags();
+        clearInteractAimState();
+        nav.activePath = null;
+        reachBatchQueue.clear();
+        closeCurrentContainerIfOpen(mc);
+    }
+
+    private void disconnectForSafety(Minecraft mc, ModConfig cfg, String reason) {
+        suppressNextLeftWorldCheckpoint = true;
+        clearCheckpoint();
+        if (cfg != null && cfg.autoSpawnerEnabled) {
+            cfg.autoSpawnerEnabled = false;
+            cfg.save();
+        }
+        if (this.enabled) {
+            onDisable();
+        } else {
+            clearMovementFlags();
+            resetAllRuntimeState();
+        }
+        if (mc != null && mc.getConnection() != null && mc.getConnection().getConnection() != null) {
+            mc.getConnection().getConnection().disconnect(Component.literal(reason));
+        }
+    }
+
+    private void resumeFromSafetyPause(Minecraft mc, ClientLevel level, LocalPlayer player) {
+        State resumeFrom = this.preSafetyState;
+        this.preSafetyState = null;
+        this.safetyPauseReason = "";
+        this.safetyCritical = false;
+        this.safetyGuard.reset();
+        this.waitTicks = 0;
+        this.stateTimeoutTicks = 0;
+        this.chestPrevSlotCount = -1;
+        this.lastSafetyHealth = player.getHealth();
+        clearMovementFlags();
+        clearInteractAimState();
+        nav.activePath = null;
+        reachBatchQueue.clear();
+
+        boolean farFromHome = this.homePos != null && player.blockPosition().distSqr(this.homePos) > CHECKPOINT_MAX_DIST_SQ;
+        if (farFromHome || this.spawners.isEmpty() || resumeFrom == null
+                || resumeFrom == State.SCANNING_ROOM || resumeFrom == State.COOLDOWN_NEXT_PASS) {
+            this.state = State.SCANNING_ROOM;
+            return;
+        }
+
+        switch (resumeFrom) {
+            case SEND_CRAFT_CMD, WAIT_CRAFT_GUI, CRAFT_SPLIT_AND_FILL -> {
+                if (countPlayerInventoryItem(player, Items.IRON_INGOT) >= 9) {
+                    this.state = State.SEND_CRAFT_CMD;
+                } else {
+                    afterCraftingCompleted(mc, player);
+                }
+            }
+            case FIND_NEXT_CHEST, MOVE_TO_CHEST, INTERACT_CHEST, WAIT_CHEST_GUI, DEPOSIT_IRON_BLOCKS -> {
+                if (countPlayerInventoryItem(player, Items.IRON_BLOCK) > 0) {
+                    this.candidateChests = List.of();
+                    this.chestIndex = 0;
+                    this.state = State.FIND_NEXT_CHEST;
+                } else {
+                    prepareSpawnerNavigation(level, player);
+                }
+            }
+            default -> {
+                this.spawnerAttempt = 1;
+                prepareSpawnerNavigation(level, player);
+            }
+        }
+    }
+
     public void onClientTick() {
         syncSettingsFromConfig();
-        if (!enabled) return;
-
         Minecraft mc = Minecraft.getInstance();
+        ModConfig cfg = ModConfig.getInstance();
+        if (!enabled) {
+            if (pendingCheckpointResume) {
+                tryRestorePendingCheckpoint(mc, cfg);
+            }
+            return;
+        }
+
         LocalPlayer player = mc != null ? mc.player : null;
         ClientLevel level = mc != null ? mc.level : null;
         MultiPlayerGameMode gameMode = mc != null ? mc.gameMode : null;
@@ -318,9 +799,65 @@ public class AutoSpawnerModule {
             return;
         }
 
+        this.currentTps = StatsHudRenderer.getTickRate();
+        this.currentPingMs = getPlayerPingMs(mc);
+        this.tpsAdaptiveEnabled = cfg == null || cfg.autoSpawnerTpsAdaptive;
+        nav.setTpsDelayMultiplier(
+                this.tpsAdaptiveEnabled
+                        ? StatsHudRenderer.computeTpsDelayMultiplier(this.currentTps, this.currentPingMs)
+                        : 1.0
+        );
+
+        if (cfg != null && cfg.autoSpawnerSafetyEnabled) {
+            SpawnerSafetyGuard.SafetyAlert alert = safetyGuard.evaluate(mc, cfg, lastSafetyHealth);
+            lastSafetyHealth = player.getHealth();
+            if (state == State.PAUSED_SAFETY) {
+                clearMovementFlags();
+                if (alert.isTriggered()) {
+                    safetyPauseReason = alert.reason();
+                    safetyCritical = safetyCritical || alert.critical();
+                    if (cfg.autoSpawnerSafetyAction == 2) {
+                        SpawnerSafetyGuard.notifyDesktopSafety("Sestia - Auto Spawner Safety", alert.reason());
+                        disconnectForSafety(mc, cfg, "Auto Spawner Safety: " + alert.reason());
+                        return;
+                    }
+                }
+                if (cfg.autoSpawnerSafetyAction == 1) {
+                    if (safetyGuard.updateClearCooldown(!alert.isTriggered(), cfg.autoSpawnerSafetyResumeSec, System.currentTimeMillis())) {
+                        resumeFromSafetyPause(mc, level, player);
+                    }
+                } else {
+                    safetyGuard.updateClearCooldown(false, cfg.autoSpawnerSafetyResumeSec, System.currentTimeMillis());
+                }
+                return;
+            } else if (alert.isTriggered()) {
+                closeCurrentContainerIfOpen(mc);
+                clearMovementFlags();
+                nav.activePath = null;
+                SpawnerSafetyGuard.notifyDesktopSafety("Sestia - Auto Spawner Safety", alert.reason());
+                if (cfg.autoSpawnerSafetyAction == 2) {
+                    disconnectForSafety(mc, cfg, "Auto Spawner Safety: " + alert.reason());
+                    return;
+                }
+                enterSafetyPause(mc, alert.reason(), alert.critical());
+                return;
+            }
+        } else {
+            lastSafetyHealth = player.getHealth();
+            if (state == State.PAUSED_SAFETY) {
+                resumeFromSafetyPause(mc, level, player);
+            }
+        }
+
         // Strict InventoryMove prevention: never move while ANY GUI is open
         if (getCurrentScreen(mc) != null) {
             clearMovementFlags();
+        }
+
+        // Pause container clicks, timeouts, and movement cleanly while server packets are stalled
+        if (StatsHudRenderer.isServerFrozen(3000L)) {
+            clearMovementFlags();
+            return;
         }
 
         if (waitTicks > 0) {
@@ -348,6 +885,7 @@ public class AutoSpawnerModule {
                 clearMovementFlags();
                 state = State.SCANNING_ROOM;
             }
+            case PAUSED_SAFETY -> clearMovementFlags();
         }
     }
 
@@ -367,28 +905,39 @@ public class AutoSpawnerModule {
 
         if (found.isEmpty()) {
             lastScanCount = -1;
-            waitTicks = 40; // Retry in 2s if no spawner is in loaded chunks yet
+            waitTicks = scaleTicks(40); // Retry in 2s if no spawner is in loaded chunks yet
             return;
         }
 
         // First scan all spawners and chests in the room before starting navigation
         this.spawners = found;
+        this.spawnersView = Collections.unmodifiableList(this.spawners);
         this.enclosure = SpawnerRoomScanner.computeSpawnerEnclosure(level, player, found, anchor, enclosure);
         this.homePos = anchor;
         this.scannedChests = scanRoomChests(level, player, anchor, this.enclosure);
+        this.scannedChestsView = Collections.unmodifiableList(this.scannedChests);
 
         if (lastScanCount != found.size()) {
             lastScanCount = found.size();
-            waitTicks = 4;
+            waitTicks = scaleTicks(4);
             return;
         }
 
         lastScanCount = -1;
         passNumber++;
+        if (passStartMs > 0L) {
+            lastPassDurationMs = Math.max(1000L, System.currentTimeMillis() - passStartMs);
+        }
+        passStartMs = System.currentTimeMillis();
         this.openedSpawners.clear();
+        this.batchProcessedSpawners.clear();
+        this.quarantinedSpawners.clear();
+        this.reachBatchQueue.clear();
         this.pendingGreenSpawner = null;
         this.spawnerIndex = 0;
         this.spawnerAttempt = 1;
+        this.chestPreferAltSpot = false;
+        nav.decayTilePenalties();
         nav.activePath = null;
         nav.activePathAllowsSpawnerFloor = false;
 
@@ -397,7 +946,88 @@ public class AutoSpawnerModule {
 
     private void prepareSpawnerNavigation(ClientLevel level, LocalPlayer player) {
         clearMovementFlags();
+        clearInteractAimState();
         nav.activePathAllowsSpawnerFloor = true;
+
+        while (spawnerIndex < spawners.size()) {
+            BlockPos cand = spawners.get(spawnerIndex);
+            if (quarantinedSpawners.contains(cand)
+                    || batchProcessedSpawners.contains(cand)
+                    || openedSpawners.contains(cand)) {
+                spawnerIndex++;
+            } else {
+                break;
+            }
+        }
+
+        if (spawnerIndex >= spawners.size() && reachBatchQueue.isEmpty()) {
+            finishAllSpawnersCycle(player);
+            return;
+        }
+
+        ModConfig cfg = ModConfig.getInstance();
+        boolean useReachBatch = cfg == null || cfg.autoSpawnerReachBatch;
+        boolean useAltSpot = spawnerAttempt >= 2 || nav.consumeAltSpotRequested();
+
+        if (useReachBatch && spawnerAttempt == 1 && !useAltSpot) {
+            while (!reachBatchQueue.isEmpty()) {
+                BlockPos queued = reachBatchQueue.poll();
+                if (queued == null
+                        || openedSpawners.contains(queued)
+                        || batchProcessedSpawners.contains(queued)
+                        || quarantinedSpawners.contains(queued)) {
+                    continue;
+                }
+                if (canReachAndRaySpawnerHere(level, player, queued)) {
+                    nav.currentNavTarget = queued;
+                    nav.stopHorizReach = 1.98;
+                    nav.stopEyeReach = 4.35;
+                    state = State.INTERACT_SPAWNER;
+                    return;
+                }
+            }
+
+            if (spawnerIndex < spawners.size()) {
+                BlockPos primary = spawners.get(spawnerIndex);
+                List<BlockPos> rawBatch = SpawnerPathfinder.collectReachableBatch(
+                        player.blockPosition(), spawners, spawnerIndex, openedSpawners, MAX_SPAWNER_BATCH_REACH, 8
+                );
+                List<BlockPos> validBatch = new ArrayList<>(MAX_REACH_BATCH_SIZE);
+                boolean includesPrimary = false;
+                for (BlockPos cand : rawBatch) {
+                    if (cand == null
+                            || batchProcessedSpawners.contains(cand)
+                            || quarantinedSpawners.contains(cand)) {
+                        continue;
+                    }
+                    if (canReachAndRaySpawnerHere(level, player, cand)) {
+                        if (cand.equals(primary)) {
+                            includesPrimary = true;
+                        }
+                        validBatch.add(cand);
+                        if (validBatch.size() >= MAX_REACH_BATCH_SIZE) {
+                            break;
+                        }
+                    }
+                }
+                if (includesPrimary && !validBatch.isEmpty()) {
+                    reachBatchQueue.clear();
+                    for (BlockPos sp : validBatch) {
+                        if (!sp.equals(primary)) {
+                            reachBatchQueue.add(sp);
+                        }
+                    }
+                    nav.currentNavTarget = primary;
+                    nav.stopHorizReach = 1.98;
+                    nav.stopEyeReach = 4.35;
+                    state = State.INTERACT_SPAWNER;
+                    return;
+                }
+            }
+        } else {
+            reachBatchQueue.clear();
+        }
+
         if (spawnerIndex >= spawners.size()) {
             finishAllSpawnersCycle(player);
             return;
@@ -408,14 +1038,14 @@ public class AutoSpawnerModule {
         nav.stopHorizReach = 1.98;
         nav.stopEyeReach = 4.35;
 
-        if (SpawnerNavHelper.isAlreadyInOptimalReach(level, player, targetSpawner, true, spawnerAttempt >= 2, enclosure)) {
+        if (SpawnerNavHelper.isAlreadyInOptimalReach(level, player, targetSpawner, true, useAltSpot, enclosure)) {
             state = State.INTERACT_SPAWNER;
             return;
         }
 
-        List<BlockPos> selectedPath = nav.selectSpawnerPath(level, player, targetSpawner, enclosure, spawnerAttempt >= 2);
+        List<BlockPos> selectedPath = nav.selectSpawnerPath(level, player, targetSpawner, enclosure, useAltSpot);
         if (selectedPath == null || selectedPath.isEmpty()) {
-            if (SpawnerNavHelper.canFallbackInteractDirectly(player, targetSpawner)) {
+            if (!useAltSpot && SpawnerNavHelper.canFallbackInteractDirectly(player, targetSpawner)) {
                 state = State.INTERACT_SPAWNER;
             } else {
                 advanceSpawnerAttemptOrSkip(level, player);
@@ -427,11 +1057,33 @@ public class AutoSpawnerModule {
         state = State.MOVE_TO_SPAWNER;
     }
 
+    private static boolean canReachAndRaySpawnerHere(ClientLevel level, LocalPlayer player, BlockPos sp) {
+        if (level == null || player == null || sp == null) {
+            return false;
+        }
+        Vec3 pos = player.position();
+        boolean onTop = SpawnerNavHelper.isStandingOnTopOfTarget(pos, sp);
+        if (!onTop && SpawnerNavHelper.isSameColumn(pos, sp)) {
+            return false;
+        }
+        Vec3 eye = player.getEyePosition();
+        if (eye.distanceTo(Vec3.atCenterOf(sp)) > MAX_SPAWNER_BATCH_REACH) {
+            return false;
+        }
+        Direction face = SpawnerPathfinder.getExposedSpawnerClickFace(level, player, sp);
+        Vec3 faceCenter = Vec3.atCenterOf(sp).add(face.getStepX() * 0.5, face.getStepY() * 0.5, face.getStepZ() * 0.5);
+        if (SpawnerPathfinder.hasClearClipRaycast(level, eye, faceCenter, sp)) {
+            return true;
+        }
+        BlockPos stand = SpawnerRoomScanner.getSpawnerBotStandPos(level, player, null);
+        return stand != null && SpawnerPathfinder.hasClearLineOfSightToSpawnerOrChest(level, stand, sp);
+    }
+
     private void tickMoveToTarget(Minecraft mc, ClientLevel level, LocalPlayer player, boolean isSpawner) {
         if (getCurrentScreen(mc) != null) {
             closeOpenScreenIfAny(mc, player);
             clearMovementFlags();
-            waitTicks = 2;
+            waitTicks = scaleTicks(2);
             return;
         }
         if (nav.currentNavTarget == null) {
@@ -445,21 +1097,64 @@ public class AutoSpawnerModule {
                 if (isSpawner) {
                     prepareSpawnerNavigation(level, player);
                 } else {
+                    if (nav.consumeAltSpotRequested()) {
+                        chestPreferAltSpot = true;
+                    }
                     state = State.FIND_NEXT_CHEST;
                 }
             }
-            case REACHED -> state = isSpawner ? State.INTERACT_SPAWNER : State.INTERACT_CHEST;
+            case REACHED -> {
+                clearInteractAimState();
+                state = isSpawner ? State.INTERACT_SPAWNER : State.INTERACT_CHEST;
+            }
             case ABORTED -> {
+                boolean quarantine = nav.consumeQuarantineRequested();
                 if (isSpawner) {
-                    advanceSpawnerAttemptOrSkip(level, player);
+                    if (quarantine && nav.currentNavTarget != null) {
+                        quarantineCurrentSpawner(level, player);
+                    } else {
+                        advanceSpawnerAttemptOrSkip(level, player);
+                    }
                 } else {
+                    chestPreferAltSpot = false;
                     chestIndex++;
                     state = State.FIND_NEXT_CHEST;
                 }
             }
             case CONTINUE -> {
+                if (isSpawner) {
+                    ModConfig cfg = ModConfig.getInstance();
+                    if ((cfg == null || cfg.autoSpawnerLegitMode)
+                            && nav.activePath != null
+                            && nav.activePath.size() > 1
+                            && player.getXRot() <= 48.0f) {
+                        Vec3 targetCenter = Vec3.atCenterOf(nav.currentNavTarget);
+                        double destHoriz = Math.hypot(targetCenter.x - player.getX(), targetCenter.z - player.getZ());
+                        if (destHoriz <= 3.5) {
+                            Vec3 eye = player.getEyePosition();
+                            Vec3 lookAhead = nav.getLookAheadTarget(eye, targetCenter);
+                            double ldx = lookAhead.x - eye.x;
+                            double ldz = lookAhead.z - eye.z;
+                            if (Math.hypot(ldx, ldz) > 0.35) {
+                                float destYaw = (float) (Math.toDegrees(Math.atan2(ldz, ldx)) - 90.0);
+                                applyHumanRotation(player, destYaw, 18.0f, true);
+                            }
+                        }
+                    }
+                }
             }
         }
+    }
+
+    private Vec3 computeBlockInteractPoint(BlockPos target, Direction face, boolean legitMode) {
+        if (legitMode) {
+            return SpawnerPathfinder.pickGaussianSubFacePoint(target, face, interactRandom);
+        }
+        return Vec3.atCenterOf(target).add(
+                face.getStepX() * 0.5,
+                face.getStepY() * 0.5,
+                face.getStepZ() * 0.5
+        );
     }
 
     private void tickInteractSpawner(
@@ -471,7 +1166,7 @@ public class AutoSpawnerModule {
         clearMovementFlags();
         if (getCurrentScreen(mc) != null) {
             closeOpenScreenIfAny(mc, player);
-            waitTicks = 4;
+            waitTicks = scaleTicks(4);
             return;
         }
         if (nav.currentNavTarget == null) {
@@ -479,28 +1174,50 @@ public class AutoSpawnerModule {
             return;
         }
 
+        ModConfig cfg = ModConfig.getInstance();
+        boolean legitMode = cfg == null || cfg.autoSpawnerLegitMode;
         Direction clickFace = SpawnerPathfinder.getExposedSpawnerClickFace(level, player, nav.currentNavTarget);
-        Vec3 hitVec = Vec3.atCenterOf(nav.currentNavTarget).add(
-                clickFace.getStepX() * 0.5,
-                clickFace.getStepY() * 0.5,
-                clickFace.getStepZ() * 0.5
-        );
+        if (interactAimPoint == null
+                || !nav.currentNavTarget.equals(interactAimTarget)
+                || clickFace != interactAimFace) {
+            interactAimTarget = nav.currentNavTarget.immutable();
+            interactAimFace = clickFace;
+            interactAimPoint = computeBlockInteractPoint(nav.currentNavTarget, clickFace, legitMode);
+            interactRaycastMissTicks = 0;
+        }
 
-        boolean aimed = lookAtPointGcd(player, hitVec);
-
-        // Wait until smooth human aim converges + 2 settle ticks before interact packet
-        stateTimeoutTicks++;
-        if ((!aimed && stateTimeoutTicks < 28) || stateTimeoutTicks < 3) {
+        if (!SpawnerPathfinder.hasClearClipRaycast(level, player.getEyePosition(), interactAimPoint, nav.currentNavTarget)) {
+            interactRaycastMissTicks++;
+            if (interactRaycastMissTicks < 4) {
+                interactAimPoint = interactRaycastMissTicks == 3
+                        ? computeBlockInteractPoint(nav.currentNavTarget, clickFace, false)
+                        : computeBlockInteractPoint(nav.currentNavTarget, clickFace, legitMode);
+                return;
+            }
+            clearInteractAimState();
+            reachBatchQueue.clear();
+            stateTimeoutTicks = 0;
+            advanceSpawnerAttemptOrSkip(level, player);
             return;
         }
+        interactRaycastMissTicks = 0;
+
+        boolean aimed = lookAtPointGcd(player, interactAimPoint);
+
+        // Wait until smooth human aim converges + settle ticks before interact packet
+        stateTimeoutTicks++;
+        if ((!aimed && stateTimeoutTicks < scaleTicks(28)) || stateTimeoutTicks < scaleTicks(3)) {
+            return;
+        }
+        Vec3 clickPoint = interactAimPoint;
+        clearInteractAimState();
         stateTimeoutTicks = 0;
 
-        BlockHitResult hitResult = new BlockHitResult(hitVec, clickFace, nav.currentNavTarget, false);
+        BlockHitResult hitResult = new BlockHitResult(clickPoint, clickFace, nav.currentNavTarget, false);
         gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hitResult);
         player.swing(InteractionHand.MAIN_HAND, player.getMainHandItem().getInteractAnimation(), false);
 
-        waitTicks = 2;
-        stateTimeoutTicks = 0;
+        waitTicks = scaleTicks(2);
         state = State.WAIT_MANAGEMENT_GUI;
     }
 
@@ -510,17 +1227,17 @@ public class AutoSpawnerModule {
             String titleNorm = normalizeTurkishText(containerScreen.getTitle().getString());
             if (titleNorm.contains("depo")) {
                 resetLootTrackingState();
-                waitTicks = 4;
+                waitTicks = scaleTicks(4);
                 state = State.LOOT_IRON_INGOTS;
                 return;
             }
-            waitTicks = 4;
+            waitTicks = scaleTicks(4);
             state = State.CLICK_OPEN_DEPO;
             return;
         }
 
         stateTimeoutTicks++;
-        if (stateTimeoutTicks > 56) { // ~2.8s timeout
+        if (stateTimeoutTicks > scaleTicks(56)) { // ~2.8s timeout (TPS-scaled)
             stateTimeoutTicks = 0;
             advanceSpawnerAttemptOrSkip(mc.level, player);
         }
@@ -534,6 +1251,16 @@ public class AutoSpawnerModule {
         }
 
         AbstractContainerMenu menu = containerScreen.getMenu();
+        if (!menu.getCarried().isEmpty()) {
+            if (tryReturnCarriedToPlayerInventory(menu, player, gameMode)) {
+                waitTicks = scaleTicks(2);
+                return;
+            }
+            closeOpenScreenIfAny(mc, player);
+            advanceSpawnerAttemptOrSkip(mc.level, player);
+            return;
+        }
+
         int containerEnd = Math.max(0, menu.slots.size() - 36);
         int depoSlot = -1;
 
@@ -579,7 +1306,7 @@ public class AutoSpawnerModule {
         lastManagementContainerId = menu.containerId;
         gameMode.handleContainerInput(menu.containerId, depoSlot, 0, ContainerInput.PICKUP, player);
         stateTimeoutTicks = 0;
-        waitTicks = 3;
+        waitTicks = scaleTicks(3);
         state = State.WAIT_DEPO_GUI;
     }
 
@@ -589,15 +1316,15 @@ public class AutoSpawnerModule {
             AbstractContainerMenu menu = containerScreen.getMenu();
             int invStart = Math.max(0, menu.slots.size() - 36);
             if (menu.containerId != lastManagementContainerId
-                    && (hasAnyContainerItem(menu, invStart) || stateTimeoutTicks >= 12)) {
+                    && (hasAnyContainerItem(menu, invStart) || stateTimeoutTicks >= scaleTicks(12))) {
                 resetLootTrackingState();
-                waitTicks = 3;
+                waitTicks = scaleTicks(3);
                 state = State.LOOT_IRON_INGOTS;
                 return;
             }
         }
         stateTimeoutTicks++;
-        if (stateTimeoutTicks > 70) { // ~3.5s timeout
+        if (stateTimeoutTicks > scaleTicks(70)) { // ~3.5s timeout (TPS-scaled)
             closeOpenScreenIfAny(mc, player);
             stateTimeoutTicks = 0;
             advanceSpawnerAttemptOrSkip(mc.level, player);
@@ -626,7 +1353,6 @@ public class AutoSpawnerModule {
         AbstractContainerMenu menu = containerScreen.getMenu();
         int storageEnd = getStorageEndSlot(menu);
         int invStart = Math.max(0, menu.slots.size() - 36);
-        int invEnd = menu.slots.size();
         int[] depoPage = parseDepoPageInfo(containerScreen.getTitle().getString());
 
         // Wait for server to send the next DEPO page after clicking SONRAKI SAYFA
@@ -644,18 +1370,18 @@ public class AutoSpawnerModule {
                 // Wait for ContainerSetContentPacket on the newly opened page before inspecting slots
                 lootWaitingForPageContent = true;
                 lootContentWaitTicks = 0;
-                waitTicks = 3;
+                waitTicks = scaleTicks(3);
                 return;
             } else {
                 lootNextPageTimeout++;
-                if (lootNextPageTimeout <= 60) {
+                if (lootNextPageTimeout <= scaleTicks(60)) {
                     return;
                 }
                 lootWaitingForPageFrom = -1;
                 lootPageClickContainerId = -1;
                 lootNextPageTimeout = 0;
                 closeOpenScreenIfAny(mc, player);
-                waitTicks = 4;
+                waitTicks = scaleTicks(4);
                 afterSpawnerLooted(mc, player, false);
                 return;
             }
@@ -664,31 +1390,29 @@ public class AutoSpawnerModule {
         // Wait until the new page's container slots have arrived from the server
         if (lootWaitingForPageContent) {
             lootContentWaitTicks++;
-            if (!hasAnyContainerItem(menu, invStart) && lootContentWaitTicks <= 24) {
+            if (!hasAnyContainerItem(menu, invStart) && lootContentWaitTicks <= scaleTicks(24)) {
                 return;
             }
             lootWaitingForPageContent = false;
             lootContentWaitTicks = 0;
-            waitTicks = 1;
+            waitTicks = scaleTicks(1);
             return;
         }
 
         boolean hasExplicitNextButton = findNextDepoPageSlot(menu, storageEnd, invStart, false) != -1;
         boolean hasMoreDepoPages = depoPage != null ? depoPage[0] < depoPage[1] : hasExplicitNextButton;
 
-        // If cursor is holding an item from fallback PICKUP click, place it into first empty player slot
+        // Self-heal carried item desync: drop cursor stack back into a matching or empty player slot first
         if (!menu.getCarried().isEmpty()) {
-            int emptyInv = findFirstEmptyPlayerSlotInMenu(menu, invStart, invEnd);
-            if (emptyInv != -1) {
-                gameMode.handleContainerInput(menu.containerId, emptyInv, 0, ContainerInput.PICKUP, player);
+            if (tryReturnCarriedToPlayerInventory(menu, player, gameMode)) {
                 lootLastClickedSlot = -1;
                 lootLastSlotCount = -1;
                 lootTriedNormalClick = false;
-                waitTicks = 2;
+                waitTicks = scaleTicks(2);
                 return;
             }
             closeOpenScreenIfAny(mc, player);
-            waitTicks = 4;
+            waitTicks = scaleTicks(4);
             afterSpawnerLooted(mc, player, hasMoreDepoPages || hasAnyIronIngotInStorage(menu, storageEnd));
             return;
         }
@@ -703,12 +1427,12 @@ public class AutoSpawnerModule {
                 if (!lootTriedNormalClick) {
                     lootTriedNormalClick = true;
                     gameMode.handleContainerInput(menu.containerId, lootLastClickedSlot, 0, ContainerInput.PICKUP, player);
-                    waitTicks = Math.max(2, clickDelayTicks);
+                    waitTicks = scaleTicks(Math.max(2, clickDelayTicks));
                     return;
                 } else {
                     boolean shouldStay = hasMoreDepoPages || countEmptyPlayerSlots(menu) <= 2;
                     closeOpenScreenIfAny(mc, player);
-                    waitTicks = 4;
+                    waitTicks = scaleTicks(4);
                     afterSpawnerLooted(mc, player, shouldStay);
                     return;
                 }
@@ -730,14 +1454,14 @@ public class AutoSpawnerModule {
         // Only finish the spawner when there are NO iron ingots left AND NO remaining depo pages
         if (targetSlot == -1 && !hasMoreDepoPages) {
             closeOpenScreenIfAny(mc, player);
-            waitTicks = 4;
+            waitTicks = scaleTicks(4);
             afterSpawnerLooted(mc, player, false);
             return;
         }
 
         if (lootSafetyClicks >= 55 || countEmptyPlayerSlots(menu) <= 1) {
             closeOpenScreenIfAny(mc, player);
-            waitTicks = 4;
+            waitTicks = scaleTicks(4);
             afterSpawnerLooted(mc, player, true);
             return;
         }
@@ -752,11 +1476,11 @@ public class AutoSpawnerModule {
                 lootLastSlotCount = -1;
                 lootTriedNormalClick = false;
                 gameMode.handleContainerInput(menu.containerId, nextPageSlot, 0, ContainerInput.PICKUP, player);
-                waitTicks = 2;
+                waitTicks = scaleTicks(2);
                 return;
             }
             closeOpenScreenIfAny(mc, player);
-            waitTicks = 4;
+            waitTicks = scaleTicks(4);
             afterSpawnerLooted(mc, player, false);
             return;
         }
@@ -766,11 +1490,13 @@ public class AutoSpawnerModule {
         lootLastSlotCount = menu.getSlot(targetSlot).getItem().getCount();
         lootTriedNormalClick = false;
         gameMode.handleContainerInput(menu.containerId, targetSlot, 0, ContainerInput.QUICK_MOVE, player);
-        waitTicks = humanDelay(Math.max(2, clickDelayTicks), 2);
+        waitTicks = scaleTicks(humanDelay(Math.max(2, clickDelayTicks), 2));
     }
 
     private void afterSpawnerLooted(Minecraft mc, LocalPlayer player, boolean stayOnCurrentSpawner) {
-        BlockPos curSp = (spawnerIndex >= 0 && spawnerIndex < spawners.size()) ? spawners.get(spawnerIndex) : null;
+        BlockPos curSp = nav.currentNavTarget != null
+                ? nav.currentNavTarget.immutable()
+                : ((spawnerIndex >= 0 && spawnerIndex < spawners.size()) ? spawners.get(spawnerIndex) : null);
         this.waitingToFinishCurrentSpawner = stayOnCurrentSpawner;
         if (stayOnCurrentSpawner) {
             // Stay on the same spawner until all pages & iron are looted
@@ -778,22 +1504,31 @@ public class AutoSpawnerModule {
         } else {
             // Do NOT turn green yet: turn green only after crafting & depositing into chest
             if (curSp != null) {
-                pendingGreenSpawner = curSp.immutable();
+                pendingGreenSpawner = curSp;
+                batchProcessedSpawners.add(curSp);
             }
-            spawnerIndex++;
+            if (curSp == null || (spawnerIndex < spawners.size() && curSp.equals(spawners.get(spawnerIndex)))) {
+                spawnerIndex++;
+            }
+            while (spawnerIndex < spawners.size() && batchProcessedSpawners.contains(spawners.get(spawnerIndex))) {
+                spawnerIndex++;
+            }
             spawnerAttempt = 1;
         }
 
         int currentIngots = countPlayerInventoryItem(player, Items.IRON_INGOT);
         if (currentIngots >= 9) {
+            reachBatchQueue.clear();
             state = State.SEND_CRAFT_CMD;
             return;
         }
 
         int blocksInInv = countPlayerInventoryItem(player, Items.IRON_BLOCK);
         if (blocksInInv > 0 && shouldDepositBlocksNow(player)) {
+            reachBatchQueue.clear();
             candidateChests = List.of();
             chestIndex = 0;
+            chestPreferAltSpot = false;
             state = State.FIND_NEXT_CHEST;
             return;
         }
@@ -808,22 +1543,25 @@ public class AutoSpawnerModule {
     private void finishAllSpawnersCycle(LocalPlayer player) {
         int remIngots = countPlayerInventoryItem(player, Items.IRON_INGOT);
         if (remIngots >= 9) {
+            reachBatchQueue.clear();
             state = State.SEND_CRAFT_CMD;
             return;
         }
         int remBlocks = countPlayerInventoryItem(player, Items.IRON_BLOCK);
         if (remBlocks > 0) {
+            reachBatchQueue.clear();
             candidateChests = List.of();
             chestIndex = 0;
+            chestPreferAltSpot = false;
             state = State.FIND_NEXT_CHEST;
             return;
         }
-        waitTicks = 7; // 350ms before next full pass
-        state = State.COOLDOWN_NEXT_PASS;
+        enterNextPassCooldown(7); // 350ms before next full pass
     }
 
     private void tickSendCraftCmd(Minecraft mc, LocalPlayer player) {
         clearMovementFlags();
+        reachBatchQueue.clear();
         closeOpenScreenIfAny(mc, player);
         ModConfig cfg = ModConfig.getInstance();
         boolean autoCrafterOn = cfg != null && cfg.autoCrafterEnabled;
@@ -833,7 +1571,7 @@ public class AutoSpawnerModule {
         }
         player.connection.sendCommand("craft");
         stateTimeoutTicks = 0;
-        waitTicks = 3;
+        waitTicks = scaleTicks(3);
         state = State.WAIT_CRAFT_GUI;
     }
 
@@ -848,12 +1586,12 @@ public class AutoSpawnerModule {
         if (getCurrentScreen(mc) instanceof AbstractContainerScreen<?> containerScreen
                 && containerScreen.getMenu().slots.size() >= 46) {
             stateTimeoutTicks = 0;
-            waitTicks = 2;
+            waitTicks = scaleTicks(2);
             state = State.CRAFT_SPLIT_AND_FILL;
             return;
         }
         stateTimeoutTicks++;
-        if (stateTimeoutTicks > 110) { // 5.5s timeout
+        if (stateTimeoutTicks > scaleTicks(110)) { // 5.5s timeout (TPS-scaled)
             stateTimeoutTicks = 0;
             afterCraftingCompleted(mc, player);
         }
@@ -871,7 +1609,7 @@ public class AutoSpawnerModule {
         if (cfg == null || !cfg.autoCrafterEnabled) {
             closeOpenScreenIfAny(mc, player);
             stateTimeoutTicks = 0;
-            waitTicks = 4;
+            waitTicks = scaleTicks(4);
             afterCraftingCompleted(mc, player);
             return;
         }
@@ -884,16 +1622,16 @@ public class AutoSpawnerModule {
         if (remainingIngots < 9 && !menu.slots.isEmpty() && menu.getSlot(0).getItem().isEmpty()) {
             closeOpenScreenIfAny(mc, player);
             stateTimeoutTicks = 0;
-            waitTicks = 4;
+            waitTicks = scaleTicks(4);
             afterCraftingCompleted(mc, player);
             return;
         }
 
         stateTimeoutTicks++;
-        if (stateTimeoutTicks > 120) { // 6s safety timeout
+        if (stateTimeoutTicks > scaleTicks(120)) { // 6s safety timeout (TPS-scaled)
             closeOpenScreenIfAny(mc, player);
             stateTimeoutTicks = 0;
-            waitTicks = 4;
+            waitTicks = scaleTicks(4);
             afterCraftingCompleted(mc, player);
         }
     }
@@ -916,28 +1654,29 @@ public class AutoSpawnerModule {
         if (countPlayerInventoryItem(player, Items.IRON_BLOCK) > 0 && shouldDepositBlocksNow(player)) {
             candidateChests = List.of();
             chestIndex = 0;
+            chestPreferAltSpot = false;
             state = State.FIND_NEXT_CHEST;
         } else {
             flushPendingGreenSpawnerIfFinished();
-            if (spawnerIndex < spawners.size()) {
+            if (spawnerIndex < spawners.size() || !reachBatchQueue.isEmpty()) {
                 prepareSpawnerNavigation(mc.level, player);
             } else {
-                waitTicks = 7;
-                state = State.COOLDOWN_NEXT_PASS;
+                enterNextPassCooldown(7);
             }
         }
     }
 
     private void tickFindNextChest(Minecraft mc, ClientLevel level, LocalPlayer player) {
         clearMovementFlags();
+        clearInteractAimState();
+        reachBatchQueue.clear();
         closeOpenScreenIfAny(mc, player);
 
         if (countPlayerInventoryItem(player, Items.IRON_BLOCK) <= 0) {
             if (spawnerIndex < spawners.size()) {
                 prepareSpawnerNavigation(level, player);
             } else {
-                waitTicks = 7;
-                state = State.COOLDOWN_NEXT_PASS;
+                enterNextPassCooldown(7);
             }
             return;
         }
@@ -946,12 +1685,17 @@ public class AutoSpawnerModule {
             if (scannedChests == null || scannedChests.isEmpty()) {
                 BlockPos origin = homePos != null ? homePos : player.blockPosition();
                 scannedChests = scanRoomChests(level, player, origin, enclosure);
+                scannedChestsView = Collections.unmodifiableList(scannedChests);
             }
             List<BlockPos> rawChests = new ArrayList<>(scannedChests);
             if (rawChests.isEmpty()) {
                 rawChests = SpawnerRoomScanner.findNearbyContainerPositions(
                         level, player.position(), homePos != null ? homePos : player.blockPosition(), 26
                 );
+                if (!rawChests.isEmpty()) {
+                    scannedChests = new ArrayList<>(rawChests);
+                    scannedChestsView = Collections.unmodifiableList(scannedChests);
+                }
             }
 
             List<BlockPos> nonFull = new ArrayList<>();
@@ -969,61 +1713,59 @@ public class AutoSpawnerModule {
                 fullOnes.clear();
             }
 
-            // Equal distribution: always prioritize chests with the fewest deposits so far (shuffled among ties)
-            int minDeposits = Integer.MAX_VALUE;
-            for (BlockPos c : nonFull) {
-                int cnt = chestDepositCounts.getOrDefault(c, 0);
-                if (cnt < minDeposits) minDeposits = cnt;
-            }
-            List<BlockPos> leastUsed = new ArrayList<>();
-            List<BlockPos> moreUsed = new ArrayList<>();
-            for (BlockPos c : nonFull) {
-                if (chestDepositCounts.getOrDefault(c, 0) <= minDeposits) {
-                    leastUsed.add(c);
-                } else {
-                    moreUsed.add(c);
-                }
-            }
-            Collections.shuffle(leastUsed, ThreadLocalRandom.current());
-            Collections.shuffle(moreUsed, ThreadLocalRandom.current());
+            // Distance-weighted balanced chest routing: prefer lowest (depositCount * 6.0 + horizDist)
+            double px = player.getX();
+            double pz = player.getZ();
+            Comparator<BlockPos> scoreComparator = Comparator.comparingDouble(c -> {
+                int count = chestDepositCounts.getOrDefault(c, 0);
+                double horizDist = Math.hypot((c.getX() + 0.5) - px, (c.getZ() + 0.5) - pz);
+                return SpawnerPathfinder.scoreChestCandidate(count, horizDist);
+            });
+            nonFull.sort(scoreComparator);
+            fullOnes.sort(scoreComparator);
 
             candidateChests = new ArrayList<>(nonFull.size() + fullOnes.size());
-            candidateChests.addAll(leastUsed);
-            candidateChests.addAll(moreUsed);
+            candidateChests.addAll(nonFull);
             candidateChests.addAll(fullOnes);
         }
 
         if (candidateChests.isEmpty() || chestIndex >= candidateChests.size()) {
             // No accessible chests or all scanned; move on so loop never deadlocks
+            chestPreferAltSpot = false;
             flushPendingGreenSpawnerIfFinished();
             if (spawnerIndex < spawners.size()) {
                 prepareSpawnerNavigation(level, player);
             } else {
-                waitTicks = 20;
-                state = State.COOLDOWN_NEXT_PASS;
+                enterNextPassCooldown(20);
             }
             return;
         }
 
         BlockPos chestPos = candidateChests.get(chestIndex);
+        boolean preferAlt = chestPreferAltSpot;
+        chestPreferAltSpot = false;
         nav.currentNavTarget = chestPos;
+        nav.activePathAllowsSpawnerFloor = true;
         nav.stopHorizReach = 3.65;
         nav.stopEyeReach = 3.95;
 
-        if (SpawnerNavHelper.isAlreadyInOptimalReach(level, player, chestPos, false, false, enclosure)) {
+        if (SpawnerNavHelper.isAlreadyInOptimalReach(level, player, chestPos, false, preferAlt, enclosure)) {
             state = State.INTERACT_CHEST;
             return;
         }
 
         BlockPos startStand = SpawnerRoomScanner.getSpawnerBotStandPos(level, player, enclosure);
         List<SpotCandidate> spots = SpawnerPathfinder.findBestStandSpots(
-                level, player, chestPos, enclosure, false, false, startStand
+                level, player, chestPos, enclosure, false, preferAlt, startStand
         );
 
+        Map<BlockPos, Double> penalties = nav.getActiveTilePenalties();
         List<BlockPos> chosenPath = null;
         for (int i = 0; i < Math.min(spots.size(), 10); i++) {
             SpotCandidate cand = spots.get(i);
-            List<BlockPos> p = SpawnerPathfinder.findSpawnerRoomPath(level, startStand, cand.spot(), enclosure, 2000);
+            List<BlockPos> p = SpawnerPathfinder.findSpawnerRoomPath(
+                    level, startStand, cand.spot(), enclosure, 2000, true, penalties
+            );
             if (p != null) {
                 chosenPath = p.isEmpty() ? List.of(cand.spot()) : p;
                 break;
@@ -1047,7 +1789,7 @@ public class AutoSpawnerModule {
         clearMovementFlags();
         if (getCurrentScreen(mc) != null) {
             closeOpenScreenIfAny(mc, player);
-            waitTicks = 4;
+            waitTicks = scaleTicks(4);
             return;
         }
         if (nav.currentNavTarget == null) {
@@ -1056,21 +1798,50 @@ public class AutoSpawnerModule {
             return;
         }
 
+        ModConfig cfg = ModConfig.getInstance();
+        boolean legitMode = cfg == null || cfg.autoSpawnerLegitMode;
         Direction face = SpawnerPathfinder.getExposedSpawnerClickFace(level, player, nav.currentNavTarget);
-        Vec3 hitVec = Vec3.atCenterOf(nav.currentNavTarget);
-        boolean aimed = lookAtPointGcd(player, hitVec);
+        if (interactAimPoint == null
+                || !nav.currentNavTarget.equals(interactAimTarget)
+                || face != interactAimFace) {
+            interactAimTarget = nav.currentNavTarget.immutable();
+            interactAimFace = face;
+            interactAimPoint = computeBlockInteractPoint(nav.currentNavTarget, face, legitMode);
+            interactRaycastMissTicks = 0;
+        }
 
-        stateTimeoutTicks++;
-        if ((!aimed && stateTimeoutTicks < 28) || stateTimeoutTicks < 3) {
+        if (!SpawnerPathfinder.hasClearClipRaycast(level, player.getEyePosition(), interactAimPoint, nav.currentNavTarget)) {
+            interactRaycastMissTicks++;
+            if (interactRaycastMissTicks < 4) {
+                interactAimPoint = interactRaycastMissTicks == 3
+                        ? computeBlockInteractPoint(nav.currentNavTarget, face, false)
+                        : computeBlockInteractPoint(nav.currentNavTarget, face, legitMode);
+                return;
+            }
+            clearInteractAimState();
+            stateTimeoutTicks = 0;
+            chestPreferAltSpot = true;
+            chestIndex++;
+            state = State.FIND_NEXT_CHEST;
             return;
         }
+        interactRaycastMissTicks = 0;
+
+        boolean aimed = lookAtPointGcd(player, interactAimPoint);
+
+        stateTimeoutTicks++;
+        if ((!aimed && stateTimeoutTicks < scaleTicks(28)) || stateTimeoutTicks < scaleTicks(3)) {
+            return;
+        }
+        Vec3 clickPoint = interactAimPoint;
+        clearInteractAimState();
         stateTimeoutTicks = 0;
 
-        BlockHitResult hit = new BlockHitResult(hitVec, face, nav.currentNavTarget, false);
+        BlockHitResult hit = new BlockHitResult(clickPoint, face, nav.currentNavTarget, false);
         gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
         player.swing(InteractionHand.MAIN_HAND, player.getMainHandItem().getInteractAnimation(), false);
 
-        waitTicks = 2;
+        waitTicks = scaleTicks(2);
         state = State.WAIT_CHEST_GUI;
     }
 
@@ -1080,20 +1851,20 @@ public class AutoSpawnerModule {
             if (isMinerChestWindow(containerScreen)) {
                 closeOpenScreenIfAny(mc, player);
                 chestIndex++;
-                waitTicks = 4;
+                waitTicks = scaleTicks(4);
                 state = State.FIND_NEXT_CHEST;
                 return;
             }
             AbstractContainerMenu menu = containerScreen.getMenu();
             chestDepositSlotIdx = Math.max(0, menu.slots.size() - 36);
             chestPrevSlotCount = -1;
-            waitTicks = 5;
+            waitTicks = scaleTicks(5);
             state = State.DEPOSIT_IRON_BLOCKS;
             return;
         }
 
         stateTimeoutTicks++;
-        if (stateTimeoutTicks > 100) { // ~5s timeout
+        if (stateTimeoutTicks > scaleTicks(100)) { // ~5s timeout (TPS-scaled)
             stateTimeoutTicks = 0;
             chestIndex++;
             state = State.FIND_NEXT_CHEST;
@@ -1111,6 +1882,20 @@ public class AutoSpawnerModule {
         AbstractContainerMenu menu = containerScreen.getMenu();
         int invEnd = menu.slots.size();
 
+        // Self-heal carried item desync BEFORE inspecting previous click or flagging chest full
+        if (!menu.getCarried().isEmpty()) {
+            chestPrevSlotCount = -1;
+            if (tryReturnCarriedToPlayerInventory(menu, player, gameMode)) {
+                waitTicks = scaleTicks(2);
+                return;
+            }
+            closeOpenScreenIfAny(mc, player);
+            chestIndex++;
+            waitTicks = scaleTicks(4);
+            state = State.FIND_NEXT_CHEST;
+            return;
+        }
+
         // Check if the previous click failed to transfer (chest is full)
         if (chestPrevSlotCount != -1 && chestDepositSlotIdx < invEnd) {
             ItemStack prevAfter = menu.getSlot(chestDepositSlotIdx).getItem();
@@ -1124,13 +1909,15 @@ public class AutoSpawnerModule {
                 }
                 closeOpenScreenIfAny(mc, player);
                 chestIndex++;
-                waitTicks = 4;
+                waitTicks = scaleTicks(4);
                 state = State.FIND_NEXT_CHEST;
                 return;
             }
             int remaining = prevAfter.isEmpty() ? 0 : prevAfter.getCount();
             if (chestPrevSlotCount > remaining) {
-                totalDepositedBlocks += (chestPrevSlotCount - remaining);
+                int depositedNow = chestPrevSlotCount - remaining;
+                totalDepositedBlocks += depositedNow;
+                recordDepositedBlocks(depositedNow);
             }
             chestDepositSlotIdx++;
             chestPrevSlotCount = -1;
@@ -1141,7 +1928,7 @@ public class AutoSpawnerModule {
             if (!st.isEmpty() && st.is(Items.IRON_BLOCK)) {
                 chestPrevSlotCount = st.getCount();
                 gameMode.handleContainerInput(menu.containerId, chestDepositSlotIdx, 0, ContainerInput.QUICK_MOVE, player);
-                waitTicks = humanDelay(Math.max(2, clickDelayTicks), 2);
+                waitTicks = scaleTicks(humanDelay(Math.max(2, clickDelayTicks), 2));
                 return;
             }
             chestDepositSlotIdx++;
@@ -1157,16 +1944,16 @@ public class AutoSpawnerModule {
             }
         }
         closeOpenScreenIfAny(mc, player);
-        waitTicks = 4;
+        waitTicks = scaleTicks(4);
         if (countPlayerInventoryItem(player, Items.IRON_BLOCK) <= 0) {
             if (!waitingToFinishCurrentSpawner && pendingGreenSpawner != null) {
                 openedSpawners.add(pendingGreenSpawner);
                 pendingGreenSpawner = null;
             }
-            if (spawnerIndex < spawners.size()) {
+            if (spawnerIndex < spawners.size() || !reachBatchQueue.isEmpty()) {
                 prepareSpawnerNavigation(mc.level, player);
             } else {
-                state = State.COOLDOWN_NEXT_PASS;
+                enterNextPassCooldown(7);
             }
         } else {
             chestIndex++;
@@ -1175,6 +1962,61 @@ public class AutoSpawnerModule {
     }
 
     // --- Helpers ---
+
+    private void enterNextPassCooldown(int baseTicks) {
+        if (passStartMs > 0L) {
+            lastPassDurationMs = Math.max(1000L, System.currentTimeMillis() - passStartMs);
+            passStartMs = 0L;
+        }
+        waitTicks = scaleTicks(baseTicks);
+        state = State.COOLDOWN_NEXT_PASS;
+    }
+
+    private void quarantineCurrentSpawner(ClientLevel level, LocalPlayer player) {
+        BlockPos failed = nav.currentNavTarget != null ? nav.currentNavTarget.immutable() : null;
+        if (failed != null) {
+            quarantinedSpawners.add(failed);
+        }
+        reachBatchQueue.clear();
+        nav.decayTilePenalties();
+        if (failed != null && spawnerIndex < spawners.size() && failed.equals(spawners.get(spawnerIndex))) {
+            spawnerIndex++;
+        }
+        spawnerAttempt = 1;
+        prepareSpawnerNavigation(level, player);
+    }
+
+    private static boolean tryReturnCarriedToPlayerInventory(
+            AbstractContainerMenu menu,
+            LocalPlayer player,
+            MultiPlayerGameMode gameMode
+    ) {
+        ItemStack carried = menu.getCarried();
+        if (carried.isEmpty()) {
+            return false;
+        }
+        int invStart = Math.max(0, menu.slots.size() - 36);
+        int invEnd = menu.slots.size();
+
+        if (carried.isStackable()) {
+            for (int s = invStart; s < invEnd; s++) {
+                ItemStack st = menu.getSlot(s).getItem();
+                if (!st.isEmpty()
+                        && st.getCount() < st.getMaxStackSize()
+                        && ItemStack.isSameItemSameComponents(st, carried)) {
+                    gameMode.handleContainerInput(menu.containerId, s, 0, ContainerInput.PICKUP, player);
+                    return true;
+                }
+            }
+        }
+
+        int emptyInv = findFirstEmptyPlayerSlotInMenu(menu, invStart, invEnd);
+        if (emptyInv != -1) {
+            gameMode.handleContainerInput(menu.containerId, emptyInv, 0, ContainerInput.PICKUP, player);
+            return true;
+        }
+        return false;
+    }
 
     private List<BlockPos> scanRoomChests(
             ClientLevel level,
@@ -1202,13 +2044,24 @@ public class AutoSpawnerModule {
     }
 
     private void advanceSpawnerAttemptOrSkip(ClientLevel level, LocalPlayer player) {
+        BlockPos failed = nav.currentNavTarget != null ? nav.currentNavTarget.immutable() : null;
+        boolean matchesPrimary = failed == null
+                || (spawnerIndex < spawners.size() && failed.equals(spawners.get(spawnerIndex)));
+        if (!matchesPrimary) {
+            reachBatchQueue.clear();
+            spawnerAttempt = 1;
+            waitTicks = scaleTicks(2);
+            prepareSpawnerNavigation(level, player);
+            return;
+        }
         if (spawnerAttempt < 3) {
             spawnerAttempt++;
-            waitTicks = 5;
+            waitTicks = scaleTicks(5);
             prepareSpawnerNavigation(level, player);
         } else {
             spawnerIndex++;
             spawnerAttempt = 1;
+            nav.decayTilePenalties();
             prepareSpawnerNavigation(level, player);
         }
     }
@@ -1231,6 +2084,22 @@ public class AutoSpawnerModule {
         return applyHumanRotation(player, yaw, Mth.clamp(pitch, -90.0f, 90.0f), false);
     }
 
+    private static float computeEaseInOutStep(float delta, float baseSmooth, float maxStep, float gcdStep) {
+        float abs = Math.abs(delta);
+        if (abs <= 1e-4f) {
+            return 0.0f;
+        }
+        float t = Mth.clamp(abs / 45.0f, 0.0f, 1.0f);
+        float ease = t * t * (3.0f - 2.0f * t);
+        float effSmooth = baseSmooth * (0.65f + 0.55f * ease);
+        float cap = abs > 110.0f ? maxStep * 0.85f : maxStep;
+        float step = Math.min(abs * effSmooth, cap);
+        if (abs > gcdStep && step < gcdStep) {
+            step = gcdStep;
+        }
+        return Math.copySign(step, delta);
+    }
+
     public static boolean applyHumanRotation(LocalPlayer player, float targetYaw, float targetPitch, boolean isWalking) {
         Minecraft mc = Minecraft.getInstance();
         float gcdStep = 0.15f;
@@ -1249,8 +2118,8 @@ public class AutoSpawnerModule {
         float maxYawStep = isWalking ? 11.0f : 14.0f;
         float maxPitchStep = isWalking ? 7.0f : 10.0f;
 
-        float stepYaw = Mth.clamp(dYaw * smoothFactor, -maxYawStep, maxYawStep);
-        float stepPitch = Mth.clamp(dPitch * smoothFactor, -maxPitchStep, maxPitchStep);
+        float stepYaw = computeEaseInOutStep(dYaw, smoothFactor, maxYawStep, gcdStep);
+        float stepPitch = computeEaseInOutStep(dPitch, smoothFactor, maxPitchStep, gcdStep);
 
         // Subtle organic curve while turning larger angles, always quantized to mouse GCD
         if (Math.abs(dYaw) > 8.0f) {
@@ -1504,6 +2373,144 @@ public class AutoSpawnerModule {
         return Normalizer.normalize(lower, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
     }
 
+    public static double computeBlocksPerHour(int blocks, long elapsedMs) {
+        if (blocks <= 0 || elapsedMs <= 0L) {
+            return 0.0;
+        }
+        return (blocks * 3_600_000.0) / (double) elapsedMs;
+    }
+
+    public static int computePassEtaSeconds(int remainingSpawners, double avgSecPerSpawner) {
+        if (remainingSpawners <= 0 || !Double.isFinite(avgSecPerSpawner) || avgSecPerSpawner <= 0.0) {
+            return 0;
+        }
+        double sec = remainingSpawners * avgSecPerSpawner;
+        if (!Double.isFinite(sec) || sec <= 0.0) {
+            return 0;
+        }
+        return (int) Math.min(Integer.MAX_VALUE, Math.round(sec));
+    }
+
+    public static int computeChestFillColor(int fullChests, int totalChests) {
+        if (totalChests <= 0 || fullChests <= 0) {
+            return 0xFF4ADE80;
+        }
+        if (fullChests >= totalChests) {
+            return 0xFFEF4444;
+        }
+        return 0xFFFBBF24;
+    }
+
+    private void recordDepositedBlocks(int blocks) {
+        if (blocks <= 0) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        pruneDepositSamples(now);
+        while (depositSamples.size() >= MAX_DEPOSIT_SAMPLES) {
+            depositSamples.pollFirst();
+        }
+        depositSamples.addLast(new DepositSample(now, blocks));
+    }
+
+    private void pruneDepositSamples(long nowMs) {
+        long cutoff = nowMs - RATE_WINDOW_MS;
+        while (!depositSamples.isEmpty() && depositSamples.peekFirst().timestampMs() < cutoff) {
+            depositSamples.pollFirst();
+        }
+    }
+
+    public double getBlocksPerHour() {
+        long now = System.currentTimeMillis();
+        pruneDepositSamples(now);
+        if (depositSamples.isEmpty()) {
+            return 0.0;
+        }
+        int windowBlocks = 0;
+        for (DepositSample sample : depositSamples) {
+            windowBlocks += sample.blocks();
+        }
+        if (windowBlocks <= 0) {
+            return 0.0;
+        }
+        long sessionElapsed = enabledStartMs > 0L
+                ? (now - enabledStartMs)
+                : (now - depositSamples.peekFirst().timestampMs());
+        long windowMs = Math.min(RATE_WINDOW_MS, Math.max(10_000L, sessionElapsed));
+        return computeBlocksPerHour(windowBlocks, windowMs);
+    }
+
+    public double getIngotsPerHour() {
+        return getBlocksPerHour() * 9.0;
+    }
+
+    public int getPassEtaSeconds() {
+        int total = spawners.size();
+        if (total <= 0) {
+            return 0;
+        }
+        int doneOrCurrent = Math.max(openedSpawners.size(), Math.min(total, spawnerIndex));
+        int remaining = Math.max(0, total - doneOrCurrent);
+        if (remaining <= 0) {
+            return 0;
+        }
+        double avgSec;
+        if (spawnerIndex >= 1 && passStartMs > 0L) {
+            double curSec = Math.max(1.0, (System.currentTimeMillis() - passStartMs) / 1000.0);
+            double liveAvg = curSec / Math.max(1, spawnerIndex);
+            if (spawnerIndex < 3 && lastPassDurationMs > 0L) {
+                double prevAvg = (lastPassDurationMs / 1000.0) / total;
+                avgSec = (liveAvg + prevAvg) * 0.5;
+            } else {
+                avgSec = liveAvg;
+            }
+        } else if (lastPassDurationMs > 0L) {
+            avgSec = (lastPassDurationMs / 1000.0) / total;
+        } else {
+            avgSec = DEFAULT_AVG_SEC_PER_SPAWNER;
+        }
+        return computePassEtaSeconds(remaining, avgSec);
+    }
+
+    public int getFullChestCount() {
+        if (scannedChests == null || scannedChests.isEmpty()) {
+            return fullSpawnerChests.size();
+        }
+        int count = 0;
+        for (BlockPos chest : scannedChests) {
+            if (fullSpawnerChests.contains(chest)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public int getScannedChestCount() {
+        return scannedChests != null ? scannedChests.size() : 0;
+    }
+
+    private static String truncateText(String text, int maxLen) {
+        if (text == null) return "";
+        if (text.length() <= maxLen || maxLen <= 3) return text;
+        return text.substring(0, maxLen - 3) + "...";
+    }
+
+    private static String formatMmSs(int totalSeconds) {
+        int sec = Math.max(0, totalSeconds);
+        int mins = sec / 60;
+        int rem = sec % 60;
+        return String.format(Locale.ROOT, "%02d:%02d", mins, rem);
+    }
+
+    private static String formatRateText(double blkPerHr, double ingotPerHr) {
+        long blk = Math.round(Math.max(0.0, blkPerHr));
+        long ing = Math.round(Math.max(0.0, ingotPerHr));
+        String ingStr = ing >= 1000L
+                ? String.format(Locale.ROOT, "%.1fk", ing / 1000.0)
+                : Long.toString(ing);
+        return blk + " blk/h (" + ingStr + ")";
+    }
+
     public String getStatusLabelEnglish() {
         return switch (state) {
             case SCANNING_ROOM -> "Scanning room";
@@ -1514,6 +2521,9 @@ public class AutoSpawnerModule {
             case FIND_NEXT_CHEST, MOVE_TO_CHEST -> "Moving to chest";
             case INTERACT_CHEST, WAIT_CHEST_GUI, DEPOSIT_IRON_BLOCKS -> "Depositing";
             case COOLDOWN_NEXT_PASS -> "Next pass";
+            case PAUSED_SAFETY -> (safetyPauseReason == null || safetyPauseReason.isBlank())
+                    ? "Safety Pause"
+                    : "Safety: " + truncateText(safetyPauseReason, 24);
         };
     }
 
@@ -1525,39 +2535,163 @@ public class AutoSpawnerModule {
     private static final int HUD_DEFAULT_X = 8;
     private static final int HUD_DEFAULT_Y = 128;
 
-    private static List<JelloTheme.HudStatRow> buildHudRows(AutoSpawnerModule mod) {
-        boolean active = mod != null && mod.isEnabled();
-        String spVal = active ? (mod.openedSpawners.size() + "/" + mod.spawners.size()) : "0/64";
-        float spProgress = active
-                ? (mod.spawners.isEmpty() ? 0.0f : (float) mod.openedSpawners.size() / mod.spawners.size())
-                : 0.61f;
-        String statusVal = active ? mod.getStatusLabelEnglish() : "Looting iron";
-        String depVal = active ? Integer.toString(mod.totalDepositedBlocks) : "0";
-        String timeVal = active ? mod.getFormattedElapsedTime() : "00:00";
+    private int cachedTitlePass = -1;
+    private String cachedTitle = "Auto Spawner #1";
 
-        int statusColor = active ? switch (mod.state) {
+    private static String resolveHudTitle(AutoSpawnerModule mod) {
+        if (mod == null || !mod.isEnabled()) {
+            return "Auto Spawner #1";
+        }
+        int pass = Math.max(1, mod.passNumber);
+        if (mod.cachedTitlePass != pass) {
+            mod.cachedTitlePass = pass;
+            mod.cachedTitle = "Auto Spawner #" + pass;
+        }
+        return mod.cachedTitle;
+    }
+
+    private static List<JelloTheme.HudStatRow> buildHudRows(AutoSpawnerModule mod, ModConfig cfg) {
+        ModConfig effectiveCfg = cfg != null ? cfg : ModConfig.getInstance();
+        boolean active = mod != null && mod.isEnabled();
+        boolean detailed = effectiveCfg == null || effectiveCfg.autoSpawnerHudDetailed;
+        boolean showBar = effectiveCfg == null || effectiveCfg.hudUnifiedGlass;
+        int accentHover = JelloTheme.ACCENT_HOVER;
+
+        if (!active) {
+            if (PREVIEW_HUD_CACHE.valid
+                    && !PREVIEW_HUD_CACHE.active
+                    && PREVIEW_HUD_CACHE.detailed == detailed
+                    && PREVIEW_HUD_CACHE.showBar == showBar
+                    && PREVIEW_HUD_CACHE.accentHover == accentHover) {
+                return PREVIEW_HUD_CACHE.rows;
+            }
+            List<JelloTheme.HudStatRow> previewRows = detailed
+                    ? List.of(
+                    new JelloTheme.HudStatRow("Spawner", "0/64", accentHover, 0xFFFFFFFF, showBar ? 0.61f : -1.0f),
+                    new JelloTheme.HudStatRow("Status", "Looting iron", 0xFF22C55E, 0xFF22C55E),
+                    new JelloTheme.HudStatRow("Deposited", "0", 0xFFF59E0B, 0xFFF59E0B),
+                    new JelloTheme.HudStatRow("Rate", "180 blk/h (1.6k)", 0xFF38BDF8, 0xFF38BDF8),
+                    new JelloTheme.HudStatRow("ETA", "~01:15", 0xFF93C5FD, 0xFFFFFFFF),
+                    new JelloTheme.HudStatRow("Chests", "1/6", computeChestFillColor(1, 6), computeChestFillColor(1, 6), showBar ? (1.0f / 6.0f) : -1.0f),
+                    new JelloTheme.HudStatRow("Time", "00:00", 0xFFD8D8D8, 0xFFFFFFFF)
+            )
+                    : List.of(
+                    new JelloTheme.HudStatRow("Spawner", "0/64", accentHover, 0xFFFFFFFF, showBar ? 0.61f : -1.0f),
+                    new JelloTheme.HudStatRow("Status", "Looting iron", 0xFF22C55E, 0xFF22C55E),
+                    new JelloTheme.HudStatRow("Deposited", "0", 0xFFF59E0B, 0xFFF59E0B),
+                    new JelloTheme.HudStatRow("Time", "00:00", 0xFFD8D8D8, 0xFFFFFFFF)
+            );
+            PREVIEW_HUD_CACHE.valid = true;
+            PREVIEW_HUD_CACHE.active = false;
+            PREVIEW_HUD_CACHE.detailed = detailed;
+            PREVIEW_HUD_CACHE.showBar = showBar;
+            PREVIEW_HUD_CACHE.accentHover = accentHover;
+            PREVIEW_HUD_CACHE.rows = previewRows;
+            return previewRows;
+        }
+
+        long nowMs = System.currentTimeMillis();
+        long nowWallSec = nowMs / 1000L;
+        long elapsedSec = mod.enabledStartMs > 0L ? Math.max(0L, (nowMs - mod.enabledStartMs) / 1000L) : 0L;
+        int openedCount = mod.openedSpawners.size();
+        int spawnerTotal = mod.spawners.size();
+        int rawFullSize = mod.fullSpawnerChests.size();
+        int totalChests = mod.getScannedChestCount();
+        String safetyReason = mod.state == State.PAUSED_SAFETY ? mod.safetyPauseReason : "";
+
+        HudRowCache cache = mod.activeHudCache;
+        if (cache.valid
+                && cache.active
+                && cache.detailed == detailed
+                && cache.showBar == showBar
+                && cache.accentHover == accentHover
+                && cache.state == mod.state
+                && cache.safetyCritical == mod.safetyCritical
+                && Objects.equals(cache.safetyReason, safetyReason)
+                && cache.passNumber == mod.passNumber
+                && cache.openedCount == openedCount
+                && cache.spawnerIndex == mod.spawnerIndex
+                && cache.spawnerTotal == spawnerTotal
+                && cache.depositedBlocks == mod.totalDepositedBlocks
+                && cache.rawFullChestsSize == rawFullSize
+                && cache.totalChests == totalChests
+                && cache.wallSecond == nowWallSec
+                && cache.elapsedSec == elapsedSec) {
+            return cache.rows;
+        }
+
+        String spVal = openedCount + "/" + spawnerTotal;
+        float spProgress = spawnerTotal == 0 ? 0.0f : (float) openedCount / spawnerTotal;
+        String statusVal = mod.getStatusLabelEnglish();
+        double blkPerHr = mod.getBlocksPerHour();
+        double ingPerHr = mod.getIngotsPerHour();
+        String depVal = (!detailed && blkPerHr >= 1.0)
+                ? mod.totalDepositedBlocks + " (" + Math.round(blkPerHr) + "/h)"
+                : Integer.toString(mod.totalDepositedBlocks);
+        String timeVal = mod.getFormattedElapsedTime();
+
+        int statusColor = switch (mod.state) {
             case SCANNING_ROOM, MOVE_TO_SPAWNER, INTERACT_SPAWNER, WAIT_MANAGEMENT_GUI,
                     CLICK_OPEN_DEPO, WAIT_DEPO_GUI, LOOT_IRON_INGOTS -> 0xFF22C55E;
             case SEND_CRAFT_CMD, WAIT_CRAFT_GUI, CRAFT_SPLIT_AND_FILL,
                     FIND_NEXT_CHEST, MOVE_TO_CHEST, INTERACT_CHEST, WAIT_CHEST_GUI,
                     DEPOSIT_IRON_BLOCKS -> 0xFFF59E0B;
             case COOLDOWN_NEXT_PASS -> 0xFF38BDF8;
-        } : 0xFF22C55E;
+            case PAUSED_SAFETY -> mod.safetyCritical ? 0xFFEF4444 : 0xFFF59E0B;
+        };
 
-        boolean showBar = ModConfig.getInstance().hudUnifiedGlass;
-        return List.of(
-                new JelloTheme.HudStatRow("Spawner", spVal, JelloTheme.ACCENT_HOVER, 0xFFFFFFFF, showBar ? spProgress : -1.0f),
-                new JelloTheme.HudStatRow("Status", statusVal, statusColor, statusColor),
-                new JelloTheme.HudStatRow("Deposited", depVal, 0xFFF59E0B, 0xFFF59E0B),
-                new JelloTheme.HudStatRow("Time", timeVal, 0xFFD8D8D8, 0xFFFFFFFF)
-        );
+        List<JelloTheme.HudStatRow> built;
+        if (!detailed) {
+            built = List.of(
+                    new JelloTheme.HudStatRow("Spawner", spVal, accentHover, 0xFFFFFFFF, showBar ? spProgress : -1.0f),
+                    new JelloTheme.HudStatRow("Status", statusVal, statusColor, statusColor),
+                    new JelloTheme.HudStatRow("Deposited", depVal, 0xFFF59E0B, 0xFFF59E0B),
+                    new JelloTheme.HudStatRow("Time", timeVal, 0xFFD8D8D8, 0xFFFFFFFF)
+            );
+        } else {
+            String rateVal = formatRateText(blkPerHr, ingPerHr);
+            int etaSec = mod.getPassEtaSeconds();
+            String etaVal = "~" + formatMmSs(etaSec);
+            int fullChests = mod.getFullChestCount();
+            int chestCol = computeChestFillColor(fullChests, totalChests);
+            float chestProgress = totalChests > 0 ? Math.min(1.0f, (float) fullChests / (float) totalChests) : 0.0f;
+
+            built = List.of(
+                    new JelloTheme.HudStatRow("Spawner", spVal, accentHover, 0xFFFFFFFF, showBar ? spProgress : -1.0f),
+                    new JelloTheme.HudStatRow("Status", statusVal, statusColor, statusColor),
+                    new JelloTheme.HudStatRow("Deposited", depVal, 0xFFF59E0B, 0xFFF59E0B),
+                    new JelloTheme.HudStatRow("Rate", rateVal, 0xFF38BDF8, 0xFF38BDF8),
+                    new JelloTheme.HudStatRow("ETA", etaVal, 0xFF93C5FD, 0xFFFFFFFF),
+                    new JelloTheme.HudStatRow("Chests", fullChests + "/" + totalChests, chestCol, chestCol, showBar ? chestProgress : -1.0f),
+                    new JelloTheme.HudStatRow("Time", timeVal, 0xFFD8D8D8, 0xFFFFFFFF)
+            );
+        }
+
+        cache.valid = true;
+        cache.active = true;
+        cache.detailed = detailed;
+        cache.showBar = showBar;
+        cache.accentHover = accentHover;
+        cache.state = mod.state;
+        cache.safetyCritical = mod.safetyCritical;
+        cache.safetyReason = safetyReason;
+        cache.passNumber = mod.passNumber;
+        cache.openedCount = openedCount;
+        cache.spawnerIndex = mod.spawnerIndex;
+        cache.spawnerTotal = spawnerTotal;
+        cache.depositedBlocks = mod.totalDepositedBlocks;
+        cache.rawFullChestsSize = rawFullSize;
+        cache.totalChests = totalChests;
+        cache.wallSecond = nowWallSec;
+        cache.elapsedSec = elapsedSec;
+        cache.rows = built;
+        return built;
     }
 
     public static int[] resolveHudBounds(Font font, int screenW, int screenH, ModConfig cfg) {
         AutoSpawnerModule mod = getInstance();
-        int pass = (mod != null && mod.isEnabled()) ? Math.max(1, mod.passNumber) : 1;
-        String title = "Auto Spawner #" + pass;
-        return resolveHudBoundsForRows(font, screenW, screenH, cfg, title, buildHudRows(mod));
+        String title = resolveHudTitle(mod);
+        return resolveHudBoundsForRows(font, screenW, screenH, cfg, title, buildHudRows(mod, cfg));
     }
 
     private static int[] resolveHudBoundsForRows(
@@ -1587,9 +2721,20 @@ public class AutoSpawnerModule {
         }
 
         ModConfig cfg = ModConfig.getInstance();
-        String title = "Auto Spawner #" + Math.max(1, mod.passNumber);
-        List<JelloTheme.HudStatRow> rows = buildHudRows(mod);
+        boolean safetyPaused = mod.isSafetyPaused();
+        String title = resolveHudTitle(mod);
+        List<JelloTheme.HudStatRow> rows = buildHudRows(mod, cfg);
         int[] bounds = resolveHudBoundsForRows(mc.font, graphics.guiWidth(), graphics.guiHeight(), cfg, title, rows);
+        int headerBg = JelloTheme.hudHeaderBackground(safetyPaused);
         JelloTheme.renderHudCard(graphics, mc.font, bounds[0], bounds[1], bounds[2], bounds[3], title, rows);
+        if (safetyPaused) {
+            int alertBg = JelloTheme.lerpColor(headerBg, 0xF2991B1B, 0.72f);
+            int x = bounds[0];
+            int y = bounds[1];
+            int w = bounds[2];
+            JelloTheme.fillRoundedTop(graphics, x + 1, y + 1, x + w - 1, y + JelloTheme.HUD_CARD_HEADER_HEIGHT, 4, alertBg);
+            JelloTheme.fill(graphics, x + 1, y + JelloTheme.HUD_CARD_HEADER_HEIGHT - 1, x + w - 1, y + JelloTheme.HUD_CARD_HEADER_HEIGHT, 0xFFEF4444);
+            JelloTheme.textCentered(graphics, mc.font, title, x + w / 2, y + 4, 0xFFFFFFFF);
+        }
     }
 }

@@ -130,7 +130,7 @@ public final class HudLayoutPresets {
                 config.autoSpawnerHudX = Math.max(4, safeW - 156);
                 config.autoSpawnerHudY = 4;
                 config.spawnerAutoSellHudX = Math.max(4, safeW - 156);
-                config.spawnerAutoSellHudY = 82;
+                config.spawnerAutoSellHudY = config.autoSpawnerHudDetailed ? 132 : 88;
             }
             case MINIMAL -> {
                 config.hudWatermarkEnabled = true;

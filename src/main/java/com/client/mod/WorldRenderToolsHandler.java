@@ -40,6 +40,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -93,6 +94,48 @@ public final class WorldRenderToolsHandler {
             GizmoStyle.strokeAndFill(0xFF22C55E, 2.0f, 0x3022C55E);
     private static final GizmoStyle SPAWNER_PENDING_STYLE =
             GizmoStyle.strokeAndFill(0xFFEF4444, 2.0f, 0x28EF4444);
+    private static final GizmoStyle SPAWNER_ACTIVE_STYLE =
+            GizmoStyle.strokeAndFill(0xFFE68A1E, 2.4f, 0x40E68A1E);
+    private static final int SAFETY_PULSE_STEPS = 8;
+    private static final GizmoStyle[] SPAWNER_SAFETY_PULSE_STYLES = createSafetyPulseStyles();
+
+    private static final GizmoStyle CHEST_FULL_STYLE =
+            GizmoStyle.strokeAndFill(0xFFEF4444, 2.0f, 0x34EF4444);
+    private static final GizmoStyle CHEST_EMPTY_STYLE =
+            GizmoStyle.strokeAndFill(0xFF10B981, 1.8f, 0x2410B981);
+    private static final GizmoStyle CHEST_LIGHT_STYLE =
+            GizmoStyle.strokeAndFill(0xFF06B6D4, 1.8f, 0x2806B6D4);
+    private static final GizmoStyle CHEST_HEAVY_STYLE =
+            GizmoStyle.strokeAndFill(0xFFF59E0B, 1.9f, 0x30F59E0B);
+
+    private static final int SPAWNER_ACTIVE_PATH_COLOR = 0xFF06B6D4;
+    private static final float SPAWNER_ACTIVE_PATH_WIDTH = 2.2f;
+    private static final int SPAWNER_SNAKE_PREVIEW_COLOR = 0x88F59E0B;
+    private static final float SPAWNER_SNAKE_PREVIEW_WIDTH = 1.6f;
+    private static final int MAX_SNAKE_PREVIEW_NODES = 10;
+    private static final int ENCLOSURE_PERIMETER_COLOR = 0x702DD4BF;
+    private static final float ENCLOSURE_PERIMETER_WIDTH = 1.4f;
+
+    private static GizmoStyle[] createSafetyPulseStyles() {
+        GizmoStyle[] styles = new GizmoStyle[SAFETY_PULSE_STEPS];
+        for (int i = 0; i < SAFETY_PULSE_STEPS; i++) {
+            float t = (float) i / (SAFETY_PULSE_STEPS - 1);
+            int strokeAlpha = Math.round(0x99 + t * (0xFF - 0x99));
+            int fillAlpha = Math.round(0x1C + t * (0x54 - 0x1C));
+            int greenBlue = Math.round(0x44 + t * (0x20 - 0x44));
+            int rgb = (0xFF << 16) | (greenBlue << 8) | greenBlue;
+            float width = 2.0f + t * 0.8f;
+            styles[i] = GizmoStyle.strokeAndFill((strokeAlpha << 24) | rgb, width, (fillAlpha << 24) | rgb);
+        }
+        return styles;
+    }
+
+    static GizmoStyle getSafetyPulseStyle() {
+        int cycle = (SAFETY_PULSE_STEPS - 1) * 2;
+        int step = (int) Math.floorMod(System.currentTimeMillis() / 55L, cycle);
+        int idx = step < SAFETY_PULSE_STEPS ? step : (cycle - step);
+        return SPAWNER_SAFETY_PULSE_STYLES[idx];
+    }
 
     /**
      * Populates a color-coded countdown name tag above primed TNT and TNT minecart render states.
@@ -126,29 +169,207 @@ public final class WorldRenderToolsHandler {
         for (BlockPos spPos : scanned) {
             Gizmos.cuboid(spPos, 0.005f, done.contains(spPos) ? SPAWNER_DONE_STYLE : SPAWNER_PENDING_STYLE);
         }
-        if (path != null && path.size() >= 2) {
-            for (int i = 0; i < path.size() - 1; i++) {
-                BlockPos a = path.get(i);
-                BlockPos b = path.get(i + 1);
-                Gizmos.line(
-                        new Vec3(a.getX() + 0.5, a.getY() + 0.08, a.getZ() + 0.5),
-                        new Vec3(b.getX() + 0.5, b.getY() + 0.08, b.getZ() + 0.5),
-                        0xFF06B6D4,
-                        2.2f
-                );
+        renderBlockPolyline(path, SPAWNER_ACTIVE_PATH_COLOR, SPAWNER_ACTIVE_PATH_WIDTH, 0.08);
+    }
+
+    private static void renderBlockPolyline(List<BlockPos> points, int argb, float width, double yOffset) {
+        if (points == null || points.size() < 2) {
+            return;
+        }
+        for (int i = 0, last = points.size() - 1; i < last; i++) {
+            BlockPos a = points.get(i);
+            BlockPos b = points.get(i + 1);
+            if (a == null || b == null) {
+                continue;
             }
+            Gizmos.line(
+                    new Vec3(a.getX() + 0.5, a.getY() + yOffset, a.getZ() + 0.5),
+                    new Vec3(b.getX() + 0.5, b.getY() + yOffset, b.getZ() + 0.5),
+                    argb,
+                    width
+            );
         }
     }
 
     private static void renderAutoSpawnerEsp(ModConfig cfg) {
+        if (cfg == null) {
+            return;
+        }
         AutoSpawnerModule spawner = AutoSpawnerModule.getInstance();
         if (spawner == null || !spawner.isEnabled() || !cfg.autoSpawnerRenderEsp || PanicHandler.isPanicActive()) {
             return;
         }
-        renderSpawnerBoxesAndPath(spawner.getScannedSpawners(), spawner.getOpenedSpawners(), spawner.getActivePath());
-        for (BlockPos fullChest : spawner.getFullSpawnerChests()) {
-            Gizmos.cuboid(fullChest, 0.005f, SPAWNER_PENDING_STYLE);
+
+        int detail = Math.max(0, Math.min(2, cfg.autoSpawnerEspDetail));
+        BlockPos currentTarget = spawner.getCurrentNavTarget();
+        GizmoStyle activeStyle = spawner.isSafetyPaused() ? getSafetyPulseStyle() : SPAWNER_ACTIVE_STYLE;
+        List<BlockPos> orderedSpawners = spawner.getOrderedSpawners();
+        Set<BlockPos> openedSpawners = spawner.getOpenedSpawners();
+
+        boolean targetHandled = renderAutoSpawnerTargets(orderedSpawners, openedSpawners, currentTarget, activeStyle);
+        renderBlockPolyline(spawner.getActivePath(), SPAWNER_ACTIVE_PATH_COLOR, SPAWNER_ACTIVE_PATH_WIDTH, 0.08);
+
+        if (detail >= 1) {
+            renderAutoSpawnerSnakePreview(orderedSpawners, openedSpawners, spawner.getSpawnerIndex());
+            targetHandled |= renderAutoSpawnerChestHeatmap(
+                    spawner.getScannedChests(),
+                    spawner.getFullSpawnerChests(),
+                    spawner.getChestDepositCounts(),
+                    currentTarget,
+                    activeStyle
+            );
         }
+        if (detail >= 2) {
+            renderEnclosurePerimeter(spawner.getEnclosure());
+        }
+        if (!targetHandled && currentTarget != null) {
+            Gizmos.cuboid(currentTarget, 0.005f, activeStyle);
+        }
+    }
+
+    static boolean renderAutoSpawnerTargets(
+            List<BlockPos> orderedSpawners,
+            Set<BlockPos> openedSpawners,
+            BlockPos currentTarget,
+            GizmoStyle activeStyle
+    ) {
+        if (orderedSpawners == null) {
+            return false;
+        }
+        boolean targetHandled = false;
+        for (int i = 0, n = orderedSpawners.size(); i < n; i++) {
+            BlockPos spPos = orderedSpawners.get(i);
+            if (spPos == null) {
+                continue;
+            }
+            boolean isDone = openedSpawners != null && openedSpawners.contains(spPos);
+            boolean isTarget = currentTarget != null && currentTarget.equals(spPos);
+            if (isTarget) {
+                targetHandled = true;
+            }
+            GizmoStyle style = (isTarget && !isDone)
+                    ? activeStyle
+                    : (isDone ? SPAWNER_DONE_STYLE : SPAWNER_PENDING_STYLE);
+            Gizmos.cuboid(spPos, 0.005f, style);
+        }
+        return targetHandled;
+    }
+
+    static void renderAutoSpawnerSnakePreview(
+            List<BlockPos> orderedSpawners,
+            Set<BlockPos> openedSpawners,
+            int spawnerIndex
+    ) {
+        if (orderedSpawners == null || orderedSpawners.isEmpty()) {
+            return;
+        }
+        int startIdx = Math.max(0, spawnerIndex);
+        BlockPos prevPending = null;
+        int previewCount = 0;
+        for (int i = startIdx, n = orderedSpawners.size(); i < n && previewCount < MAX_SNAKE_PREVIEW_NODES; i++) {
+            BlockPos spPos = orderedSpawners.get(i);
+            if (spPos == null || (openedSpawners != null && openedSpawners.contains(spPos))) {
+                continue;
+            }
+            if (prevPending != null) {
+                Gizmos.line(
+                        new Vec3(prevPending.getX() + 0.5, prevPending.getY() + 0.5, prevPending.getZ() + 0.5),
+                        new Vec3(spPos.getX() + 0.5, spPos.getY() + 0.5, spPos.getZ() + 0.5),
+                        SPAWNER_SNAKE_PREVIEW_COLOR,
+                        SPAWNER_SNAKE_PREVIEW_WIDTH
+                );
+            }
+            prevPending = spPos;
+            previewCount++;
+        }
+    }
+
+    static boolean renderAutoSpawnerChestHeatmap(
+            List<BlockPos> scannedChests,
+            Set<BlockPos> fullChests,
+            Map<BlockPos, Integer> depositCounts,
+            BlockPos currentTarget,
+            GizmoStyle activeStyle
+    ) {
+        boolean targetHandled = false;
+        boolean hasFullChests = fullChests != null && !fullChests.isEmpty();
+        int matchedFull = 0;
+        if (scannedChests != null) {
+            for (int i = 0, n = scannedChests.size(); i < n; i++) {
+                BlockPos chestPos = scannedChests.get(i);
+                if (chestPos == null) {
+                    continue;
+                }
+                boolean isFull = hasFullChests && fullChests.contains(chestPos);
+                if (isFull) {
+                    matchedFull++;
+                }
+                if (currentTarget != null && currentTarget.equals(chestPos)) {
+                    targetHandled = true;
+                    Gizmos.cuboid(chestPos, 0.005f, activeStyle);
+                    continue;
+                }
+                Gizmos.cuboid(chestPos, 0.005f, isFull ? CHEST_FULL_STYLE : resolveChestHeatStyle(chestPos, null, depositCounts));
+            }
+        }
+        if (hasFullChests && matchedFull < fullChests.size()) {
+            for (BlockPos fullPos : fullChests) {
+                if (fullPos == null || (scannedChests != null && scannedChests.contains(fullPos))) {
+                    continue;
+                }
+                if (currentTarget != null && currentTarget.equals(fullPos)) {
+                    targetHandled = true;
+                    Gizmos.cuboid(fullPos, 0.005f, activeStyle);
+                    continue;
+                }
+                Gizmos.cuboid(fullPos, 0.005f, CHEST_FULL_STYLE);
+            }
+        }
+        return targetHandled;
+    }
+
+    static GizmoStyle resolveChestHeatStyle(
+            BlockPos chestPos,
+            Set<BlockPos> fullChests,
+            Map<BlockPos, Integer> depositCounts
+    ) {
+        if (fullChests != null && fullChests.contains(chestPos)) {
+            return CHEST_FULL_STYLE;
+        }
+        Integer countObj = depositCounts != null ? depositCounts.get(chestPos) : null;
+        int deposits = countObj != null ? countObj : 0;
+        if (deposits <= 0) {
+            return CHEST_EMPTY_STYLE;
+        }
+        if (deposits <= 2) {
+            return CHEST_LIGHT_STYLE;
+        }
+        return CHEST_HEAVY_STYLE;
+    }
+
+    static boolean isValidEnclosure(SpawnerRoomScanner.SpawnerEnclosure enc) {
+        return enc != null
+                && enc.minX <= enc.maxX
+                && enc.minZ <= enc.maxZ
+                && enc.minY <= enc.maxY
+                && (long) enc.maxX - enc.minX <= 256L
+                && (long) enc.maxZ - enc.minZ <= 256L;
+    }
+
+    static void renderEnclosurePerimeter(SpawnerRoomScanner.SpawnerEnclosure enc) {
+        if (!isValidEnclosure(enc)) {
+            return;
+        }
+        double y = enc.floorY + 0.04;
+        drawHorizontalRect(
+                enc.minX,
+                enc.minZ,
+                enc.maxX + 1.0,
+                enc.maxZ + 1.0,
+                y,
+                ENCLOSURE_PERIMETER_COLOR,
+                ENCLOSURE_PERIMETER_WIDTH
+        );
     }
 
     public static void clearLightCache() {

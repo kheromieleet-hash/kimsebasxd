@@ -30,8 +30,8 @@ public class StatsHudRenderer {
 
     private static final float[] TICK_RATES = new float[20];
     private static int nextIndex = 0;
-    private static long timeLastTimeUpdate = -1L;
-    private static long timeGameJoined = -1L;
+    private static volatile long timeLastTimeUpdate = -1L;
+    private static volatile long timeGameJoined = -1L;
 
     public static void onGameJoin() {
         Arrays.fill(TICK_RATES, 0.0f);
@@ -70,6 +70,57 @@ public class StatsHudRenderer {
             }
         }
         return count > 0 ? (sum / (float) count) : 20.0f;
+    }
+
+    /**
+     * Returns milliseconds elapsed since the last server time packet, or 0 during initial join grace period.
+     */
+    public static long getMsSinceLastTimePacket() {
+        long lastUpdate = timeLastTimeUpdate;
+        if (lastUpdate <= 0L) {
+            return 0L;
+        }
+        long now = System.currentTimeMillis();
+        long joined = timeGameJoined;
+        if (joined > 0L && (now - joined) < 4000L) {
+            return 0L;
+        }
+        return Math.max(0L, now - lastUpdate);
+    }
+
+    /**
+     * Returns true when in-world and the server has not sent a time update for at least max(1000, thresholdMs) ms.
+     */
+    public static boolean isServerFrozen(long thresholdMs) {
+        if (getMsSinceLastTimePacket() < Math.max(1000L, thresholdMs)) {
+            return false;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        return mc != null && mc.player != null && mc.level != null;
+    }
+
+    /**
+     * Computes a bounded delay multiplier [1.0, 3.0] based on live server TPS and client ping.
+     */
+    public static double computeTpsDelayMultiplier(float tps, int pingMs) {
+        if (Float.isNaN(tps)) {
+            return 1.0;
+        }
+        if (tps >= 19.0f && pingMs <= 120) {
+            return 1.0;
+        }
+        double raw = (20.0 / Math.max(5.0, (double) tps)) + (Math.max(0, pingMs - 100) / 400.0);
+        return Math.min(3.0, Math.max(1.0, raw));
+    }
+
+    /**
+     * Scales tick delays/timeouts when adaptive TPS pacing is enabled.
+     */
+    public static int scaleAdaptiveTicks(int baseTicks, float tps, int pingMs, boolean enabled) {
+        if (!enabled || baseTicks <= 0) {
+            return baseTicks;
+        }
+        return (int) Math.ceil(baseTicks * computeTpsDelayMultiplier(tps, pingMs));
     }
 
     public static void render(GuiGraphicsExtractor graphics) {

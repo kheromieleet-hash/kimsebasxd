@@ -566,7 +566,7 @@ public class SpawnerAutoSellModule {
             List<JelloTheme.HudStatRow> rows
     ) {
         boolean autoSpawnerActive = AutoSpawnerModule.getInstance() != null && AutoSpawnerModule.getInstance().isEnabled();
-        int defaultY = (editorMode || autoSpawnerActive) ? 206 : 128;
+        int defaultY = (editorMode || autoSpawnerActive) ? ((cfg == null || cfg.autoSpawnerHudDetailed) ? 256 : 206) : 128;
         int cfgX = cfg != null ? cfg.spawnerAutoSellHudX : -1;
         int cfgY = cfg != null ? cfg.spawnerAutoSellHudY : -1;
         return JelloTheme.resolveHudCardBounds(
