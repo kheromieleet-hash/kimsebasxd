@@ -7,6 +7,7 @@ import net.minecraft.gizmos.Gizmos;
 import net.minecraft.gizmos.SimpleGizmoCollector;
 import net.minecraft.world.phys.Vec3;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.AbstractSet;
 import java.util.ArrayList;
@@ -63,6 +64,7 @@ public class AutoSpawnerTest {
         testTpsPingAdaptiveAndFreezeDetection();
         testLegitKinematicsAndNonSnapDisable();
         testReachBatchingAndWeightedChestRouting();
+        testChatPauseAndResume();
         System.out.println("ALL AutoSpawnerTest ASSERTIONS PASSED!");
     }
 
@@ -874,5 +876,72 @@ public class AutoSpawnerTest {
         assert Math.abs(usedNear - 9.0) < 1e-6;
         assert emptyNear < emptyFar && emptyFar < usedNear
                 : "Empty far chest (7.5) should beat already-used near chest (9.0)";
+    }
+
+    private static void testChatPauseAndResume() {
+        assert !AutoSpawnerModule.isChatScreen(null) : "null screen must not be treated as ChatScreen";
+
+        AutoSpawnerModule mod = AutoSpawnerModule.getInstance();
+        ModConfig cfg = ModConfig.getInstance();
+        cfg.autoSpawnerHudDetailed = true;
+        mod.onEnable();
+        try {
+            Field stateField = AutoSpawnerModule.class.getDeclaredField("state");
+            Field spawnerIdxField = AutoSpawnerModule.class.getDeclaredField("spawnerIndex");
+            Field navField = AutoSpawnerModule.class.getDeclaredField("nav");
+            Field waitTicksField = AutoSpawnerModule.class.getDeclaredField("waitTicks");
+            stateField.setAccessible(true);
+            spawnerIdxField.setAccessible(true);
+            navField.setAccessible(true);
+            waitTicksField.setAccessible(true);
+
+            stateField.set(mod, AutoSpawnerModule.State.MOVE_TO_SPAWNER);
+            spawnerIdxField.setInt(mod, 4);
+            SpawnerNavHelper nav = (SpawnerNavHelper) navField.get(mod);
+            nav.moveForward = true;
+            nav.wantSprint = true;
+
+            Method buildHudRows = AutoSpawnerModule.class.getDeclaredMethod(
+                    "buildHudRows", AutoSpawnerModule.class, ModConfig.class);
+            buildHudRows.setAccessible(true);
+            Object beforeRows = buildHudRows.invoke(null, mod, cfg);
+
+            boolean paused = mod.updateChatPauseState(true);
+            assert paused : "updateChatPauseState(true) must return true and hold tick progression";
+            assert mod.isChatPaused() : "chatPaused must be true while chat is open";
+            assert !mod.isActiveLockingMouse() : "Mouse lock must release while chat is open";
+            assert !mod.isControllingMovement() : "Movement override must release while chat is open";
+            assert !mod.wantsMoveForward() && !mod.wantsSprint() : "Movement flags must clear on chat pause";
+            assert "Paused (Chat)".equals(mod.getStatusLabelEnglish())
+                    : "Expected 'Paused (Chat)' status, got " + mod.getStatusLabelEnglish();
+            assert stateField.get(mod) == AutoSpawnerModule.State.MOVE_TO_SPAWNER
+                    && mod.getSpawnerIndex() == 4
+                    : "Chat pause must preserve exact mid-run state and spawner index";
+
+            Object pausedRows = buildHudRows.invoke(null, mod, cfg);
+            assert pausedRows != beforeRows : "HUD cache must invalidate when entering chat pause";
+
+            boolean stillPaused = mod.updateChatPauseState(false);
+            assert !stillPaused : "updateChatPauseState(false) must resume";
+            assert !mod.isChatPaused() : "chatPaused must clear when chat closes";
+            assert stateField.get(mod) == AutoSpawnerModule.State.MOVE_TO_SPAWNER
+                    && mod.getSpawnerIndex() == 4
+                    : "Closing chat must resume from exact saved state and spawner index";
+            assert waitTicksField.getInt(mod) >= 2 : "Closing chat should apply a brief settle delay";
+            assert "Moving to spawner".equals(mod.getStatusLabelEnglish())
+                    : "Expected 'Moving to spawner' after resume, got " + mod.getStatusLabelEnglish();
+
+            Object resumedRows = buildHudRows.invoke(null, mod, cfg);
+            assert resumedRows != pausedRows : "HUD cache must invalidate when resuming from chat pause";
+
+            assert mod.updateChatPauseState(true);
+            assert mod.isChatPaused();
+            mod.onDisable();
+            assert !mod.isChatPaused() : "onDisable must clear chatPaused";
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Failed to reflect AutoSpawnerModule chat pause state", e);
+        } finally {
+            mod.onDisable();
+        }
     }
 }

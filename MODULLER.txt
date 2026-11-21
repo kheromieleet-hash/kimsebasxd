@@ -291,6 +291,9 @@ Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
       - TPS Adaptive: Sunucu TPS degerine gore tiklama ve zaman asimi olcegi.
       - Reconnect Resume: Dunyadan cikista oturum durumunu koruyup ayni oda
         yakinina donunce otomatik devam eder.
+      - Sohbet Duraklatma: Modul acikken sohbet ekrani acildiginda otomatik
+        olarak duraklar (Paused (Chat)) ve sohbet kapatilinca kaldigi
+        adimdan devam eder.
 
 
 --------------------------------------------------------------------------------

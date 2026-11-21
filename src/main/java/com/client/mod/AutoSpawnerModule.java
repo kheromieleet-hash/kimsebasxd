@@ -5,6 +5,7 @@ import com.client.mod.SpawnerRoomScanner.SpawnerEnclosure;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -213,6 +214,7 @@ public class AutoSpawnerModule {
     private boolean pendingCheckpointResume = false;
     private int checkpointResumeWaitTicks = 0;
     private boolean suppressNextLeftWorldCheckpoint = false;
+    private boolean chatPaused = false;
 
     private static final class HudRowCache {
         boolean valid = false;
@@ -221,6 +223,7 @@ public class AutoSpawnerModule {
         boolean showBar = true;
         int accentHover = 0;
         State state = State.SCANNING_ROOM;
+        boolean chatPaused = false;
         String safetyReason = "";
         boolean safetyCritical = false;
         int passNumber = 0;
@@ -254,11 +257,37 @@ public class AutoSpawnerModule {
         return state == State.PAUSED_SAFETY;
     }
 
+    public boolean isChatPaused() {
+        return chatPaused;
+    }
+
+    public static boolean isChatScreen(Screen screen) {
+        return screen instanceof ChatScreen;
+    }
+
+    private static boolean isChatScreenOpen(Minecraft mc) {
+        return isChatScreen(getCurrentScreen(mc));
+    }
+
+    boolean updateChatPauseState(boolean chatOpen) {
+        if (chatOpen) {
+            this.chatPaused = true;
+            clearMovementFlags();
+            return true;
+        }
+        if (this.chatPaused) {
+            this.chatPaused = false;
+            clearInteractAimState();
+            this.waitTicks = Math.max(this.waitTicks, 2);
+        }
+        return false;
+    }
+
     public boolean isActiveLockingMouse() {
-        if (state == State.PAUSED_SAFETY) {
+        Minecraft mc = Minecraft.getInstance();
+        if (state == State.PAUSED_SAFETY || chatPaused || isChatScreenOpen(mc)) {
             return false;
         }
-        Minecraft mc = Minecraft.getInstance();
         ModConfig cfg = ModConfig.getInstance();
         boolean activeLock = cfg != null ? (cfg.autoSpawnerEnabled && cfg.autoSpawnerLockMouse) : (enabled && lockMouse);
         return enabled && activeLock && !PanicHandler.isPanicActive()
@@ -266,10 +295,10 @@ public class AutoSpawnerModule {
     }
 
     public boolean isControllingMovement() {
-        if (state == State.PAUSED_SAFETY) {
+        Minecraft mc = Minecraft.getInstance();
+        if (state == State.PAUSED_SAFETY || chatPaused || isChatScreenOpen(mc)) {
             return false;
         }
-        Minecraft mc = Minecraft.getInstance();
         ModConfig cfg = ModConfig.getInstance();
         boolean cfgEnabled = cfg == null || cfg.autoSpawnerEnabled;
         return enabled && cfgEnabled && !PanicHandler.isPanicActive()
@@ -541,6 +570,7 @@ public class AutoSpawnerModule {
         fullSpawnerChests.clear();
         chestDepositCounts.clear();
         openedSpawners.clear();
+        chatPaused = false;
         activeHudCache.invalidate();
     }
 
@@ -705,6 +735,7 @@ public class AutoSpawnerModule {
         }
         this.safetyPauseReason = reason != null ? reason : "Safety alert";
         this.safetyCritical = critical;
+        this.chatPaused = false;
         this.state = State.PAUSED_SAFETY;
         this.waitTicks = 0;
         this.stateTimeoutTicks = 0;
@@ -847,6 +878,11 @@ public class AutoSpawnerModule {
             if (state == State.PAUSED_SAFETY) {
                 resumeFromSafetyPause(mc, level, player);
             }
+        }
+
+        // Pause cleanly when the chat screen is open, then resume from exact state when closed
+        if (updateChatPauseState(isChatScreenOpen(mc))) {
+            return;
         }
 
         // Strict InventoryMove prevention: never move while ANY GUI is open
@@ -2512,6 +2548,9 @@ public class AutoSpawnerModule {
     }
 
     public String getStatusLabelEnglish() {
+        if (state != State.PAUSED_SAFETY && chatPaused) {
+            return "Paused (Chat)";
+        }
         return switch (state) {
             case SCANNING_ROOM -> "Scanning room";
             case MOVE_TO_SPAWNER -> "Moving to spawner";
@@ -2606,6 +2645,7 @@ public class AutoSpawnerModule {
                 && cache.showBar == showBar
                 && cache.accentHover == accentHover
                 && cache.state == mod.state
+                && cache.chatPaused == mod.chatPaused
                 && cache.safetyCritical == mod.safetyCritical
                 && Objects.equals(cache.safetyReason, safetyReason)
                 && cache.passNumber == mod.passNumber
@@ -2630,7 +2670,9 @@ public class AutoSpawnerModule {
                 : Integer.toString(mod.totalDepositedBlocks);
         String timeVal = mod.getFormattedElapsedTime();
 
-        int statusColor = switch (mod.state) {
+        int statusColor = (mod.chatPaused && mod.state != State.PAUSED_SAFETY)
+                ? 0xFF38BDF8
+                : switch (mod.state) {
             case SCANNING_ROOM, MOVE_TO_SPAWNER, INTERACT_SPAWNER, WAIT_MANAGEMENT_GUI,
                     CLICK_OPEN_DEPO, WAIT_DEPO_GUI, LOOT_IRON_INGOTS -> 0xFF22C55E;
             case SEND_CRAFT_CMD, WAIT_CRAFT_GUI, CRAFT_SPLIT_AND_FILL,
@@ -2673,6 +2715,7 @@ public class AutoSpawnerModule {
         cache.showBar = showBar;
         cache.accentHover = accentHover;
         cache.state = mod.state;
+        cache.chatPaused = mod.chatPaused;
         cache.safetyCritical = mod.safetyCritical;
         cache.safetyReason = safetyReason;
         cache.passNumber = mod.passNumber;
