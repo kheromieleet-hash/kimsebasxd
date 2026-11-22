@@ -195,6 +195,8 @@ public class AutoSpawnerModule {
     private int lootNextPageTimeout = 0;
     private boolean lootWaitingForPageContent = false;
     private int lootContentWaitTicks = 0;
+    private int craftAwaitServerTicks = 0;
+    private int craftStuckTakeRetries = 0;
 
     // Chest Deposit & Economy Tracking
     private final Set<BlockPos> fullSpawnerChests = new HashSet<>();
@@ -573,6 +575,8 @@ public class AutoSpawnerModule {
         lootNextPageTimeout = 0;
         lootWaitingForPageContent = false;
         lootContentWaitTicks = 0;
+        craftAwaitServerTicks = 0;
+        craftStuckTakeRetries = 0;
         scannedChests = new ArrayList<>();
         scannedChestsView = Collections.unmodifiableList(scannedChests);
         candidateChests = new ArrayList<>();
@@ -1646,6 +1650,8 @@ public class AutoSpawnerModule {
         }
         player.connection.sendCommand("craft");
         stateTimeoutTicks = 0;
+        craftAwaitServerTicks = 0;
+        craftStuckTakeRetries = 0;
         waitTicks = 0;
         state = State.WAIT_CRAFT_GUI;
     }
@@ -1656,9 +1662,11 @@ public class AutoSpawnerModule {
                 && containerScreen.getMenu() instanceof AbstractCraftingMenu craftingMenu
                 && craftingMenu.slots.size() >= 46) {
             stateTimeoutTicks = 0;
+            craftAwaitServerTicks = 0;
+            craftStuckTakeRetries = 0;
             waitTicks = 0;
             state = State.CRAFT_SPLIT_AND_FILL;
-            craftIronBlocksTurbo(mc, player, craftingMenu);
+            craftIronBlocksSyncSafe(mc, player, craftingMenu);
             return;
         }
         stateTimeoutTicks++;
@@ -1672,23 +1680,37 @@ public class AutoSpawnerModule {
         clearMovementFlags();
         if (!(getCurrentScreen(mc) instanceof AbstractContainerScreen<?> containerScreen)) {
             stateTimeoutTicks = 0;
+            craftAwaitServerTicks = 0;
+            craftStuckTakeRetries = 0;
             afterCraftingCompleted(mc, player);
             return;
         }
 
         AbstractContainerMenu menu = containerScreen.getMenu();
-        boolean didCraft = false;
+        boolean craftBusy = false;
         if (menu instanceof AbstractCraftingMenu craftingMenu) {
-            didCraft = craftIronBlocksTurbo(mc, player, craftingMenu);
+            craftBusy = craftIronBlocksSyncSafe(mc, player, craftingMenu);
+        }
+
+        if (craftStuckTakeRetries >= 3) {
+            closeOpenScreenIfAny(mc, player);
+            stateTimeoutTicks = 0;
+            craftAwaitServerTicks = 0;
+            craftStuckTakeRetries = 0;
+            waitTicks = 0;
+            afterCraftingCompleted(mc, player);
+            return;
         }
 
         int invStart = Math.max(0, menu.slots.size() - 36);
         int invEnd = menu.slots.size();
         int remainingIngots = countIngotsInCraftingMenu(menu, invStart, invEnd);
 
-        if (!didCraft && remainingIngots < 9 && !menu.slots.isEmpty() && menu.getSlot(0).getItem().isEmpty()) {
+        if (!craftBusy && remainingIngots < 9 && !menu.slots.isEmpty() && menu.getSlot(0).getItem().isEmpty()) {
             closeOpenScreenIfAny(mc, player);
             stateTimeoutTicks = 0;
+            craftAwaitServerTicks = 0;
+            craftStuckTakeRetries = 0;
             waitTicks = 0;
             afterCraftingCompleted(mc, player);
             return;
@@ -1698,6 +1720,8 @@ public class AutoSpawnerModule {
         if (stateTimeoutTicks > scaleTicks(100)) { // 5s safety timeout (TPS-scaled)
             closeOpenScreenIfAny(mc, player);
             stateTimeoutTicks = 0;
+            craftAwaitServerTicks = 0;
+            craftStuckTakeRetries = 0;
             waitTicks = 0;
             afterCraftingCompleted(mc, player);
         }
@@ -1747,7 +1771,7 @@ public class AutoSpawnerModule {
         return null;
     }
 
-    private static boolean craftIronBlocksTurbo(
+    private boolean craftIronBlocksSyncSafe(
             Minecraft mc,
             LocalPlayer player,
             AbstractCraftingMenu craftingMenu
@@ -1755,11 +1779,33 @@ public class AutoSpawnerModule {
         if (mc.gameMode == null || mc.level == null || craftingMenu.slots.isEmpty()) {
             return false;
         }
-        boolean didAct = false;
 
-        if (craftingMenu.getSlot(0).hasItem() && craftingMenu.getSlot(0).getItem().is(Items.IRON_BLOCK)) {
+        ItemStack resultSlot = craftingMenu.getSlot(0).getItem();
+        if (!resultSlot.isEmpty() && resultSlot.is(Items.IRON_BLOCK)) {
+            craftAwaitServerTicks = 0;
+            int beforeCount = resultSlot.getCount();
             mc.gameMode.handleContainerInput(craftingMenu.containerId, 0, 0, ContainerInput.QUICK_MOVE, player);
-            didAct = true;
+            ItemStack afterSlot = craftingMenu.getSlot(0).getItem();
+            if (!afterSlot.isEmpty() && afterSlot.is(Items.IRON_BLOCK) && afterSlot.getCount() == beforeCount) {
+                craftStuckTakeRetries++;
+                return true;
+            }
+            craftStuckTakeRetries = 0;
+            int invStart = Math.max(0, craftingMenu.slots.size() - 36);
+            int remaining = countIngotsInCraftingMenu(craftingMenu, invStart, craftingMenu.slots.size());
+            if (remaining >= 9) {
+                RecipeDisplayId recipeId = findIronBlockRecipeId(mc, player, craftingMenu);
+                if (recipeId != null) {
+                    mc.gameMode.handlePlaceRecipe(craftingMenu.containerId, recipeId, true);
+                    craftAwaitServerTicks = Math.max(2, scaleTicks(3));
+                }
+            }
+            return true;
+        }
+
+        if (craftAwaitServerTicks > 0) {
+            craftAwaitServerTicks--;
+            return true;
         }
 
         int invStart = Math.max(0, craftingMenu.slots.size() - 36);
@@ -1767,15 +1813,12 @@ public class AutoSpawnerModule {
         if (availIngots >= 9) {
             RecipeDisplayId recipeId = findIronBlockRecipeId(mc, player, craftingMenu);
             if (recipeId != null) {
-                int batches = Math.min(4, Math.max(1, (availIngots / 9 + 63) / 64));
-                for (int b = 0; b < batches; b++) {
-                    mc.gameMode.handlePlaceRecipe(craftingMenu.containerId, recipeId, true);
-                    mc.gameMode.handleContainerInput(craftingMenu.containerId, 0, 0, ContainerInput.QUICK_MOVE, player);
-                    didAct = true;
-                }
+                mc.gameMode.handlePlaceRecipe(craftingMenu.containerId, recipeId, true);
+                craftAwaitServerTicks = Math.max(2, scaleTicks(3));
+                return true;
             }
         }
-        return didAct;
+        return false;
     }
 
     private boolean shouldDepositBlocksNow(LocalPlayer player) {
