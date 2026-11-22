@@ -467,18 +467,15 @@ public final class SpawnerNavHelper {
         }
         float sway = (destHoriz > 4.0) ? (float) (Math.sin(this.totalWalkTicks * 0.14) * 0.45) : 0.0f;
         if (!isSpawner) {
-            double lookDy = targetCenter.y - curEye.y;
-            float destYaw = (float) (Math.toDegrees(Math.atan2(targetCenter.z - curPos.z, targetCenter.x - curPos.x)) - 90.0);
-            float destPitch = Mth.clamp((float) -Math.toDegrees(Math.atan2(lookDy, Math.max(0.25, destHoriz))) + sway, -55.0f, 45.0f);
+            double lookDy = lookTarget.y - curEye.y;
+            float destYaw = (float) (Math.toDegrees(Math.atan2(lookDz, lookDx)) - 90.0);
+            float destPitch = Mth.clamp((float) -Math.toDegrees(Math.atan2(lookDy, Math.max(0.25, lookHoriz))) + sway, -35.0f, 35.0f);
             AutoSpawnerModule.applyHumanRotation(player, destYaw, destPitch, true);
-        } else if (destHoriz > 3.8) {
+        } else if (destHoriz > 3.5) {
             float destYaw = (float) (Math.toDegrees(Math.atan2(lookDz, lookDx)) - 90.0);
             AutoSpawnerModule.applyHumanRotation(player, destYaw, 18.0f + sway, true);
-        } else {
-            double spDy = targetCenter.y - curEye.y;
-            float destYaw = (float) (Math.toDegrees(Math.atan2(targetCenter.z - curPos.z, targetCenter.x - curPos.x)) - 90.0);
-            float destPitch = Mth.clamp((float) -Math.toDegrees(Math.atan2(spDy, Math.max(0.25, destHoriz))), -45.0f, 78.0f);
-            AutoSpawnerModule.applyHumanRotation(player, destYaw, destPitch, true);
+        } else if (player.getXRot() > 48.0f) {
+            AutoSpawnerModule.applyHumanRotation(player, player.getYRot(), 32.0f, true);
         }
 
         double dx = nodeCenterX - curPos.x;

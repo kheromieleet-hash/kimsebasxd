@@ -1247,9 +1247,9 @@ public class AutoSpawnerModule {
 
         boolean aimed = lookAtPointGcd(player, interactAimPoint);
 
-        // Wait until smooth human aim converges before interact packet
+        // Wait until smooth human aim converges + settle ticks before interact packet
         stateTimeoutTicks++;
-        if (!aimed && stateTimeoutTicks < scaleTicks(14)) {
+        if ((!aimed && stateTimeoutTicks < scaleTicks(28)) || stateTimeoutTicks < scaleTicks(2)) {
             return;
         }
         Vec3 clickPoint = interactAimPoint;
@@ -1862,7 +1862,7 @@ public class AutoSpawnerModule {
         boolean aimed = lookAtPointGcd(player, interactAimPoint);
 
         stateTimeoutTicks++;
-        if (!aimed && stateTimeoutTicks < scaleTicks(14)) {
+        if ((!aimed && stateTimeoutTicks < scaleTicks(28)) || stateTimeoutTicks < scaleTicks(2)) {
             return;
         }
         Vec3 clickPoint = interactAimPoint;
@@ -2209,9 +2209,9 @@ public class AutoSpawnerModule {
         float dYaw = Mth.wrapDegrees(targetYaw - curYaw);
         float dPitch = targetPitch - curPitch;
 
-        float smoothFactor = isWalking ? 0.34f : 0.45f;
-        float maxYawStep = isWalking ? 24.0f : 32.0f;
-        float maxPitchStep = isWalking ? 16.0f : 22.0f;
+        float smoothFactor = isWalking ? 0.14f : 0.19f;
+        float maxYawStep = isWalking ? 9.5f : 12.5f;
+        float maxPitchStep = isWalking ? 6.0f : 8.5f;
 
         float stepYaw = computeEaseInOutStep(dYaw, smoothFactor, maxYawStep, gcdStep);
         float stepPitch = computeEaseInOutStep(dPitch, smoothFactor, maxPitchStep, gcdStep);
@@ -2240,7 +2240,7 @@ public class AutoSpawnerModule {
 
         float remYaw = Math.abs(Mth.wrapDegrees(targetYaw - safeYaw));
         float remPitch = Math.abs(targetPitch - safePitch);
-        return remYaw <= 4.5f && remPitch <= 4.5f;
+        return remYaw <= 3.5f && remPitch <= 3.5f;
     }
 
     private static void closeOpenScreenIfAny(Minecraft mc, LocalPlayer player) {
