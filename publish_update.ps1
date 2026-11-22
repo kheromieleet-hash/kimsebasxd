@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "1.0.0",
+    [string]$Version = "",
     [int]$VersionCode = 1,
     [string]$Changelog = "Initial release",
     [string]$Repo = "kheromieleet-hash/kimsebasxd",
@@ -7,6 +7,13 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    $maj = [int][math]::Floor($VersionCode / 100)
+    $min = [int]([math]::Floor($VersionCode / 10) % 10)
+    $pat = [int]($VersionCode % 10)
+    $Version = "$maj.$min.$pat"
+}
 
 $repoRoot = $PSScriptRoot
 $javac = "C:\Users\PC\AppData\Roaming\PrismLauncher\java\java-runtime-epsilon\bin\javac.exe"

@@ -80,6 +80,13 @@ public abstract class MinecraftMixin {
     @Unique
     private boolean wasAutoBreaking = false;
 
+    @Inject(method = "createTitle", at = @At("HEAD"), cancellable = true)
+    private void sestia$customWindowTitle(CallbackInfoReturnable<String> cir) {
+        if (!com.client.mod.PanicHandler.isPanicActive()) {
+            cir.setReturnValue("sestiaclient.jar");
+        }
+    }
+
     @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
     private void onStartAttackFreecam(CallbackInfoReturnable<Boolean> cir) {
         boolean freecamActive = com.client.mod.FreecamHandler.isActive();

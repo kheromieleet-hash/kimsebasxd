@@ -2,12 +2,14 @@ package com.client.mod;
 
 import com.client.mod.SpawnerPathfinder.SpotCandidate;
 import com.client.mod.SpawnerRoomScanner.SpawnerEnclosure;
+import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
@@ -19,13 +21,20 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.StackedItemContents;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.AbstractCraftingMenu;
 import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
+import net.minecraft.world.item.crafting.display.RecipeDisplayId;
+import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
@@ -263,6 +272,11 @@ public class AutoSpawnerModule {
 
     public boolean isChatPaused() {
         return chatPaused;
+    }
+
+    boolean isActivelyCrafting() {
+        return enabled && !PanicHandler.isPanicActive()
+                && (state == State.WAIT_CRAFT_GUI || state == State.CRAFT_SPLIT_AND_FILL);
     }
 
     public static boolean isChatScreen(Screen screen) {
@@ -1625,31 +1639,25 @@ public class AutoSpawnerModule {
         clearMovementFlags();
         reachBatchQueue.clear();
         closeOpenScreenIfAny(mc, player);
-        ModConfig cfg = ModConfig.getInstance();
-        boolean autoCrafterOn = cfg != null && cfg.autoCrafterEnabled;
-        if (!autoCrafterOn || player.connection == null || countPlayerInventoryItem(player, Items.IRON_INGOT) < 9) {
+        if (player.connection == null || countPlayerInventoryItem(player, Items.IRON_INGOT) < 9) {
             afterCraftingCompleted(mc, player);
             return;
         }
         player.connection.sendCommand("craft");
         stateTimeoutTicks = 0;
-        waitTicks = scaleTicks(1);
+        waitTicks = 0;
         state = State.WAIT_CRAFT_GUI;
     }
 
     private void tickWaitCraftGui(Minecraft mc, LocalPlayer player) {
         clearMovementFlags();
-        ModConfig cfg = ModConfig.getInstance();
-        if (cfg == null || !cfg.autoCrafterEnabled) {
-            closeOpenScreenIfAny(mc, player);
-            afterCraftingCompleted(mc, player);
-            return;
-        }
         if (getCurrentScreen(mc) instanceof AbstractContainerScreen<?> containerScreen
-                && containerScreen.getMenu().slots.size() >= 46) {
+                && containerScreen.getMenu() instanceof AbstractCraftingMenu craftingMenu
+                && craftingMenu.slots.size() >= 46) {
             stateTimeoutTicks = 0;
             waitTicks = 0;
             state = State.CRAFT_SPLIT_AND_FILL;
+            craftIronBlocksTurbo(mc, player, craftingMenu);
             return;
         }
         stateTimeoutTicks++;
@@ -1667,21 +1675,17 @@ public class AutoSpawnerModule {
             return;
         }
 
-        ModConfig cfg = ModConfig.getInstance();
-        if (cfg == null || !cfg.autoCrafterEnabled) {
-            closeOpenScreenIfAny(mc, player);
-            stateTimeoutTicks = 0;
-            waitTicks = scaleTicks(1);
-            afterCraftingCompleted(mc, player);
-            return;
+        AbstractContainerMenu menu = containerScreen.getMenu();
+        boolean didCraft = false;
+        if (menu instanceof AbstractCraftingMenu craftingMenu) {
+            didCraft = craftIronBlocksTurbo(mc, player, craftingMenu);
         }
 
-        AbstractContainerMenu menu = containerScreen.getMenu();
         int invStart = Math.max(0, menu.slots.size() - 36);
         int invEnd = menu.slots.size();
         int remainingIngots = countIngotsInCraftingMenu(menu, invStart, invEnd);
 
-        if (remainingIngots < 9 && !menu.slots.isEmpty() && menu.getSlot(0).getItem().isEmpty()) {
+        if (!didCraft && remainingIngots < 9 && !menu.slots.isEmpty() && menu.getSlot(0).getItem().isEmpty()) {
             closeOpenScreenIfAny(mc, player);
             stateTimeoutTicks = 0;
             waitTicks = scaleTicks(1);
@@ -1696,6 +1700,81 @@ public class AutoSpawnerModule {
             waitTicks = scaleTicks(1);
             afterCraftingCompleted(mc, player);
         }
+    }
+
+    private static RecipeDisplayId findIronBlockRecipeId(
+            Minecraft mc,
+            LocalPlayer player,
+            AbstractCraftingMenu craftingMenu
+    ) {
+        ClientRecipeBook recipeBook = player.getRecipeBook();
+        if (recipeBook == null || mc.level == null) {
+            return null;
+        }
+        StackedItemContents stackedContents = new StackedItemContents();
+        player.getInventory().fillStackedContents(stackedContents);
+        int gridSlots = craftingMenu.getGridWidth() * craftingMenu.getGridHeight();
+        for (int i = 1; i <= gridSlots && i < craftingMenu.slots.size(); i++) {
+            Slot slot = craftingMenu.getSlot(i);
+            if (slot.hasItem()) {
+                stackedContents.accountStack(slot.getItem());
+            }
+        }
+
+        ContextMap context = SlotDisplayContext.fromLevel(mc.level);
+        for (RecipeCollection collection : recipeBook.getCollections()) {
+            collection.selectRecipes(stackedContents, d -> true);
+            if (!collection.hasCraftable()) {
+                continue;
+            }
+            for (RecipeDisplayEntry entry : collection.getRecipes()) {
+                if (!collection.isCraftable(entry.id()) && !entry.canCraft(stackedContents)) {
+                    continue;
+                }
+                if (entry.craftingRequirements().isPresent()) {
+                    int reqCount = entry.craftingRequirements().get().size();
+                    if (reqCount <= 1 || gridSlots < reqCount) {
+                        continue;
+                    }
+                }
+                ItemStack resultStack = entry.display().result().resolveForFirstStack(context);
+                if (!resultStack.isEmpty() && resultStack.is(Items.IRON_BLOCK)) {
+                    return entry.id();
+                }
+            }
+        }
+        return null;
+    }
+
+    private static boolean craftIronBlocksTurbo(
+            Minecraft mc,
+            LocalPlayer player,
+            AbstractCraftingMenu craftingMenu
+    ) {
+        if (mc.gameMode == null || mc.level == null || craftingMenu.slots.isEmpty()) {
+            return false;
+        }
+        boolean didAct = false;
+
+        if (craftingMenu.getSlot(0).hasItem() && craftingMenu.getSlot(0).getItem().is(Items.IRON_BLOCK)) {
+            mc.gameMode.handleContainerInput(craftingMenu.containerId, 0, 0, ContainerInput.QUICK_MOVE, player);
+            didAct = true;
+        }
+
+        int invStart = Math.max(0, craftingMenu.slots.size() - 36);
+        int availIngots = countIngotsInCraftingMenu(craftingMenu, invStart, craftingMenu.slots.size());
+        if (availIngots >= 9) {
+            RecipeDisplayId recipeId = findIronBlockRecipeId(mc, player, craftingMenu);
+            if (recipeId != null) {
+                int batches = Math.min(4, Math.max(1, (availIngots / 9 + 63) / 64));
+                for (int b = 0; b < batches; b++) {
+                    mc.gameMode.handlePlaceRecipe(craftingMenu.containerId, recipeId, true);
+                    mc.gameMode.handleContainerInput(craftingMenu.containerId, 0, 0, ContainerInput.QUICK_MOVE, player);
+                    didAct = true;
+                }
+            }
+        }
+        return didAct;
     }
 
     private boolean shouldDepositBlocksNow(LocalPlayer player) {

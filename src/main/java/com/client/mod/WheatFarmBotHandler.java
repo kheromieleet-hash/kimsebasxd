@@ -837,6 +837,8 @@ public final class WheatFarmBotHandler {
         lastPlayerPos = null;
         alarmTicksRemaining = 40;
         notify(mc, "§c§l[Sestia] [FAILSAFE] §f" + reason);
+        DesktopAlertHelper.requestWindowAttention(mc);
+        DesktopAlertHelper.showDesktopNotification("Sestia - Auto Wheat Farm", reason, true, "Sestia-WheatFailsafe");
     }
 
     private static void tickAlarmSound(Minecraft mc) {

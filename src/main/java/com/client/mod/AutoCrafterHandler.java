@@ -53,6 +53,7 @@ public class AutoCrafterHandler {
     public static void tick(AbstractContainerMenu menu) {
         ModConfig config = ModConfig.getInstance();
         if (!config.autoCrafterEnabled) return;
+        if (AutoSpawnerModule.getInstance().isActivelyCrafting()) return;
         if (!(menu instanceof AbstractCraftingMenu craftingMenu)) return;
 
         Minecraft mc = Minecraft.getInstance();

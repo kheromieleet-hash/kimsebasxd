@@ -47,7 +47,7 @@ public class ModernClickGuiScreen extends Screen {
     private static final int CHIP_BAR_HEIGHT = 30;
     private static final int SEARCH_BOX_WIDTH = 196;
     private static final int SEARCH_BOX_HEIGHT = 22;
-    private static final Identifier SESTIA_EMBLEM_ICON = Identifier.fromNamespaceAndPath("sestia", "icons/icon_32x32.png");
+    private static final Identifier SESTIA_EMBLEM_ICON = Identifier.fromNamespaceAndPath("sestia", "icons/icon_128x128.png");
 
     private final Screen parent;
 

@@ -3,13 +3,19 @@ package com.client.mod;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.LineEvent;
+import java.io.BufferedInputStream;
+import java.io.InputStream;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Cross-platform desktop notification and taskbar/dock attention helper.
- * Uses PowerShell NotifyIcon on Windows and osascript notification on macOS,
- * avoiding spawning Windows-only binaries on macOS/Linux.
+ * Plays embedded bubble WAV alert sounds and uses PowerShell NotifyIcon on Windows
+ * or osascript notification on macOS, avoiding spawning Windows-only binaries on macOS/Linux.
  */
 final class DesktopAlertHelper {
     private static final String OS_NAME = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
@@ -17,6 +23,8 @@ final class DesktopAlertHelper {
     private static final boolean IS_MAC = OS_NAME.contains("mac");
     private static final long NOTIFY_COOLDOWN_MS = 2000L;
     private static final AtomicLong LAST_NOTIFY_MS = new AtomicLong(0L);
+    private static final String MENTION_SOUND_RESOURCE = "/assets/sestia/sounds/bubble_mention.wav";
+    private static final String FAILSAFE_SOUND_RESOURCE = "/assets/sestia/sounds/bubble_failsafe.wav";
 
     private DesktopAlertHelper() {
     }
@@ -27,6 +35,37 @@ final class DesktopAlertHelper {
                 GLFW.glfwRequestWindowAttention(mc.getWindow().handle());
             }
         } catch (Throwable ignored) {
+        }
+    }
+
+    static boolean playEmbeddedBubbleSound(boolean warning) {
+        String resourcePath = warning ? FAILSAFE_SOUND_RESOURCE : MENTION_SOUND_RESOURCE;
+        Clip clip = null;
+        try (InputStream raw = DesktopAlertHelper.class.getResourceAsStream(resourcePath)) {
+            if (raw == null) {
+                return false;
+            }
+            try (BufferedInputStream bis = new BufferedInputStream(raw);
+                 AudioInputStream ais = AudioSystem.getAudioInputStream(bis)) {
+                clip = AudioSystem.getClip();
+                final Clip openedClip = clip;
+                openedClip.addLineListener(event -> {
+                    if (event.getType() == LineEvent.Type.STOP) {
+                        openedClip.close();
+                    }
+                });
+                openedClip.open(ais);
+                openedClip.start();
+                return true;
+            }
+        } catch (Throwable ignored) {
+            if (clip != null) {
+                try {
+                    clip.close();
+                } catch (Throwable ignoredClose) {
+                }
+            }
+            return false;
         }
     }
 
@@ -44,12 +83,14 @@ final class DesktopAlertHelper {
 
         Thread alertThread = new Thread(() -> {
             try {
+                boolean playedCustom = playEmbeddedBubbleSound(warning);
                 if (IS_WINDOWS) {
                     String iconType = warning ? "Warning" : "Information";
                     String tipIcon = warning ? "Warning" : "Info";
+                    String soundCmd = playedCustom ? "" : "[System.Media.SystemSounds]::Exclamation.Play(); ";
                     String psScript =
                             "Add-Type -AssemblyName System.Windows.Forms,System.Drawing; "
-                            + "[System.Media.SystemSounds]::Exclamation.Play(); "
+                            + soundCmd
                             + "$n = New-Object System.Windows.Forms.NotifyIcon; "
                             + "$n.Icon = [System.Drawing.SystemIcons]::" + iconType + "; "
                             + "$n.Visible = $true; "
@@ -60,7 +101,8 @@ final class DesktopAlertHelper {
                             .redirectErrorStream(true)
                             .start();
                 } else if (IS_MAC) {
-                    String script = "display notification \"" + safeBody + "\" with title \"" + safeTitle + "\" sound name \"Glass\"";
+                    String soundPart = playedCustom ? "" : " sound name \"Glass\"";
+                    String script = "display notification \"" + safeBody + "\" with title \"" + safeTitle + "\"" + soundPart;
                     new ProcessBuilder("osascript", "-e", script)
                             .redirectErrorStream(true)
                             .start();

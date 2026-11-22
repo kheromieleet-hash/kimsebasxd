@@ -268,7 +268,8 @@ Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
 
 33. Auto Spawner
     Ne ise yarar: Odadaki spawnerlari S-Snake rotasiyla gezip demir kulcelerini
-    toplar, /craft ile blok yapar, sandiklara sirayla (1..N -> 1 paralel duvar
+    toplar, Auto Crafter kapali olsa dahi dahili turbo (/craft) mekanizmasiyla
+    sifir gecikmeyle demir blok yapar, sandiklara sirayla (1..N -> 1 paralel duvar
     dongusuyle, huni sistemlerinde en ust giris sandiklarini hedefleyerek ve
     hizli coklu-stack aktarimiyla) bosaltir ve Sestia temasinda canli
     durum HUD'u gosterir. HUD konumu GUI Move (HUD Editor) uzerinden suruklenip

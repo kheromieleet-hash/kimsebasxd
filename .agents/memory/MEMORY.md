@@ -4,6 +4,7 @@
 - [project] Always create a new dedicated branch for major code changes → project-conventions.md
 - [project] AG Kit only supports Gemini CLI and Google Antigravity (not other AI coding tools) → project-conventions.md
 - [project] Component metadata uses SemVer while toolkit releases use CalVer → tech-decisions.md
+- [project] Sestia Client uses base-10 positional `X.Y.Z` versions mapped from `VersionCode` (`212 -> v2.1.2`, carry at 10) → project-conventions.md
 
 ## User
 - [user] Keep `c:\Users\PC\Desktop\client\MODULLER.txt` updated in Turkish whenever any module or feature is added, changed, or removed → user-preferences.md
