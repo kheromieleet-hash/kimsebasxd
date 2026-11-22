@@ -1,6 +1,6 @@
 ================================================================================
 SESTIA CLIENT - TUM MODULLER VE OZELLIKLER REHBERI
-Surum: v1.0.204 (VersionCode: 204) | Minecraft: 26.3 Fabric
+Surum: v2.2.9 (VersionCode: 229) | Minecraft: 26.3 Fabric
 Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
 ================================================================================
 
@@ -436,6 +436,21 @@ Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
     ClickGUI (Sag Shift), Client Chat baglantisini ve sohbetteki [Sestia] / komut izlerini
     sessizce kapatir ve gizler. (.unpanic yazildiginda onceki ayarlar geri yuklenir.)
 
+- Minimal & Saf Siyah Düşen Yapraklı Ana Menu & Yukleme Ekranlari: Ana menudeki
+  Minecraft/splash, alt kosedeki Minecraft 26.3 (Modlu) / Mojang telif hakki
+  yazilari ve orta siradaki 3 ikon (Arkadaslar/Dil/Erisilebilirlik) kaldirilip
+  Ayarlar ve Oyundan Cik butonlari bosluksuz yukari hizalanir; ana menu, alt
+  menuler ve Arazi yukleniyor / sunucu baglanti / kaydetme ekranlari ilk
+  acilista saf simsiyah (`#000000`) baslar ve kucuk kenevir yapraklari rastgele
+  konumlardan yavasca saga-sola salinarak suzulur (Nether/End portal gecisleri
+  korunur, .panic modunda vanilyaya doner).
+- Kenevir Yapragi Donanim Imleci & Saydam Buton/Sliderlar: Tum menulerde
+  ve envanter ekranlarinda sol-ust tiklama ucu (6,3) noktasina hizali 32x32 SDL3
+  kenevir yapragi donanim imleci kullanilir (buton uzerinde parlak zumrut
+  hover hali, metin kutularinda standart I-imleci). Tum Minecraft butonlari ve
+  kaydirma cubuklari (slider) arka plandaki yapraklari gosteren saydam cam
+  gorunumdedir, uzerine gelince yesil neon zumrut cerceve ve ince zumrut
+  ilerleme cizgisi cikar (.panic modunda vanilyaya doner).
 - Zoom (Varsayilan tus: C): Basili tutunca optifine tarzi yakinlastirma (4.0x).
 - Low Fire: Ekrandaki yanma/ates efektini asagi indirerek gorusu acar.
 - Version Switcher (Multiplayer ekraninda): Baglanilan sunucuya farkli
@@ -448,7 +463,7 @@ Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
 - Sohbet Makrolari: Tek tusla sohbet komutu veya mesaj gonderme (Macros sekmesi).
 - Ayar Profilleri (Settings sekmesi): Acik modulleri, slider/mod ayarlarini,
   tus atamalarini, makrolari ve HUD ayarlarini yerel profil olarak kaydetme/yukleme,
-  profil kartindaki Export butonu ile paylasim kodu (SESTIA1:...) olarak panoya
+  profil kartindaki Export butonu ile kisa paylasim kodu (kisa S2:... veya eski SESTIA1:...) olarak panoya
   disa aktarma ve sag paneldeki IMPORT CODE kutusundan kod yapistirip ice aktarma.
 - Slider Sayi Girisi: Tum modullerdeki slider deger etiketlerinin (orn. 1.00x,
   -0.21, 0.0°, 25t, 70%) uzerine tiklayip klavyeden istenen sayiyi dogrudan

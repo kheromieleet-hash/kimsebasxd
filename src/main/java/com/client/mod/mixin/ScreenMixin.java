@@ -1,12 +1,18 @@
 package com.client.mod.mixin;
 
 import com.client.mod.ClickGuiScreen;
+import com.client.mod.SestiaTitleBackgroundRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.ConnectScreen;
+import net.minecraft.client.gui.screens.GenericMessageScreen;
+import net.minecraft.client.gui.screens.LevelLoadingScreen;
+import net.minecraft.client.gui.screens.ProgressScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -30,10 +36,14 @@ public abstract class ScreenMixin {
     @Shadow
     public int height;
 
-    private void fillBlackBackground(GuiGraphicsExtractor graphics) {
-        if (this.width > 0 && this.height > 0) {
-            graphics.fill(0, 0, this.width, this.height, 0xFF000000);
-        }
+    @Unique
+    private boolean shouldUseSestiaBackground(Screen self) {
+        return this.minecraft == null
+                || this.minecraft.level == null
+                || self instanceof LevelLoadingScreen
+                || self instanceof GenericMessageScreen
+                || self instanceof ProgressScreen
+                || self instanceof ConnectScreen;
     }
 
     @Inject(method = "extractBackground", at = @At("HEAD"), cancellable = true)
@@ -42,10 +52,9 @@ public abstract class ScreenMixin {
             return;
         }
         Screen self = (Screen) (Object) this;
-        // Strictly only run when out of game (main menu, server list, settings, etc.)
-        if (this.minecraft == null || this.minecraft.level == null) {
+        if (shouldUseSestiaBackground(self)) {
             if (!(self instanceof TitleScreen)) {
-                fillBlackBackground(graphics);
+                SestiaTitleBackgroundRenderer.render(graphics, this.width, this.height, false);
             }
             ci.cancel();
         }
@@ -56,8 +65,9 @@ public abstract class ScreenMixin {
         if (com.client.mod.PanicHandler.isPanicActive()) {
             return;
         }
-        if (this.minecraft == null || this.minecraft.level == null) {
-            fillBlackBackground(graphics);
+        Screen self = (Screen) (Object) this;
+        if (shouldUseSestiaBackground(self)) {
+            SestiaTitleBackgroundRenderer.render(graphics, this.width, this.height, self instanceof TitleScreen);
             ci.cancel();
         }
     }
@@ -67,7 +77,7 @@ public abstract class ScreenMixin {
         if (com.client.mod.PanicHandler.isPanicActive()) {
             return;
         }
-        if (this.minecraft == null || this.minecraft.level == null) {
+        if (shouldUseSestiaBackground((Screen) (Object) this)) {
             ci.cancel();
         }
     }
@@ -77,7 +87,7 @@ public abstract class ScreenMixin {
         if (com.client.mod.PanicHandler.isPanicActive()) {
             return;
         }
-        if (this.minecraft == null || this.minecraft.level == null) {
+        if (shouldUseSestiaBackground((Screen) (Object) this)) {
             ci.cancel();
         }
     }

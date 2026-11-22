@@ -57,7 +57,10 @@
     "LocalPlayerMixin",
     "ClientInputAccessor",
     "ClientPlayPacketListenerMixin",
-    "LevelRendererMixin"
+    "LevelRendererMixin",
+    "WindowCursorMixin",
+    "AbstractButtonMixin",
+    "AbstractSliderButtonMixin"
   ],
   "injectors": {
     "defaultRequire": 1

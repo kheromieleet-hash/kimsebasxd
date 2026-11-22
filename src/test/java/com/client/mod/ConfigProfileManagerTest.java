@@ -34,6 +34,7 @@ public class ConfigProfileManagerTest {
         testJsonAndShareCodeRoundTrip();
         testBareConfigJsonImportAndUrlPreservation();
         testShareCodeOnlyImport();
+        testShortDeltaCompressionAndClearedCollections();
         testLocalSaveListLoadAndDelete();
         testRejectsCorruptPayloads();
         System.out.println("ALL ConfigProfileManagerTest ASSERTIONS PASSED!");
@@ -74,9 +75,14 @@ public class ConfigProfileManagerTest {
 
         String json = ConfigProfileManager.exportJson("PvP Preset", source, srcInv, 14);
         String shareCode = ConfigProfileManager.exportShareCode("PvP Preset", source, srcInv, 14);
+        String legacyCode = ConfigProfileManager.exportLegacyShareCode(ConfigProfileManager.createEnvelope("PvP Preset", source, srcInv, 14));
+        System.out.println("PvP ShareCode lengths -> legacy SESTIA1=" + legacyCode.length() + ", short S2=" + shareCode.length());
         assert shareCode.startsWith(ConfigProfileManager.SHARE_PREFIX);
+        assert legacyCode.startsWith(ConfigProfileManager.LEGACY_SHARE_PREFIX);
+        assert shareCode.length() * 100 < legacyCode.length() * 45
+                : "Expected S2 code to be <45% of legacy SESTIA1 length (" + shareCode.length() + " vs " + legacyCode.length() + ")";
 
-        for (String payload : List.of(json, shareCode)) {
+        for (String payload : List.of(json, shareCode, legacyCode)) {
             ConfigProfileManager.ProfileEnvelope parsed = ConfigProfileManager.parseImportPayload(payload);
             assert "PvP Preset".equals(parsed.name);
 
@@ -131,7 +137,7 @@ public class ConfigProfileManagerTest {
         assert parsed.config.fastBreak;
         assert Math.abs(parsed.config.fastBreakSpeed - 1.12f) < 0.001f;
 
-        for (String nonShareCode : List.of(json, "{}", "", "   ", "SESTIA1:", "SESTIA1:bad")) {
+        for (String nonShareCode : List.of(json, "{}", "", "   ", "S2:", "S2:bad", "SESTIA1:", "SESTIA1:bad")) {
             boolean threw = false;
             try {
                 ConfigProfileManager.parseShareCode(nonShareCode);
@@ -140,6 +146,21 @@ public class ConfigProfileManagerTest {
             }
             assert threw : "parseShareCode must reject non-share-code input: " + nonShareCode;
         }
+    }
+
+    private static void testShortDeltaCompressionAndClearedCollections() {
+        ModConfig defaultCfg = new ModConfig();
+        String defaultCode = ConfigProfileManager.exportShareCode("Profile", defaultCfg, null, 0);
+        String defaultLegacy = ConfigProfileManager.exportLegacyShareCode(ConfigProfileManager.createEnvelope("Profile", defaultCfg, null, 0));
+        System.out.println("Default profile length -> legacy SESTIA1=" + defaultLegacy.length() + ", short S2=" + defaultCode.length());
+        assert defaultCode.length() < 45 : "Default profile S2 code should be compact (<45 chars), got " + defaultCode.length();
+
+        ModConfig cleared = new ModConfig();
+        cleared.xrayBlocks.clear();
+        String clearedCode = ConfigProfileManager.exportShareCode("ClearedXray", cleared, null, 1);
+        ConfigProfileManager.ProfileEnvelope parsed = ConfigProfileManager.parseShareCode(clearedCode);
+        assert parsed.config.xrayBlocks != null && parsed.config.xrayBlocks.isEmpty()
+                : "Cleared default collection must round-trip as empty through delta encoding";
     }
 
     private static void testLocalSaveListLoadAndDelete() throws Exception {
@@ -181,7 +202,7 @@ public class ConfigProfileManagerTest {
     }
 
     private static void testRejectsCorruptPayloads() {
-        for (String bad : List.of("", "   ", "not json", "[]", "SESTIA1:", "SESTIA1:!!!corrupt!!!")) {
+        for (String bad : List.of("", "   ", "not json", "[]", "S2:", "S2:!!!corrupt!!!", "SESTIA1:", "SESTIA1:!!!corrupt!!!")) {
             boolean threw = false;
             try {
                 ConfigProfileManager.parseImportPayload(bad);

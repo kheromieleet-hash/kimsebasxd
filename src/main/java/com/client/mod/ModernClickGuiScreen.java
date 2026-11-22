@@ -239,7 +239,7 @@ public class ModernClickGuiScreen extends Screen {
         this.addRenderableWidget(this.profileNameBox);
 
         this.profileCodeBox = new EditBox(this.font, 0, 0, 180, 20, Component.literal("Share Code"));
-        this.profileCodeBox.setHint(Component.literal("Paste SESTIA1:... code"));
+        this.profileCodeBox.setHint(Component.literal("Paste S2:... / SESTIA1:... code"));
         this.profileCodeBox.setBordered(false);
         this.profileCodeBox.setMaxLength(32768);
         this.profileCodeBox.visible = false;
@@ -361,16 +361,16 @@ public class ModernClickGuiScreen extends Screen {
         graphics.blit(
                 RenderPipelines.GUI_TEXTURED,
                 SESTIA_EMBLEM_ICON,
-                headX + 12, headY + (HEADER_HEIGHT - 16) / 2,
-                0.0f, 0.0f, 16, 16, 16, 16
+                headX + 10, headY + (HEADER_HEIGHT - 22) / 2,
+                0.0f, 0.0f, 22, 22, 22, 22
         );
         Component titleComp = Component.literal("§lSESTIA");
-        graphics.text(this.font, titleComp, headX + 34, headY + 18, 0xFFFFFFFF, true);
+        graphics.text(this.font, titleComp, headX + 37, headY + 18, 0xFFFFFFFF, true);
         int titleW = this.font.width(titleComp);
 
         String verLabel = "v" + ClientBuildInfo.getVersion();
         Component verComp = Component.literal(verLabel);
-        int verX = headX + 34 + titleW + 8;
+        int verX = headX + 37 + titleW + 8;
         int verY = headY + 15;
         int verW = this.font.width(verComp) + 12;
         JelloTheme.fillRoundedCard(graphics, verX, verY, verX + verW, verY + 14, 4, 0x55FF1A2B, 0xFFFF2E3E);

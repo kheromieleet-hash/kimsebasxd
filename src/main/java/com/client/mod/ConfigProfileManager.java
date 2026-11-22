@@ -18,16 +18,21 @@ import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Stream;
+import java.util.zip.DataFormatException;
+import java.util.zip.Deflater;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+import java.util.zip.Inflater;
 
 /**
  * Manages saving, loading, exporting, and importing Sestia Client configuration profiles
  * (active modules, slider/mode settings, keybinds, macros, and HUD layout).
  */
 public final class ConfigProfileManager {
-    public static final String SHARE_PREFIX = "SESTIA1:";
+    public static final String SHARE_PREFIX = "S2:";
+    public static final String LEGACY_SHARE_PREFIX = "SESTIA1:";
     public static final String PROFILE_FORMAT = "sestia-profile";
     private static final int SCHEMA_VERSION = 1;
     private static final int MAX_SHARE_PAYLOAD_BYTES = 1024 * 1024;
@@ -165,52 +170,144 @@ public final class ConfigProfileManager {
             ModernModuleSettings.InventoryBridge inv,
             int activeCount
     ) {
-        String json = COMPACT_GSON.toJson(createEnvelope(profileName, source, inv, activeCount));
-        return encodeShareCode(json);
+        return exportShareCode(createEnvelope(profileName, source, inv, activeCount));
     }
 
     public static String exportShareCode(ProfileEnvelope envelope) {
+        ProfileEnvelope sanitized = sanitizeEnvelopeForExport(envelope);
+        return encodeShortShareCode(sanitized);
+    }
+
+    static String exportLegacyShareCode(ProfileEnvelope envelope) {
+        ProfileEnvelope sanitized = sanitizeEnvelopeForExport(envelope);
+        return encodeLegacyShareCode(COMPACT_GSON.toJson(sanitized));
+    }
+
+    private static ProfileEnvelope sanitizeEnvelopeForExport(ProfileEnvelope envelope) {
         if (envelope == null || envelope.config == null) {
             throw new IllegalArgumentException("Profile has no config data");
         }
         ProfileEnvelope sanitized = new ProfileEnvelope();
         sanitized.format = envelope.format;
         sanitized.schemaVersion = envelope.schemaVersion;
-        sanitized.name = envelope.name;
+        sanitized.name = normalizeProfileName(envelope.name);
         sanitized.savedAtEpochMs = envelope.savedAtEpochMs;
-        sanitized.activeCount = envelope.activeCount;
+        sanitized.activeCount = Math.max(0, envelope.activeCount);
         sanitized.inventoryHud = envelope.inventoryHud;
         ModConfig cleanConfig = envelope.config.copy();
+        cleanConfig.sanitize();
         cleanConfig.accountPasswords = new java.util.HashMap<>();
         cleanConfig.clientChatUrl = "";
         sanitized.config = cleanConfig;
-        return encodeShareCode(COMPACT_GSON.toJson(sanitized));
+        return sanitized;
     }
 
-    private static String encodeShareCode(String compactJson) {
+    private static JsonObject buildDefaultConfigJson() {
+        ModConfig def = new ModConfig();
+        def.sanitize();
+        def.accountPasswords = new java.util.HashMap<>();
+        def.clientChatUrl = "";
+        return COMPACT_GSON.toJsonTree(def).getAsJsonObject();
+    }
+
+    private static JsonObject buildDefaultInventoryJson() {
+        return COMPACT_GSON.toJsonTree(new InventorySnapshot()).getAsJsonObject();
+    }
+
+    private static JsonObject diffJsonObjects(JsonObject actual, JsonObject defaults) {
+        JsonObject diff = new JsonObject();
+        for (Map.Entry<String, JsonElement> entry : actual.entrySet()) {
+            String key = entry.getKey();
+            JsonElement val = entry.getValue();
+            if (!defaults.has(key) || !val.equals(defaults.get(key))) {
+                diff.add(key, val);
+            }
+        }
+        return diff;
+    }
+
+    private static JsonObject mergeJsonObjects(JsonObject defaults, JsonObject diff) {
+        JsonObject merged = defaults.deepCopy();
+        if (diff != null) {
+            for (Map.Entry<String, JsonElement> entry : diff.entrySet()) {
+                merged.add(entry.getKey(), entry.getValue());
+            }
+        }
+        return merged;
+    }
+
+    private static String encodeShortShareCode(ProfileEnvelope sanitized) {
+        JsonObject root = new JsonObject();
+        if (!"Profile".equals(sanitized.name)) {
+            root.addProperty("n", sanitized.name);
+        }
+        if (sanitized.activeCount > 0) {
+            root.addProperty("a", sanitized.activeCount);
+        }
+        JsonObject cfgDiff = diffJsonObjects(
+                COMPACT_GSON.toJsonTree(sanitized.config).getAsJsonObject(),
+                buildDefaultConfigJson()
+        );
+        if (cfgDiff.size() > 0) {
+            root.add("c", cfgDiff);
+        }
+        if (sanitized.inventoryHud != null) {
+            JsonObject invDiff = diffJsonObjects(
+                    COMPACT_GSON.toJsonTree(sanitized.inventoryHud).getAsJsonObject(),
+                    buildDefaultInventoryJson()
+            );
+            root.add("i", invDiff);
+        }
+
+        byte[] utf8 = COMPACT_GSON.toJson(root).getBytes(StandardCharsets.UTF_8);
+        return SHARE_PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(deflateRaw(utf8));
+    }
+
+    private static byte[] deflateRaw(byte[] input) {
+        Deflater deflater = new Deflater(Deflater.BEST_COMPRESSION, true);
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream(Math.max(32, input.length / 2))) {
+            deflater.setInput(input);
+            deflater.finish();
+            byte[] buf = new byte[512];
+            while (!deflater.finished()) {
+                int count = deflater.deflate(buf);
+                baos.write(buf, 0, count);
+            }
+            return baos.toByteArray();
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to compress profile share code", e);
+        } finally {
+            deflater.end();
+        }
+    }
+
+    private static String encodeLegacyShareCode(String compactJson) {
         byte[] utf8 = compactJson.getBytes(StandardCharsets.UTF_8);
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              GZIPOutputStream gzip = new GZIPOutputStream(baos)) {
             gzip.write(utf8);
             gzip.finish();
-            return SHARE_PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(baos.toByteArray());
+            return LEGACY_SHARE_PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(baos.toByteArray());
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to encode profile share code", e);
+            throw new IllegalStateException("Failed to encode legacy profile share code", e);
         }
     }
 
     /**
-     * Parses a strict share-code payload ({@code SESTIA1:...}) into a sanitized profile envelope.
+     * Parses a strict share-code payload ({@code S2:...} or legacy {@code SESTIA1:...}) into a sanitized envelope.
      */
     public static ProfileEnvelope parseShareCode(String rawInput) {
         if (rawInput == null || rawInput.isBlank()) {
             throw new IllegalArgumentException("Empty share code");
         }
         String trimmed = rawInput.trim();
-        if (!trimmed.startsWith(SHARE_PREFIX)) {
-            throw new IllegalArgumentException("Share code must start with " + SHARE_PREFIX);
+        if (trimmed.startsWith(SHARE_PREFIX)) {
+            return parseShortEnvelope(decodeShortShareCode(trimmed.substring(SHARE_PREFIX.length())));
         }
-        return parseJsonEnvelope(decodeShareCode(trimmed));
+        if (trimmed.startsWith(LEGACY_SHARE_PREFIX)) {
+            return parseJsonEnvelope(decodeLegacyShareCode(trimmed.substring(LEGACY_SHARE_PREFIX.length())));
+        }
+        throw new IllegalArgumentException("Share code must start with " + SHARE_PREFIX + " or " + LEGACY_SHARE_PREFIX);
     }
 
     public static ProfileEnvelope parseImportPayload(String rawInput) {
@@ -218,11 +315,41 @@ public final class ConfigProfileManager {
             throw new IllegalArgumentException("Empty profile input");
         }
         String trimmed = rawInput.trim();
-        String jsonText = trimmed.startsWith(SHARE_PREFIX) ? decodeShareCode(trimmed) : trimmed;
-        return parseJsonEnvelope(jsonText);
+        if (trimmed.startsWith(SHARE_PREFIX) || trimmed.startsWith(LEGACY_SHARE_PREFIX)) {
+            return parseShareCode(trimmed);
+        }
+        return parseJsonEnvelope(trimmed);
     }
 
-    private static ProfileEnvelope parseJsonEnvelope(String jsonText) {
+    private static ProfileEnvelope parseShortEnvelope(String jsonText) {
+        JsonObject root = parseJsonObject(jsonText);
+        ProfileEnvelope envelope = new ProfileEnvelope();
+        envelope.name = root.has("n") && root.get("n").isJsonPrimitive()
+                ? normalizeProfileName(root.get("n").getAsString())
+                : "Profile";
+        envelope.activeCount = root.has("a") && root.get("a").isJsonPrimitive()
+                ? Math.max(0, root.get("a").getAsInt())
+                : 0;
+        envelope.savedAtEpochMs = System.currentTimeMillis();
+
+        JsonObject cfgDiff = root.has("c") && root.get("c").isJsonObject() ? root.getAsJsonObject("c") : null;
+        JsonObject mergedCfg = mergeJsonObjects(buildDefaultConfigJson(), cfgDiff);
+        envelope.config = COMPACT_GSON.fromJson(mergedCfg, ModConfig.class);
+        if (envelope.config == null) {
+            throw new IllegalArgumentException("Profile contains no configuration");
+        }
+        envelope.config.accountPasswords = new java.util.HashMap<>();
+        envelope.config.clientChatUrl = "";
+        envelope.config.sanitize();
+
+        if (root.has("i") && root.get("i").isJsonObject()) {
+            JsonObject mergedInv = mergeJsonObjects(buildDefaultInventoryJson(), root.getAsJsonObject("i"));
+            envelope.inventoryHud = COMPACT_GSON.fromJson(mergedInv, InventorySnapshot.class);
+        }
+        return envelope;
+    }
+
+    private static JsonObject parseJsonObject(String jsonText) {
         JsonElement rootEl;
         try {
             rootEl = JsonParser.parseString(jsonText);
@@ -232,8 +359,11 @@ public final class ConfigProfileManager {
         if (rootEl == null || !rootEl.isJsonObject()) {
             throw new IllegalArgumentException("Profile payload must be a JSON object");
         }
+        return rootEl.getAsJsonObject();
+    }
 
-        JsonObject obj = rootEl.getAsJsonObject();
+    private static ProfileEnvelope parseJsonEnvelope(String jsonText) {
+        JsonObject obj = parseJsonObject(jsonText);
         ProfileEnvelope envelope;
         if (obj.has("config") && obj.get("config").isJsonObject()) {
             envelope = COMPACT_GSON.fromJson(obj, ProfileEnvelope.class);
@@ -253,26 +383,60 @@ public final class ConfigProfileManager {
             throw new IllegalArgumentException("Profile contains no configuration");
         }
         envelope.name = normalizeProfileName(envelope.name);
+        envelope.config.accountPasswords = new java.util.HashMap<>();
+        envelope.config.clientChatUrl = "";
         envelope.config.sanitize();
         return envelope;
     }
 
-    private static String decodeShareCode(String shareCode) {
-        String encoded = shareCode.substring(SHARE_PREFIX.length()).trim();
+    private static byte[] decodeBase64Payload(String encodedPart) {
+        String encoded = encodedPart != null ? encodedPart.trim() : "";
         if (encoded.isEmpty()) {
             throw new IllegalArgumentException("Empty share code");
         }
-        byte[] compressed;
         try {
-            compressed = Base64.getUrlDecoder().decode(encoded);
+            return Base64.getUrlDecoder().decode(encoded);
         } catch (IllegalArgumentException e) {
             // Accept standard Base64 as fallback if user pasted from an external tool
             try {
-                compressed = Base64.getDecoder().decode(encoded);
+                return Base64.getDecoder().decode(encoded);
             } catch (IllegalArgumentException ignored) {
                 throw new IllegalArgumentException("Corrupted profile share code");
             }
         }
+    }
+
+    private static String decodeShortShareCode(String encodedPart) {
+        byte[] compressed = decodeBase64Payload(encodedPart);
+        Inflater inflater = new Inflater(true);
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            inflater.setInput(compressed);
+            byte[] buf = new byte[2048];
+            int total = 0;
+            while (!inflater.finished()) {
+                int count = inflater.inflate(buf);
+                if (count == 0) {
+                    if (inflater.needsInput() || inflater.needsDictionary()) {
+                        throw new IllegalArgumentException("Corrupted compressed profile code");
+                    }
+                    break;
+                }
+                total += count;
+                if (total > MAX_SHARE_PAYLOAD_BYTES) {
+                    throw new IllegalArgumentException("Profile payload exceeds size limit");
+                }
+                out.write(buf, 0, count);
+            }
+            return out.toString(StandardCharsets.UTF_8);
+        } catch (IOException | DataFormatException e) {
+            throw new IllegalArgumentException("Corrupted compressed profile code", e);
+        } finally {
+            inflater.end();
+        }
+    }
+
+    private static String decodeLegacyShareCode(String encodedPart) {
+        byte[] compressed = decodeBase64Payload(encodedPart);
         try (GZIPInputStream gzip = new GZIPInputStream(new ByteArrayInputStream(compressed));
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             byte[] buf = new byte[2048];
