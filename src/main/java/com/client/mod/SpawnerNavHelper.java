@@ -431,7 +431,7 @@ public final class SpawnerNavHelper {
         double nodeCenterZ = targetNode.getZ() + 0.5;
         double hDist = Math.hypot(nodeCenterX - curPos.x, nodeCenterZ - curPos.z);
         boolean isLastNode = this.pathIdx == this.activePath.size() - 1;
-        double reachThreshold = isLastNode ? 0.34 : 0.56;
+        double reachThreshold = isLastNode ? 0.38 : 0.62;
 
         if (hDist <= reachThreshold && Math.abs(targetNode.getY() - (curPos.y + 0.2)) <= 1.25) {
             this.pathIdx++;
@@ -727,25 +727,12 @@ public final class SpawnerNavHelper {
                 || !this.moveForward
                 || this.wantJump
                 || isStuckBriefly
-                || destHoriz <= 4.2
-                || headingErr > 25.0f
+                || destHoriz <= 0.6
+                || headingErr > 40.0f
                 || Math.abs(dy) >= 0.15) {
             return false;
         }
-        if (!this.legitMode) {
-            return (this.totalWalkTicks % 35) < 28;
-        }
-        if (headingErr > 18.0f || isApproachingSharpCorner(curX, curZ)) {
-            return false;
-        }
-        if (this.sprintPhaseTicksRemaining <= 0) {
-            this.sprintBurstActive = !this.sprintBurstActive;
-            this.sprintPhaseTicksRemaining = this.sprintBurstActive
-                    ? 26 + ThreadLocalRandom.current().nextInt(20)
-                    : 2 + ThreadLocalRandom.current().nextInt(3);
-        }
-        this.sprintPhaseTicksRemaining--;
-        return this.sprintBurstActive;
+        return true;
     }
 
     List<BlockPos> selectSpawnerPath(
@@ -773,14 +760,14 @@ public final class SpawnerNavHelper {
             );
             if (p != null) {
                 selectedPath = p.isEmpty() ? List.of(cand.spot()) : p;
-                this.stopHorizReach = Math.max(2.65, cand.horizDist() + 0.35);
+                this.stopHorizReach = Math.max(3.25, cand.horizDist() + 0.35);
                 break;
             }
         }
         if (selectedPath == null && !spots.isEmpty()) {
             SpotCandidate fallback = spots.get(0);
             selectedPath = List.of(fallback.spot());
-            this.stopHorizReach = Math.max(2.65, fallback.horizDist() + 0.35);
+            this.stopHorizReach = Math.max(3.25, fallback.horizDist() + 0.35);
         }
         return selectedPath;
     }
@@ -803,8 +790,8 @@ public final class SpawnerNavHelper {
         double curEyeDist = player.getEyePosition().distanceTo(targetCenter);
         double maxAxisDist = Math.max(Math.abs(pos.x - targetCenter.x), Math.abs(pos.z - targetCenter.z));
 
-        double desiredHoriz = isSpawner ? 2.65 : 3.85;
-        double desiredEye = 4.35;
+        double desiredHoriz = isSpawner ? 3.25 : 4.05;
+        double desiredEye = 4.40;
         BlockPos stand = SpawnerRoomScanner.getSpawnerBotStandPos(level, player, enclosure);
 
         return (onTop || (maxAxisDist >= 0.80 && curHorizDist >= 0.85))

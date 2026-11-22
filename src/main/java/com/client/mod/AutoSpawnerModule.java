@@ -133,8 +133,8 @@ public class AutoSpawnerModule {
     private static final double CHECKPOINT_MAX_DIST_SQ = 48.0 * 48.0;
     private static final int CHECKPOINT_WAIT_TICKS = 240;
     private static final double DEFAULT_AVG_SEC_PER_SPAWNER = 2.5;
-    private static final double MAX_SPAWNER_BATCH_REACH = 4.25;
-    private static final int MAX_REACH_BATCH_SIZE = 4;
+    private static final double MAX_SPAWNER_BATCH_REACH = 4.40;
+    private static final int MAX_REACH_BATCH_SIZE = 6;
 
     public static AutoSpawnerModule getInstance() {
         return INSTANCE;
@@ -1037,8 +1037,8 @@ public class AutoSpawnerModule {
                 }
                 if (canReachAndRaySpawnerHere(level, player, queued)) {
                     nav.currentNavTarget = queued;
-                    nav.stopHorizReach = 2.65;
-                    nav.stopEyeReach = 4.35;
+                    nav.stopHorizReach = 3.25;
+                    nav.stopEyeReach = 4.40;
                     state = State.INTERACT_SPAWNER;
                     return;
                 }
@@ -1075,8 +1075,8 @@ public class AutoSpawnerModule {
                         }
                     }
                     nav.currentNavTarget = primary;
-                    nav.stopHorizReach = 2.65;
-                    nav.stopEyeReach = 4.35;
+                    nav.stopHorizReach = 3.25;
+                    nav.stopEyeReach = 4.40;
                     state = State.INTERACT_SPAWNER;
                     return;
                 }
@@ -1092,8 +1092,8 @@ public class AutoSpawnerModule {
 
         BlockPos targetSpawner = spawners.get(spawnerIndex);
         nav.currentNavTarget = targetSpawner;
-        nav.stopHorizReach = 2.65;
-        nav.stopEyeReach = 4.35;
+        nav.stopHorizReach = 3.25;
+        nav.stopEyeReach = 4.40;
 
         if (SpawnerNavHelper.isAlreadyInOptimalReach(level, player, targetSpawner, true, useAltSpot, enclosure)) {
             state = State.INTERACT_SPAWNER;
@@ -1274,7 +1274,7 @@ public class AutoSpawnerModule {
         gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hitResult);
         player.swing(InteractionHand.MAIN_HAND, player.getMainHandItem().getInteractAnimation(), false);
 
-        waitTicks = scaleTicks(1);
+        waitTicks = 0;
         state = State.WAIT_MANAGEMENT_GUI;
     }
 
@@ -1284,11 +1284,11 @@ public class AutoSpawnerModule {
             String titleNorm = normalizeTurkishText(containerScreen.getTitle().getString());
             if (titleNorm.contains("depo")) {
                 resetLootTrackingState();
-                waitTicks = scaleTicks(1);
+                waitTicks = 0;
                 state = State.LOOT_IRON_INGOTS;
                 return;
             }
-            waitTicks = scaleTicks(1);
+            waitTicks = 0;
             state = State.CLICK_OPEN_DEPO;
             return;
         }
@@ -1363,7 +1363,7 @@ public class AutoSpawnerModule {
         lastManagementContainerId = menu.containerId;
         gameMode.handleContainerInput(menu.containerId, depoSlot, 0, ContainerInput.PICKUP, player);
         stateTimeoutTicks = 0;
-        waitTicks = scaleTicks(1);
+        waitTicks = 0;
         state = State.WAIT_DEPO_GUI;
     }
 
@@ -1375,7 +1375,7 @@ public class AutoSpawnerModule {
             if (menu.containerId != lastManagementContainerId
                     && (hasAnyContainerItem(menu, invStart) || stateTimeoutTicks >= scaleTicks(8))) {
                 resetLootTrackingState();
-                waitTicks = scaleTicks(1);
+                waitTicks = 0;
                 state = State.LOOT_IRON_INGOTS;
                 return;
             }
@@ -1401,11 +1401,11 @@ public class AutoSpawnerModule {
     }
 
     int resolveBurstClicksPerStep() {
-        return clickDelayTicks <= 3 ? 4 : (clickDelayTicks <= 5 ? 2 : 1);
+        return clickDelayTicks <= 3 ? 54 : (clickDelayTicks <= 5 ? 12 : 4);
     }
 
     int resolveBurstStepWaitTicks() {
-        return scaleTicks(clickDelayTicks <= 3 ? 1 : clickDelayTicks - 1);
+        return clickDelayTicks <= 3 ? 0 : scaleTicks(clickDelayTicks - 2);
     }
 
     private void tickLootIronIngots(Minecraft mc, LocalPlayer player, MultiPlayerGameMode gameMode) {
@@ -1435,7 +1435,7 @@ public class AutoSpawnerModule {
                 // Wait for ContainerSetContentPacket on the newly opened page before inspecting slots
                 lootWaitingForPageContent = true;
                 lootContentWaitTicks = 0;
-                waitTicks = scaleTicks(1);
+                waitTicks = 0;
                 return;
             } else {
                 lootNextPageTimeout++;
@@ -1446,7 +1446,7 @@ public class AutoSpawnerModule {
                 lootPageClickContainerId = -1;
                 lootNextPageTimeout = 0;
                 closeOpenScreenIfAny(mc, player);
-                waitTicks = scaleTicks(1);
+                waitTicks = 0;
                 afterSpawnerLooted(mc, player, false);
                 return;
             }
@@ -1473,11 +1473,11 @@ public class AutoSpawnerModule {
                 lootLastClickedSlot = -1;
                 lootLastSlotCount = -1;
                 lootTriedNormalClick = false;
-                waitTicks = scaleTicks(1);
+                waitTicks = 0;
                 return;
             }
             closeOpenScreenIfAny(mc, player);
-            waitTicks = scaleTicks(1);
+            waitTicks = 0;
             afterSpawnerLooted(mc, player, hasMoreDepoPages || hasAnyIronIngotInStorage(menu, storageEnd));
             return;
         }
@@ -1492,12 +1492,12 @@ public class AutoSpawnerModule {
                 if (!lootTriedNormalClick) {
                     lootTriedNormalClick = true;
                     gameMode.handleContainerInput(menu.containerId, lootLastClickedSlot, 0, ContainerInput.PICKUP, player);
-                    waitTicks = scaleTicks(1);
+                    waitTicks = 0;
                     return;
                 } else {
                     boolean shouldStay = hasMoreDepoPages || countEmptyPlayerSlots(menu) <= 2;
                     closeOpenScreenIfAny(mc, player);
-                    waitTicks = scaleTicks(1);
+                    waitTicks = 0;
                     afterSpawnerLooted(mc, player, shouldStay);
                     return;
                 }
@@ -1532,14 +1532,15 @@ public class AutoSpawnerModule {
             }
         }
 
-        if (burstCount > 0) {
-            waitTicks = resolveBurstStepWaitTicks();
+        int burstWait = resolveBurstStepWaitTicks();
+        if (burstCount > 0 && (burstWait > 0 || hasAnyIronIngotInStorage(menu, storageEnd))) {
+            waitTicks = burstWait;
             return;
         }
 
         if (lootSafetyClicks >= 55 || countEmptyPlayerSlots(menu) <= 1) {
             closeOpenScreenIfAny(mc, player);
-            waitTicks = scaleTicks(1);
+            waitTicks = 0;
             afterSpawnerLooted(mc, player, true);
             return;
         }
@@ -1547,7 +1548,7 @@ public class AutoSpawnerModule {
         // Only finish the spawner when there are NO iron ingots left AND NO remaining depo pages
         if (!hasMoreDepoPages) {
             closeOpenScreenIfAny(mc, player);
-            waitTicks = scaleTicks(1);
+            waitTicks = 0;
             afterSpawnerLooted(mc, player, false);
             return;
         }
@@ -1561,11 +1562,11 @@ public class AutoSpawnerModule {
             lootLastSlotCount = -1;
             lootTriedNormalClick = false;
             gameMode.handleContainerInput(menu.containerId, nextPageSlot, 0, ContainerInput.PICKUP, player);
-            waitTicks = scaleTicks(1);
+            waitTicks = 0;
             return;
         }
         closeOpenScreenIfAny(mc, player);
-        waitTicks = scaleTicks(1);
+        waitTicks = 0;
         afterSpawnerLooted(mc, player, false);
     }
 
@@ -1688,7 +1689,7 @@ public class AutoSpawnerModule {
         if (!didCraft && remainingIngots < 9 && !menu.slots.isEmpty() && menu.getSlot(0).getItem().isEmpty()) {
             closeOpenScreenIfAny(mc, player);
             stateTimeoutTicks = 0;
-            waitTicks = scaleTicks(1);
+            waitTicks = 0;
             afterCraftingCompleted(mc, player);
             return;
         }
@@ -1697,7 +1698,7 @@ public class AutoSpawnerModule {
         if (stateTimeoutTicks > scaleTicks(100)) { // 5s safety timeout (TPS-scaled)
             closeOpenScreenIfAny(mc, player);
             stateTimeoutTicks = 0;
-            waitTicks = scaleTicks(1);
+            waitTicks = 0;
             afterCraftingCompleted(mc, player);
         }
     }
@@ -1863,8 +1864,8 @@ public class AutoSpawnerModule {
         chestPreferAltSpot = false;
         nav.currentNavTarget = chestPos;
         nav.activePathAllowsSpawnerFloor = true;
-        nav.stopHorizReach = 3.85;
-        nav.stopEyeReach = 4.35;
+        nav.stopHorizReach = 4.05;
+        nav.stopEyeReach = 4.40;
 
         if (SpawnerNavHelper.isAlreadyInOptimalReach(level, player, chestPos, false, preferAlt, enclosure)) {
             state = State.INTERACT_CHEST;
@@ -1952,7 +1953,7 @@ public class AutoSpawnerModule {
         gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
         player.swing(InteractionHand.MAIN_HAND, player.getMainHandItem().getInteractAnimation(), false);
 
-        waitTicks = scaleTicks(1);
+        waitTicks = 0;
         state = State.WAIT_CHEST_GUI;
     }
 
@@ -1962,14 +1963,14 @@ public class AutoSpawnerModule {
             if (isMinerChestWindow(containerScreen)) {
                 closeOpenScreenIfAny(mc, player);
                 chestIndex++;
-                waitTicks = scaleTicks(1);
+                waitTicks = 0;
                 state = State.FIND_NEXT_CHEST;
                 return;
             }
             AbstractContainerMenu menu = containerScreen.getMenu();
             chestDepositSlotIdx = Math.max(0, menu.slots.size() - 36);
             chestPrevSlotCount = -1;
-            waitTicks = scaleTicks(1);
+            waitTicks = 0;
             state = State.DEPOSIT_IRON_BLOCKS;
             return;
         }
@@ -1997,12 +1998,12 @@ public class AutoSpawnerModule {
         if (!menu.getCarried().isEmpty()) {
             chestPrevSlotCount = -1;
             if (tryReturnCarriedToPlayerInventory(menu, player, gameMode)) {
-                waitTicks = scaleTicks(1);
+                waitTicks = 0;
                 return;
             }
             closeOpenScreenIfAny(mc, player);
             chestIndex++;
-            waitTicks = scaleTicks(1);
+            waitTicks = 0;
             state = State.FIND_NEXT_CHEST;
             return;
         }
@@ -2020,7 +2021,7 @@ public class AutoSpawnerModule {
                 }
                 closeOpenScreenIfAny(mc, player);
                 chestIndex++;
-                waitTicks = scaleTicks(1);
+                waitTicks = 0;
                 state = State.FIND_NEXT_CHEST;
                 return;
             }
@@ -2048,7 +2049,7 @@ public class AutoSpawnerModule {
                 if (remNow == beforeCount) {
                     // Upper chest slots are full -> leave chestPrevSlotCount set so next tick flags chest full
                     chestPrevSlotCount = beforeCount;
-                    waitTicks = scaleTicks(1);
+                    waitTicks = 0;
                     return;
                 }
                 int depositedNow = beforeCount - remNow;
@@ -2057,7 +2058,7 @@ public class AutoSpawnerModule {
                 if (remNow > 0) {
                     // Partial transfer filled the last slot of the chest
                     chestPrevSlotCount = remNow;
-                    waitTicks = scaleTicks(1);
+                    waitTicks = 0;
                     return;
                 }
                 chestPrevSlotCount = -1;
@@ -2087,7 +2088,7 @@ public class AutoSpawnerModule {
             chestCycleCursor = Math.floorMod(baseIdx + 1, scannedChests.size());
         }
         closeOpenScreenIfAny(mc, player);
-        waitTicks = scaleTicks(1);
+        waitTicks = 0;
         if (countPlayerInventoryItem(player, Items.IRON_BLOCK) <= 0) {
             if (!waitingToFinishCurrentSpawner && pendingGreenSpawner != null) {
                 openedSpawners.add(pendingGreenSpawner);
@@ -2096,7 +2097,7 @@ public class AutoSpawnerModule {
             if (spawnerIndex < spawners.size() || !reachBatchQueue.isEmpty()) {
                 prepareSpawnerNavigation(mc.level, player);
             } else {
-                enterNextPassCooldown(2);
+                enterNextPassCooldown(1);
             }
         } else {
             chestIndex++;

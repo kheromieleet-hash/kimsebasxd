@@ -821,17 +821,13 @@ public class AutoSpawnerTest {
         nav.setLegitMode(true);
         nav.moveForward = true;
         nav.wantJump = false;
-        assert !nav.computeWantSprint(0.0, 0.5, 10.0, 22.0f, 0.0, false) : "Heading err > 18 deg must suppress legit sprint";
-        assert !nav.computeWantSprint(0.0, 0.5, 3.5, 0.0f, 0.0, false) : "Short distance <= 4.2 must suppress sprint";
+        assert !nav.computeWantSprint(0.0, 0.5, 10.0, 42.0f, 0.0, false) : "Heading err > 40 deg must suppress sprint";
+        assert !nav.computeWantSprint(0.0, 0.5, 0.5, 0.0f, 0.0, false) : "Distance <= 0.6 must suppress sprint";
 
-        boolean sawSprintTrue = false;
-        boolean sawSprintFalse = false;
-        for (int t = 0; t < 80; t++) {
-            boolean s = nav.computeWantSprint(0.0, 0.5, 10.0, 2.0f, 0.0, false);
-            if (s) sawSprintTrue = true;
-            else sawSprintFalse = true;
+        for (int t = 0; t < 40; t++) {
+            assert nav.computeWantSprint(0.0, 0.5, 2.0 + (t % 8), (t % 35), 0.0, false)
+                    : "Continuous full sprint must remain active while moving forward within heading tolerance";
         }
-        assert sawSprintTrue && sawSprintFalse : "Legit sprint burst should alternate active and rest phases";
 
         // Non-snap onDisable safety & rubberband setback path
         AutoSpawnerModule mod = AutoSpawnerModule.getInstance();
@@ -1119,18 +1115,18 @@ public class AutoSpawnerTest {
                 new BlockPos(0, 65, 2), new BlockPos(0, 65, 0)
         )) : "Single wall from z=8 should descend linearly: " + singleWall;
 
-        // 6. Burst click scaling by clickDelayTicks
+        // 6. Burst click scaling by clickDelayTicks (54 = full inventory in 1 tick at default delay)
         AutoSpawnerModule mod = AutoSpawnerModule.getInstance();
         mod.clickDelayTicks = 2;
-        assert mod.resolveBurstClicksPerStep() == 4 : "Delay 2 should burst 4 clicks/step";
-        assert mod.resolveBurstStepWaitTicks() == 1 : "Delay 2 should wait 1 tick between bursts";
+        assert mod.resolveBurstClicksPerStep() == 54 : "Delay 2 should sweep all 54 slots in 1 tick";
+        assert mod.resolveBurstStepWaitTicks() == 0 : "Delay 2 should have 0 step wait";
         mod.clickDelayTicks = 3;
-        assert mod.resolveBurstClicksPerStep() == 4 : "Delay 3 should burst 4 clicks/step";
-        assert mod.resolveBurstStepWaitTicks() == 1 : "Delay 3 should wait 1 tick between bursts";
+        assert mod.resolveBurstClicksPerStep() == 54 : "Delay 3 should sweep all 54 slots in 1 tick";
+        assert mod.resolveBurstStepWaitTicks() == 0 : "Delay 3 should have 0 step wait";
         mod.clickDelayTicks = 5;
-        assert mod.resolveBurstClicksPerStep() == 2 : "Delay 5 should burst 2 clicks/step";
+        assert mod.resolveBurstClicksPerStep() == 12 : "Delay 5 should burst 12 clicks/step";
         mod.clickDelayTicks = 7;
-        assert mod.resolveBurstClicksPerStep() == 1 : "Delay 7 should burst 1 click/step";
+        assert mod.resolveBurstClicksPerStep() == 4 : "Delay 7 should burst 4 clicks/step";
         mod.clickDelayTicks = 3;
     }
 }
