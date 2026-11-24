@@ -7,6 +7,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.PlayerFaceExtractor;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 
@@ -116,11 +117,13 @@ public final class PlayerListHudRenderer {
         }
         boolean showDist = cfg == null || cfg.playerListShowDistance;
         boolean showHp = cfg == null || cfg.playerListShowHealth;
+        boolean showBadges = cfg != null && cfg.cosmeticShowBadges && !PanicHandler.isPanicActive();
         boolean unified = cfg == null || cfg.hudUnifiedGlass;
         int extra = (hasScrollbar ? SCROLLBAR_RESERVE : 0) + (unified ? 4 : 0);
         for (NearbyPlayerInfo p : players) {
             String right = buildRightTag(p, showDist, showHp);
-            int w = 16 + font.width(p.name()) + (right.isEmpty() ? 0 : font.width(right) + 8) + 6 + extra;
+            int badgePad = (showBadges && CosmeticsLogic.isOnlineSestiaUser(p.name())) ? 10 : 0;
+            int w = 16 + badgePad + font.width(p.name()) + (right.isEmpty() ? 0 : font.width(right) + 8) + 6 + extra;
             if (w > maxW) {
                 maxW = w;
             }
@@ -210,6 +213,7 @@ public final class PlayerListHudRenderer {
         int screenH = graphics.guiHeight();
         boolean showDist = cfg.playerListShowDistance;
         boolean showHp = cfg.playerListShowHealth;
+        boolean showBadges = cfg.cosmeticShowBadges;
         boolean unified = cfg.hudUnifiedGlass;
 
         String[] rightTags = new String[players.size()];
@@ -225,7 +229,8 @@ public final class PlayerListHudRenderer {
             int rightW = right.isEmpty() ? 0 : mc.font.width(right);
             rightTags[i] = right;
             rightWidths[i] = rightW;
-            int w = 16 + mc.font.width(p.name()) + (rightW > 0 ? rightW + 8 : 0) + 6 + extra;
+            int badgePad = (showBadges && CosmeticsLogic.isOnlineSestiaUser(p.name())) ? 10 : 0;
+            int w = 16 + badgePad + mc.font.width(p.name()) + (rightW > 0 ? rightW + 8 : 0) + 6 + extra;
             if (w > maxW) {
                 maxW = w;
             }
@@ -277,6 +282,18 @@ public final class PlayerListHudRenderer {
                 nameX = x + 16;
             } else {
                 JelloTheme.fill(graphics, x + 5, curY + 4, x + 8, curY + 7, dotColor);
+            }
+
+            if (showBadges && CosmeticsLogic.isOnlineSestiaUser(p.name())) {
+                int leafCol = 0xFF000000 | (JelloTheme.ACCENT != 0 ? (JelloTheme.ACCENT & 0xFFFFFF) : 0x34D399);
+                graphics.blit(
+                        RenderPipelines.GUI_TEXTURED,
+                        SestiaTitleBackgroundRenderer.getLeafMaskTexture(),
+                        nameX, curY + 2,
+                        0.0f, 0.0f, 8, 8, 8, 8,
+                        leafCol
+                );
+                nameX += 10;
             }
 
             String right = rightTags[i];

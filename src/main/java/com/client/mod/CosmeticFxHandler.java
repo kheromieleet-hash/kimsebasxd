@@ -114,7 +114,7 @@ public final class CosmeticFxHandler {
                     p.isCrouching(),
                     p.isFallFlying(),
                     p.isSwimming(),
-                    p.swinging,
+                    p.isSwinging(),
                     false
             );
             if (cancel) {

@@ -337,7 +337,7 @@ public class ModernModuleSettingsTest {
         String[] expectedModes = {
                 "Lines", "Dragon", "Angel", "Demon", "Butterfly",
                 "Cyber", "Phoenix", "Crystal", "Seraph", "Void",
-                "Valkyrie", "Galaxy", "Steampunk", "Thunder", "Sakura", "Bone"
+                "Valkyrie", "Galaxy", "Steampunk", "Thunder", "Sakura", "Bone", "Sestia Leaf"
         };
         for (int i = 0; i < expectedModes.length; i++) {
             assert expectedModes[i].equals(modeCycle.valueLabel().get())
@@ -397,6 +397,12 @@ public class ModernModuleSettingsTest {
         cfg.wingsMode = WingsLogic.MODE_ANGEL;
         List<ModernModuleSettings.Control> cosmeticAngel = ModernModuleSettings.getCosmeticWingsControls(cfg, actions);
         assert cosmeticAngel.size() == 6 : "Expected 6 Cosmetic Wings controls in Angel mode, got " + cosmeticAngel.size();
+        assert !ModernModuleSettings.getCosmeticCloakControls(cfg, actions).isEmpty();
+        assert !ModernModuleSettings.getCosmeticHatControls(cfg, actions).isEmpty();
+        assert !ModernModuleSettings.getCosmeticPetControls(cfg, actions).isEmpty();
+        assert !ModernModuleSettings.getCosmeticGearControls(cfg, actions).isEmpty();
+        assert !ModernModuleSettings.getCosmeticAuraControls(cfg, actions).isEmpty();
+        assert !ModernModuleSettings.getCosmeticFxControls(cfg, actions).isEmpty();
 
         // Wings removed from Modules workspace and sanitized out of legacy favorites/keybinds/folders
         for (ClickGuiScreen.ModuleEntry entry : ClickGuiScreen.getAllModules()) {

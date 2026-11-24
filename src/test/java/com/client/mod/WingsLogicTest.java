@@ -13,7 +13,7 @@ public class WingsLogicTest {
     }
 
     private static void testClampingAndNaNGuards() {
-        assert WingsLogic.modeCount() == 16;
+        assert WingsLogic.modeCount() == 17;
         assert WingsLogic.clampMode(-1) == WingsLogic.MODE_LINES;
         assert WingsLogic.clampMode(99) == WingsLogic.MODE_LINES;
         assert WingsLogic.clampMode(WingsLogic.MODE_DRAGON) == WingsLogic.MODE_DRAGON;
@@ -31,6 +31,7 @@ public class WingsLogicTest {
         assert WingsLogic.clampMode(WingsLogic.MODE_THUNDER) == WingsLogic.MODE_THUNDER;
         assert WingsLogic.clampMode(WingsLogic.MODE_SAKURA) == WingsLogic.MODE_SAKURA;
         assert WingsLogic.clampMode(WingsLogic.MODE_BONE) == WingsLogic.MODE_BONE;
+        assert WingsLogic.clampMode(WingsLogic.MODE_SESTIA_LEAF) == WingsLogic.MODE_SESTIA_LEAF;
         assert "Lines".equals(WingsLogic.modeName(0));
         assert "Dragon".equals(WingsLogic.modeName(1));
         assert "Angel".equals(WingsLogic.modeName(2));
@@ -47,6 +48,8 @@ public class WingsLogicTest {
         assert "Thunder".equals(WingsLogic.modeName(13));
         assert "Sakura".equals(WingsLogic.modeName(14));
         assert "Bone".equals(WingsLogic.modeName(15));
+        assert "Sestia Leaf".equals(WingsLogic.modeName(16));
+        assert "7-Leaf Hemp".equals(WingsLogic.modeStyleTag(16));
 
         assert WingsLogic.clampColorPreset(-1) == WingsLogic.COLOR_CYAN;
         assert WingsLogic.clampColorPreset(99) == WingsLogic.COLOR_CYAN;
@@ -180,9 +183,13 @@ public class WingsLogicTest {
 
         float bareZ = WingsLogic.computeBackZ(false);
         float armoredZ = WingsLogic.computeBackZ(true);
+        float cloakZ = WingsLogic.computeBackZ(false, false, true);
+        float elytraZ = WingsLogic.computeBackZ(true, true, true);
         assert Math.abs(bareZ - 0.125f) < 0.0001f;
         assert Math.abs(armoredZ - 0.225f) < 0.0001f;
         assert Math.abs((armoredZ - bareZ) - 0.10f) < 0.0001f;
+        assert cloakZ > bareZ;
+        assert elytraZ > armoredZ;
 
         float higherY = WingsLogic.computeAnchorY(0.40f);
         float lowerY = WingsLogic.computeAnchorY(-0.20f);

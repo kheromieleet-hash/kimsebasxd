@@ -937,6 +937,236 @@ public final class ModernModuleSettings {
         return buildWingsControls(cfg, actions, false);
     }
 
+    public static List<Control> getCosmeticCloakControls(ModConfig cfg, Actions actions) {
+        if (cfg == null || actions == null) return List.of();
+        List<Control> controls = new ArrayList<>();
+        appendSlotColorControls(controls, "cloakColorPalette", "Color",
+                () -> cfg.cosmeticCloakColorPreset, v -> cfg.cosmeticCloakColorPreset = v,
+                () -> cfg.cosmeticCloakCustomRgb, v -> cfg.cosmeticCloakCustomRgb = v,
+                0x34D399, actions);
+        return controls;
+    }
+
+    public static List<Control> getCosmeticHatControls(ModConfig cfg, Actions actions) {
+        if (cfg == null || actions == null) return List.of();
+        List<Control> controls = new ArrayList<>();
+        controls.add(floatSlider("cosmeticHatScale", "Hat Scale", 0.70f, 1.45f, 20.0f, "%.2fx",
+                () -> cfg.cosmeticHatScale, v -> cfg.cosmeticHatScale = CosmeticsLogic.clampHatScale(v)));
+        appendSlotColorControls(controls, "hatColorPalette", "Color",
+                () -> cfg.cosmeticHatColorPreset, v -> cfg.cosmeticHatColorPreset = v,
+                () -> cfg.cosmeticHatCustomRgb, v -> cfg.cosmeticHatCustomRgb = v,
+                0x34D399, actions);
+        return controls;
+    }
+
+    public static List<Control> getCosmeticPetControls(ModConfig cfg, Actions actions) {
+        if (cfg == null || actions == null) return List.of();
+        List<Control> controls = new ArrayList<>();
+        controls.add(new CycleControl("Mount Side",
+                () -> CosmeticsLogic.petSideName(cfg.cosmeticPetSide),
+                () -> {
+                    cfg.cosmeticPetSide = (CosmeticsLogic.clampPetSide(cfg.cosmeticPetSide) + 1) % CosmeticsLogic.petSideCount();
+                    actions.persist(false);
+                }));
+        appendSlotColorControls(controls, "petColorPalette", "Color",
+                () -> cfg.cosmeticPetColorPreset, v -> cfg.cosmeticPetColorPreset = v,
+                () -> cfg.cosmeticPetCustomRgb, v -> cfg.cosmeticPetCustomRgb = v,
+                0x34D399, actions);
+        return controls;
+    }
+
+    public static List<Control> getCosmeticGearControls(ModConfig cfg, Actions actions) {
+        if (cfg == null || actions == null) return List.of();
+        List<Control> controls = new ArrayList<>();
+        appendSlotColorControls(controls, "gearColorPalette", "Color",
+                () -> cfg.cosmeticGearColorPreset, v -> cfg.cosmeticGearColorPreset = v,
+                () -> cfg.cosmeticGearCustomRgb, v -> cfg.cosmeticGearCustomRgb = v,
+                0x34D399, actions);
+        return controls;
+    }
+
+    public static List<Control> getCosmeticAuraControls(ModConfig cfg, Actions actions) {
+        if (cfg == null || actions == null) return List.of();
+        List<Control> controls = new ArrayList<>();
+        controls.add(floatSlider("cosmeticAuraRadius", "Aura Radius", 0.55f, 1.65f, 20.0f, "%.2fx",
+                () -> cfg.cosmeticAuraRadius, v -> cfg.cosmeticAuraRadius = CosmeticsLogic.clampAuraRadius(v)));
+        controls.add(floatSlider("cosmeticAuraSpeed", "Spin Speed", 0.20f, 2.50f, 10.0f, "%.1fx",
+                () -> cfg.cosmeticAuraSpeed, v -> cfg.cosmeticAuraSpeed = CosmeticsLogic.clampAuraSpeed(v)));
+        appendSlotColorControls(controls, "auraColorPalette", "Color",
+                () -> cfg.cosmeticAuraColorPreset, v -> cfg.cosmeticAuraColorPreset = v,
+                () -> cfg.cosmeticAuraCustomRgb, v -> cfg.cosmeticAuraCustomRgb = v,
+                0x34D399, actions);
+        return controls;
+    }
+
+    public static List<Control> getCosmeticFxControls(ModConfig cfg, Actions actions) {
+        if (cfg == null || actions == null) return List.of();
+        List<Control> controls = new ArrayList<>();
+        // World Trails
+        controls.add(toggle("World Trails", () -> cfg.cosmeticTrailEnabled, v -> cfg.cosmeticTrailEnabled = v, actions, false));
+        controls.add(new CycleControl("Trail Style",
+                () -> CosmeticsLogic.trailName(cfg.cosmeticTrailMode),
+                () -> {
+                    cfg.cosmeticTrailMode = (CosmeticsLogic.clampTrailMode(cfg.cosmeticTrailMode) + 1) % CosmeticsLogic.trailCount();
+                    actions.persist(false);
+                }));
+        appendSlotColorControls(controls, "trailColorPalette", "Trail Color",
+                () -> cfg.cosmeticTrailColorPreset, v -> cfg.cosmeticTrailColorPreset = v,
+                () -> cfg.cosmeticTrailCustomRgb, v -> cfg.cosmeticTrailCustomRgb = v,
+                0x34D399, actions);
+
+        // Hit Burst & Kill Finisher & Totem Pop FX
+        controls.add(toggle("Hit Burst FX", () -> cfg.cosmeticHitFxEnabled, v -> cfg.cosmeticHitFxEnabled = v, actions, false));
+        controls.add(new CycleControl("Hit Style",
+                () -> CosmeticsLogic.hitFxName(cfg.cosmeticHitFxMode),
+                () -> {
+                    cfg.cosmeticHitFxMode = (CosmeticsLogic.clampHitFxMode(cfg.cosmeticHitFxMode) + 1) % CosmeticsLogic.hitFxCount();
+                    actions.persist(false);
+                }));
+        appendSlotColorControls(controls, "hitFxColorPalette", "Hit Color",
+                () -> cfg.cosmeticHitFxColorPreset, v -> cfg.cosmeticHitFxColorPreset = v,
+                () -> cfg.cosmeticHitFxCustomRgb, v -> cfg.cosmeticHitFxCustomRgb = v,
+                0x34D399, actions);
+
+        controls.add(toggle("Kill Finisher FX", () -> cfg.cosmeticKillFxEnabled, v -> cfg.cosmeticKillFxEnabled = v, actions, false));
+        controls.add(new CycleControl("Kill Style",
+                () -> CosmeticsLogic.killFxName(cfg.cosmeticKillFxMode),
+                () -> {
+                    cfg.cosmeticKillFxMode = (CosmeticsLogic.clampKillFxMode(cfg.cosmeticKillFxMode) + 1) % CosmeticsLogic.killFxCount();
+                    actions.persist(false);
+                }));
+        appendSlotColorControls(controls, "killFxColorPalette", "Kill Color",
+                () -> cfg.cosmeticKillFxColorPreset, v -> cfg.cosmeticKillFxColorPreset = v,
+                () -> cfg.cosmeticKillFxCustomRgb, v -> cfg.cosmeticKillFxCustomRgb = v,
+                0x34D399, actions);
+
+        controls.add(toggle("Totem Pop FX", () -> cfg.cosmeticTotemFxEnabled, v -> cfg.cosmeticTotemFxEnabled = v, actions, false));
+        controls.add(floatSlider("cosmeticTotemScale", "Totem HUD Scale", 0.40f, 1.35f, 20.0f, "%.2fx",
+                () -> cfg.cosmeticTotemFxScale, v -> cfg.cosmeticTotemFxScale = CosmeticsLogic.clampTotemScale(v)));
+        controls.add(toggle("Totem 3D Ring", () -> cfg.cosmeticTotemFxRing, v -> cfg.cosmeticTotemFxRing = v, actions, false));
+
+        // Enchant Glint & First-Person Hand FX
+        controls.add(toggle("Enchant Glint Colorizer", () -> cfg.cosmeticGlintEnabled, v -> cfg.cosmeticGlintEnabled = v, actions, false));
+        controls.add(floatSlider("cosmeticGlintIntensity", "Glint Intensity", 0.25f, 1.35f, 20.0f, "%.2fx",
+                () -> cfg.cosmeticGlintIntensity, v -> cfg.cosmeticGlintIntensity = CosmeticsLogic.clampGlintIntensity(v)));
+        appendSlotColorControls(controls, "glintColorPalette", "Glint Color",
+                () -> cfg.cosmeticGlintColorPreset, v -> cfg.cosmeticGlintColorPreset = v,
+                () -> cfg.cosmeticGlintCustomRgb, v -> cfg.cosmeticGlintCustomRgb = v,
+                0x34D399, actions);
+
+        controls.add(toggle("1P Hand Aura", () -> cfg.cosmeticHandAuraEnabled, v -> cfg.cosmeticHandAuraEnabled = v, actions, false));
+        controls.add(new CycleControl("Hand Aura Style",
+                () -> CosmeticsLogic.handAuraName(cfg.cosmeticHandAuraMode),
+                () -> {
+                    cfg.cosmeticHandAuraMode = (CosmeticsLogic.clampHandAuraMode(cfg.cosmeticHandAuraMode) + 1) % CosmeticsLogic.handAuraCount();
+                    actions.persist(false);
+                }));
+
+        controls.add(toggle("Melee Slash Arc", () -> cfg.cosmeticSlashArcEnabled, v -> cfg.cosmeticSlashArcEnabled = v, actions, false));
+        controls.add(new CycleControl("Slash Arc Style",
+                () -> CosmeticsLogic.slashArcName(cfg.cosmeticSlashArcMode),
+                () -> {
+                    cfg.cosmeticSlashArcMode = (CosmeticsLogic.clampSlashArcMode(cfg.cosmeticSlashArcMode) + 1) % CosmeticsLogic.slashArcCount();
+                    actions.persist(false);
+                }));
+        appendSlotColorControls(controls, "slashArcColorPalette", "Slash Color",
+                () -> cfg.cosmeticSlashArcColorPreset, v -> cfg.cosmeticSlashArcColorPreset = v,
+                () -> cfg.cosmeticSlashArcCustomRgb, v -> cfg.cosmeticSlashArcCustomRgb = v,
+                0x34D399, actions);
+
+        // Social Sync & Badges
+        controls.add(toggle("Sync My Cosmetics", () -> cfg.cosmeticSyncMine, v -> cfg.cosmeticSyncMine = v, actions, false));
+        controls.add(toggle("Show Friends' Cosmetics", () -> cfg.cosmeticShowFriends, v -> cfg.cosmeticShowFriends = v, actions, false));
+        controls.add(toggle("Show Sestia Leaf Badges", () -> cfg.cosmeticShowBadges, v -> cfg.cosmeticShowBadges = v, actions, false));
+        return controls;
+    }
+
+    private static final java.util.Map<String, float[]> COSMETIC_HSV_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static float[] resolveCachedHsv(String key, int rgb) {
+        return COSMETIC_HSV_CACHE.computeIfAbsent(key, k -> {
+            float[] hsv = WingsLogic.rgbToHsv(rgb);
+            return new float[]{hsv[0], hsv[1], Math.max(0.10f, hsv[2])};
+        });
+    }
+
+    private static void appendSlotColorControls(
+            List<Control> controls,
+            String paletteKey,
+            String label,
+            java.util.function.IntSupplier presetGetter,
+            java.util.function.IntConsumer presetSetter,
+            java.util.function.IntSupplier rgbGetter,
+            java.util.function.IntConsumer rgbSetter,
+            int defaultRgb,
+            Actions actions
+    ) {
+        controls.add(new CycleControl(label,
+                () -> {
+                    int preset = WingsLogic.clampColorPreset(presetGetter.getAsInt());
+                    if (preset == WingsLogic.COLOR_CUSTOM) {
+                        return "Custom " + WingsLogic.formatHexRgb(rgbGetter.getAsInt());
+                    }
+                    return WingsLogic.colorPresetName(preset);
+                },
+                () -> {
+                    int next = (WingsLogic.clampColorPreset(presetGetter.getAsInt()) + 1) % WingsLogic.colorCount();
+                    presetSetter.accept(next);
+                    if (next != WingsLogic.COLOR_CHROMA && next != WingsLogic.COLOR_CUSTOM) {
+                        int presetRgb = WingsLogic.resolveRgb(next, rgbGetter.getAsInt(), 0.0f, 0.0f, false);
+                        float[] hsv = WingsLogic.rgbToHsv(presetRgb);
+                        COSMETIC_HSV_CACHE.put(paletteKey, new float[]{hsv[0], hsv[1], Math.max(0.10f, hsv[2])});
+                        rgbSetter.accept(presetRgb);
+                    }
+                    actions.persist(false);
+                }));
+        controls.add(new ColorPaletteControl(
+                paletteKey,
+                () -> WingsLogic.clampColorPreset(presetGetter.getAsInt()) == WingsLogic.COLOR_CHROMA,
+                () -> {
+                    presetSetter.accept(WingsLogic.COLOR_CHROMA);
+                    actions.persist(false);
+                },
+                () -> WingsLogic.resolveRgb(presetGetter.getAsInt(), rgbGetter.getAsInt(), 0.0f, 0.0f, false),
+                rgb -> {
+                    int clean = WingsLogic.clampRgb(rgb);
+                    float[] hsv = WingsLogic.rgbToHsv(clean);
+                    COSMETIC_HSV_CACHE.put(paletteKey, new float[]{hsv[0], hsv[1], Math.max(0.10f, hsv[2])});
+                    rgbSetter.accept(clean);
+                    presetSetter.accept(WingsLogic.COLOR_CUSTOM);
+                    actions.persist(false);
+                },
+                () -> resolveCachedHsv(paletteKey, rgbGetter.getAsInt())[0],
+                h -> {
+                    float[] hsv = resolveCachedHsv(paletteKey, rgbGetter.getAsInt());
+                    hsv[0] = Math.max(0.0f, Math.min(1.0f, h));
+                    rgbSetter.accept(WingsLogic.hsvToRgb(hsv[0], hsv[1], hsv[2]));
+                    presetSetter.accept(WingsLogic.COLOR_CUSTOM);
+                },
+                () -> resolveCachedHsv(paletteKey, rgbGetter.getAsInt())[1],
+                s -> {
+                    float[] hsv = resolveCachedHsv(paletteKey, rgbGetter.getAsInt());
+                    hsv[1] = Math.max(0.0f, Math.min(1.0f, s));
+                    rgbSetter.accept(WingsLogic.hsvToRgb(hsv[0], hsv[1], hsv[2]));
+                    presetSetter.accept(WingsLogic.COLOR_CUSTOM);
+                },
+                () -> resolveCachedHsv(paletteKey, rgbGetter.getAsInt())[2],
+                v -> {
+                    float[] hsv = resolveCachedHsv(paletteKey, rgbGetter.getAsInt());
+                    hsv[2] = Math.max(0.10f, Math.min(1.0f, v));
+                    rgbSetter.accept(WingsLogic.hsvToRgb(hsv[0], hsv[1], hsv[2]));
+                    presetSetter.accept(WingsLogic.COLOR_CUSTOM);
+                },
+                () -> {
+                    presetSetter.accept(WingsLogic.COLOR_EMERALD);
+                    rgbSetter.accept(defaultRgb);
+                    float[] hsv = WingsLogic.rgbToHsv(defaultRgb);
+                    COSMETIC_HSV_CACHE.put(paletteKey, new float[]{hsv[0], hsv[1], Math.max(0.10f, hsv[2])});
+                    actions.persist(false);
+                }
+        ));
+    }
+
     private static List<Control> buildWingsControls(ModConfig cfg, Actions actions) {
         return buildWingsControls(cfg, actions, true);
     }

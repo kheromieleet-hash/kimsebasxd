@@ -1,7 +1,7 @@
 ================================================================================
 SESTIA CLIENT - TUM MODULLER VE OZELLIKLER REHBERI
-Surum: v2.3.8 (VersionCode: 238) | Minecraft: 26.3 Fabric
-Toplam Kayitli Modul: 37 (+ 7 Yerlesik Sistem Ozelligi)
+Surum: v2.4.0 (VersionCode: 240) | Minecraft: 26.3 Fabric
+Toplam Kayitli Modul: 37 (+ 8 Yerlesik Sistem Ozelligi)
 ================================================================================
 
 --------------------------------------------------------------------------------
@@ -485,20 +485,48 @@ Toplam Kayitli Modul: 37 (+ 7 Yerlesik Sistem Ozelligi)
     secim oturum boyunca hatirlanir).
   1. Sestia Leaf (5 saydam cam & yaprak cesidi: Emerald, Forest, Frost, Gold, Obsidian)
   2. Crimson (Saydam cam, kirmizi dusen yapraklar, kirmizi imlec & buton pariltisi)
-- Cosmetic Sekmesi (3D Karakter Onizlemeli Kanat Studyosu - Sol Panel): Wings
-  artik Modules listesinden cikarilip sol kenar cubugundaki ozel `Cosmetic`
-  sekmesine tasinmistir:
-  * Canli 3D Karakter Onizlemesi: Sol panelde kendi Minecraft skin'in (oyun ici
-    veya Ana Menu fark etmeksizin) canli olarak cizilir; fareyle surukleyerek
-    360° dondurulebilir veya alt kisimdaki `Back / 3/4 / Front` hazir aci
-    butonlariyla tek tikla cevrilebilir.
-  * Uzerine Gelince Canli Onizleme: Sagdaki 16 farkli 3D kanat kartinin (Lines,
-    Dragon, Angel, Demon, Butterfly, Cyber, Phoenix, Crystal, Seraph, Void,
-    Valkyrie, Galaxy, Steampunk, Thunder, Sakura, Bone) herhangi birinin uzerine
-    fareyle gelindiginde kanat kapali olsa bile soldaki 3D skin'in sirtinda o
-    kanat modelini canli olarak onizler; tiklayinca takar/cikarir ve SestiaChat
-    ile diger kullanicilara senkronize eder.
-  * Wing Customization Bolumu: Katlanabilir ozellestirme bolumunden Chroma /
-    12 hazir renk / 360° HSV paleti, Length, Width, Lines Count, Fade Start,
-    Height, Flap Speed ve Show Damage ayarlari canli onizlemeli yapilir.
+- Cosmetic Studio (Cok Slotlu 3D Karakter & Kozmetik Studyosu - Sol Panel):
+  `Wings` Modules listesinden kaldirilip 6 ana sutundan olusan tam kapsamli bir
+  coklu-slot kozmetik studyosuna donusturulmustur (`Wings | Capes | Hats | Pets
+  | Gear | Auras | FX & Emotes | Outfits`):
+  * 17. Kanat Modeli (Sestia Leaf) + Animasyonlu 3D Pelerinler (Capes):
+    `Sestia Leaf` (7 yaprakli isik sacan kenevir yapragi kanadi), `Chroma
+    Nebula`, `Cyber Grid`, `Obsidian Royal` ve `Sestia Leaf` 3D pelerinler.
+    Ozel pelerin aktifken vanilya Mojang pelerini otomatik gizlenir; Elytra ve
+    gogusluk zirhi icin derinlik/ofset korumasi uygulanir (.panic'te vanilyaya doner).
+  * 3D Basliklar, Omuz Yoldaslari ve Sirt Ekipmanlari / Kuyruklar:
+    - Hats (6 model): Seraph Halo, Leaf Wreath, Demon Horns, Royal Crown, Cyber
+      Ears, Kitsune Visor (kask takiliyken otomatik yukari ofset + Scale ayari).
+    - Pets (5 yoldas): Emerald Wisp, Cyber Drone, Mini Fox, Mini Allay, Mini
+      Bee (Right / Left omuz veya Orbit etrafina donen mod).
+    - Gear & Tails (5 model): Katana Sheath, Tech Pack, Vine Tail, Demon Tail,
+      Fox Tail (yuruyuse ve hiza bagli sallanan artikule kuyruklar).
+  * 3D Oyuncu Auralari, Izler ve Savas Gorsel Efektleri:
+    - Auras (4 model): Ground Rune, Double Helix, Leaf Orbit, Pulse Halo (yari
+      cap ve donus hizi ayarli).
+    - World Trails (4 mod): Step Ripples, Leaf Ribbon, Neon Sparks, Elytra
+      Contrail.
+    - Combat & Totem FX: Hit Burst (Emerald Burst / Leaf Petals / Shockwave
+      Ring), Kill Finisher (Soul Beacon / Emerald Nova / Voxel Dissolve), ve
+      Totem Pop 3D halka + HUD boyut olcekleme.
+  * Enchant Glint Colorizer, 1. Sahis El/Kilic Efektleri ve 3D Emote Pozlari:
+    - Ozel RGB / Chroma Enchant Glint dokusu (tum zirh ve esyalarda canli renk
+      ve parlaklik; .panic'te aninda vanilya mora doner).
+    - 1P Hand Aura (`Forearm Rings`, `Blade Edge`) & Melee Slash Arc (`Emerald
+      Crescent`, `Crimson Wave`).
+    - 3D Pose Emotes (`Arms Crossed`, `Salute`, `Hover Meditate`, `Wave`,
+      `Point`): Tiklayinca canli oynatir ve SestiaChat ile diger oyunculara
+      yayinlar; yuruyunce/egilince/saldirinca otomatik iptal olur.
+  * Sosyal Kimlik (Sestia Leaf Rozetleri) & Chat Sync v2:
+    Vanilya Tab listesinde, dunya ici isim etiketlerinde ve `Player List` HUD
+    kartinda cevrimici Sestia Client kullanicilarina tema renginde Leaf/Yildiz
+    rozeti gosterilir. Tum kozmetik yuvalari ve emote'lar sikistirilmis v2
+    protokolu uzerinden senkronize edilir.
+  * Gelismis Cosmetic Locker UI & SC1: Kiyafet Kodlari (Outfits):
+    2 eksenli fareyle dondurme (yaw + pitch), fare tekerlegi zoom (0.75x -
+    1.85x), sekme degistirince akilli kamera kadraji, `Match` (tema eslestir),
+    `Armor` (zirh bosluk testi), `Idle | Walk | Sneak | Glide | Hit` poz seridi,
+    hizli aktif slot cip'leri, yakindaki arkadas kombinlerini onizleme + `Clone`,
+    ve tek tikla disari aktarilip yapistirilabilen `SC1:...` Outfit paylasim
+    kodlari yer alir.
 ================================================================================

@@ -70,13 +70,6 @@ public abstract class PlayerModelMixin {
             model.leftLeg.zRot = pose.leftLegZ();
             model.rightLeg.xRot = pose.rightLegX();
             model.rightLeg.zRot = pose.rightLegZ();
-
-            model.hat.copyFrom(model.head);
-            model.jacket.copyFrom(model.body);
-            model.leftSleeve.copyFrom(model.leftArm);
-            model.rightSleeve.copyFrom(model.rightArm);
-            model.leftPants.copyFrom(model.leftLeg);
-            model.rightPants.copyFrom(model.rightLeg);
         } else if (isPreview && CosmeticsLogic.getPreviewPose() == CosmeticsLogic.PREVIEW_POSE_HIT) {
             // Smooth cyclical sword-swing pose for the Cosmetic Locker's "Hit" preview button
             float cycle = (state.ageInTicks * 0.14f) % 1.0f;
@@ -85,9 +78,6 @@ public abstract class PlayerModelMixin {
             model.rightArm.yRot = -0.15f - swing * 0.42f;
             model.leftArm.xRot = -0.25f + swing * 0.25f;
             model.body.yRot = -swing * 0.22f;
-            model.rightSleeve.copyFrom(model.rightArm);
-            model.leftSleeve.copyFrom(model.leftArm);
-            model.jacket.copyFrom(model.body);
         }
     }
 }

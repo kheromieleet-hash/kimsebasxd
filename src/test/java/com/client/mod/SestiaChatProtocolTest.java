@@ -134,7 +134,62 @@ public class SestiaChatProtocolTest {
         assert synced != null && synced.enabled()
                 && synced.mode() == WingsLogic.MODE_CYBER
                 && synced.colorPreset() == WingsLogic.COLOR_CHROMA;
-        WingsLogic.clearRemoteProfiles();
+
+        // Multi-Slot Cosmetics v2 Sync + FX Emote + Leave cleanup
+        CosmeticsLogic.clearRemoteState();
+        ModConfig cfg = new ModConfig();
+        cfg.wingsEnabled = true;
+        cfg.wingsMode = WingsLogic.MODE_SESTIA_LEAF;
+        cfg.cosmeticCloakEnabled = true;
+        cfg.cosmeticCloakMode = CosmeticsLogic.CLOAK_OBSIDIAN_ROYAL;
+        cfg.cosmeticHatEnabled = true;
+        cfg.cosmeticHatMode = CosmeticsLogic.HAT_LEAF_WREATH;
+        cfg.cosmeticPetEnabled = true;
+        cfg.cosmeticPetMode = CosmeticsLogic.PET_MINI_ALLAY;
+        cfg.cosmeticGearEnabled = true;
+        cfg.cosmeticGearMode = CosmeticsLogic.GEAR_KATANA_SHEATH;
+        cfg.cosmeticAuraEnabled = true;
+        cfg.cosmeticAuraMode = CosmeticsLogic.AURA_DOUBLE_HELIX;
+        cfg.cosmeticGlintEnabled = true;
+        cfg.cosmeticSlashArcEnabled = true;
+
+        CosmeticsLogic.CosmeticLoadout srcLoadout = CosmeticsLogic.fromConfig(cfg);
+        String helloV2 = SestiaChatProtocol.buildHelloJson("SestiaKing", wp, srcLoadout);
+        assert helloV2.length() < 1500 : "v2 hello payload must remain compact: " + helloV2.length();
+        JsonObject helloV2Obj = JsonParser.parseString(helloV2).getAsJsonObject();
+        assert helloV2Obj.has("c") && helloV2Obj.getAsJsonObject("c").get("v").getAsInt() == 2;
+
+        String cosBroadcast = "{\"type\":\"cosmetics\",\"from\":\"Dost_TR\",\"c\":"
+                + SestiaChatProtocol.serializeCosmeticsV2(srcLoadout) + "}";
+        SestiaChatProtocol.ServerEvent cosEv = SestiaChatProtocol.parseServerEvent(cosBroadcast);
+        assert cosEv.type() == SestiaChatProtocol.EventType.COSMETICS && "Dost_TR".equals(cosEv.from());
+        CosmeticsLogic.CosmeticLoadout remoteLoadout = CosmeticsLogic.getRemoteLoadout("dost_tr");
+        assert remoteLoadout != null
+                && remoteLoadout.wings().mode() == WingsLogic.MODE_SESTIA_LEAF
+                && remoteLoadout.cloakEnabled() && remoteLoadout.cloakMode() == CosmeticsLogic.CLOAK_OBSIDIAN_ROYAL
+                && remoteLoadout.hatEnabled() && remoteLoadout.hatMode() == CosmeticsLogic.HAT_LEAF_WREATH
+                && remoteLoadout.petEnabled() && remoteLoadout.petMode() == CosmeticsLogic.PET_MINI_ALLAY
+                && remoteLoadout.gearEnabled() && remoteLoadout.gearMode() == CosmeticsLogic.GEAR_KATANA_SHEATH
+                && remoteLoadout.auraEnabled() && remoteLoadout.auraMode() == CosmeticsLogic.AURA_DOUBLE_HELIX
+                && remoteLoadout.glintEnabled() && remoteLoadout.slashArcEnabled();
+
+        // FX Emote packet
+        String emoteJson = SestiaChatProtocol.buildEmoteFxJson(CosmeticsLogic.EMOTE_HOVER_MEDITATE);
+        String remoteEmotePacket = "{\"type\":\"fx\",\"from\":\"Dost_TR\",\"k\":\"emote\",\"id\":"
+                + CosmeticsLogic.EMOTE_HOVER_MEDITATE + "}";
+        assert emoteJson.contains("\"k\":\"emote\"");
+        SestiaChatProtocol.ServerEvent fxEv = SestiaChatProtocol.parseServerEvent(remoteEmotePacket);
+        assert fxEv.type() == SestiaChatProtocol.EventType.FX;
+        assert CosmeticsLogic.resolveActiveEmote(false, false, "Dost_TR", System.currentTimeMillis())
+                == CosmeticsLogic.EMOTE_HOVER_MEDITATE;
+
+        // Leave cleans up remote loadout & emote cache
+        SestiaChatProtocol.ServerEvent leaveEv = SestiaChatProtocol.parseServerEvent("{\"type\":\"leave\",\"from\":\"Dost_TR\"}");
+        assert leaveEv.type() == SestiaChatProtocol.EventType.LEAVE;
+        assert CosmeticsLogic.getRemoteLoadout("Dost_TR") == null;
+        assert CosmeticsLogic.resolveActiveEmote(false, false, "Dost_TR", System.currentTimeMillis())
+                == CosmeticsLogic.EMOTE_NONE;
+        CosmeticsLogic.clearRemoteState();
     }
 
     private static void testMuteListOperations() {

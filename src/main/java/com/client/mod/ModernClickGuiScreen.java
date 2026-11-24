@@ -9,6 +9,8 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
@@ -23,6 +25,7 @@ import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.PlayerSkin;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
@@ -155,9 +158,15 @@ public class ModernClickGuiScreen extends Screen {
     private final int[] rippleColor = new int[MAX_RIPPLES];
     private int rippleNext = 0;
 
-    // Cosmetic 3D Character + Hover Wing Preview state (zero per-frame allocations)
+    // Cosmetic 3D Character + Multi-Slot Locker Studio state (zero per-frame allocations)
+    private static int cosmeticSubTab = 0; // 0=Wings..5=Auras, 6=FX & Emotes, 7=Outfits
     private static float cosmeticPreviewYaw = 32.0f;
+    private static float cosmeticPreviewPitch = 6.0f;
+    private static float cosmeticPreviewZoom = 1.0f;
+    private static int cosmeticPreviewPose = CosmeticsLogic.PREVIEW_POSE_IDLE;
     private static boolean cosmeticCustomizeCollapsed = false;
+    private static final ItemStack PREVIEW_ARMOR_HELMET = new ItemStack(Items.DIAMOND_HELMET);
+    private static final ItemStack PREVIEW_ARMOR_CHEST = new ItemStack(Items.DIAMOND_CHESTPLATE);
     private boolean draggingCosmeticPreview = false;
     private int cosmeticStageX = 0;
     private int cosmeticStageY = 0;
@@ -171,6 +180,18 @@ public class ModernClickGuiScreen extends Screen {
     private final Quaternionf cosmeticCameraRot = new Quaternionf();
     private UUID cachedSkinProfileId = null;
     private Supplier<PlayerSkin> cachedSkinLookup = null;
+    private EditBox outfitNameBox;
+    private String inspectedCosmeticFriend = null;
+    private List<CosmeticOutfitManager.OutfitSummary> cachedOutfits = List.of();
+    private String cosmeticStatusText = null;
+    private boolean cosmeticStatusError = false;
+    private long cosmeticStatusUntilMs = 0L;
+    private final List<String> cosmeticFriendNames = new ArrayList<>(12);
+    private final int[] cosmeticSubTabX = new int[8];
+    private final int[] cosmeticSubTabY = new int[8];
+    private final int[] cosmeticSubTabW = new int[8];
+    private final int[] cosmeticFilteredModes = new int[32];
+    private int cosmeticFilteredModeCount = 0;
 
     public ModernClickGuiScreen(Screen parent) {
         this(parent, null);
@@ -252,6 +273,9 @@ public class ModernClickGuiScreen extends Screen {
             this.draggingSliderKey = null;
             this.activeSlider = null;
             cancelEditingSlider();
+            if (this.activeNav == NavTab.COSMETIC) {
+                return;
+            }
             List<ClickGuiScreen.ModuleEntry> visible = getVisibleModules();
             String subMatch = findSubSettingAutoExpandTarget(visible, this.searchQuery);
             if (subMatch != null) {
@@ -320,7 +344,15 @@ public class ModernClickGuiScreen extends Screen {
         this.folderNameBox.visible = false;
         this.addRenderableWidget(this.folderNameBox);
 
+        this.outfitNameBox = new EditBox(this.font, 0, 0, 140, 20, Component.literal("Outfit Name"));
+        this.outfitNameBox.setHint(Component.literal("e.g. Emerald Knight"));
+        this.outfitNameBox.setBordered(false);
+        this.outfitNameBox.setMaxLength(32);
+        this.outfitNameBox.visible = false;
+        this.addRenderableWidget(this.outfitNameBox);
+
         refreshProfilesList();
+        refreshOutfitsList();
         setSecondaryInputsVisible(this.activeNav == NavTab.MACROS && this.editingMacroIndex != -1,
                 this.activeNav == NavTab.CONFIG);
         if (this.expandedModule != null && findModuleIndex(getVisibleModules(), this.expandedModule) < 0) {
@@ -338,6 +370,11 @@ public class ModernClickGuiScreen extends Screen {
         if (this.profileCodeBox != null) this.profileCodeBox.setTextColor(textCol);
         if (this.sliderInputBox != null) this.sliderInputBox.setTextColor(textCol);
         if (this.folderNameBox != null) this.folderNameBox.setTextColor(textCol);
+        if (this.outfitNameBox != null) this.outfitNameBox.setTextColor(textCol);
+    }
+
+    private boolean isShowingModulesWorkspace() {
+        return this.activeNav == NavTab.MODULES || (this.activeNav != NavTab.COSMETIC && !this.searchQuery.isEmpty());
     }
 
     private void spawnRipple(int x, int y, int color) {
@@ -456,9 +493,9 @@ public class ModernClickGuiScreen extends Screen {
             int contentW = this.windowW - SIDEBAR_WIDTH - 2;
             int contentH = this.windowH - HEADER_HEIGHT - 2;
 
-            boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
+            boolean showingModules = isShowingModulesWorkspace();
             if (showingModules || this.activeNav != NavTab.COSMETIC) {
-                WingsLogic.setPreviewProfile(null);
+                CosmeticsLogic.clearPreviewOverrides();
             }
             if (showingModules) {
                 setSecondaryInputsVisible(false, false);
@@ -649,7 +686,7 @@ public class ModernClickGuiScreen extends Screen {
         int itemY = listTop;
         for (SidebarItem it : items) {
             int rowH = it.height;
-            boolean isCurrent = isSidebarItemActive(it) && this.searchQuery.isEmpty();
+            boolean isCurrent = isSidebarItemActive(it) && (this.searchQuery.isEmpty() || this.activeNav == NavTab.COSMETIC);
             boolean hovered = isInside(mouseX, mouseY, sideX + 6, itemY, sideW - 12, rowH);
             if (hovered) {
                 this.frameInteractiveHover = true;
@@ -1740,22 +1777,76 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     // ==========================================
-    // COSMETIC STUDIO (3D SKIN + LIVE WING LOCKER)
+    // COSMETIC STUDIO (3D MULTI-SLOT LOCKER + OUTFITS)
     // ==========================================
     private static final int COSMETIC_MASTER_H = 40;
     private static final int COSMETIC_WING_CARD_H = 38;
     private static final int COSMETIC_WING_GAP = 6;
+    private static final int COSMETIC_SUBTAB_H = 16;
+    private static final int COSMETIC_STAGE_BOTTOM_H = 82;
     private static final String[] COSMETIC_ANGLE_LABELS = {"Back", "3/4", "Front"};
     private static final float[] COSMETIC_ANGLE_VALUES = {0.0f, 32.0f, 180.0f};
+    private static final String[] COSMETIC_SUBTAB_LABELS = {
+            "Wings", "Capes", "Hats", "Pets", "Gear", "Auras", "FX & Emotes", "Outfits"
+    };
+    private static final String[] COSMETIC_CHIP_LABELS = {
+            "Wings", "Cape", "Hat", "Pet", "Gear", "Aura", "FX"
+    };
 
     private void computeCosmeticBounds(int contentX, int contentY, int contentW, int contentH) {
         int pad = 14;
         this.cosmeticStageX = contentX + pad;
         this.cosmeticStageY = contentY + pad;
-        this.cosmeticStageW = Math.min(226, Math.max(168, (int) (contentW * 0.35f)));
-        this.cosmeticStageH = Math.max(180, contentH - pad * 2);
+        this.cosmeticStageW = Math.min(238, Math.max(176, (int) (contentW * 0.36f)));
+        this.cosmeticStageH = Math.max(200, contentH - pad * 2);
         this.cosmeticRightX = this.cosmeticStageX + this.cosmeticStageW + 12;
         this.cosmeticRightW = Math.max(180, contentX + contentW - pad - this.cosmeticRightX);
+    }
+
+    private int layoutCosmeticSubTabs(int rightX, int topY, int rightW) {
+        int gapX = 4;
+        int gapY = 4;
+        int curX = rightX;
+        int curY = topY;
+        for (int i = 0; i < COSMETIC_SUBTAB_LABELS.length; i++) {
+            int w = this.font.width(COSMETIC_SUBTAB_LABELS[i]) + 12;
+            if (curX > rightX && curX + w > rightX + rightW) {
+                curX = rightX;
+                curY += COSMETIC_SUBTAB_H + gapY;
+            }
+            this.cosmeticSubTabX[i] = curX;
+            this.cosmeticSubTabY[i] = curY;
+            this.cosmeticSubTabW[i] = w;
+            curX += w + gapX;
+        }
+        return (curY - topY) + COSMETIC_SUBTAB_H;
+    }
+
+    private void applySmartCameraForSubTab(int subTab) {
+        cosmeticPreviewPitch = 6.0f;
+        switch (subTab) {
+            case 2 -> { // Hats
+                cosmeticPreviewYaw = 180.0f;
+                cosmeticPreviewZoom = 1.45f;
+            }
+            case 3 -> { // Pets
+                cosmeticPreviewYaw = 35.0f;
+                cosmeticPreviewZoom = 1.15f;
+            }
+            case 5 -> { // Auras
+                cosmeticPreviewYaw = 28.0f;
+                cosmeticPreviewPitch = 14.0f;
+                cosmeticPreviewZoom = 0.85f;
+            }
+            case 6, 7 -> { // FX & Emotes, Outfits
+                cosmeticPreviewYaw = 180.0f;
+                cosmeticPreviewZoom = 1.05f;
+            }
+            default -> { // Wings, Capes, Gear
+                cosmeticPreviewYaw = 0.0f;
+                cosmeticPreviewZoom = 1.0f;
+            }
+        }
     }
 
     private PlayerSkin resolveLocalPlayerSkin() {
@@ -1774,19 +1865,283 @@ public class ModernClickGuiScreen extends Screen {
         return DefaultPlayerSkin.getDefaultSkin();
     }
 
-    private int hitTestCosmeticWingCard(int mouseX, int mouseY, int contentY, int contentH, int gridY, int cols, int cardW) {
-        if (mouseY < contentY || mouseY >= contentY + contentH
+    private PlayerSkin resolveCosmeticStageSkin() {
+        if (this.inspectedCosmeticFriend != null && this.minecraft != null && this.minecraft.getConnection() != null) {
+            ClientPacketListener conn = this.minecraft.getConnection();
+            for (PlayerInfo info : conn.getOnlinePlayers()) {
+                if (info != null && info.getProfile() != null
+                        && this.inspectedCosmeticFriend.equalsIgnoreCase(info.getProfile().name())) {
+                    return info.getSkin();
+                }
+            }
+            return DefaultPlayerSkin.getDefaultSkin();
+        }
+        return resolveLocalPlayerSkin();
+    }
+
+    private void refreshCosmeticFriendNames() {
+        this.cosmeticFriendNames.clear();
+        String self = (this.minecraft != null && this.minecraft.player != null)
+                ? this.minecraft.player.getName().getString()
+                : "";
+        for (Map.Entry<String, CosmeticsLogic.CosmeticLoadout> entry : CosmeticsLogic.getRemoteLoadoutsView().entrySet()) {
+            if (entry.getKey() != null && !entry.getKey().equalsIgnoreCase(self)) {
+                this.cosmeticFriendNames.add(entry.getKey());
+                if (this.cosmeticFriendNames.size() >= 3) {
+                    break;
+                }
+            }
+        }
+        if (this.inspectedCosmeticFriend != null
+                && CosmeticsLogic.getRemoteLoadout(this.inspectedCosmeticFriend) == null) {
+            this.inspectedCosmeticFriend = null;
+        }
+    }
+
+    private int populateFilteredModes(int subTab) {
+        int total = cosmeticSlotCount(subTab);
+        String q = this.searchQuery != null ? this.searchQuery.toLowerCase(Locale.ROOT) : "";
+        int count = 0;
+        for (int m = 0; m < total && count < this.cosmeticFilteredModes.length; m++) {
+            if (q.isEmpty()
+                    || cosmeticSlotName(subTab, m).toLowerCase(Locale.ROOT).contains(q)
+                    || cosmeticSlotTag(subTab, m).toLowerCase(Locale.ROOT).contains(q)) {
+                this.cosmeticFilteredModes[count++] = m;
+            }
+        }
+        this.cosmeticFilteredModeCount = count;
+        return count;
+    }
+
+    private static int cosmeticSlotCount(int subTab) {
+        return switch (subTab) {
+            case 0 -> WingsLogic.modeCount();
+            case 1 -> CosmeticsLogic.cloakCount();
+            case 2 -> CosmeticsLogic.hatCount();
+            case 3 -> CosmeticsLogic.petCount();
+            case 4 -> CosmeticsLogic.gearCount();
+            case 5 -> CosmeticsLogic.auraCount();
+            default -> 0;
+        };
+    }
+
+    private static String cosmeticSlotTitle(int subTab) {
+        return switch (subTab) {
+            case 0 -> "3D Wings";
+            case 1 -> "Animated Cloaks";
+            case 2 -> "3D Headwear";
+            case 3 -> "Shoulder Pets";
+            case 4 -> "Back Gear & Tails";
+            case 5 -> "3D Player Auras";
+            default -> "Cosmetics";
+        };
+    }
+
+    private static String cosmeticSlotHeaderLabel(int subTab) {
+        return switch (subTab) {
+            case 0 -> "WING STYLES";
+            case 1 -> "CLOAK DESIGNS";
+            case 2 -> "HEADWEAR MODELS";
+            case 3 -> "COMPANION PETS";
+            case 4 -> "BACK GEAR & TAILS";
+            case 5 -> "AURA RINGS";
+            default -> "STYLES";
+        };
+    }
+
+    private static String cosmeticSlotName(int subTab, int mode) {
+        return switch (subTab) {
+            case 0 -> WingsLogic.modeName(mode);
+            case 1 -> CosmeticsLogic.cloakName(mode);
+            case 2 -> CosmeticsLogic.hatName(mode);
+            case 3 -> CosmeticsLogic.petName(mode);
+            case 4 -> CosmeticsLogic.gearName(mode);
+            case 5 -> CosmeticsLogic.auraName(mode);
+            default -> "";
+        };
+    }
+
+    private static String cosmeticSlotTag(int subTab, int mode) {
+        return switch (subTab) {
+            case 0 -> WingsLogic.modeStyleTag(mode);
+            case 1 -> CosmeticsLogic.cloakTag(mode);
+            case 2 -> CosmeticsLogic.hatTag(mode);
+            case 3 -> CosmeticsLogic.petTag(mode);
+            case 4 -> CosmeticsLogic.gearTag(mode);
+            case 5 -> CosmeticsLogic.auraTag(mode);
+            default -> "";
+        };
+    }
+
+    private static boolean isCosmeticSlotEnabled(ModConfig cfg, int subTab) {
+        return switch (subTab) {
+            case 0 -> cfg.wingsEnabled;
+            case 1 -> cfg.cosmeticCloakEnabled;
+            case 2 -> cfg.cosmeticHatEnabled;
+            case 3 -> cfg.cosmeticPetEnabled;
+            case 4 -> cfg.cosmeticGearEnabled;
+            case 5 -> cfg.cosmeticAuraEnabled;
+            default -> false;
+        };
+    }
+
+    private static void setCosmeticSlotEnabled(ModConfig cfg, int subTab, boolean en) {
+        switch (subTab) {
+            case 0 -> cfg.wingsEnabled = en;
+            case 1 -> cfg.cosmeticCloakEnabled = en;
+            case 2 -> cfg.cosmeticHatEnabled = en;
+            case 3 -> cfg.cosmeticPetEnabled = en;
+            case 4 -> cfg.cosmeticGearEnabled = en;
+            case 5 -> cfg.cosmeticAuraEnabled = en;
+            default -> {}
+        }
+    }
+
+    private static int getCosmeticSlotMode(ModConfig cfg, int subTab) {
+        return switch (subTab) {
+            case 0 -> cfg.wingsMode;
+            case 1 -> cfg.cosmeticCloakMode;
+            case 2 -> cfg.cosmeticHatMode;
+            case 3 -> cfg.cosmeticPetMode;
+            case 4 -> cfg.cosmeticGearMode;
+            case 5 -> cfg.cosmeticAuraMode;
+            default -> 0;
+        };
+    }
+
+    private static void setCosmeticSlotMode(ModConfig cfg, int subTab, int mode) {
+        switch (subTab) {
+            case 0 -> cfg.wingsMode = mode;
+            case 1 -> cfg.cosmeticCloakMode = mode;
+            case 2 -> cfg.cosmeticHatMode = mode;
+            case 3 -> cfg.cosmeticPetMode = mode;
+            case 4 -> cfg.cosmeticGearMode = mode;
+            case 5 -> cfg.cosmeticAuraMode = mode;
+            default -> {}
+        }
+    }
+
+    private void resetCosmeticSlotToDefaults(ModConfig cfg, int subTab) {
+        ModConfig def = new ModConfig();
+        switch (subTab) {
+            case 0 -> ModernModuleSettings.resetModuleToDefaults("Wings", cfg, this.settingsActions);
+            case 1 -> {
+                cfg.cosmeticCloakEnabled = def.cosmeticCloakEnabled;
+                cfg.cosmeticCloakMode = def.cosmeticCloakMode;
+                cfg.cosmeticCloakColorPreset = def.cosmeticCloakColorPreset;
+                cfg.cosmeticCloakCustomRgb = def.cosmeticCloakCustomRgb;
+            }
+            case 2 -> {
+                cfg.cosmeticHatEnabled = def.cosmeticHatEnabled;
+                cfg.cosmeticHatMode = def.cosmeticHatMode;
+                cfg.cosmeticHatColorPreset = def.cosmeticHatColorPreset;
+                cfg.cosmeticHatCustomRgb = def.cosmeticHatCustomRgb;
+                cfg.cosmeticHatScale = def.cosmeticHatScale;
+            }
+            case 3 -> {
+                cfg.cosmeticPetEnabled = def.cosmeticPetEnabled;
+                cfg.cosmeticPetMode = def.cosmeticPetMode;
+                cfg.cosmeticPetSide = def.cosmeticPetSide;
+                cfg.cosmeticPetColorPreset = def.cosmeticPetColorPreset;
+                cfg.cosmeticPetCustomRgb = def.cosmeticPetCustomRgb;
+            }
+            case 4 -> {
+                cfg.cosmeticGearEnabled = def.cosmeticGearEnabled;
+                cfg.cosmeticGearMode = def.cosmeticGearMode;
+                cfg.cosmeticGearColorPreset = def.cosmeticGearColorPreset;
+                cfg.cosmeticGearCustomRgb = def.cosmeticGearCustomRgb;
+            }
+            case 5 -> {
+                cfg.cosmeticAuraEnabled = def.cosmeticAuraEnabled;
+                cfg.cosmeticAuraMode = def.cosmeticAuraMode;
+                cfg.cosmeticAuraColorPreset = def.cosmeticAuraColorPreset;
+                cfg.cosmeticAuraCustomRgb = def.cosmeticAuraCustomRgb;
+                cfg.cosmeticAuraRadius = def.cosmeticAuraRadius;
+                cfg.cosmeticAuraSpeed = def.cosmeticAuraSpeed;
+            }
+            default -> {}
+        }
+    }
+
+    private List<ModernModuleSettings.Control> getControlsForCosmeticSubTab(ModConfig cfg, int subTab) {
+        return switch (subTab) {
+            case 0 -> ModernModuleSettings.getCosmeticWingsControls(cfg, this.settingsActions);
+            case 1 -> ModernModuleSettings.getCosmeticCloakControls(cfg, this.settingsActions);
+            case 2 -> ModernModuleSettings.getCosmeticHatControls(cfg, this.settingsActions);
+            case 3 -> ModernModuleSettings.getCosmeticPetControls(cfg, this.settingsActions);
+            case 4 -> ModernModuleSettings.getCosmeticGearControls(cfg, this.settingsActions);
+            case 5 -> ModernModuleSettings.getCosmeticAuraControls(cfg, this.settingsActions);
+            case 6 -> ModernModuleSettings.getCosmeticFxControls(cfg, this.settingsActions);
+            default -> List.of();
+        };
+    }
+
+    private static boolean isLoadoutSlotActive(CosmeticsLogic.CosmeticLoadout l, int chipIdx) {
+        if (l == null) return false;
+        return switch (chipIdx) {
+            case 0 -> l.wings() != null && l.wings().enabled();
+            case 1 -> l.cloakEnabled();
+            case 2 -> l.hatEnabled();
+            case 3 -> l.petEnabled();
+            case 4 -> l.gearEnabled();
+            case 5 -> l.auraEnabled();
+            case 6 -> l.trailEnabled() || l.hitFxEnabled() || l.killFxEnabled()
+                    || l.totemFxEnabled() || l.glintEnabled() || l.handAuraEnabled() || l.slashArcEnabled();
+            default -> false;
+        };
+    }
+
+    private static CosmeticsLogic.CosmeticLoadout applyHoveredModeToLoadout(
+            CosmeticsLogic.CosmeticLoadout base, int subTab, int hoveredMode
+    ) {
+        if (hoveredMode < 0) return base;
+        WingsLogic.WingProfile w = base.wings();
+        boolean clEn = base.cloakEnabled(); int clM = base.cloakMode();
+        boolean hEn = base.hatEnabled(); int hM = base.hatMode();
+        boolean pEn = base.petEnabled(); int pM = base.petMode();
+        boolean gEn = base.gearEnabled(); int gM = base.gearMode();
+        boolean aEn = base.auraEnabled(); int aM = base.auraMode();
+
+        switch (subTab) {
+            case 0 -> w = new WingsLogic.WingProfile(
+                    true, hoveredMode, w.colorPreset(), w.customRgb(), w.length(),
+                    w.width(), w.linesCount(), w.fadeStart(), w.height(), w.flapSpeed(), w.showDamage());
+            case 1 -> { clEn = true; clM = hoveredMode; }
+            case 2 -> { hEn = true; hM = hoveredMode; }
+            case 3 -> { pEn = true; pM = hoveredMode; }
+            case 4 -> { gEn = true; gM = hoveredMode; }
+            case 5 -> { aEn = true; aM = hoveredMode; }
+            default -> {}
+        }
+        return new CosmeticsLogic.CosmeticLoadout(
+                w,
+                clEn, clM, base.cloakColorPreset(), base.cloakCustomRgb(),
+                hEn, hM, base.hatColorPreset(), base.hatCustomRgb(), base.hatScale(),
+                pEn, pM, base.petSide(), base.petColorPreset(), base.petCustomRgb(),
+                gEn, gM, base.gearColorPreset(), base.gearCustomRgb(),
+                aEn, aM, base.auraColorPreset(), base.auraCustomRgb(), base.auraRadius(), base.auraSpeed(),
+                base.trailEnabled(), base.trailMode(), base.trailColorPreset(), base.trailCustomRgb(),
+                base.hitFxEnabled(), base.hitFxMode(), base.hitFxColorPreset(), base.hitFxCustomRgb(),
+                base.killFxEnabled(), base.killFxMode(), base.killFxColorPreset(), base.killFxCustomRgb(),
+                base.totemFxEnabled(), base.totemFxScale(), base.totemFxRing(),
+                base.glintEnabled(), base.glintColorPreset(), base.glintCustomRgb(), base.glintIntensity(),
+                base.handAuraEnabled(), base.handAuraMode(),
+                base.slashArcEnabled(), base.slashArcMode(), base.slashArcColorPreset(), base.slashArcCustomRgb()
+        ).sanitized();
+    }
+
+    private int hitTestFilteredCatalogCard(int mouseX, int mouseY, int bodyTopY, int bodyBottomY, int gridY, int cols, int cardW) {
+        if (mouseY < bodyTopY || mouseY >= bodyBottomY
                 || mouseX < this.cosmeticRightX || mouseX >= this.cosmeticRightX + this.cosmeticRightW) {
             return -1;
         }
-        int modeCount = WingsLogic.modeCount();
-        for (int m = 0; m < modeCount; m++) {
-            int col = m % cols;
-            int row = m / cols;
+        for (int i = 0; i < this.cosmeticFilteredModeCount; i++) {
+            int col = i % cols;
+            int row = i / cols;
             int cx = this.cosmeticRightX + col * (cardW + COSMETIC_WING_GAP);
             int cy = gridY + row * (COSMETIC_WING_CARD_H + COSMETIC_WING_GAP);
             if (isInside(mouseX, mouseY, cx, cy, cardW, COSMETIC_WING_CARD_H)) {
-                return m;
+                return this.cosmeticFilteredModes[i];
             }
         }
         return -1;
@@ -1800,6 +2155,7 @@ public class ModernClickGuiScreen extends Screen {
     ) {
         ModConfig config = ModConfig.getInstance();
         computeCosmeticBounds(contentX, contentY, contentW, contentH);
+        refreshCosmeticFriendNames();
         int stageX = this.cosmeticStageX;
         int stageY = this.cosmeticStageY;
         int stageW = this.cosmeticStageW;
@@ -1807,92 +2163,222 @@ public class ModernClickGuiScreen extends Screen {
         int rightX = this.cosmeticRightX;
         int rightW = this.cosmeticRightW;
 
+        // Top Sub-Tab Bar (Wings | Capes | Hats | Pets | Gear | Auras | FX & Emotes | Outfits)
+        int subTabBarH = layoutCosmeticSubTabs(rightX, stageY, rightW);
+        int rightBodyY = stageY + subTabBarH + 8;
+        int rightBodyH = Math.max(80, contentY + contentH - rightBodyY);
+        int rightBodyBottom = rightBodyY + rightBodyH;
+
+        for (int i = 0; i < COSMETIC_SUBTAB_LABELS.length; i++) {
+            int tx = this.cosmeticSubTabX[i];
+            int ty = this.cosmeticSubTabY[i];
+            int tw = this.cosmeticSubTabW[i];
+            boolean sel = (cosmeticSubTab == i);
+            boolean hov = isInside(mouseX, mouseY, tx, ty, tw, COSMETIC_SUBTAB_H);
+            if (hov) this.frameInteractiveHover = true;
+            int bg = sel ? withAlpha(JelloTheme.ACCENT, 0x55) : (hov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CONTAINER_BG);
+            int border = sel ? JelloTheme.BORDER_ACTIVE_SOFT : (hov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+            JelloTheme.fillRoundedCard(graphics, tx, ty, tx + tw, ty + COSMETIC_SUBTAB_H, 4, bg, border);
+            graphics.centeredText(this.font, Component.literal(COSMETIC_SUBTAB_LABELS[i]),
+                    tx + tw / 2, ty + 4, sel ? 0xFFFFFFFF : (hov ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED));
+        }
+
+        // Compute layout metrics & hover preview targets for active sub-tab
+        int scroll = 0;
+        int hoveredMode = -1;
+        int hoveredEmote = -1;
+        CosmeticsLogic.CosmeticLoadout hoveredOutfit = null;
+        int filteredCount = 0;
         int cols = rightW >= 340 ? 3 : 2;
         int cardW = (rightW - COSMETIC_WING_GAP * (cols - 1)) / cols;
-        int modeCount = WingsLogic.modeCount();
-        int rows = (modeCount + cols - 1) / cols;
-        int gridH = rows * COSMETIC_WING_CARD_H + Math.max(0, rows - 1) * COSMETIC_WING_GAP;
-
-        List<ModernModuleSettings.Control> wingControls =
-                ModernModuleSettings.getCosmeticWingsControls(config, this.settingsActions);
+        int gridH = 0;
+        List<ModernModuleSettings.Control> activeControls = List.of();
+        ModernInspectorLayout.ControlsFlow controlsFlow = new ModernInspectorLayout.ControlsFlow(List.of(), 0);
         int controlsPanelW = Math.max(140, rightW - 20);
-        ModernInspectorLayout.ControlsFlow flow = cosmeticCustomizeCollapsed
-                ? new ModernInspectorLayout.ControlsFlow(List.of(), 0)
-                : ModernInspectorLayout.computeControlsFlow(rightX + 10, 0, controlsPanelW, wingControls);
+        String qLower = this.searchQuery != null ? this.searchQuery.toLowerCase(Locale.ROOT) : "";
 
-        int totalRightH = 14 + COSMETIC_MASTER_H + 10 + 18 + gridH + 12 + SETTINGS_SECTION_HEADER_H
-                + (cosmeticCustomizeCollapsed ? 0 : flow.totalHeight() + 8) + 14;
-        this.contentTotalHeight = Math.max(contentH, totalRightH);
-        this.scrollAmount = Mth.clamp(this.scrollAmount, 0.0, Math.max(0, this.contentTotalHeight - contentH));
-        int scroll = (int) Math.round(this.scrollAmount);
+        int headerOffset = rightBodyY - contentY;
+        if (cosmeticSubTab <= 5) {
+            filteredCount = populateFilteredModes(cosmeticSubTab);
+            int rows = Math.max(1, (filteredCount + cols - 1) / cols);
+            gridH = filteredCount == 0 ? 44 : rows * COSMETIC_WING_CARD_H + Math.max(0, rows - 1) * COSMETIC_WING_GAP;
+            activeControls = getControlsForCosmeticSubTab(config, cosmeticSubTab);
+            controlsFlow = cosmeticCustomizeCollapsed
+                    ? new ModernInspectorLayout.ControlsFlow(List.of(), 0)
+                    : ModernInspectorLayout.computeControlsFlow(rightX + 10, 0, controlsPanelW, activeControls);
+            int totalRightH = COSMETIC_MASTER_H + 10 + 18 + gridH + 12 + SETTINGS_SECTION_HEADER_H
+                    + (cosmeticCustomizeCollapsed ? 0 : controlsFlow.totalHeight() + 8) + 14;
+            int clampedBodyH = Math.max(rightBodyH, totalRightH);
+            this.contentTotalHeight = headerOffset + clampedBodyH;
+            this.scrollAmount = Mth.clamp(this.scrollAmount, 0.0, Math.max(0, clampedBodyH - rightBodyH));
+            scroll = (int) Math.round(this.scrollAmount);
+            int gridY = rightBodyY - scroll + COSMETIC_MASTER_H + 10 + 18;
+            hoveredMode = hitTestFilteredCatalogCard(mouseX, mouseY, rightBodyY, rightBodyBottom, gridY, cols, cardW);
+        } else if (cosmeticSubTab == 6) {
+            activeControls = getControlsForCosmeticSubTab(config, 6);
+            controlsFlow = ModernInspectorLayout.computeControlsFlow(rightX + 10, 0, controlsPanelW, activeControls);
+            int emoteCount = CosmeticsLogic.emoteCount();
+            int emoteRows = (emoteCount + cols - 1) / cols;
+            int emoteGridH = emoteRows * COSMETIC_WING_CARD_H + Math.max(0, emoteRows - 1) * COSMETIC_WING_GAP;
+            int totalRightH = 18 + emoteGridH + 14 + 18 + controlsFlow.totalHeight() + 16;
+            int clampedBodyH = Math.max(rightBodyH, totalRightH);
+            this.contentTotalHeight = headerOffset + clampedBodyH;
+            this.scrollAmount = Mth.clamp(this.scrollAmount, 0.0, Math.max(0, clampedBodyH - rightBodyH));
+            scroll = (int) Math.round(this.scrollAmount);
+            int emoteGridY = rightBodyY - scroll + 18;
+            if (mouseY >= rightBodyY && mouseY < rightBodyBottom && mouseX >= rightX && mouseX < rightX + rightW) {
+                for (int e = 0; e < emoteCount; e++) {
+                    int ec = e % cols, er = e / cols;
+                    int cx = rightX + ec * (cardW + COSMETIC_WING_GAP);
+                    int cy = emoteGridY + er * (COSMETIC_WING_CARD_H + COSMETIC_WING_GAP);
+                    if (isInside(mouseX, mouseY, cx, cy, cardW, COSMETIC_WING_CARD_H)) {
+                        hoveredEmote = e;
+                        break;
+                    }
+                }
+            }
+        } else {
+            int headerPanelH = 74;
+            int cardH = 44;
+            int gap = 7;
+            int visibleOutfits = 0;
+            for (int i = 0; i < this.cachedOutfits.size(); i++) {
+                if (qLower.isEmpty() || this.cachedOutfits.get(i).name().toLowerCase(Locale.ROOT).contains(qLower)) {
+                    visibleOutfits++;
+                }
+            }
+            int listH = visibleOutfits == 0 ? 64 : visibleOutfits * (cardH + gap);
+            int totalRightH = headerPanelH + 14 + listH + 14;
+            int clampedBodyH = Math.max(rightBodyH, totalRightH);
+            this.contentTotalHeight = headerOffset + clampedBodyH;
+            this.scrollAmount = Mth.clamp(this.scrollAmount, 0.0, Math.max(0, clampedBodyH - rightBodyH));
+            scroll = (int) Math.round(this.scrollAmount);
+            int listY = rightBodyY - scroll + headerPanelH + 14;
+            int drawIdx = 0;
+            for (int i = 0; i < this.cachedOutfits.size(); i++) {
+                CosmeticOutfitManager.OutfitSummary s = this.cachedOutfits.get(i);
+                if (!qLower.isEmpty() && !s.name().toLowerCase(Locale.ROOT).contains(qLower)) continue;
+                int cy = listY + drawIdx * (cardH + gap);
+                if (mouseY >= rightBodyY && mouseY < rightBodyBottom && isInside(mouseX, mouseY, rightX, cy, rightW, cardH)) {
+                    hoveredOutfit = s.loadout();
+                    break;
+                }
+                drawIdx++;
+            }
+        }
 
-        int masterY = stageY - scroll;
-        int gridHeaderY = masterY + COSMETIC_MASTER_H + 10;
-        int gridY = gridHeaderY + 18;
-        int customHeaderY = gridY + gridH + 12;
-        int controlsY = customHeaderY + SETTINGS_SECTION_HEADER_H;
+        // Resolve combined preview loadout + emote onto CosmeticsLogic & WingsLogic
+        CosmeticsLogic.CosmeticLoadout remoteFriend = this.inspectedCosmeticFriend != null
+                ? CosmeticsLogic.getRemoteLoadout(this.inspectedCosmeticFriend)
+                : null;
+        CosmeticsLogic.CosmeticLoadout baseLoadout = remoteFriend != null ? remoteFriend : CosmeticsLogic.fromConfig(config);
+        CosmeticsLogic.CosmeticLoadout effectivePreview = hoveredOutfit != null
+                ? hoveredOutfit
+                : applyHoveredModeToLoadout(baseLoadout, cosmeticSubTab, hoveredMode);
+        if (PanicHandler.isPanicActive()) {
+            CosmeticsLogic.clearPreviewOverrides();
+        } else {
+            CosmeticsLogic.setPreviewLoadout(effectivePreview);
+            CosmeticsLogic.setPreviewPose(cosmeticPreviewPose);
+            CosmeticsLogic.setPreviewEmote(hoveredEmote >= 0 ? hoveredEmote : CosmeticsLogic.getLocalActiveEmote());
+        }
 
-        int hoveredWingMode = hitTestCosmeticWingCard(mouseX, mouseY, contentY, contentH, gridY, cols, cardW);
-        WingsLogic.WingProfile activePreview =
-                WingsLogic.resolvePreviewProfile(config, PanicHandler.isPanicActive(), hoveredWingMode);
-        WingsLogic.setPreviewProfile(activePreview);
+        // 1. Render Left Pinned 3D Stage (unclipped for 3D PiP clarity)
+        renderCosmeticStage(graphics, mouseX, mouseY, stageX, stageY, stageW, stageH, openScale,
+                config, effectivePreview, hoveredMode, hoveredEmote, remoteFriend != null);
 
-        // 1. Left Pinned 3D Character Stage (rendered before right scissor so 3D PiP is unclipped)
+        // 2. Render Right Scrollable Locker Panel
+        graphics.enableScissor(rightX - 2, rightBodyY, contentX + contentW, rightBodyBottom);
+        try {
+            if (cosmeticSubTab <= 5) {
+                renderCosmeticCatalogSubTab(graphics, mouseX, mouseY, rightX, rightW, rightBodyY, rightBodyBottom,
+                        scroll, config, cosmeticSubTab, cols, cardW, gridH, hoveredMode,
+                        activeControls, controlsFlow, controlsPanelW);
+            } else if (cosmeticSubTab == 6) {
+                renderCosmeticFxEmotesSubTab(graphics, mouseX, mouseY, rightX, rightW, rightBodyY, rightBodyBottom,
+                        scroll, cols, cardW, hoveredEmote, activeControls, controlsPanelW);
+            } else {
+                renderCosmeticOutfitsSubTab(graphics, mouseX, mouseY, rightX, rightW, rightBodyY, rightBodyBottom,
+                        scroll, qLower);
+            }
+        } finally {
+            graphics.disableScissor();
+        }
+    }
+
+    private void renderCosmeticStage(
+            GuiGraphicsExtractor graphics,
+            int mouseX, int mouseY,
+            int stageX, int stageY, int stageW, int stageH,
+            float openScale,
+            ModConfig config,
+            CosmeticsLogic.CosmeticLoadout effectivePreview,
+            int hoveredMode, int hoveredEmote,
+            boolean inspectingFriend
+    ) {
         JelloTheme.fillRoundedCard(graphics, stageX, stageY, stageX + stageW, stageY + stageH, 8,
                 JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
 
         float ageTicks = (float) ((System.nanoTime() % 3_600_000_000_000L) / 50_000_000.0);
-        int auraArgb = activePreview != null
-                ? (0x36000000 | WingsLogic.resolveRgb(activePreview.colorPreset(), activePreview.customRgb(), ageTicks, 0.0f, false))
-                : withAlpha(JelloTheme.BORDER_SUBTLE, 0x1A);
-        JelloTheme.drawRadialGlow(graphics, stageX + stageW / 2, stageY + stageH / 2 - 4,
-                Math.min(stageW, stageH) / 3, auraArgb);
+        int glowRgb = effectivePreview.wings().enabled()
+                ? WingsLogic.resolveRgb(effectivePreview.wings().colorPreset(), effectivePreview.wings().customRgb(), ageTicks, 0.0f, false)
+                : (effectivePreview.auraEnabled()
+                        ? CosmeticsLogic.resolveColorRgb(effectivePreview.auraColorPreset(), effectivePreview.auraCustomRgb(), ageTicks, 0.0f)
+                        : (JelloTheme.ACCENT & 0xFFFFFF));
+        JelloTheme.drawRadialGlow(graphics, stageX + stageW / 2, stageY + (stageH - COSMETIC_STAGE_BOTTOM_H) / 2,
+                Math.min(stageW, stageH) / 3, 0x32000000 | (glowRgb & 0xFFFFFF));
 
-        String playerName = (this.minecraft != null && this.minecraft.player != null)
-                ? this.minecraft.player.getName().getString()
-                : (this.minecraft != null && this.minecraft.getGameProfile() != null
-                        ? this.minecraft.getGameProfile().name()
-                        : "Player");
-        String statusText;
-        boolean previewHighlighted;
-        if (hoveredWingMode >= 0) {
-            statusText = "Preview: " + WingsLogic.modeName(hoveredWingMode);
-            previewHighlighted = true;
-        } else if (config.wingsEnabled) {
-            statusText = "Equipped: " + WingsLogic.modeName(config.wingsMode);
-            previewHighlighted = true;
-        } else {
-            statusText = "Wings: OFF";
-            previewHighlighted = false;
-        }
-        int statusW = Math.min(stageW - 20, this.font.width(statusText) + 12);
-        int nameMaxW = Math.max(36, stageW - statusW - 24);
-        graphics.text(this.font, Component.literal(fitText(playerName, nameMaxW)),
-                stageX + 10, stageY + 10, JelloTheme.TEXT, false);
+        // Top Stage Header: Player Name + Armor + Match Strain buttons
+        int armorW = 40;
+        int matchW = 46;
+        int armorX = stageX + stageW - 8 - armorW;
+        int matchX = armorX - 4 - matchW;
+        int topBtnY = stageY + 6;
+        int topBtnH = 16;
 
-        int badgeX = stageX + stageW - 10 - statusW;
-        JelloTheme.fillRoundedCard(graphics, badgeX, stageY + 7, badgeX + statusW, stageY + 21, 4,
-                previewHighlighted ? withAlpha(JelloTheme.ACCENT, 0x3C) : JelloTheme.CONTAINER_BG,
-                previewHighlighted ? JelloTheme.BORDER_ACTIVE_SOFT : JelloTheme.BORDER_SUBTLE);
-        graphics.centeredText(this.font, Component.literal(fitText(statusText, statusW - 6)),
-                badgeX + statusW / 2, stageY + 10, previewHighlighted ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED);
+        String stageOwner = inspectingFriend
+                ? this.inspectedCosmeticFriend
+                : ((this.minecraft != null && this.minecraft.player != null)
+                        ? this.minecraft.player.getName().getString()
+                        : (this.minecraft != null && this.minecraft.getGameProfile() != null
+                                ? this.minecraft.getGameProfile().name()
+                                : "Player"));
+        int nameMaxW = Math.max(36, matchX - stageX - 14);
+        graphics.text(this.font, Component.literal(fitText(stageOwner, nameMaxW)),
+                stageX + 9, stageY + 10, inspectingFriend ? 0xFF6EE7B7 : JelloTheme.TEXT, false);
 
-        // Drag-to-rotate hint inside viewport
-        boolean stageDragHov = this.draggingCosmeticPreview
-                || isInside(mouseX, mouseY, stageX + 6, stageY + 28, stageW - 12, stageH - 56);
-        if (stageDragHov) {
+        boolean matchHov = isInside(mouseX, mouseY, matchX, topBtnY, matchW, topBtnH);
+        if (matchHov) this.frameInteractiveHover = true;
+        JelloTheme.fillRoundedCard(graphics, matchX, topBtnY, matchX + matchW, topBtnY + topBtnH, 4,
+                matchHov ? withAlpha(JelloTheme.ACCENT, 0x48) : JelloTheme.CONTAINER_BG,
+                matchHov ? JelloTheme.BORDER_ACTIVE_SOFT : JelloTheme.BORDER_SUBTLE);
+        graphics.centeredText(this.font, Component.literal("Match"), matchX + matchW / 2, topBtnY + 4,
+                matchHov ? JelloTheme.TEXT : JelloTheme.ACCENT_HOVER);
+
+        boolean armorOn = CosmeticsLogic.isPreviewShowArmor();
+        boolean armorHov = isInside(mouseX, mouseY, armorX, topBtnY, armorW, topBtnH);
+        if (armorHov) this.frameInteractiveHover = true;
+        JelloTheme.fillRoundedCard(graphics, armorX, topBtnY, armorX + armorW, topBtnY + topBtnH, 4,
+                armorOn ? withAlpha(JelloTheme.ACCENT, 0x52) : (armorHov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CONTAINER_BG),
+                armorOn ? JelloTheme.BORDER_ACTIVE_SOFT : (armorHov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE));
+        graphics.centeredText(this.font, Component.literal("Armor"), armorX + armorW / 2, topBtnY + 4,
+                armorOn ? 0xFFFFFFFF : JelloTheme.TEXT_MUTED);
+
+        // Viewport hover hint
+        int viewTop = stageY + 26;
+        int viewBottom = stageY + stageH - COSMETIC_STAGE_BOTTOM_H;
+        if (this.draggingCosmeticPreview || isInside(mouseX, mouseY, stageX + 4, viewTop, stageW - 8, viewBottom - viewTop)) {
             this.frameInteractiveHover = true;
         }
 
-        // Populate 3D AvatarRenderState + render live player skin & wings
+        // Populate 3D AvatarRenderState (Pose, Armor clearance, Emote, Skin, Zoom/Orbit)
         this.cosmeticPreviewState.entityType = EntityTypes.PLAYER;
         this.cosmeticPreviewState.id = WingsLogic.PREVIEW_ENTITY_ID;
-        this.cosmeticPreviewState.skin = resolveLocalPlayerSkin();
+        this.cosmeticPreviewState.skin = resolveCosmeticStageSkin();
         this.cosmeticPreviewState.lightCoords = 0xF000F0;
         this.cosmeticPreviewState.outlineColor = EntityRenderState.NO_OUTLINE;
         this.cosmeticPreviewState.shadowPieces.clear();
         this.cosmeticPreviewState.shadowRadius = 0.0f;
-        this.cosmeticPreviewState.pose = Pose.STANDING;
         this.cosmeticPreviewState.boundingBoxWidth = 0.6f;
         this.cosmeticPreviewState.boundingBoxHeight = 1.8f;
         this.cosmeticPreviewState.scale = 1.0f;
@@ -1906,11 +2392,9 @@ public class ModernClickGuiScreen extends Screen {
         this.cosmeticPreviewState.showCape = false;
         this.cosmeticPreviewState.isInvisible = false;
         this.cosmeticPreviewState.isSpectator = false;
-        this.cosmeticPreviewState.isFallFlying = false;
-        this.cosmeticPreviewState.isCrouching = false;
         this.cosmeticPreviewState.hasRedOverlay = false;
-        this.cosmeticPreviewState.headEquipment = ItemStack.EMPTY;
-        this.cosmeticPreviewState.chestEquipment = ItemStack.EMPTY;
+        this.cosmeticPreviewState.headEquipment = armorOn ? PREVIEW_ARMOR_HELMET : ItemStack.EMPTY;
+        this.cosmeticPreviewState.chestEquipment = armorOn ? PREVIEW_ARMOR_CHEST : ItemStack.EMPTY;
         this.cosmeticPreviewState.legsEquipment = ItemStack.EMPTY;
         this.cosmeticPreviewState.feetEquipment = ItemStack.EMPTY;
         this.cosmeticPreviewState.ageInTicks = ageTicks;
@@ -1918,17 +2402,38 @@ public class ModernClickGuiScreen extends Screen {
         this.cosmeticPreviewState.yRot = 0.0f;
         this.cosmeticPreviewState.xRot = 0.0f;
 
+        this.cosmeticPreviewState.pose = Pose.STANDING;
+        this.cosmeticPreviewState.isCrouching = false;
+        this.cosmeticPreviewState.isFallFlying = false;
+        this.cosmeticPreviewState.fallFlyingTimeInTicks = 0.0f;
+        this.cosmeticPreviewState.walkAnimationPos = 0.0f;
+        this.cosmeticPreviewState.walkAnimationSpeed = 0.0f;
+        if (cosmeticPreviewPose == CosmeticsLogic.PREVIEW_POSE_WALK) {
+            this.cosmeticPreviewState.walkAnimationPos = ageTicks * 0.42f;
+            this.cosmeticPreviewState.walkAnimationSpeed = 0.85f;
+        } else if (cosmeticPreviewPose == CosmeticsLogic.PREVIEW_POSE_SNEAK) {
+            this.cosmeticPreviewState.pose = Pose.CROUCHING;
+            this.cosmeticPreviewState.isCrouching = true;
+            this.cosmeticPreviewState.walkAnimationPos = ageTicks * 0.22f;
+            this.cosmeticPreviewState.walkAnimationSpeed = 0.35f;
+        } else if (cosmeticPreviewPose == CosmeticsLogic.PREVIEW_POSE_GLIDE) {
+            this.cosmeticPreviewState.pose = Pose.FALL_FLYING;
+            this.cosmeticPreviewState.isFallFlying = true;
+            this.cosmeticPreviewState.fallFlyingTimeInTicks = ageTicks;
+        }
+
         float centerX = this.windowX + this.windowW * 0.5f;
         float centerY = this.windowY + this.windowH * 0.5f;
         boolean scaling = Math.abs(1.0f - openScale) > 0.002f;
         int entX1 = scaling ? Math.round(centerX + (stageX + 4 - centerX) * openScale) : stageX + 4;
-        int entY1 = scaling ? Math.round(centerY + (stageY + 26 - centerY) * openScale) : stageY + 26;
+        int entY1 = scaling ? Math.round(centerY + (viewTop - centerY) * openScale) : viewTop;
         int entX2 = scaling ? Math.round(centerX + (stageX + stageW - 4 - centerX) * openScale) : stageX + stageW - 4;
-        int entY2 = scaling ? Math.round(centerY + (stageY + stageH - 28 - centerY) * openScale) : stageY + stageH - 28;
+        int entY2 = scaling ? Math.round(centerY + (viewBottom - centerY) * openScale) : viewBottom;
         if (entX2 > entX1 + 16 && entY2 > entY1 + 16) {
-            float entityScale = Math.max(28.0f, Math.min(stageW * 0.25f, (stageH - 54) * 0.27f)) * openScale;
+            float baseScale = Math.max(24.0f, Math.min(stageW * 0.24f, (viewBottom - viewTop) * 0.30f));
+            float entityScale = baseScale * cosmeticPreviewZoom * openScale;
             this.cosmeticTranslation.set(0.0f, this.cosmeticPreviewState.boundingBoxHeight * 0.5f + 0.08f, 0.0f);
-            this.cosmeticCameraRot.rotationX(6.0f * ((float) Math.PI / 180.0f));
+            this.cosmeticCameraRot.rotationX(cosmeticPreviewPitch * ((float) Math.PI / 180.0f));
             this.cosmeticRotation.rotationZ((float) Math.PI).mul(this.cosmeticCameraRot);
             graphics.entity(
                     this.cosmeticPreviewState,
@@ -1940,57 +2445,185 @@ public class ModernClickGuiScreen extends Screen {
             );
         }
 
-        // Bottom angle preset pills (Back / 3/4 / Front)
-        int pillY = stageY + stageH - 22;
-        int pillH = 16;
-        int pillGap = 5;
-        int pillW = (stageW - 16 - pillGap * (COSMETIC_ANGLE_LABELS.length - 1)) / COSMETIC_ANGLE_LABELS.length;
-        for (int i = 0; i < COSMETIC_ANGLE_LABELS.length; i++) {
-            int px = stageX + 8 + i * (pillW + pillGap);
-            int pw = (i == COSMETIC_ANGLE_LABELS.length - 1) ? (stageX + stageW - 8 - px) : pillW;
-            boolean selected = Math.abs(Mth.wrapDegrees(cosmeticPreviewYaw - COSMETIC_ANGLE_VALUES[i])) < 6.0f;
-            boolean hov = isInside(mouseX, mouseY, px, pillY, pw, pillH);
-            if (hov) {
-                this.frameInteractiveHover = true;
-            }
-            int bg = selected ? withAlpha(JelloTheme.ACCENT, 0x52) : (hov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CONTAINER_BG);
-            int border = selected ? JelloTheme.BORDER_ACTIVE_SOFT : (hov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
-            JelloTheme.fillRoundedCard(graphics, px, pillY, px + pw, pillY + pillH, 4, bg, border);
-            graphics.centeredText(this.font, Component.literal(COSMETIC_ANGLE_LABELS[i]),
-                    px + pw / 2, pillY + 4, selected ? 0xFFFFFFFF : (hov ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED));
+        // Hover / Emote preview status badge floating subtly at bottom-left of viewport
+        if (hoveredMode >= 0 && cosmeticSubTab <= 5) {
+            String tip = "Preview: " + cosmeticSlotName(cosmeticSubTab, hoveredMode);
+            int tw = Math.min(stageW - 16, this.font.width(tip) + 10);
+            JelloTheme.fillRoundedCard(graphics, stageX + 8, viewBottom - 16, stageX + 8 + tw, viewBottom - 3, 3,
+                    withAlpha(JelloTheme.WINDOW_BG, 0xD8), JelloTheme.BORDER_ACTIVE_SOFT);
+            graphics.centeredText(this.font, Component.literal(fitText(tip, tw - 6)),
+                    stageX + 8 + tw / 2, viewBottom - 13, 0xFFFFFFFF);
+        } else if (hoveredEmote >= 0) {
+            String tip = "Emote: " + CosmeticsLogic.emoteName(hoveredEmote);
+            int tw = Math.min(stageW - 16, this.font.width(tip) + 10);
+            JelloTheme.fillRoundedCard(graphics, stageX + 8, viewBottom - 16, stageX + 8 + tw, viewBottom - 3, 3,
+                    withAlpha(JelloTheme.WINDOW_BG, 0xD8), JelloTheme.BORDER_ACTIVE_SOFT);
+            graphics.centeredText(this.font, Component.literal(fitText(tip, tw - 6)),
+                    stageX + 8 + tw / 2, viewBottom - 13, 0xFFFFFFFF);
         }
 
-        // 2. Right Scrollable Wing Locker & Customization
-        graphics.enableScissor(rightX - 2, contentY, contentX + contentW, contentY + contentH);
-        try {
-            String masterSub = config.wingsEnabled
-                    ? "Active: " + WingsLogic.modeName(config.wingsMode) + "  |  Hover cards to preview"
-                    : "Hover any wing card to preview on your skin";
-            drawHudResetCard(graphics, mouseX, mouseY, rightX, masterY, rightW, COSMETIC_MASTER_H,
-                    "3D Wings", masterSub, config.wingsEnabled, true, true, "Reset");
+        // Bottom Strip 1: Pose Strip (Idle | Walk | Sneak | Glide | Hit)
+        int poseY = stageY + stageH - 77;
+        int poseCount = CosmeticsLogic.previewPoseCount();
+        int pGap = 3;
+        int pW = (stageW - 16 - pGap * (poseCount - 1)) / poseCount;
+        for (int i = 0; i < poseCount; i++) {
+            int px = stageX + 8 + i * (pW + pGap);
+            int pw = (i == poseCount - 1) ? (stageX + stageW - 8 - px) : pW;
+            boolean sel = (cosmeticPreviewPose == i);
+            boolean hov = isInside(mouseX, mouseY, px, poseY, pw, 15);
+            if (hov) this.frameInteractiveHover = true;
+            JelloTheme.fillRoundedCard(graphics, px, poseY, px + pw, poseY + 15, 3,
+                    sel ? withAlpha(JelloTheme.ACCENT, 0x52) : (hov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CONTAINER_BG),
+                    sel ? JelloTheme.BORDER_ACTIVE_SOFT : (hov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE));
+            graphics.centeredText(this.font, Component.literal(CosmeticsLogic.previewPoseName(i)),
+                    px + pw / 2, poseY + 3, sel ? 0xFFFFFFFF : JelloTheme.TEXT_MUTED);
+        }
 
-            graphics.text(this.font, Component.literal("§lWING STYLES (" + modeCount + ")"),
-                    rightX, gridHeaderY + 2, JelloTheme.TEXT, false);
-            String gridHint = "Hover to preview, click to equip";
-            int hintW = this.font.width(gridHint);
-            if (rightW - hintW > 130) {
-                graphics.text(this.font, Component.literal(gridHint),
-                        rightX + rightW - hintW, gridHeaderY + 3, JelloTheme.TEXT_MUTED, false);
+        // Bottom Strip 2: Angle Presets (Back | 3/4 | Front) + Zoom Reset Chip
+        int angleY = stageY + stageH - 59;
+        int zoomW = 34;
+        int zoomX = stageX + stageW - 8 - zoomW;
+        int availAngleW = zoomX - (stageX + 8) - 4;
+        int aGap = 4;
+        int aW = (availAngleW - aGap * (COSMETIC_ANGLE_LABELS.length - 1)) / COSMETIC_ANGLE_LABELS.length;
+        for (int i = 0; i < COSMETIC_ANGLE_LABELS.length; i++) {
+            int px = stageX + 8 + i * (aW + aGap);
+            int pw = (i == COSMETIC_ANGLE_LABELS.length - 1) ? (stageX + 8 + availAngleW - px) : aW;
+            boolean sel = Math.abs(Mth.wrapDegrees(cosmeticPreviewYaw - COSMETIC_ANGLE_VALUES[i])) < 6.0f;
+            boolean hov = isInside(mouseX, mouseY, px, angleY, pw, 15);
+            if (hov) this.frameInteractiveHover = true;
+            JelloTheme.fillRoundedCard(graphics, px, angleY, px + pw, angleY + 15, 3,
+                    sel ? withAlpha(JelloTheme.ACCENT, 0x52) : (hov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CONTAINER_BG),
+                    sel ? JelloTheme.BORDER_ACTIVE_SOFT : (hov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE));
+            graphics.centeredText(this.font, Component.literal(COSMETIC_ANGLE_LABELS[i]),
+                    px + pw / 2, angleY + 3, sel ? 0xFFFFFFFF : JelloTheme.TEXT_MUTED);
+        }
+        boolean zoomHov = isInside(mouseX, mouseY, zoomX, angleY, zoomW, 15);
+        if (zoomHov) this.frameInteractiveHover = true;
+        JelloTheme.fillRoundedCard(graphics, zoomX, angleY, zoomX + zoomW, angleY + 15, 3,
+                zoomHov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CONTAINER_BG,
+                zoomHov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+        graphics.centeredText(this.font, Component.literal(String.format(Locale.ROOT, "%.1fx", cosmeticPreviewZoom)),
+                zoomX + zoomW / 2, angleY + 3, JelloTheme.TEXT_DIM);
+
+        // Bottom Strip 3: Active Slot Chips (LMB jump tab, RMB unequip)
+        int chipY = stageY + stageH - 41;
+        int chipX = stageX + 8;
+        int maxChipRight = stageX + stageW - 8;
+        boolean anyActiveChip = false;
+        for (int c = 0; c < COSMETIC_CHIP_LABELS.length; c++) {
+            if (!isLoadoutSlotActive(effectivePreview, c)) continue;
+            anyActiveChip = true;
+            String lbl = COSMETIC_CHIP_LABELS[c];
+            int cw = this.font.width(lbl) + 8;
+            if (chipX + cw > maxChipRight) break;
+            boolean sel = (cosmeticSubTab == c);
+            boolean hov = isInside(mouseX, mouseY, chipX, chipY, cw, 15);
+            if (hov) this.frameInteractiveHover = true;
+            JelloTheme.fillRoundedCard(graphics, chipX, chipY, chipX + cw, chipY + 15, 3,
+                    sel ? withAlpha(JelloTheme.ACCENT, 0x48) : 0x2610B981,
+                    (sel || hov) ? JelloTheme.BORDER_ACTIVE_SOFT : 0x6634D399);
+            graphics.centeredText(this.font, Component.literal(lbl), chipX + cw / 2, chipY + 3, 0xFF86EFAC);
+            chipX += cw + 3;
+        }
+        if (!anyActiveChip) {
+            graphics.text(this.font, Component.literal("No active slots"), stageX + 10, chipY + 3, JelloTheme.TEXT_MUTED, false);
+        }
+
+        // Bottom Strip 4: Nearby Friend Look Inspector + Clone Look
+        int friendY = stageY + stageH - 22;
+        int cloneW = inspectingFriend ? 46 : 0;
+        int friendMaxX = stageX + stageW - 8 - (cloneW > 0 ? cloneW + 4 : 0);
+        int fx = stageX + 8;
+        int meW = 24;
+        boolean meSel = !inspectingFriend;
+        boolean meHov = isInside(mouseX, mouseY, fx, friendY, meW, 16);
+        if (meHov) this.frameInteractiveHover = true;
+        JelloTheme.fillRoundedCard(graphics, fx, friendY, fx + meW, friendY + 16, 3,
+                meSel ? withAlpha(JelloTheme.ACCENT, 0x52) : JelloTheme.CONTAINER_BG,
+                meSel ? JelloTheme.BORDER_ACTIVE_SOFT : JelloTheme.BORDER_SUBTLE);
+        graphics.centeredText(this.font, Component.literal("Me"), fx + meW / 2, friendY + 4,
+                meSel ? 0xFFFFFFFF : JelloTheme.TEXT_MUTED);
+        fx += meW + 3;
+
+        if (this.cosmeticFriendNames.isEmpty()) {
+            graphics.text(this.font, Component.literal(fitText("No friends syncing", friendMaxX - fx)),
+                    fx + 2, friendY + 4, JelloTheme.TEXT_MUTED, false);
+        } else {
+            for (int f = 0; f < this.cosmeticFriendNames.size(); f++) {
+                String fn = this.cosmeticFriendNames.get(f);
+                String chipLbl = fitText(fn, 52);
+                int fw = this.font.width(chipLbl) + 8;
+                if (fx + fw > friendMaxX) break;
+                boolean fSel = inspectingFriend && fn.equalsIgnoreCase(this.inspectedCosmeticFriend);
+                boolean fHov = isInside(mouseX, mouseY, fx, friendY, fw, 16);
+                if (fHov) this.frameInteractiveHover = true;
+                JelloTheme.fillRoundedCard(graphics, fx, friendY, fx + fw, friendY + 16, 3,
+                        fSel ? 0x4410B981 : JelloTheme.CONTAINER_BG,
+                        fSel ? 0xFF34D399 : (fHov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE));
+                graphics.centeredText(this.font, Component.literal(chipLbl), fx + fw / 2, friendY + 4,
+                        fSel ? 0xFF6EE7B7 : JelloTheme.TEXT_DIM);
+                fx += fw + 3;
             }
+        }
+        if (inspectingFriend) {
+            int cx = stageX + stageW - 8 - cloneW;
+            boolean cHov = isInside(mouseX, mouseY, cx, friendY, cloneW, 16);
+            if (cHov) this.frameInteractiveHover = true;
+            JelloTheme.fillRoundedCard(graphics, cx, friendY, cx + cloneW, friendY + 16, 3,
+                    cHov ? 0xCC10B981 : 0x7710B981, 0xFF34D399);
+            graphics.centeredText(this.font, Component.literal("Clone"), cx + cloneW / 2, friendY + 4, 0xFFFFFFFF);
+        }
+    }
 
-            for (int m = 0; m < modeCount; m++) {
-                int col = m % cols;
-                int row = m / cols;
+    private void renderCosmeticCatalogSubTab(
+            GuiGraphicsExtractor graphics, int mouseX, int mouseY,
+            int rightX, int rightW, int bodyY, int bodyBottom, int scroll,
+            ModConfig config, int subTab, int cols, int cardW, int gridH, int hoveredMode,
+            List<ModernModuleSettings.Control> controls,
+            ModernInspectorLayout.ControlsFlow flow, int controlsPanelW
+    ) {
+        int masterY = bodyY - scroll;
+        int gridHeaderY = masterY + COSMETIC_MASTER_H + 10;
+        int gridY = gridHeaderY + 18;
+        int customHeaderY = gridY + gridH + 12;
+        int controlsY = customHeaderY + SETTINGS_SECTION_HEADER_H;
+
+        boolean enabled = isCosmeticSlotEnabled(config, subTab);
+        int equippedMode = getCosmeticSlotMode(config, subTab);
+        String masterSub = enabled
+                ? ("Active: " + cosmeticSlotName(subTab, equippedMode) + "  |  Hover cards to preview")
+                : "Hover any style card to preview on your skin";
+        drawHudResetCard(graphics, mouseX, mouseY, rightX, masterY, rightW, COSMETIC_MASTER_H,
+                cosmeticSlotTitle(subTab), masterSub, enabled, true, true, "Reset");
+
+        graphics.text(this.font, Component.literal("§l" + cosmeticSlotHeaderLabel(subTab) + " (" + this.cosmeticFilteredModeCount + ")"),
+                rightX, gridHeaderY + 2, JelloTheme.TEXT, false);
+        String gridHint = "Hover to preview, click to equip";
+        int hintW = this.font.width(gridHint);
+        if (rightW - hintW > 130) {
+            graphics.text(this.font, Component.literal(gridHint),
+                    rightX + rightW - hintW, gridHeaderY + 3, JelloTheme.TEXT_MUTED, false);
+        }
+
+        if (this.cosmeticFilteredModeCount == 0) {
+            JelloTheme.fillRoundedCard(graphics, rightX, gridY, rightX + rightW, gridY + 40, 6,
+                    JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
+            graphics.centeredText(this.font, Component.literal("No cosmetics match '" + this.searchQuery + "'"),
+                    rightX + rightW / 2, gridY + 16, JelloTheme.TEXT_MUTED);
+        } else {
+            for (int i = 0; i < this.cosmeticFilteredModeCount; i++) {
+                int m = this.cosmeticFilteredModes[i];
+                int col = i % cols;
+                int row = i / cols;
                 int cx = rightX + col * (cardW + COSMETIC_WING_GAP);
                 int cy = gridY + row * (COSMETIC_WING_CARD_H + COSMETIC_WING_GAP);
-                if (cy + COSMETIC_WING_CARD_H < contentY || cy > contentY + contentH) {
-                    continue;
-                }
-                boolean equipped = config.wingsEnabled && config.wingsMode == m;
-                boolean hov = (m == hoveredWingMode);
-                if (hov) {
-                    this.frameInteractiveHover = true;
-                }
+                if (cy + COSMETIC_WING_CARD_H < bodyY || cy > bodyBottom) continue;
+
+                boolean equipped = enabled && equippedMode == m;
+                boolean hov = (m == hoveredMode);
+                if (hov) this.frameInteractiveHover = true;
                 int bg = equipped
                         ? (hov ? JelloTheme.CARD_ACTIVE_HOVER : JelloTheme.CARD_ACTIVE)
                         : (hov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
@@ -2002,8 +2635,8 @@ public class ModernClickGuiScreen extends Screen {
                 int iconCol = equipped ? JelloTheme.ACCENT_HOVER : (hov ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED);
                 ModernIcons.drawWingIcon(graphics, cx + 8, cy + 8, iconCol);
 
-                String modeName = WingsLogic.modeName(m);
-                String styleTag = WingsLogic.modeStyleTag(m);
+                String modeName = cosmeticSlotName(subTab, m);
+                String styleTag = cosmeticSlotTag(subTab, m);
                 int textMaxW = Math.max(24, cardW - 40);
                 graphics.text(this.font, Component.literal(fitText(modeName, textMaxW)),
                         cx + 23, cy + 8, equipped ? JelloTheme.TEXT : (hov ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED), equipped);
@@ -2014,76 +2647,226 @@ public class ModernClickGuiScreen extends Screen {
                     ModernIcons.drawCheckIcon(graphics, cx + cardW - 15, cy + 8, JelloTheme.ACCENT_HOVER);
                 }
             }
+        }
 
-            // 3. Collapsible Wing Customization section
-            boolean customHov = isInside(mouseX, mouseY, rightX - 4, customHeaderY - 3, rightW + 8, SETTINGS_SECTION_HEADER_H)
-                    && mouseY >= contentY && mouseY < contentY + contentH;
-            if (customHov) {
-                this.frameInteractiveHover = true;
-                JelloTheme.fillRounded(graphics, rightX - 4, customHeaderY - 3, rightX + rightW + 4,
-                        customHeaderY + SETTINGS_SECTION_HEADER_H - 3, 6, withAlpha(JelloTheme.ACCENT, 0x18));
+        boolean customHov = isInside(mouseX, mouseY, rightX - 4, customHeaderY - 3, rightW + 8, SETTINGS_SECTION_HEADER_H)
+                && mouseY >= bodyY && mouseY < bodyBottom;
+        if (customHov) {
+            this.frameInteractiveHover = true;
+            JelloTheme.fillRounded(graphics, rightX - 4, customHeaderY - 3, rightX + rightW + 4,
+                    customHeaderY + SETTINGS_SECTION_HEADER_H - 3, 6, withAlpha(JelloTheme.ACCENT, 0x18));
+        }
+        graphics.text(this.font, Component.literal("§lSLOT CUSTOMIZATION"), rightX, customHeaderY + 1, JelloTheme.TEXT, false);
+        graphics.text(this.font, Component.literal("Color palette, chroma gradient & geometry scale"),
+                rightX, customHeaderY + 14, JelloTheme.TEXT_MUTED, false);
+        int chevCol = customHov ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED;
+        int chx = rightX + rightW - 7;
+        int chy = customHeaderY + 7;
+        for (int r = 0; r < 4; r++) {
+            if (cosmeticCustomizeCollapsed) {
+                JelloTheme.fill(graphics, chx - 2 + r, chy - 3 + r, chx - 1 + r, chy + 4 - r, chevCol);
+            } else {
+                JelloTheme.fill(graphics, chx - 3 + r, chy + r, chx + 4 - r, chy + r + 1, chevCol);
             }
-            graphics.text(this.font, Component.literal("§lWING CUSTOMIZATION"), rightX, customHeaderY + 1, JelloTheme.TEXT, false);
-            graphics.text(this.font, Component.literal("Color palette, length, height, flap speed & hit flash"),
-                    rightX, customHeaderY + 14, JelloTheme.TEXT_MUTED, false);
-            int chevCol = customHov ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED;
-            int chx = rightX + rightW - 7;
-            int chy = customHeaderY + 7;
-            for (int r = 0; r < 4; r++) {
-                if (cosmeticCustomizeCollapsed) {
-                    JelloTheme.fill(graphics, chx - 2 + r, chy - 3 + r, chx - 1 + r, chy + 4 - r, chevCol);
-                } else {
-                    JelloTheme.fill(graphics, chx - 3 + r, chy + r, chx + 4 - r, chy + r + 1, chevCol);
-                }
-            }
+        }
 
-            if (!cosmeticCustomizeCollapsed && !wingControls.isEmpty()) {
-                JelloTheme.fillRoundedCard(graphics, rightX, controlsY, rightX + rightW, controlsY + flow.totalHeight(),
-                        7, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
-                ModernModuleCardUi.SliderEditState editState = this.editingSlider != null
-                        ? new ModernModuleCardUi.SliderEditState(this.editingSlider.key(), this.editingSliderText, false)
-                        : null;
-                ModernModuleCardUi.renderControls(
-                        graphics,
-                        this.font,
-                        mouseX,
-                        mouseY,
-                        rightX + 10,
-                        controlsY,
-                        controlsPanelW,
-                        "Wings",
-                        wingControls,
-                        (sx, sy, sw, sh, skey, pct) -> renderInteractiveSlider(graphics, mouseX, mouseY, sx, sy, sw, sh, skey, pct),
-                        (tx, ty, tw, th, tkey, tactive) -> renderSmoothSwitch(graphics, mouseX, mouseY, tx, ty, tw, th, tkey, tactive, this.currentFrameDt),
-                        editState,
-                        (bx, by, bw, bh) -> {
-                            this.editingBoxX = bx;
-                            this.editingBoxY = by;
-                            this.editingBoxW = bw;
-                            this.editingBoxH = bh;
-                            if (this.sliderInputBox != null && this.editingSlider != null) {
-                                this.sliderInputBox.setX(bx + 4);
-                                this.sliderInputBox.setY(by + 2);
-                                this.sliderInputBox.setWidth(Math.max(16, bw - 8));
-                                this.sliderInputBox.setHeight(9);
-                                this.sliderInputBox.visible = true;
-                            }
-                        }
-                );
-            } else if (cosmeticCustomizeCollapsed && this.editingSlider != null) {
-                cancelEditingSlider();
-            }
-        } finally {
-            graphics.disableScissor();
+        if (!cosmeticCustomizeCollapsed && !controls.isEmpty()) {
+            JelloTheme.fillRoundedCard(graphics, rightX, controlsY, rightX + rightW, controlsY + flow.totalHeight(),
+                    7, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
+            renderCosmeticControlsBlock(graphics, mouseX, mouseY, rightX + 10, controlsY, controlsPanelW, controls);
+        } else if (cosmeticCustomizeCollapsed && this.editingSlider != null) {
+            cancelEditingSlider();
         }
     }
 
+    private void renderCosmeticFxEmotesSubTab(
+            GuiGraphicsExtractor graphics, int mouseX, int mouseY,
+            int rightX, int rightW, int bodyY, int bodyBottom,
+            int scroll, int cols, int cardW, int hoveredEmote,
+            List<ModernModuleSettings.Control> fxControls, int controlsPanelW
+    ) {
+        int startY = bodyY - scroll;
+        graphics.text(this.font, Component.literal("§l3D POSE EMOTES (LIVE + SESTIA SYNC)"),
+                rightX, startY + 2, JelloTheme.TEXT, false);
+
+        int emoteGridY = startY + 18;
+        int emoteCount = CosmeticsLogic.emoteCount();
+        int activeEmote = CosmeticsLogic.getLocalActiveEmote();
+        for (int e = 0; e < emoteCount; e++) {
+            int col = e % cols, row = e / cols;
+            int cx = rightX + col * (cardW + COSMETIC_WING_GAP);
+            int cy = emoteGridY + row * (COSMETIC_WING_CARD_H + COSMETIC_WING_GAP);
+            boolean active = (activeEmote == e);
+            boolean hov = (e == hoveredEmote);
+            if (hov) this.frameInteractiveHover = true;
+            if (cy + COSMETIC_WING_CARD_H >= bodyY && cy <= bodyBottom) {
+                JelloTheme.fillRoundedCard(graphics, cx, cy, cx + cardW, cy + COSMETIC_WING_CARD_H, 6,
+                        active ? JelloTheme.CARD_ACTIVE : (hov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE),
+                        active ? JelloTheme.BORDER_ACTIVE_SOFT : (hov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE));
+                graphics.text(this.font, Component.literal(fitText(CosmeticsLogic.emoteName(e), cardW - 22)),
+                        cx + 10, cy + 8, active ? JelloTheme.TEXT : JelloTheme.TEXT_DIM, active);
+                graphics.text(this.font, Component.literal(active ? "Playing (RMB stop)" : "Click to play"),
+                        cx + 10, cy + 23, active ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED, false);
+                if (active) {
+                    ModernIcons.drawCheckIcon(graphics, cx + cardW - 15, cy + 8, JelloTheme.ACCENT_HOVER);
+                }
+            }
+        }
+
+        int emoteRows = (emoteCount + cols - 1) / cols;
+        int emoteGridH = emoteRows * COSMETIC_WING_CARD_H + Math.max(0, emoteRows - 1) * COSMETIC_WING_GAP;
+        int fxHeaderY = emoteGridY + emoteGridH + 14;
+        graphics.text(this.font, Component.literal("§lTRAILS, COMBAT FX, GLINT & 1P HAND FX"),
+                rightX, fxHeaderY + 2, JelloTheme.TEXT, false);
+
+        int fxCardY = fxHeaderY + 18;
+        ModernInspectorLayout.ControlsFlow flow = ModernInspectorLayout.computeControlsFlow(rightX + 10, fxCardY, controlsPanelW, fxControls);
+        JelloTheme.fillRoundedCard(graphics, rightX, fxCardY, rightX + rightW, fxCardY + flow.totalHeight(),
+                7, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
+        renderCosmeticControlsBlock(graphics, mouseX, mouseY, rightX + 10, fxCardY, controlsPanelW, fxControls);
+    }
+
+    private void renderCosmeticOutfitsSubTab(
+            GuiGraphicsExtractor graphics, int mouseX, int mouseY,
+            int rightX, int rightW, int bodyY, int bodyBottom,
+            int scroll, String qLower
+    ) {
+        int panelY = bodyY - scroll;
+        int headerPanelH = 74;
+        JelloTheme.fillRoundedCard(graphics, rightX, panelY, rightX + rightW, panelY + headerPanelH, 7,
+                JelloTheme.CONTAINER_BG, JelloTheme.BORDER_SUBTLE);
+        graphics.text(this.font, Component.literal("§lCOSMETIC OUTFITS & SC1: SHARE CODES"),
+                rightX + 10, panelY + 8, JelloTheme.TEXT, false);
+
+        int rowY = panelY + 22;
+        int saveBtnW = 86;
+        int boxW = Math.max(80, rightW - 26 - saveBtnW);
+        renderProfileInputFrame(graphics, this.outfitNameBox, rightX + 10, rowY, boxW);
+        if (this.outfitNameBox != null) {
+            this.outfitNameBox.visible = (rowY >= bodyY - 4 && rowY + 20 <= bodyBottom + 4);
+        }
+        renderProfileButton(graphics, mouseX, mouseY, rightX + 14 + boxW, rowY, saveBtnW, 20, "+ Save Outfit", true);
+
+        int row2Y = panelY + 46;
+        int pasteW = 132;
+        renderProfileButton(graphics, mouseX, mouseY, rightX + 10, row2Y, pasteW, 20, "Paste SC1: & Wear", false);
+
+        if (this.cosmeticStatusText != null && System.currentTimeMillis() < this.cosmeticStatusUntilMs) {
+            int stX = rightX + 18 + pasteW;
+            int stW = Math.max(60, rightX + rightW - 10 - stX);
+            int stBg = this.cosmeticStatusError ? 0x33FF1E2D : 0x2410B981;
+            int stBorder = this.cosmeticStatusError ? 0xAAFF1E2D : 0x5510B981;
+            int stCol = this.cosmeticStatusError ? 0xFFFF8089 : 0xFF6EE7B7;
+            JelloTheme.fillRoundedCard(graphics, stX, row2Y, stX + stW, row2Y + 20, 4, stBg, stBorder);
+            graphics.centeredText(this.font, Component.literal(fitText(this.cosmeticStatusText, stW - 8)),
+                    stX + stW / 2, row2Y + 6, stCol);
+        }
+
+        int listY = panelY + headerPanelH + 14;
+        if (this.cachedOutfits.isEmpty()) {
+            JelloTheme.fillRoundedCard(graphics, rightX, listY, rightX + rightW, listY + 60, 7,
+                    JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
+            graphics.centeredText(this.font, Component.literal("No saved outfits yet."), rightX + rightW / 2, listY + 18, JelloTheme.TEXT);
+            graphics.centeredText(this.font, Component.literal("Equip cosmetics, type a name, and click '+ Save Outfit'."),
+                    rightX + rightW / 2, listY + 34, JelloTheme.TEXT_MUTED);
+            return;
+        }
+
+        int cardH = 44;
+        int gap = 7;
+        int drawIdx = 0;
+        for (int i = 0; i < this.cachedOutfits.size(); i++) {
+            CosmeticOutfitManager.OutfitSummary o = this.cachedOutfits.get(i);
+            if (!qLower.isEmpty() && !o.name().toLowerCase(Locale.ROOT).contains(qLower)) continue;
+            int cy = listY + drawIdx * (cardH + gap);
+            drawIdx++;
+            if (cy + cardH < bodyY || cy > bodyBottom) continue;
+
+            boolean cardHov = isInside(mouseX, mouseY, rightX, cy, rightW, cardH);
+            JelloTheme.fillRoundedCard(graphics, rightX, cy, rightX + rightW, cy + cardH, 6,
+                    cardHov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE,
+                    cardHov ? JelloTheme.BORDER_ACTIVE_SOFT : JelloTheme.BORDER_SUBTLE);
+
+            int delW = 20;
+            int copyW = 56;
+            int equipW = 46;
+            int delX = rightX + rightW - 8 - delW;
+            int copyX = delX - 5 - copyW;
+            int equipX = copyX - 5 - equipW;
+            int btnY = cy + 13;
+
+            int textMaxW = Math.max(48, equipX - rightX - 18);
+            graphics.text(this.font, Component.literal(fitText(o.name(), textMaxW)), rightX + 10, cy + 8, JelloTheme.TEXT, false);
+            graphics.text(this.font, Component.literal(o.activeSlots() + " Active Slots  |  Hover to preview"),
+                    rightX + 10, cy + 24, JelloTheme.TEXT_MUTED, false);
+
+            boolean eHov = isInside(mouseX, mouseY, equipX, btnY, equipW, 18);
+            boolean cHov = isInside(mouseX, mouseY, copyX, btnY, copyW, 18);
+            boolean dHov = isInside(mouseX, mouseY, delX, btnY, delW, 18);
+            if (eHov || cHov || dHov) this.frameInteractiveHover = true;
+
+            JelloTheme.fillRoundedCard(graphics, equipX, btnY, equipX + equipW, btnY + 18, 4,
+                    eHov ? JelloTheme.ACCENT_HOVER : withAlpha(JelloTheme.ACCENT, 0x48), JelloTheme.BORDER_ACTIVE_SOFT);
+            graphics.centeredText(this.font, Component.literal("Equip"), equipX + equipW / 2, btnY + 5, 0xFFFFFFFF);
+
+            JelloTheme.fillRoundedCard(graphics, copyX, btnY, copyX + copyW, btnY + 18, 4,
+                    cHov ? withAlpha(JelloTheme.ACCENT, 0x44) : JelloTheme.CONTAINER_BG,
+                    cHov ? JelloTheme.BORDER_ACTIVE_SOFT : JelloTheme.BORDER_SUBTLE);
+            graphics.centeredText(this.font, Component.literal("Copy SC1:"), copyX + copyW / 2, btnY + 5,
+                    cHov ? 0xFFFFFFFF : JelloTheme.TEXT_DIM);
+
+            JelloTheme.fillRoundedCard(graphics, delX, btnY, delX + delW, btnY + 18, 4,
+                    dHov ? 0x77FF1E2D : JelloTheme.CONTAINER_BG, dHov ? 0xFFFF4D5E : JelloTheme.BORDER_SUBTLE);
+            ModernIcons.drawCloseIcon(graphics, delX + delW / 2, btnY + 9, dHov ? 0xFFFFFFFF : 0xFFFF6666);
+        }
+    }
+
+    private void renderCosmeticControlsBlock(
+            GuiGraphicsExtractor graphics, int mouseX, int mouseY,
+            int controlsX, int controlsY, int controlsPanelW,
+            List<ModernModuleSettings.Control> controls
+    ) {
+        ModernModuleCardUi.SliderEditState editState = this.editingSlider != null
+                ? new ModernModuleCardUi.SliderEditState(this.editingSlider.key(), this.editingSliderText, false)
+                : null;
+        ModernModuleCardUi.renderControls(
+                graphics,
+                this.font,
+                mouseX,
+                mouseY,
+                controlsX,
+                controlsY,
+                controlsPanelW,
+                "Cosmetics",
+                controls,
+                (sx, sy, sw, sh, skey, pct) -> renderInteractiveSlider(graphics, mouseX, mouseY, sx, sy, sw, sh, skey, pct),
+                (tx, ty, tw, th, tkey, tactive) -> renderSmoothSwitch(graphics, mouseX, mouseY, tx, ty, tw, th, tkey, tactive, this.currentFrameDt),
+                editState,
+                (bx, by, bw, bh) -> {
+                    this.editingBoxX = bx;
+                    this.editingBoxY = by;
+                    this.editingBoxW = bw;
+                    this.editingBoxH = bh;
+                    if (this.sliderInputBox != null && this.editingSlider != null) {
+                        this.sliderInputBox.setX(bx + 4);
+                        this.sliderInputBox.setY(by + 2);
+                        this.sliderInputBox.setWidth(Math.max(16, bw - 8));
+                        this.sliderInputBox.setHeight(9);
+                        this.sliderInputBox.visible = true;
+                    }
+                }
+        );
+    }
+
     private boolean handleCosmeticClick(int mouseX, int mouseY, int button, int contentX, int contentY, int contentW, int contentH) {
-        if (!MouseButtonMapping.isLeftClick(button)) {
+        boolean isLmb = MouseButtonMapping.isLeftClick(button);
+        boolean isRmb = MouseButtonMapping.isRightClick(button);
+        if (!isLmb && !isRmb) {
             return false;
         }
         ModConfig config = ModConfig.getInstance();
         computeCosmeticBounds(contentX, contentY, contentW, contentH);
+        refreshCosmeticFriendNames();
         int stageX = this.cosmeticStageX;
         int stageY = this.cosmeticStageY;
         int stageW = this.cosmeticStageW;
@@ -2091,107 +2874,381 @@ public class ModernClickGuiScreen extends Screen {
         int rightX = this.cosmeticRightX;
         int rightW = this.cosmeticRightW;
 
-        // 1. Left stage bottom angle preset pills (Back / 3/4 / Front)
-        int pillY = stageY + stageH - 22;
-        int pillH = 16;
-        int pillGap = 5;
-        int pillW = (stageW - 16 - pillGap * (COSMETIC_ANGLE_LABELS.length - 1)) / COSMETIC_ANGLE_LABELS.length;
-        for (int i = 0; i < COSMETIC_ANGLE_LABELS.length; i++) {
-            int px = stageX + 8 + i * (pillW + pillGap);
-            int pw = (i == COSMETIC_ANGLE_LABELS.length - 1) ? (stageX + stageW - 8 - px) : pillW;
-            if (isInside(mouseX, mouseY, px, pillY, pw, pillH)) {
-                cosmeticPreviewYaw = COSMETIC_ANGLE_VALUES[i];
-                playClickSound(1.06f);
+        // 1. Left Stage Interactions
+        if (isInside(mouseX, mouseY, stageX, stageY, stageW, stageH)) {
+            int armorW = 40;
+            int matchW = 46;
+            int armorX = stageX + stageW - 8 - armorW;
+            int matchX = armorX - 4 - matchW;
+            int topBtnY = stageY + 6;
+            if (isLmb && isInside(mouseX, mouseY, matchX, topBtnY, matchW, 16)) {
+                CosmeticsLogic.matchStrainTheme(config, JelloTheme.ACCENT);
+                config.save();
+                setCosmeticStatus("Matched Strain theme!", false);
+                playClickSound(1.16f);
                 return true;
+            }
+            if (isLmb && isInside(mouseX, mouseY, armorX, topBtnY, armorW, 16)) {
+                CosmeticsLogic.setPreviewShowArmor(!CosmeticsLogic.isPreviewShowArmor());
+                playClickSound(CosmeticsLogic.isPreviewShowArmor() ? 1.12f : 0.90f);
+                return true;
+            }
+
+            // Pose strip
+            int poseY = stageY + stageH - 77;
+            int poseCount = CosmeticsLogic.previewPoseCount();
+            int pGap = 3;
+            int pW = (stageW - 16 - pGap * (poseCount - 1)) / poseCount;
+            if (isLmb) {
+                for (int i = 0; i < poseCount; i++) {
+                    int px = stageX + 8 + i * (pW + pGap);
+                    int pw = (i == poseCount - 1) ? (stageX + stageW - 8 - px) : pW;
+                    if (isInside(mouseX, mouseY, px, poseY, pw, 15)) {
+                        cosmeticPreviewPose = i;
+                        playClickSound(1.06f);
+                        return true;
+                    }
+                }
+            }
+
+            // Angle presets + zoom reset
+            int angleY = stageY + stageH - 59;
+            int zoomW = 34;
+            int zoomX = stageX + stageW - 8 - zoomW;
+            if (isLmb && isInside(mouseX, mouseY, zoomX, angleY, zoomW, 15)) {
+                cosmeticPreviewZoom = 1.0f;
+                cosmeticPreviewPitch = 6.0f;
+                playClickSound(1.0f);
+                return true;
+            }
+            int availAngleW = zoomX - (stageX + 8) - 4;
+            int aGap = 4;
+            int aW = (availAngleW - aGap * (COSMETIC_ANGLE_LABELS.length - 1)) / COSMETIC_ANGLE_LABELS.length;
+            if (isLmb) {
+                for (int i = 0; i < COSMETIC_ANGLE_LABELS.length; i++) {
+                    int px = stageX + 8 + i * (aW + aGap);
+                    int pw = (i == COSMETIC_ANGLE_LABELS.length - 1) ? (stageX + 8 + availAngleW - px) : aW;
+                    if (isInside(mouseX, mouseY, px, angleY, pw, 15)) {
+                        cosmeticPreviewYaw = COSMETIC_ANGLE_VALUES[i];
+                        cosmeticPreviewPitch = 6.0f;
+                        playClickSound(1.06f);
+                        return true;
+                    }
+                }
+            }
+
+            // Active slot chips (LMB jump tab, RMB unequip on Me)
+            CosmeticsLogic.CosmeticLoadout remoteFriend = this.inspectedCosmeticFriend != null
+                    ? CosmeticsLogic.getRemoteLoadout(this.inspectedCosmeticFriend)
+                    : null;
+            CosmeticsLogic.CosmeticLoadout activePreview = remoteFriend != null ? remoteFriend : CosmeticsLogic.fromConfig(config);
+            int chipY = stageY + stageH - 41;
+            int chipX = stageX + 8;
+            int maxChipRight = stageX + stageW - 8;
+            for (int c = 0; c < COSMETIC_CHIP_LABELS.length; c++) {
+                if (!isLoadoutSlotActive(activePreview, c)) continue;
+                int cw = this.font.width(COSMETIC_CHIP_LABELS[c]) + 8;
+                if (chipX + cw > maxChipRight) break;
+                if (isInside(mouseX, mouseY, chipX, chipY, cw, 15)) {
+                    if (isRmb && remoteFriend == null) {
+                        if (c <= 5) {
+                            setCosmeticSlotEnabled(config, c, false);
+                        } else {
+                            config.cosmeticTrailEnabled = false;
+                            config.cosmeticHitFxEnabled = false;
+                            config.cosmeticKillFxEnabled = false;
+                            config.cosmeticTotemFxEnabled = false;
+                            config.cosmeticGlintEnabled = false;
+                            config.cosmeticHandAuraEnabled = false;
+                            config.cosmeticSlashArcEnabled = false;
+                        }
+                        config.save();
+                        playClickSound(0.86f);
+                    } else if (isLmb) {
+                        cosmeticSubTab = c;
+                        this.scrollAmount = 0.0;
+                        cancelEditingSlider();
+                        applySmartCameraForSubTab(c);
+                        playClickSound(1.08f);
+                    }
+                    return true;
+                }
+                chipX += cw + 3;
+            }
+
+            // Friend inspector bar
+            if (isLmb) {
+                int friendY = stageY + stageH - 22;
+                boolean inspecting = remoteFriend != null;
+                int cloneW = inspecting ? 46 : 0;
+                if (inspecting) {
+                    int cloneX = stageX + stageW - 8 - cloneW;
+                    if (isInside(mouseX, mouseY, cloneX, friendY, cloneW, 16)) {
+                        CosmeticsLogic.applyLoadoutToConfig(remoteFriend, config);
+                        config.save();
+                        this.inspectedCosmeticFriend = null;
+                        setCosmeticStatus("Cloned " + stageOwnerLabel(remoteFriend) + "!", false);
+                        playClickSound(1.22f);
+                        return true;
+                    }
+                }
+                int fx = stageX + 8;
+                int meW = 24;
+                if (isInside(mouseX, mouseY, fx, friendY, meW, 16)) {
+                    this.inspectedCosmeticFriend = null;
+                    playClickSound(1.04f);
+                    return true;
+                }
+                fx += meW + 3;
+                int friendMaxX = stageX + stageW - 8 - (cloneW > 0 ? cloneW + 4 : 0);
+                for (int f = 0; f < this.cosmeticFriendNames.size(); f++) {
+                    String fn = this.cosmeticFriendNames.get(f);
+                    int fw = this.font.width(fitText(fn, 52)) + 8;
+                    if (fx + fw > friendMaxX) break;
+                    if (isInside(mouseX, mouseY, fx, friendY, fw, 16)) {
+                        this.inspectedCosmeticFriend = fn;
+                        playClickSound(1.08f);
+                        return true;
+                    }
+                    fx += fw + 3;
+                }
+            }
+
+            // Viewport drag-to-orbit start
+            if (isLmb && isInside(mouseX, mouseY, stageX + 4, stageY + 26, stageW - 8, stageH - COSMETIC_STAGE_BOTTOM_H - 26)) {
+                this.draggingCosmeticPreview = true;
+                return true;
+            }
+            return false;
+        }
+
+        // 2. Right Sub-Tab Bar Click
+        int subTabBarH = layoutCosmeticSubTabs(rightX, stageY, rightW);
+        if (isLmb) {
+            for (int i = 0; i < COSMETIC_SUBTAB_LABELS.length; i++) {
+                if (isInside(mouseX, mouseY, this.cosmeticSubTabX[i], this.cosmeticSubTabY[i], this.cosmeticSubTabW[i], COSMETIC_SUBTAB_H)) {
+                    cosmeticSubTab = i;
+                    this.scrollAmount = 0.0;
+                    this.draggingSliderKey = null;
+                    this.activeSlider = null;
+                    cancelEditingSlider();
+                    if (i == 7) {
+                        refreshOutfitsList();
+                    }
+                    setSecondaryInputsVisible(false, false);
+                    applySmartCameraForSubTab(i);
+                    playClickSound(1.08f);
+                    return true;
+                }
             }
         }
 
-        // 2. Left stage drag-to-rotate start
-        if (isInside(mouseX, mouseY, stageX + 4, stageY + 26, stageW - 8, stageH - 52)) {
-            this.draggingCosmeticPreview = true;
-            return true;
-        }
-
-        if (mouseX < rightX || mouseX >= rightX + rightW || mouseY < contentY || mouseY >= contentY + contentH) {
+        int rightBodyY = stageY + subTabBarH + 8;
+        int rightBodyH = Math.max(80, contentY + contentH - rightBodyY);
+        int rightBodyBottom = rightBodyY + rightBodyH;
+        if (mouseX < rightX || mouseX >= rightX + rightW || mouseY < rightBodyY || mouseY >= rightBodyBottom) {
             return false;
         }
 
         int scroll = (int) Math.round(this.scrollAmount);
-        int masterY = stageY - scroll;
-        int gridHeaderY = masterY + COSMETIC_MASTER_H + 10;
-        int gridY = gridHeaderY + 18;
         int cols = rightW >= 340 ? 3 : 2;
         int cardW = (rightW - COSMETIC_WING_GAP * (cols - 1)) / cols;
-        int rows = (WingsLogic.modeCount() + cols - 1) / cols;
-        int gridH = rows * COSMETIC_WING_CARD_H + Math.max(0, rows - 1) * COSMETIC_WING_GAP;
-        int customHeaderY = gridY + gridH + 12;
-        int controlsY = customHeaderY + SETTINGS_SECTION_HEADER_H;
+        int controlsPanelW = Math.max(140, rightW - 20);
 
-        // 3. Master 3D Wings toggle & Reset card
-        if (handleHudCardClick(mouseX, mouseY, rightX, masterY, rightW, COSMETIC_MASTER_H, true, true, "Reset",
-                () -> {
-                    config.wingsEnabled = !config.wingsEnabled;
-                    config.save();
-                },
-                () -> {
-                    ModernModuleSettings.resetModuleToDefaults("Wings", config, this.settingsActions);
-                    config.save();
-                })) {
-            return true;
-        }
+        if (cosmeticSubTab <= 5) {
+            if (!isLmb) return false;
+            populateFilteredModes(cosmeticSubTab);
+            int rows = Math.max(1, (this.cosmeticFilteredModeCount + cols - 1) / cols);
+            int gridH = this.cosmeticFilteredModeCount == 0 ? 44 : rows * COSMETIC_WING_CARD_H + Math.max(0, rows - 1) * COSMETIC_WING_GAP;
+            int masterY = rightBodyY - scroll;
+            int gridY = masterY + COSMETIC_MASTER_H + 10 + 18;
+            int customHeaderY = gridY + gridH + 12;
+            int controlsY = customHeaderY + SETTINGS_SECTION_HEADER_H;
 
-        // 4. 16 Wing style cards (click equips & turns on, or toggles off if already equipped)
-        int clickedMode = hitTestCosmeticWingCard(mouseX, mouseY, contentY, contentH, gridY, cols, cardW);
-        if (clickedMode >= 0) {
-            if (config.wingsEnabled && config.wingsMode == clickedMode) {
-                config.wingsEnabled = false;
-            } else {
-                config.wingsMode = clickedMode;
-                config.wingsEnabled = true;
-            }
-            config.save();
-            spawnRipple(mouseX, mouseY, config.wingsEnabled ? JelloTheme.BORDER_ACTIVE_SOFT : JelloTheme.TEXT_MUTED);
-            playClickSound(config.wingsEnabled ? 1.16f : 0.88f);
-            return true;
-        }
-
-        // 5. Collapsible Wing Customization header
-        if (isInside(mouseX, mouseY, rightX - 4, customHeaderY - 3, rightW + 8, SETTINGS_SECTION_HEADER_H)) {
-            cosmeticCustomizeCollapsed = !cosmeticCustomizeCollapsed;
-            this.draggingSliderKey = null;
-            this.activeSlider = null;
-            if (cosmeticCustomizeCollapsed) {
-                cancelEditingSlider();
-            }
-            playClickSound(cosmeticCustomizeCollapsed ? 0.92f : 1.08f);
-            return true;
-        }
-
-        // 6. Wing customization sliders, color palette & switches
-        if (!cosmeticCustomizeCollapsed) {
-            List<ModernModuleSettings.Control> wingControls =
-                    ModernModuleSettings.getCosmeticWingsControls(config, this.settingsActions);
-            int controlsPanelW = Math.max(140, rightW - 20);
-            return ModernModuleCardUi.handleControlsClick(
-                    this.font,
-                    mouseX,
-                    mouseY,
-                    rightX + 10,
-                    controlsY,
-                    controlsPanelW,
-                    wingControls,
-                    (slider, startX, width, initialPct) -> {
-                        this.draggingSliderKey = slider.key();
-                        this.activeSlider = slider;
-                        this.draggingSliderStartX = startX;
-                        this.draggingSliderWidth = width;
-                        slider.pctSetter().accept(initialPct);
+            if (handleHudCardClick(mouseX, mouseY, rightX, masterY, rightW, COSMETIC_MASTER_H, true, true, "Reset",
+                    () -> {
+                        setCosmeticSlotEnabled(config, cosmeticSubTab, !isCosmeticSlotEnabled(config, cosmeticSubTab));
+                        config.save();
                     },
-                    this::startEditingSlider,
-                    this::playClickSound
-            );
+                    () -> {
+                        resetCosmeticSlotToDefaults(config, cosmeticSubTab);
+                        config.save();
+                    })) {
+                return true;
+            }
+
+            int clickedMode = hitTestFilteredCatalogCard(mouseX, mouseY, rightBodyY, rightBodyBottom, gridY, cols, cardW);
+            if (clickedMode >= 0) {
+                boolean wasEq = isCosmeticSlotEnabled(config, cosmeticSubTab) && getCosmeticSlotMode(config, cosmeticSubTab) == clickedMode;
+                if (wasEq) {
+                    setCosmeticSlotEnabled(config, cosmeticSubTab, false);
+                } else {
+                    setCosmeticSlotMode(config, cosmeticSubTab, clickedMode);
+                    setCosmeticSlotEnabled(config, cosmeticSubTab, true);
+                }
+                config.save();
+                boolean nowOn = isCosmeticSlotEnabled(config, cosmeticSubTab);
+                spawnRipple(mouseX, mouseY, nowOn ? JelloTheme.BORDER_ACTIVE_SOFT : JelloTheme.TEXT_MUTED);
+                playClickSound(nowOn ? 1.16f : 0.88f);
+                return true;
+            }
+
+            if (isInside(mouseX, mouseY, rightX - 4, customHeaderY - 3, rightW + 8, SETTINGS_SECTION_HEADER_H)) {
+                cosmeticCustomizeCollapsed = !cosmeticCustomizeCollapsed;
+                this.draggingSliderKey = null;
+                this.activeSlider = null;
+                if (cosmeticCustomizeCollapsed) cancelEditingSlider();
+                playClickSound(cosmeticCustomizeCollapsed ? 0.92f : 1.08f);
+                return true;
+            }
+
+            if (!cosmeticCustomizeCollapsed) {
+                List<ModernModuleSettings.Control> controls = getControlsForCosmeticSubTab(config, cosmeticSubTab);
+                return handleCosmeticControlsClick(mouseX, mouseY, rightX + 10, controlsY, controlsPanelW, controls);
+            }
+            return false;
+        }
+
+        if (cosmeticSubTab == 6) {
+            int startY = rightBodyY - scroll;
+            int emoteGridY = startY + 18;
+            int emoteCount = CosmeticsLogic.emoteCount();
+            for (int e = 0; e < emoteCount; e++) {
+                int ec = e % cols, er = e / cols;
+                int cx = rightX + ec * (cardW + COSMETIC_WING_GAP);
+                int cy = emoteGridY + er * (COSMETIC_WING_CARD_H + COSMETIC_WING_GAP);
+                if (isInside(mouseX, mouseY, cx, cy, cardW, COSMETIC_WING_CARD_H)) {
+                    boolean active = (CosmeticsLogic.getLocalActiveEmote() == e);
+                    int next = (isRmb || active) ? CosmeticsLogic.EMOTE_NONE : e;
+                    CosmeticsLogic.setLocalEmote(next, System.currentTimeMillis());
+                    SestiaChatClient.broadcastEmote(next);
+                    playClickSound(next >= 0 ? 1.14f : 0.88f);
+                    return true;
+                }
+            }
+            if (!isLmb) return false;
+            int emoteRows = (emoteCount + cols - 1) / cols;
+            int emoteGridH = emoteRows * COSMETIC_WING_CARD_H + Math.max(0, emoteRows - 1) * COSMETIC_WING_GAP;
+            int fxCardY = emoteGridY + emoteGridH + 14 + 18;
+            List<ModernModuleSettings.Control> fxControls = getControlsForCosmeticSubTab(config, 6);
+            return handleCosmeticControlsClick(mouseX, mouseY, rightX + 10, fxCardY, controlsPanelW, fxControls);
+        }
+
+        // Sub-tab 7: Outfits
+        if (!isLmb) return false;
+        int panelY = rightBodyY - scroll;
+        int headerPanelH = 74;
+        int rowY = panelY + 22;
+        int saveBtnW = 86;
+        int boxW = Math.max(80, rightW - 26 - saveBtnW);
+        if (isInside(mouseX, mouseY, rightX + 14 + boxW, rowY, saveBtnW, 20)) {
+            String raw = this.outfitNameBox != null ? this.outfitNameBox.getValue() : "";
+            String finalName = CosmeticOutfitManager.normalizeOutfitName(raw);
+            try {
+                CosmeticOutfitManager.saveOutfit(CosmeticOutfitManager.getDefaultOutfitsDir(), finalName, CosmeticsLogic.fromConfig(config));
+                refreshOutfitsList();
+                setCosmeticStatus("Saved '" + finalName + "'!", false);
+            } catch (Exception ex) {
+                setCosmeticStatus("Failed to save outfit", true);
+            }
+            playClickSound(1.12f);
+            return true;
+        }
+        int row2Y = panelY + 46;
+        if (isInside(mouseX, mouseY, rightX + 10, row2Y, 132, 20)) {
+            try {
+                String clip = (this.minecraft != null && this.minecraft.keyboardHandler != null)
+                        ? this.minecraft.keyboardHandler.getClipboard()
+                        : "";
+                CosmeticOutfitManager.OutfitEnvelope env = CosmeticOutfitManager.parseShareCode(clip);
+                CosmeticsLogic.applyLoadoutToConfig(env.loadout(), config);
+                config.save();
+                CosmeticOutfitManager.saveOutfit(CosmeticOutfitManager.getDefaultOutfitsDir(), env.name(), env.loadout());
+                refreshOutfitsList();
+                setCosmeticStatus("Loaded '" + env.name() + "'!", false);
+                playClickSound(1.20f);
+            } catch (Exception ex) {
+                setCosmeticStatus("Invalid SC1: clipboard code", true);
+                playClickSound(0.84f);
+            }
+            return true;
+        }
+
+        int listY = panelY + headerPanelH + 14;
+        int cardH = 44;
+        int gap = 7;
+        String qLower = this.searchQuery != null ? this.searchQuery.toLowerCase(Locale.ROOT) : "";
+        int drawIdx = 0;
+        for (int i = 0; i < this.cachedOutfits.size(); i++) {
+            CosmeticOutfitManager.OutfitSummary o = this.cachedOutfits.get(i);
+            if (!qLower.isEmpty() && !o.name().toLowerCase(Locale.ROOT).contains(qLower)) continue;
+            int cy = listY + drawIdx * (cardH + gap);
+            drawIdx++;
+            if (cy + cardH < rightBodyY || cy > rightBodyBottom) continue;
+            if (!isInside(mouseX, mouseY, rightX, cy, rightW, cardH)) continue;
+
+            int delW = 20, copyW = 56, equipW = 46;
+            int delX = rightX + rightW - 8 - delW;
+            int copyX = delX - 5 - copyW;
+            int equipX = copyX - 5 - equipW;
+            int btnY = cy + 13;
+
+            if (isInside(mouseX, mouseY, equipX, btnY, equipW, 18)) {
+                CosmeticsLogic.applyLoadoutToConfig(o.loadout(), config);
+                config.save();
+                this.inspectedCosmeticFriend = null;
+                setCosmeticStatus("Equipped '" + o.name() + "'!", false);
+                playClickSound(1.18f);
+                return true;
+            }
+            if (isInside(mouseX, mouseY, copyX, btnY, copyW, 18)) {
+                setClipboardSafe(CosmeticOutfitManager.exportShareCode(o.name(), o.loadout()));
+                setCosmeticStatus("Copied SC1: for '" + o.name() + "'!", false);
+                playClickSound(1.10f);
+                return true;
+            }
+            if (isInside(mouseX, mouseY, delX, btnY, delW, 18)) {
+                try {
+                    CosmeticOutfitManager.deleteOutfit(o.file());
+                    refreshOutfitsList();
+                    setCosmeticStatus("Deleted '" + o.name() + "'", false);
+                } catch (Exception ex) {
+                    setCosmeticStatus("Delete failed", true);
+                }
+                playClickSound(0.90f);
+                return true;
+            }
+            return true;
         }
         return false;
+    }
+
+    private String stageOwnerLabel(CosmeticsLogic.CosmeticLoadout ignored) {
+        return this.inspectedCosmeticFriend != null ? this.inspectedCosmeticFriend : "Friend Look";
+    }
+
+    private boolean handleCosmeticControlsClick(
+            int mouseX, int mouseY, int controlsX, int controlsY, int controlsPanelW,
+            List<ModernModuleSettings.Control> controls
+    ) {
+        return ModernModuleCardUi.handleControlsClick(
+                this.font,
+                mouseX,
+                mouseY,
+                controlsX,
+                controlsY,
+                controlsPanelW,
+                controls,
+                (slider, startX, width, initialPct) -> {
+                    this.draggingSliderKey = slider.key();
+                    this.activeSlider = slider;
+                    this.draggingSliderStartX = startX;
+                    this.draggingSliderWidth = width;
+                    slider.pctSetter().accept(initialPct);
+                },
+                this::startEditingSlider,
+                this::playClickSound
+        );
     }
 
     // ==========================================
@@ -3194,7 +4251,7 @@ public class ModernClickGuiScreen extends Screen {
         int contentW = this.windowW - SIDEBAR_WIDTH - 2;
         int contentH = this.windowH - HEADER_HEIGHT - 2;
 
-        boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
+        boolean showingModules = isShowingModulesWorkspace();
         int viewY;
         int viewH;
         int totalH;
@@ -3324,6 +4381,7 @@ public class ModernClickGuiScreen extends Screen {
         unfocusInputIfOutside(this.macroNameBox, mouseX, mouseY, 4, 5, 8, 20);
         unfocusInputIfOutside(this.macroCmdBox, mouseX, mouseY, 4, 5, 8, 20);
         unfocusInputIfOutside(this.folderNameBox, mouseX, mouseY, 5, 4, 10, 18);
+        unfocusInputIfOutside(this.outfitNameBox, mouseX, mouseY, 5, 6, 10, 20);
 
         // Close [X] button in header
         int closeX = this.windowX + this.windowW - 30;
@@ -3376,6 +4434,8 @@ public class ModernClickGuiScreen extends Screen {
                     }
                     if (this.activeNav == NavTab.CONFIG) {
                         refreshProfilesList();
+                    } else if (this.activeNav == NavTab.COSMETIC) {
+                        refreshOutfitsList();
                     }
                     setSecondaryInputsVisible(this.activeNav == NavTab.MACROS && this.editingMacroIndex != -1,
                             this.activeNav == NavTab.CONFIG);
@@ -3416,7 +4476,7 @@ public class ModernClickGuiScreen extends Screen {
                 }
             }
 
-            boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
+            boolean showingModules = isShowingModulesWorkspace();
             if (showingModules) {
                 if (handleModulesWorkspaceClick(mouseX, mouseY, button, contentX, contentY, contentW, contentH)) {
                     return true;
@@ -4029,11 +5089,24 @@ public class ModernClickGuiScreen extends Screen {
         this.cachedProfiles = ConfigProfileManager.listProfiles(ConfigProfileManager.getDefaultProfilesDir());
     }
 
+    private void refreshOutfitsList() {
+        this.cachedOutfits = CosmeticOutfitManager.listOutfits(CosmeticOutfitManager.getDefaultOutfitsDir());
+    }
+
+    private void setCosmeticStatus(String text, boolean isError) {
+        this.cosmeticStatusText = text;
+        this.cosmeticStatusError = isError;
+        this.cosmeticStatusUntilMs = System.currentTimeMillis() + 3500L;
+    }
+
     private void setSecondaryInputsVisible(boolean showMacroInputs, boolean showProfileInput) {
         if (this.macroNameBox != null) this.macroNameBox.visible = showMacroInputs;
         if (this.macroCmdBox != null) this.macroCmdBox.visible = showMacroInputs;
         if (this.profileNameBox != null) this.profileNameBox.visible = showProfileInput;
         if (this.profileCodeBox != null) this.profileCodeBox.visible = showProfileInput;
+        if (this.outfitNameBox != null) {
+            this.outfitNameBox.visible = (this.activeNav == NavTab.COSMETIC && cosmeticSubTab == 7);
+        }
     }
 
     private void setProfileStatus(String text, boolean isError) {
@@ -4089,6 +5162,7 @@ public class ModernClickGuiScreen extends Screen {
         }
         if (this.draggingCosmeticPreview) {
             cosmeticPreviewYaw = Mth.wrapDegrees(cosmeticPreviewYaw - (float) dragX * 1.4f);
+            cosmeticPreviewPitch = Mth.clamp(cosmeticPreviewPitch + (float) dragY * 0.6f, -25.0f, 25.0f);
             return true;
         }
         if (this.draggingStudioSlider >= 0) {
@@ -4109,7 +5183,15 @@ public class ModernClickGuiScreen extends Screen {
         int contentW = this.windowW - SIDEBAR_WIDTH - 2;
         int contentH = this.windowH - HEADER_HEIGHT - 2;
 
-        boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
+        if (this.activeNav == NavTab.COSMETIC) {
+            computeCosmeticBounds(contentX, contentY, contentW, contentH);
+            if (isInside((int) mouseX, (int) mouseY, this.cosmeticStageX, this.cosmeticStageY, this.cosmeticStageW, this.cosmeticStageH)) {
+                cosmeticPreviewZoom = Mth.clamp(cosmeticPreviewZoom + (float) scrollY * 0.10f, 0.75f, 1.85f);
+                return true;
+            }
+        }
+
+        boolean showingModules = isShowingModulesWorkspace();
         int[] vp = computeModulesViewportMetrics(contentX, contentY, contentW, contentH);
         int bodyY = vp[0];
         int viewH = showingModules ? vp[1] : contentH;
@@ -4231,11 +5313,15 @@ public class ModernClickGuiScreen extends Screen {
                 this.profileCodeBox.setFocused(false);
                 return true;
             }
+            if (this.outfitNameBox != null && this.outfitNameBox.isFocused()) {
+                this.outfitNameBox.setFocused(false);
+                return true;
+            }
             if (this.editingMacroIndex != -1) {
                 closeMacroEditor();
                 return true;
             }
-            if (isExpandedOpen() && (!this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES)) {
+            if (isExpandedOpen() && isShowingModulesWorkspace()) {
                 closeExpandedModule();
                 return true;
             }
@@ -4594,7 +5680,7 @@ public class ModernClickGuiScreen extends Screen {
     @Override
     public void removed() {
         this.draggingCosmeticPreview = false;
-        WingsLogic.setPreviewProfile(null);
+        CosmeticsLogic.clearPreviewOverrides();
         saveUiTabState();
         super.removed();
     }
@@ -4602,7 +5688,7 @@ public class ModernClickGuiScreen extends Screen {
     @Override
     public void onClose() {
         this.draggingCosmeticPreview = false;
-        WingsLogic.setPreviewProfile(null);
+        CosmeticsLogic.clearPreviewOverrides();
         this.draggingStudioSlider = -1;
         this.draggingSliderKey = null;
         this.activeSlider = null;

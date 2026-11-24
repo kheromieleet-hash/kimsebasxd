@@ -71,6 +71,8 @@ public final class SestiaChatClient {
     private static ScheduledFuture<?> pendingWingsBroadcast = null;
     private static volatile long lastWingsBroadcastAt = 0L;
     private static volatile String lastBroadcastWingsJson = "";
+    private static volatile String lastBroadcastCosmeticsJson = "";
+    private static volatile long lastEmoteBroadcastAt = 0L;
     private static int reconnectAttempts = 0;
 
     static {
@@ -332,14 +334,23 @@ public final class SestiaChatClient {
                         activeSocket = ws;
                         lastActivityAt = System.currentTimeMillis();
                     }
-                    WingsLogic.WingProfile wp = WingsLogic.fromConfig(ModConfig.getInstance());
+                    ModConfig curCfg = ModConfig.getInstance();
+                    WingsLogic.WingProfile wp = WingsLogic.fromConfig(curCfg);
+                    CosmeticsLogic.CosmeticLoadout cl = (curCfg == null || curCfg.cosmeticSyncMine)
+                            ? CosmeticsLogic.fromConfig(curCfg)
+                            : null;
                     lastBroadcastWingsJson = SestiaChatProtocol.buildWingsJson(wp);
+                    lastBroadcastCosmeticsJson = cl != null ? SestiaChatProtocol.buildCosmeticsJson(cl) : "";
                     lastWingsBroadcastAt = System.currentTimeMillis();
-                    sendTextSerialized(ws, SestiaChatProtocol.buildHelloJson(nick, wp), gen, false);
+                    sendTextSerialized(ws, SestiaChatProtocol.buildHelloJson(nick, wp, cl), gen, false);
                 });
     }
 
     public static void broadcastWingsUpdate() {
+        broadcastCosmeticsUpdate();
+    }
+
+    public static void broadcastCosmeticsUpdate() {
         try {
             if (!loggedIn || activeSocket == null || PanicHandler.isPanicActive()) {
                 return;
@@ -348,18 +359,30 @@ public final class SestiaChatClient {
             if (cfg == null || !cfg.clientChatEnabled) {
                 return;
             }
-            String json = SestiaChatProtocol.buildWingsJson(WingsLogic.fromConfig(cfg));
-            if (json.equals(lastBroadcastWingsJson)) {
+            WingsLogic.WingProfile wp = cfg.cosmeticSyncMine
+                    ? WingsLogic.fromConfig(cfg)
+                    : new WingsLogic.WingProfile(false, cfg.wingsMode, cfg.wingsColorPreset, cfg.wingsCustomRgb, cfg.wingsLength, cfg.wingsWidth, cfg.wingsLinesCount, cfg.wingsFadeStart, cfg.wingsHeight, cfg.wingsFlapSpeed, cfg.wingsShowDamage).sanitized();
+            CosmeticsLogic.CosmeticLoadout cl = cfg.cosmeticSyncMine
+                    ? CosmeticsLogic.fromConfig(cfg)
+                    : CosmeticsLogic.defaultLoadout();
+            String wingsJson = SestiaChatProtocol.buildWingsJson(wp);
+            String cosJson = SestiaChatProtocol.buildCosmeticsJson(cl);
+            boolean wingsChanged = !wingsJson.equals(lastBroadcastWingsJson);
+            boolean cosChanged = !cosJson.equals(lastBroadcastCosmeticsJson);
+            if (!wingsChanged && !cosChanged) {
                 return;
             }
-            lastBroadcastWingsJson = json;
+            lastBroadcastWingsJson = wingsJson;
+            lastBroadcastCosmeticsJson = cosJson;
             long now = System.currentTimeMillis();
             long elapsed = now - lastWingsBroadcastAt;
             if (elapsed >= 160L) {
                 lastWingsBroadcastAt = now;
                 WebSocket ws = activeSocket;
                 if (ws != null && loggedIn) {
-                    sendTextSerialized(ws, json, GENERATION.get(), false);
+                    int gen = GENERATION.get();
+                    sendTextSerialized(ws, cosJson, gen, false);
+                    sendTextSerialized(ws, wingsJson, gen, false);
                 }
             } else {
                 synchronized (LOCK) {
@@ -370,13 +393,39 @@ public final class SestiaChatClient {
                     pendingWingsBroadcast = SCHEDULER.schedule(() -> {
                         lastWingsBroadcastAt = System.currentTimeMillis();
                         WebSocket ws = activeSocket;
-                        String latest = lastBroadcastWingsJson;
-                        if (ws != null && loggedIn && latest != null) {
-                            sendTextSerialized(ws, latest, GENERATION.get(), false);
+                        String latestCos = lastBroadcastCosmeticsJson;
+                        String latestWings = lastBroadcastWingsJson;
+                        if (ws != null && loggedIn) {
+                            int gen = GENERATION.get();
+                            if (latestCos != null && !latestCos.isEmpty()) {
+                                sendTextSerialized(ws, latestCos, gen, false);
+                            }
+                            if (latestWings != null && !latestWings.isEmpty()) {
+                                sendTextSerialized(ws, latestWings, gen, false);
+                            }
                         }
                     }, wait, TimeUnit.MILLISECONDS);
                 }
             }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    public static void broadcastEmote(int emoteId) {
+        try {
+            if (!loggedIn || activeSocket == null || PanicHandler.isPanicActive()) {
+                return;
+            }
+            ModConfig cfg = ModConfig.getInstance();
+            if (cfg == null || !cfg.clientChatEnabled || !cfg.cosmeticSyncMine) {
+                return;
+            }
+            long now = System.currentTimeMillis();
+            if (now - lastEmoteBroadcastAt < 460L && emoteId >= 0) {
+                return;
+            }
+            lastEmoteBroadcastAt = now;
+            sendTextSerialized(activeSocket, SestiaChatProtocol.buildEmoteFxJson(emoteId), GENERATION.get(), false);
         } catch (Throwable ignored) {
         }
     }
@@ -437,9 +486,13 @@ public final class SestiaChatClient {
             silentAutoReconnect = false;
             reconnectAttempts = 0;
             lastActivityAt = 0L;
+            lastBroadcastWingsJson = "";
+            lastBroadcastCosmeticsJson = "";
             synchronized (PENDING_OUTBOX) {
                 PENDING_OUTBOX.clear();
             }
+            KNOWN_USERS.clear();
+            CosmeticsLogic.clearRemoteState();
             closeSocketOnly(false);
         }
         if (announce) {
@@ -488,8 +541,14 @@ public final class SestiaChatClient {
                 }
                 activeNick = ev.from();
                 lastOnlineCount = ev.onlineCount();
+                if (!activeNick.isBlank()) {
+                    CosmeticsLogic.markSestiaUserOnline(activeNick);
+                }
                 if (ev.users() != null && !ev.users().isEmpty()) {
                     KNOWN_USERS.addAll(ev.users());
+                    for (String u : ev.users()) {
+                        CosmeticsLogic.markSestiaUserOnline(u);
+                    }
                 }
                 boolean wasSilent = silentAutoReconnect;
                 silentAutoReconnect = false;
@@ -501,6 +560,7 @@ public final class SestiaChatClient {
             case CHAT -> {
                 if (!ev.from().isBlank()) {
                     KNOWN_USERS.add(ev.from());
+                    CosmeticsLogic.markSestiaUserOnline(ev.from());
                 }
                 if (!SestiaChatProtocol.isMuted(ev.from(), cfg.clientChatMuted)) {
                     postChat(CHAT_PREFIX + "§f" + ev.from() + "§7: §r" + ev.text());
@@ -509,6 +569,7 @@ public final class SestiaChatClient {
             case DM -> {
                 if (!ev.from().isBlank()) {
                     KNOWN_USERS.add(ev.from());
+                    CosmeticsLogic.markSestiaUserOnline(ev.from());
                 }
                 if (!cfg.clientChatAllowDms) {
                     return;
@@ -525,14 +586,22 @@ public final class SestiaChatClient {
                     KNOWN_USERS.clear();
                     KNOWN_USERS.addAll(ev.users());
                 }
+                CosmeticsLogic.setOnlineSestiaUsers(ev.users());
                 String names = ev.users().isEmpty() ? "(none)" : String.join(", ", ev.users());
                 postChat(CHAT_PREFIX + "§7Online (§f" + lastOnlineCount + "§7): §f" + names);
             }
             case SYSTEM -> postChat(CHAT_PREFIX + "§7" + ev.text());
             case ERROR -> postChat(CHAT_PREFIX + "§c" + ev.text());
-            case WINGS -> {
+            case WINGS, COSMETICS, FX -> {
                 if (!ev.from().isBlank()) {
                     KNOWN_USERS.add(ev.from());
+                    CosmeticsLogic.markSestiaUserOnline(ev.from());
+                }
+            }
+            case LEAVE -> {
+                if (!ev.from().isBlank()) {
+                    KNOWN_USERS.removeIf(u -> u != null && u.equalsIgnoreCase(ev.from()));
+                    CosmeticsLogic.removeRemotePlayer(ev.from());
                 }
             }
             case UNKNOWN -> {

@@ -60,7 +60,11 @@
     "LevelRendererMixin",
     "WindowCursorMixin",
     "AbstractButtonMixin",
-    "AbstractSliderButtonMixin"
+    "AbstractSliderButtonMixin",
+    "CapeLayerMixin",
+    "PlayerModelMixin",
+    "ScreenEffectRendererMixin",
+    "PlayerTabOverlayMixin"
   ],
   "injectors": {
     "defaultRequire": 1
