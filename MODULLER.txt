@@ -1,7 +1,7 @@
 ================================================================================
 SESTIA CLIENT - TUM MODULLER VE OZELLIKLER REHBERI
-Surum: v2.3.6 (VersionCode: 236) | Minecraft: 26.3 Fabric
-Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
+Surum: v2.3.8 (VersionCode: 238) | Minecraft: 26.3 Fabric
+Toplam Kayitli Modul: 37 (+ 7 Yerlesik Sistem Ozelligi)
 ================================================================================
 
 --------------------------------------------------------------------------------
@@ -96,7 +96,7 @@ Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
 
 
 --------------------------------------------------------------------------------
-[2] RENDER KATEGORISI (16 Modul)
+[2] RENDER KATEGORISI (15 Modul)
 --------------------------------------------------------------------------------
 
 15. Chunk Borders
@@ -188,28 +188,6 @@ Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
      Ayarlar: Range (16 - 160b), Shape Mode (Lines / Sides / Both),
      Default Color, Tracers, Select & Style Blocks... (blok bazli renk,
      sekil ve tracer ozellestirme + Ores/Storage/Nether onayarlar).
-
-25d. Wings
-     Ne ise yarar: Oyuncunun kendi sirtinda ve (SestiaChat WebSocket senkronizasyonu
-     ile) diger Sestia Client kullanicilarinin sirtinda herkesin kendi sectigi
-     16 farkli 3D kozmetik kanat modelini cizer (Lines enerji seritleri, dik melek
-     duruslu 3D Dragon, 3 katmanli tuylu Angel melek kanadi, oyuk zarli ve kemikli
-     Demon iblis kanadi, yanardoner Butterfly kelebek kanadi, suzulen plazma
-     bicakli Cyber kanadi, alev dilli ve kuyruk seritli Phoenix anka kanadi, 3D
-     prizma parcali Crystal kristal kanadi, 6 kanatli ve donen kutsal halkali
-     Seraph basmelek kanadi, karanlik bosluk kamcili Void kanadi, zirhli mizrak
-     tuylu Valkyrie savas melegi kanadi, parlayan takimyildizli Galaxy kozmik
-     nebula kanadi, donen disli carkli Steampunk mekanik kanat, cakan zig-zag
-     yildirimli Thunder firtina kanadi, ucusan kiraz cicegi yaprakli Sakura kanadi
-     ve saf 3D kemik iskeletli + ruh atesli Bone kanadi; 0.00 sabit sirt mesafesi
-     ve gogusluk/elytra icin otomatik +0.10 zirh payi uygular).
-     Ayarlar: Mode (Lines / Dragon / Angel / Demon / Butterfly / Cyber / Phoenix /
-     Crystal / Seraph / Void / Valkyrie / Galaxy / Steampunk / Thunder / Sakura / Bone),
-     Color (Chroma / Sestia Red / Cyan / Blue / Violet / Pink / Emerald / Gold /
-     White / Custom #RRGGBB + interaktif 12 hazir renk kutusu ve 360° Hue /
-     Doygunluk / Parlaklik renk paleti), Length (0.40x - 2.50x), Width (0.02 - 0.20),
-     Lines Count (2 - 12), Fade Start (0.10 - 1.00), Height (-0.50 - 0.60),
-     Flap Speed (0.0x - 3.0x), Show Damage.
 
 
 --------------------------------------------------------------------------------
@@ -501,6 +479,26 @@ Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
     ana menunun sag alt kosesindeki 6 renkli yaprak ikonlu saydam cam kapsulden
     tek tikla tema degistirilebilir; ayrica ana menudeyken de Sag Shift tusuyla
     ClickGUI acilip kapatilabilir.
+  * Katlanabilir Settings Basliklari: Settings sekmesindeki SESTIA LEAF STUDIO,
+    GENERAL & INVENTORY, BETTER CHAT ve ITEM NOTIFIER basliklarina tiklandiginda
+    o bolumun icerigi gizlenir/gosterilir (sagdaki ok isareti durumu gosterir,
+    secim oturum boyunca hatirlanir).
   1. Sestia Leaf (5 saydam cam & yaprak cesidi: Emerald, Forest, Frost, Gold, Obsidian)
   2. Crimson (Saydam cam, kirmizi dusen yapraklar, kirmizi imlec & buton pariltisi)
+- Cosmetic Sekmesi (3D Karakter Onizlemeli Kanat Studyosu - Sol Panel): Wings
+  artik Modules listesinden cikarilip sol kenar cubugundaki ozel `Cosmetic`
+  sekmesine tasinmistir:
+  * Canli 3D Karakter Onizlemesi: Sol panelde kendi Minecraft skin'in (oyun ici
+    veya Ana Menu fark etmeksizin) canli olarak cizilir; fareyle surukleyerek
+    360° dondurulebilir veya alt kisimdaki `Back / 3/4 / Front` hazir aci
+    butonlariyla tek tikla cevrilebilir.
+  * Uzerine Gelince Canli Onizleme: Sagdaki 16 farkli 3D kanat kartinin (Lines,
+    Dragon, Angel, Demon, Butterfly, Cyber, Phoenix, Crystal, Seraph, Void,
+    Valkyrie, Galaxy, Steampunk, Thunder, Sakura, Bone) herhangi birinin uzerine
+    fareyle gelindiginde kanat kapali olsa bile soldaki 3D skin'in sirtinda o
+    kanat modelini canli olarak onizler; tiklayinca takar/cikarir ve SestiaChat
+    ile diger kullanicilara senkronize eder.
+  * Wing Customization Bolumu: Katlanabilir ozellestirme bolumunden Chroma /
+    12 hazir renk / 360° HSV paleti, Length, Width, Lines Count, Fade Start,
+    Height, Flap Speed ve Show Damage ayarlari canli onizlemeli yapilir.
 ================================================================================

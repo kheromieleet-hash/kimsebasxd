@@ -389,6 +389,33 @@ public class ModernModuleSettingsTest {
         assert cfg.wingsLinesCount == 5;
         assert cfg.wingsShowDamage;
         assert ModernModuleSettings.getControls("Wings", cfg, actions).size() == 10;
+
+        // Cosmetic tab reuses Wings settings without the redundant Mode cycle button
+        cfg.wingsMode = WingsLogic.MODE_LINES;
+        List<ModernModuleSettings.Control> cosmeticLines = ModernModuleSettings.getCosmeticWingsControls(cfg, actions);
+        assert cosmeticLines.size() == 9 : "Expected 9 Cosmetic Wings controls in Lines mode, got " + cosmeticLines.size();
+        cfg.wingsMode = WingsLogic.MODE_ANGEL;
+        List<ModernModuleSettings.Control> cosmeticAngel = ModernModuleSettings.getCosmeticWingsControls(cfg, actions);
+        assert cosmeticAngel.size() == 6 : "Expected 6 Cosmetic Wings controls in Angel mode, got " + cosmeticAngel.size();
+
+        // Wings removed from Modules workspace and sanitized out of legacy favorites/keybinds/folders
+        for (ClickGuiScreen.ModuleEntry entry : ClickGuiScreen.getAllModules()) {
+            assert !"Wings".equals(entry.name) : "Wings must be moved out of Modules into Cosmetic tab";
+        }
+        ModConfig dirty = new ModConfig();
+        dirty.favoriteModules.add("Wings");
+        dirty.moduleKeybinds.put("Wings", 75);
+        dirty.moduleKeybindIsMouse.put("Wings", false);
+        ModConfig.CustomModuleFolder folder = new ModConfig.CustomModuleFolder();
+        folder.id = "FOLDER_1";
+        folder.name = "Visuals";
+        folder.modules.add("Wings");
+        dirty.customFolders.add(folder);
+        dirty.sanitize();
+        assert !dirty.favoriteModules.contains("Wings");
+        assert !dirty.moduleKeybinds.containsKey("Wings");
+        assert !dirty.moduleKeybindIsMouse.containsKey("Wings");
+        assert !folder.modules.contains("Wings");
     }
 
     private static void testAllSlidersSupportDirectNumericInput() {

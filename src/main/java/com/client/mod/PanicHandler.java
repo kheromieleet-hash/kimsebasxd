@@ -84,6 +84,11 @@ public final class PanicHandler {
 
         WheatFarmBotHandler.onLeftWorld();
         AutoFishHandler.onLeftWorld();
+        CosmeticFxHandler.clearAll();
+        CosmeticsLogic.clearLocalEmote();
+        CosmeticsLogic.clearPreviewOverrides();
+        CosmeticsLogic.clearRemoteState();
+        CosmeticGlintManager.restoreVanilla(mc);
 
         if (mc != null) {
             if (mc.options != null) {

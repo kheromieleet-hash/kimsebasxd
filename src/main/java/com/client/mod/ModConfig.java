@@ -251,6 +251,72 @@ public class ModConfig {
     public float wingsFlapSpeed = 1.0f;
     public boolean wingsShowDamage = true;
 
+    // Multi-Slot Cosmetics Studio (v2.4.0)
+    public boolean cosmeticCloakEnabled = false;
+    public int cosmeticCloakMode = CosmeticsLogic.CLOAK_SESTIA_LEAF;
+    public int cosmeticCloakColorPreset = WingsLogic.COLOR_EMERALD;
+    public int cosmeticCloakCustomRgb = 0x34D399;
+
+    public boolean cosmeticHatEnabled = false;
+    public int cosmeticHatMode = CosmeticsLogic.HAT_SERAPH_HALO;
+    public int cosmeticHatColorPreset = WingsLogic.COLOR_EMERALD;
+    public int cosmeticHatCustomRgb = 0x34D399;
+    public float cosmeticHatScale = 1.0f;
+
+    public boolean cosmeticPetEnabled = false;
+    public int cosmeticPetMode = CosmeticsLogic.PET_EMERALD_WISP;
+    public int cosmeticPetSide = CosmeticsLogic.PET_SIDE_RIGHT;
+    public int cosmeticPetColorPreset = WingsLogic.COLOR_EMERALD;
+    public int cosmeticPetCustomRgb = 0x34D399;
+
+    public boolean cosmeticGearEnabled = false;
+    public int cosmeticGearMode = CosmeticsLogic.GEAR_KATANA_SHEATH;
+    public int cosmeticGearColorPreset = WingsLogic.COLOR_EMERALD;
+    public int cosmeticGearCustomRgb = 0x34D399;
+
+    public boolean cosmeticAuraEnabled = false;
+    public int cosmeticAuraMode = CosmeticsLogic.AURA_GROUND_RUNE;
+    public int cosmeticAuraColorPreset = WingsLogic.COLOR_EMERALD;
+    public int cosmeticAuraCustomRgb = 0x34D399;
+    public float cosmeticAuraRadius = 0.95f;
+    public float cosmeticAuraSpeed = 1.0f;
+
+    public boolean cosmeticTrailEnabled = false;
+    public int cosmeticTrailMode = CosmeticsLogic.TRAIL_LEAF_RIBBON;
+    public int cosmeticTrailColorPreset = WingsLogic.COLOR_EMERALD;
+    public int cosmeticTrailCustomRgb = 0x34D399;
+
+    public boolean cosmeticHitFxEnabled = false;
+    public int cosmeticHitFxMode = CosmeticsLogic.HIT_FX_EMERALD_BURST;
+    public int cosmeticHitFxColorPreset = WingsLogic.COLOR_EMERALD;
+    public int cosmeticHitFxCustomRgb = 0x34D399;
+
+    public boolean cosmeticKillFxEnabled = false;
+    public int cosmeticKillFxMode = CosmeticsLogic.KILL_FX_SOUL_BEACON;
+    public int cosmeticKillFxColorPreset = WingsLogic.COLOR_EMERALD;
+    public int cosmeticKillFxCustomRgb = 0x34D399;
+
+    public boolean cosmeticTotemFxEnabled = false;
+    public float cosmeticTotemFxScale = 0.78f;
+    public boolean cosmeticTotemFxRing = true;
+
+    public boolean cosmeticGlintEnabled = false;
+    public int cosmeticGlintColorPreset = WingsLogic.COLOR_EMERALD;
+    public int cosmeticGlintCustomRgb = 0x34D399;
+    public float cosmeticGlintIntensity = 0.85f;
+
+    public boolean cosmeticHandAuraEnabled = false;
+    public int cosmeticHandAuraMode = CosmeticsLogic.HAND_AURA_FOREARM_RINGS;
+
+    public boolean cosmeticSlashArcEnabled = false;
+    public int cosmeticSlashArcMode = CosmeticsLogic.SLASH_ARC_EMERALD_CRESCENT;
+    public int cosmeticSlashArcColorPreset = WingsLogic.COLOR_EMERALD;
+    public int cosmeticSlashArcCustomRgb = 0x34D399;
+
+    public boolean cosmeticSyncMine = true;
+    public boolean cosmeticShowFriends = true;
+    public boolean cosmeticShowBadges = true;
+
     // Xray (Meteor parity)
     public boolean xrayEnabled = false;
     public int xrayOpacity = 0; // 0 = hide non-targets, 1..254 = translucent, 255 = solid
@@ -897,6 +963,58 @@ public class ModConfig {
         this.wingsHeight = WingsLogic.clampHeight(other.wingsHeight);
         this.wingsFlapSpeed = WingsLogic.clampFlapSpeed(other.wingsFlapSpeed);
         this.wingsShowDamage = other.wingsShowDamage;
+        this.cosmeticCloakEnabled = other.cosmeticCloakEnabled;
+        this.cosmeticCloakMode = CosmeticsLogic.clampCloakMode(other.cosmeticCloakMode);
+        this.cosmeticCloakColorPreset = WingsLogic.clampColorPreset(other.cosmeticCloakColorPreset);
+        this.cosmeticCloakCustomRgb = WingsLogic.clampRgb(other.cosmeticCloakCustomRgb);
+        this.cosmeticHatEnabled = other.cosmeticHatEnabled;
+        this.cosmeticHatMode = CosmeticsLogic.clampHatMode(other.cosmeticHatMode);
+        this.cosmeticHatColorPreset = WingsLogic.clampColorPreset(other.cosmeticHatColorPreset);
+        this.cosmeticHatCustomRgb = WingsLogic.clampRgb(other.cosmeticHatCustomRgb);
+        this.cosmeticHatScale = CosmeticsLogic.clampHatScale(other.cosmeticHatScale);
+        this.cosmeticPetEnabled = other.cosmeticPetEnabled;
+        this.cosmeticPetMode = CosmeticsLogic.clampPetMode(other.cosmeticPetMode);
+        this.cosmeticPetSide = CosmeticsLogic.clampPetSide(other.cosmeticPetSide);
+        this.cosmeticPetColorPreset = WingsLogic.clampColorPreset(other.cosmeticPetColorPreset);
+        this.cosmeticPetCustomRgb = WingsLogic.clampRgb(other.cosmeticPetCustomRgb);
+        this.cosmeticGearEnabled = other.cosmeticGearEnabled;
+        this.cosmeticGearMode = CosmeticsLogic.clampGearMode(other.cosmeticGearMode);
+        this.cosmeticGearColorPreset = WingsLogic.clampColorPreset(other.cosmeticGearColorPreset);
+        this.cosmeticGearCustomRgb = WingsLogic.clampRgb(other.cosmeticGearCustomRgb);
+        this.cosmeticAuraEnabled = other.cosmeticAuraEnabled;
+        this.cosmeticAuraMode = CosmeticsLogic.clampAuraMode(other.cosmeticAuraMode);
+        this.cosmeticAuraColorPreset = WingsLogic.clampColorPreset(other.cosmeticAuraColorPreset);
+        this.cosmeticAuraCustomRgb = WingsLogic.clampRgb(other.cosmeticAuraCustomRgb);
+        this.cosmeticAuraRadius = CosmeticsLogic.clampAuraRadius(other.cosmeticAuraRadius);
+        this.cosmeticAuraSpeed = CosmeticsLogic.clampAuraSpeed(other.cosmeticAuraSpeed);
+        this.cosmeticTrailEnabled = other.cosmeticTrailEnabled;
+        this.cosmeticTrailMode = CosmeticsLogic.clampTrailMode(other.cosmeticTrailMode);
+        this.cosmeticTrailColorPreset = WingsLogic.clampColorPreset(other.cosmeticTrailColorPreset);
+        this.cosmeticTrailCustomRgb = WingsLogic.clampRgb(other.cosmeticTrailCustomRgb);
+        this.cosmeticHitFxEnabled = other.cosmeticHitFxEnabled;
+        this.cosmeticHitFxMode = CosmeticsLogic.clampHitFxMode(other.cosmeticHitFxMode);
+        this.cosmeticHitFxColorPreset = WingsLogic.clampColorPreset(other.cosmeticHitFxColorPreset);
+        this.cosmeticHitFxCustomRgb = WingsLogic.clampRgb(other.cosmeticHitFxCustomRgb);
+        this.cosmeticKillFxEnabled = other.cosmeticKillFxEnabled;
+        this.cosmeticKillFxMode = CosmeticsLogic.clampKillFxMode(other.cosmeticKillFxMode);
+        this.cosmeticKillFxColorPreset = WingsLogic.clampColorPreset(other.cosmeticKillFxColorPreset);
+        this.cosmeticKillFxCustomRgb = WingsLogic.clampRgb(other.cosmeticKillFxCustomRgb);
+        this.cosmeticTotemFxEnabled = other.cosmeticTotemFxEnabled;
+        this.cosmeticTotemFxScale = CosmeticsLogic.clampTotemScale(other.cosmeticTotemFxScale);
+        this.cosmeticTotemFxRing = other.cosmeticTotemFxRing;
+        this.cosmeticGlintEnabled = other.cosmeticGlintEnabled;
+        this.cosmeticGlintColorPreset = WingsLogic.clampColorPreset(other.cosmeticGlintColorPreset);
+        this.cosmeticGlintCustomRgb = WingsLogic.clampRgb(other.cosmeticGlintCustomRgb);
+        this.cosmeticGlintIntensity = CosmeticsLogic.clampGlintIntensity(other.cosmeticGlintIntensity);
+        this.cosmeticHandAuraEnabled = other.cosmeticHandAuraEnabled;
+        this.cosmeticHandAuraMode = CosmeticsLogic.clampHandAuraMode(other.cosmeticHandAuraMode);
+        this.cosmeticSlashArcEnabled = other.cosmeticSlashArcEnabled;
+        this.cosmeticSlashArcMode = CosmeticsLogic.clampSlashArcMode(other.cosmeticSlashArcMode);
+        this.cosmeticSlashArcColorPreset = WingsLogic.clampColorPreset(other.cosmeticSlashArcColorPreset);
+        this.cosmeticSlashArcCustomRgb = WingsLogic.clampRgb(other.cosmeticSlashArcCustomRgb);
+        this.cosmeticSyncMine = other.cosmeticSyncMine;
+        this.cosmeticShowFriends = other.cosmeticShowFriends;
+        this.cosmeticShowBadges = other.cosmeticShowBadges;
         this.xrayEnabled = other.xrayEnabled;
         this.xrayOpacity = XrayHandler.clampOpacity(other.xrayOpacity);
         this.xrayOpacityDefaultMigrated = other.xrayOpacityDefaultMigrated;
@@ -1193,6 +1311,7 @@ public class ModConfig {
         if (this.favoriteModules == null) this.favoriteModules = new HashSet<>();
         if (this.customFolders == null) this.customFolders = new ArrayList<>();
         migrateModuleName("Spawner Auto Sell", "Spawner Mode");
+        removeObsoleteModule("Wings");
         if (this.keybindsHudX < 0 || this.keybindsHudX > 3000) this.keybindsHudX = 8;
         if (this.keybindsHudY < 0 || this.keybindsHudY > 3000) this.keybindsHudY = 60;
         if (this.playerListAlign != 1) this.playerListAlign = 0;
@@ -1226,6 +1345,53 @@ public class ModConfig {
         this.vmSwingX = clampFloat(this.vmSwingX, 0.0f, 2.0f, 1.0f);
         this.vmSwingY = clampFloat(this.vmSwingY, 0.0f, 2.0f, 1.0f);
         this.vmSwingZ = clampFloat(this.vmSwingZ, 0.0f, 2.0f, 1.0f);
+        this.cosmeticCloakMode = CosmeticsLogic.clampCloakMode(this.cosmeticCloakMode);
+        this.cosmeticCloakColorPreset = WingsLogic.clampColorPreset(this.cosmeticCloakColorPreset);
+        this.cosmeticCloakCustomRgb = WingsLogic.clampRgb(this.cosmeticCloakCustomRgb);
+        this.cosmeticHatMode = CosmeticsLogic.clampHatMode(this.cosmeticHatMode);
+        this.cosmeticHatColorPreset = WingsLogic.clampColorPreset(this.cosmeticHatColorPreset);
+        this.cosmeticHatCustomRgb = WingsLogic.clampRgb(this.cosmeticHatCustomRgb);
+        this.cosmeticHatScale = CosmeticsLogic.clampHatScale(this.cosmeticHatScale);
+        this.cosmeticPetMode = CosmeticsLogic.clampPetMode(this.cosmeticPetMode);
+        this.cosmeticPetSide = CosmeticsLogic.clampPetSide(this.cosmeticPetSide);
+        this.cosmeticPetColorPreset = WingsLogic.clampColorPreset(this.cosmeticPetColorPreset);
+        this.cosmeticPetCustomRgb = WingsLogic.clampRgb(this.cosmeticPetCustomRgb);
+        this.cosmeticGearMode = CosmeticsLogic.clampGearMode(this.cosmeticGearMode);
+        this.cosmeticGearColorPreset = WingsLogic.clampColorPreset(this.cosmeticGearColorPreset);
+        this.cosmeticGearCustomRgb = WingsLogic.clampRgb(this.cosmeticGearCustomRgb);
+        this.cosmeticAuraMode = CosmeticsLogic.clampAuraMode(this.cosmeticAuraMode);
+        this.cosmeticAuraColorPreset = WingsLogic.clampColorPreset(this.cosmeticAuraColorPreset);
+        this.cosmeticAuraCustomRgb = WingsLogic.clampRgb(this.cosmeticAuraCustomRgb);
+        this.cosmeticAuraRadius = CosmeticsLogic.clampAuraRadius(this.cosmeticAuraRadius);
+        this.cosmeticAuraSpeed = CosmeticsLogic.clampAuraSpeed(this.cosmeticAuraSpeed);
+        this.cosmeticTrailMode = CosmeticsLogic.clampTrailMode(this.cosmeticTrailMode);
+        this.cosmeticTrailColorPreset = WingsLogic.clampColorPreset(this.cosmeticTrailColorPreset);
+        this.cosmeticTrailCustomRgb = WingsLogic.clampRgb(this.cosmeticTrailCustomRgb);
+        this.cosmeticHitFxMode = CosmeticsLogic.clampHitFxMode(this.cosmeticHitFxMode);
+        this.cosmeticHitFxColorPreset = WingsLogic.clampColorPreset(this.cosmeticHitFxColorPreset);
+        this.cosmeticHitFxCustomRgb = WingsLogic.clampRgb(this.cosmeticHitFxCustomRgb);
+        this.cosmeticKillFxMode = CosmeticsLogic.clampKillFxMode(this.cosmeticKillFxMode);
+        this.cosmeticKillFxColorPreset = WingsLogic.clampColorPreset(this.cosmeticKillFxColorPreset);
+        this.cosmeticKillFxCustomRgb = WingsLogic.clampRgb(this.cosmeticKillFxCustomRgb);
+        this.cosmeticTotemFxScale = CosmeticsLogic.clampTotemScale(this.cosmeticTotemFxScale);
+        this.cosmeticGlintColorPreset = WingsLogic.clampColorPreset(this.cosmeticGlintColorPreset);
+        this.cosmeticGlintCustomRgb = WingsLogic.clampRgb(this.cosmeticGlintCustomRgb);
+        this.cosmeticGlintIntensity = CosmeticsLogic.clampGlintIntensity(this.cosmeticGlintIntensity);
+        this.cosmeticHandAuraMode = CosmeticsLogic.clampHandAuraMode(this.cosmeticHandAuraMode);
+        this.cosmeticSlashArcMode = CosmeticsLogic.clampSlashArcMode(this.cosmeticSlashArcMode);
+        this.cosmeticSlashArcColorPreset = WingsLogic.clampColorPreset(this.cosmeticSlashArcColorPreset);
+        this.cosmeticSlashArcCustomRgb = WingsLogic.clampRgb(this.cosmeticSlashArcCustomRgb);
+    }
+
+    private void removeObsoleteModule(String obsoleteName) {
+        this.moduleKeybinds.remove(obsoleteName);
+        this.moduleKeybindIsMouse.remove(obsoleteName);
+        this.favoriteModules.remove(obsoleteName);
+        for (CustomModuleFolder folder : this.customFolders) {
+            if (folder != null && folder.modules != null) {
+                folder.modules.remove(obsoleteName);
+            }
+        }
     }
 
     private void migrateModuleName(String oldName, String newName) {

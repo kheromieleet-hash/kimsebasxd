@@ -6,6 +6,7 @@ public class WingsLogicTest {
         testClampingAndNaNGuards();
         testColorPresetsChromaAndDamage();
         testTargetFilteringAndPanic();
+        testPreviewProfileAndStyleTags();
         testBackOffsetAndAnchorGeometry();
         testDragonAndFeatherAnimation();
         System.out.println("ALL WingsLogicTest ASSERTIONS PASSED!");
@@ -137,6 +138,40 @@ public class WingsLogicTest {
         assert WingsLogic.resolveRenderProfile(cfg, false, false, false, false, "Friend_TR") != null;
         assert WingsLogic.resolveRenderProfile(cfg, true, false, false, false, "Friend_TR") == null;
         WingsLogic.clearRemoteProfiles();
+    }
+
+    private static void testPreviewProfileAndStyleTags() {
+        for (int m = 0; m < WingsLogic.modeCount(); m++) {
+            String tag = WingsLogic.modeStyleTag(m);
+            assert tag != null && !tag.isBlank() : "Expected non-blank style tag for mode " + m;
+        }
+
+        ModConfig cfg = new ModConfig();
+        cfg.wingsEnabled = false;
+        cfg.wingsMode = WingsLogic.MODE_LINES;
+        cfg.wingsColorPreset = WingsLogic.COLOR_SESTIA_RED;
+
+        // Disabled & no hover -> null preview
+        assert WingsLogic.resolvePreviewProfile(cfg, false, -1) == null;
+
+        // Disabled & hovering Angel -> enabled live Angel preview inheriting color settings
+        WingsLogic.WingProfile hoveredOff = WingsLogic.resolvePreviewProfile(cfg, false, WingsLogic.MODE_ANGEL);
+        assert hoveredOff != null
+                && hoveredOff.enabled()
+                && hoveredOff.mode() == WingsLogic.MODE_ANGEL
+                && hoveredOff.colorPreset() == WingsLogic.COLOR_SESTIA_RED;
+
+        // Enabled with Lines, hovering Galaxy -> previews Galaxy
+        cfg.wingsEnabled = true;
+        WingsLogic.WingProfile hoveredOn = WingsLogic.resolvePreviewProfile(cfg, false, WingsLogic.MODE_GALAXY);
+        assert hoveredOn != null && hoveredOn.mode() == WingsLogic.MODE_GALAXY;
+
+        // Enabled & no hover -> shows equipped wing
+        WingsLogic.WingProfile fallback = WingsLogic.resolvePreviewProfile(cfg, false, -1);
+        assert fallback != null && fallback.mode() == WingsLogic.MODE_LINES;
+
+        // Panic disables preview completely
+        assert WingsLogic.resolvePreviewProfile(cfg, true, WingsLogic.MODE_GALAXY) == null;
     }
 
     private static void testBackOffsetAndAnchorGeometry() {

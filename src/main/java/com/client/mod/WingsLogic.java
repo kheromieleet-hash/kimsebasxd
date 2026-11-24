@@ -26,6 +26,7 @@ public final class WingsLogic {
     public static final int MODE_THUNDER = 13;
     public static final int MODE_SAKURA = 14;
     public static final int MODE_BONE = 15;
+    public static final int MODE_SESTIA_LEAF = 16;
 
     private static final String[] MODE_NAMES = {
             "Lines",
@@ -43,7 +44,8 @@ public final class WingsLogic {
             "Steampunk",
             "Thunder",
             "Sakura",
-            "Bone"
+            "Bone",
+            "Sestia Leaf"
     };
 
     public static final int COLOR_CHROMA = 0;
@@ -77,6 +79,27 @@ public final class WingsLogic {
     public static final float FIXED_BACK_OFFSET = 0.00f;
     public static final float FIXED_EQUIPMENT_OFFSET = 0.10f;
     public static final float DRAGON_UPRIGHT_PITCH_DEG = -82.0f;
+    public static final int PREVIEW_ENTITY_ID = -26300;
+
+    private static final String[] MODE_STYLE_TAGS = {
+            "Ribbon",
+            "3D Limb",
+            "Feathered",
+            "Bat Web",
+            "Lepidoptera",
+            "Holo Blade",
+            "Ember",
+            "Gem Shard",
+            "6-Wing Halo",
+            "Abyss Rift",
+            "Spear Gold",
+            "Constellation",
+            "Brass Gear",
+            "Storm Bolt",
+            "Blossom",
+            "Skeletal",
+            "7-Leaf Hemp"
+    };
 
     private static final String[] COLOR_NAMES = {
             "Chroma",
@@ -153,6 +176,7 @@ public final class WingsLogic {
     }
 
     private static final Map<String, WingProfile> REMOTE_PROFILES = new ConcurrentHashMap<>();
+    private static volatile WingProfile previewProfile = null;
 
     private WingsLogic() {
     }
@@ -194,8 +218,45 @@ public final class WingsLogic {
         return !REMOTE_PROFILES.isEmpty();
     }
 
+    public static void removeRemoteProfile(String playerName) {
+        if (playerName == null || playerName.isBlank()) {
+            return;
+        }
+        REMOTE_PROFILES.remove(playerName.trim().toLowerCase(Locale.ROOT));
+    }
+
     public static void clearRemoteProfiles() {
         REMOTE_PROFILES.clear();
+    }
+
+    public static void setPreviewProfile(WingProfile profile) {
+        previewProfile = profile != null ? profile.sanitized() : null;
+    }
+
+    public static WingProfile getPreviewProfile() {
+        return previewProfile;
+    }
+
+    public static WingProfile resolvePreviewProfile(ModConfig cfg, boolean panicActive, int hoveredWingMode) {
+        if (cfg == null || panicActive) {
+            return null;
+        }
+        if (hoveredWingMode >= 0 && hoveredWingMode < modeCount()) {
+            return new WingProfile(
+                    true,
+                    hoveredWingMode,
+                    cfg.wingsColorPreset,
+                    cfg.wingsCustomRgb,
+                    cfg.wingsLength,
+                    cfg.wingsWidth,
+                    cfg.wingsLinesCount,
+                    cfg.wingsFadeStart,
+                    cfg.wingsHeight,
+                    cfg.wingsFlapSpeed,
+                    cfg.wingsShowDamage
+            ).sanitized();
+        }
+        return cfg.wingsEnabled ? fromConfig(cfg) : null;
     }
 
     public static WingProfile resolveRenderProfile(
@@ -226,6 +287,10 @@ public final class WingsLogic {
 
     public static String modeName(int mode) {
         return MODE_NAMES[clampMode(mode)];
+    }
+
+    public static String modeStyleTag(int mode) {
+        return MODE_STYLE_TAGS[clampMode(mode)];
     }
 
     public static String colorPresetName(int colorPreset) {
@@ -284,7 +349,17 @@ public final class WingsLogic {
     }
 
     public static float computeBackZ(boolean hasChestEquipment) {
-        return 0.125f + FIXED_BACK_OFFSET + (hasChestEquipment ? FIXED_EQUIPMENT_OFFSET : 0.0f);
+        return computeBackZ(hasChestEquipment, false, false);
+    }
+
+    public static float computeBackZ(boolean hasChestEquipment, boolean hasElytra, boolean hasCustomCloak) {
+        float base = 0.125f + FIXED_BACK_OFFSET + (hasChestEquipment ? FIXED_EQUIPMENT_OFFSET : 0.0f);
+        if (hasElytra) {
+            base += 0.095f;
+        } else if (hasCustomCloak) {
+            base += 0.050f;
+        }
+        return base;
     }
 
     public static float computeAnchorY(float height) {

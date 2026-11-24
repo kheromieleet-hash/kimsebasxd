@@ -930,14 +930,27 @@ public final class ModernModuleSettings {
         );
     }
 
+    public static List<Control> getCosmeticWingsControls(ModConfig cfg, Actions actions) {
+        if (cfg == null || actions == null) {
+            return List.of();
+        }
+        return buildWingsControls(cfg, actions, false);
+    }
+
     private static List<Control> buildWingsControls(ModConfig cfg, Actions actions) {
+        return buildWingsControls(cfg, actions, true);
+    }
+
+    private static List<Control> buildWingsControls(ModConfig cfg, Actions actions, boolean includeMode) {
         List<Control> controls = new ArrayList<>();
-        controls.add(new CycleControl("Mode",
-                () -> WingsLogic.modeName(cfg.wingsMode),
-                () -> {
-                    cfg.wingsMode = (WingsLogic.clampMode(cfg.wingsMode) + 1) % WingsLogic.modeCount();
-                    actions.persist(false);
-                }));
+        if (includeMode) {
+            controls.add(new CycleControl("Mode",
+                    () -> WingsLogic.modeName(cfg.wingsMode),
+                    () -> {
+                        cfg.wingsMode = (WingsLogic.clampMode(cfg.wingsMode) + 1) % WingsLogic.modeCount();
+                        actions.persist(false);
+                    }));
+        }
         controls.add(new CycleControl("Color",
                 () -> {
                     int preset = WingsLogic.clampColorPreset(cfg.wingsColorPreset);

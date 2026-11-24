@@ -16,6 +16,7 @@ import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -158,34 +159,50 @@ public class WingsRenderLayer extends RenderLayer<AvatarRenderState, PlayerModel
         if (cfg == null || PanicHandler.isPanicActive() || state.isInvisible || state.isSpectator) {
             return;
         }
-        Minecraft mc = Minecraft.getInstance();
-        boolean isSelf = mc != null && mc.player != null && state.id == mc.player.getId();
-        String remoteName = null;
-        if (!isSelf) {
-            if (!WingsLogic.hasRemoteProfiles() || mc == null || mc.level == null) {
+        WingsLogic.WingProfile profile;
+        boolean hasCustomCloak = false;
+        if (state.id == WingsLogic.PREVIEW_ENTITY_ID) {
+            profile = WingsLogic.getPreviewProfile();
+            CosmeticsLogic.CosmeticLoadout previewLoadout = CosmeticsLogic.getPreviewLoadout();
+            hasCustomCloak = previewLoadout != null && previewLoadout.cloakEnabled();
+            if (profile == null || !profile.enabled()) {
                 return;
             }
-            Entity entity = mc.level.getEntity(state.id);
-            if (entity instanceof Player player) {
-                remoteName = player.getName().getString();
+        } else {
+            Minecraft mc = Minecraft.getInstance();
+            boolean isSelf = mc != null && mc.player != null && state.id == mc.player.getId();
+            String remoteName = null;
+            if (!isSelf) {
+                if (!cfg.cosmeticShowFriends || !WingsLogic.hasRemoteProfiles() || mc == null || mc.level == null) {
+                    return;
+                }
+                Entity entity = mc.level.getEntity(state.id);
+                if (entity instanceof Player player) {
+                    remoteName = player.getName().getString();
+                } else {
+                    return;
+                }
+                CosmeticsLogic.CosmeticLoadout rl = CosmeticsLogic.getRemoteLoadout(remoteName);
+                hasCustomCloak = rl != null && rl.cloakEnabled();
             } else {
+                hasCustomCloak = cfg.cosmeticCloakEnabled;
+            }
+            profile = WingsLogic.resolveRenderProfile(
+                    cfg,
+                    false,
+                    false,
+                    false,
+                    isSelf,
+                    remoteName
+            );
+            if (profile == null) {
                 return;
             }
-        }
-        WingsLogic.WingProfile profile = WingsLogic.resolveRenderProfile(
-                cfg,
-                false,
-                false,
-                false,
-                isSelf,
-                remoteName
-        );
-        if (profile == null) {
-            return;
         }
 
         boolean hasChestEquip = state.chestEquipment != null && !state.chestEquipment.isEmpty();
-        float zAnchor = WingsLogic.computeBackZ(hasChestEquip);
+        boolean hasElytra = hasChestEquip && state.chestEquipment.has(DataComponents.GLIDER);
+        float zAnchor = WingsLogic.computeBackZ(hasChestEquip, hasElytra, hasCustomCloak && !hasElytra);
         float yAnchor = WingsLogic.computeAnchorY(profile.height());
         boolean damageFlash = profile.showDamage() && state.hasRedOverlay;
 
@@ -259,6 +276,8 @@ public class WingsRenderLayer extends RenderLayer<AvatarRenderState, PlayerModel
                     case WingsLogic.MODE_SAKURA -> renderSakuraGeometry(
                             pose, vc, length, flapSpeed, colorPreset, customRgb, ageInTicks, isFallFlying, isCrouching, damageFlash);
                     case WingsLogic.MODE_BONE -> renderBoneGeometry(
+                            pose, vc, length, flapSpeed, colorPreset, customRgb, ageInTicks, isFallFlying, isCrouching, damageFlash);
+                    case WingsLogic.MODE_SESTIA_LEAF -> renderSestiaLeafGeometry(
                             pose, vc, length, flapSpeed, colorPreset, customRgb, ageInTicks, isFallFlying, isCrouching, damageFlash);
                     default -> renderLinesGeometry(
                             pose, vc, linesCount, length, width, fadeStart, flapSpeed,
@@ -1655,6 +1674,137 @@ public class WingsRenderLayer extends RenderLayer<AvatarRenderState, PlayerModel
         vc.addVertex(pose, x1, y1, z1).setColor(r1, g1, b1, a1);
         vc.addVertex(pose, x2, y2, z2).setColor(r2, g2, b2, a2);
         vc.addVertex(pose, x3, y3, z3).setColor(r3, g3, b3, a3);
+    }
+
+    // 7-frond serrated botanical Sestia Leaf wing contour: [angleDegFromHorizontal, relLength, maxHalfWidth, lag]
+    private static final float[] SESTIA_LEAF_FRONDS = {
+            52.0f, 0.72f, 0.095f, 0.05f,
+            34.0f, 0.96f, 0.118f, 0.16f,
+            15.0f, 1.12f, 0.128f, 0.28f,
+            -3.0f, 1.04f, 0.120f, 0.40f,
+            -21.0f, 0.88f, 0.105f, 0.52f,
+            -38.0f, 0.68f, 0.088f, 0.64f,
+            -55.0f, 0.48f, 0.072f, 0.76f
+    };
+
+    private static void renderSestiaLeafGeometry(
+            PoseStack.Pose pose,
+            VertexConsumer vc,
+            float length,
+            float flapSpeed,
+            int colorPreset,
+            int customRgb,
+            float ageInTicks,
+            boolean isFallFlying,
+            boolean isCrouching,
+            boolean damageFlash
+    ) {
+        float phase = WingsLogic.computeFlapPhase(ageInTicks, flapSpeed, 0.11f, isFallFlying, 1.85f);
+        int baseRgb = WingsLogic.resolveRgb(colorPreset, customRgb, ageInTicks, 0.0f, damageFlash);
+        int stemRgb = WingsLogic.blendRgb(0x0B241A, baseRgb, 0.35f);
+        int sr = (stemRgb >> 16) & 0xFF, sg = (stemRgb >> 8) & 0xFF, sb = stemRgb & 0xFF;
+
+        for (int s = 0; s < 2; s++) {
+            float side = (s == 0) ? -1.0f : 1.0f;
+            float baseSweep = WingsLogic.computeWingSweepRad(22.0f, 12.0f, phase, 0.0f, isFallFlying, isCrouching);
+            float cosB = (float) Math.cos(baseSweep), sinB = (float) Math.sin(baseSweep);
+            // Central organic stem petiole
+            float rootX = side * 0.04f * length * cosB;
+            float rootY = 0.02f * length;
+            float rootZ = 0.04f * length * sinB;
+            float nodeX = side * 0.18f * length * cosB;
+            float nodeY = -0.04f * length;
+            float nodeZ = 0.18f * length * sinB;
+            emitTaperedPrism(pose, vc, rootX, rootY, rootZ, nodeX, nodeY, nodeZ, 0.024f * length, 0.018f * length, sr, sg, sb, 245);
+
+            // 7 serrated botanical fronds radiating from the wing node
+            for (int f = 0; f < 7; f++) {
+                int idx = f * 4;
+                float angleRad = SESTIA_LEAF_FRONDS[idx] * DEG_TO_RAD;
+                float frondLen = SESTIA_LEAF_FRONDS[idx + 1] * length;
+                float maxHw = SESTIA_LEAF_FRONDS[idx + 2] * length;
+                float lag = SESTIA_LEAF_FRONDS[idx + 3];
+
+                float sweep = WingsLogic.computeWingSweepRad(24.0f + f * 1.4f, 15.0f, phase, lag, isFallFlying, isCrouching);
+                float cosS = (float) Math.cos(sweep), sinS = (float) Math.sin(sweep);
+
+                int frondRgb = WingsLogic.resolveRgb(colorPreset, customRgb, ageInTicks, f * 0.09f, damageFlash);
+                int darkLeaf = WingsLogic.blendRgb(0x062018, frondRgb, 0.50f);
+                int brightVein = WingsLogic.blendRgb(frondRgb, 0xFFFFFF, 0.58f);
+                int tipGlow = WingsLogic.blendRgb(frondRgb, 0xA7F3D0, 0.35f);
+
+                int dr = (darkLeaf >> 16) & 0xFF, dg = (darkLeaf >> 8) & 0xFF, db = darkLeaf & 0xFF;
+                int lr = (frondRgb >> 16) & 0xFF, lg = (frondRgb >> 8) & 0xFF, lb = frondRgb & 0xFF;
+                int vr = (brightVein >> 16) & 0xFF, vg = (brightVein >> 8) & 0xFF, vb = brightVein & 0xFF;
+                int tr = (tipGlow >> 16) & 0xFF, tg = (tipGlow >> 8) & 0xFF, tb = tipGlow & 0xFF;
+
+                float du = (float) Math.cos(angleRad);
+                float dv = -(float) Math.sin(angleRad);
+                float nu = -dv;
+                float nv = du;
+
+                float uStart = 0.16f * length;
+                float vStart = -0.04f * length;
+                float wBase = (f % 2 == 0) ? 0.008f * length : -0.006f * length;
+
+                // 4 serrated segments along each frond for sharp botanical leaf silhouette
+                final int segs = 4;
+                for (int k = 0; k < segs; k++) {
+                    float t0 = (float) k / segs;
+                    float t1 = (float) (k + 1) / segs;
+                    float env0 = (float) Math.sin(Math.pow(t0, 0.72) * Math.PI);
+                    float env1 = (float) Math.sin(Math.pow(t1, 0.72) * Math.PI);
+                    // Subtle serration notch flare on middle segments
+                    float tooth0 = (k == 1 || k == 2) ? 1.18f : 1.0f;
+                    float tooth1 = (k == 0 || k == 1) ? 1.18f : 1.0f;
+
+                    float hw0 = Math.max(0.004f * length, maxHw * env0 * tooth0);
+                    float hw1 = (k == segs - 1) ? 0.002f * length : Math.max(0.004f * length, maxHw * env1 * tooth1);
+
+                    float u0 = uStart + du * frondLen * t0;
+                    float v0 = vStart + dv * frondLen * t0;
+                    float u1 = uStart + du * frondLen * t1;
+                    float v1 = vStart + dv * frondLen * t1;
+                    float w0 = wBase + 0.020f * length * (float) Math.sin(t0 * Math.PI);
+                    float w1 = wBase + 0.020f * length * (float) Math.sin(t1 * Math.PI);
+
+                    float cx0 = side * (u0 * cosS - w0 * sinS), cy0 = v0, cz0 = u0 * sinS + w0 * cosS;
+                    float cx1 = side * (u1 * cosS - w1 * sinS), cy1 = v1, cz1 = u1 * sinS + w1 * cosS;
+
+                    float dxN = side * nu * cosS, dyN = nv, dzN = nu * sinS;
+                    int a0 = Math.round(225 - t0 * 40);
+                    int a1 = Math.round(225 - t1 * 75);
+
+                    for (int dir = -1; dir <= 1; dir += 2) {
+                        float ex0 = cx0 + dir * hw0 * dxN, ey0 = cy0 + dir * hw0 * dyN, ez0 = cz0 + dir * hw0 * dzN;
+                        float ex1 = cx1 + dir * hw1 * dxN, ey1 = cy1 + dir * hw1 * dyN, ez1 = cz1 + dir * hw1 * dzN;
+
+                        // Luminous translucent leaf blade
+                        emitQuad4(pose, vc,
+                                cx0, cy0, cz0, lr, lg, lb, a0,
+                                ex0, ey0, ez0, dr, dg, db, Math.max(85, a0 - 45),
+                                ex1, ey1, ez1, tr, tg, tb, Math.max(55, a1 - 35),
+                                cx1, cy1, cz1, lr, lg, lb, a1);
+
+                        // Soft outer botanical emerald glow aura
+                        float g0 = hw0 * 1.38f, g1 = hw1 * 1.48f;
+                        emitQuad4(pose, vc,
+                                ex0, ey0, ez0, tr, tg, tb, 75,
+                                cx0 + dir * g0 * dxN, cy0 + dir * g0 * dyN, cz0 + dir * g0 * dzN, tr, tg, tb, 0,
+                                cx1 + dir * g1 * dxN, cy1 + dir * g1 * dyN, cz1 + dir * g1 * dzN, tr, tg, tb, 0,
+                                ex1, ey1, ez1, tr, tg, tb, 45);
+                    }
+
+                    // Glowing luminous midrib vein along the frond center
+                    float vw = 0.011f * length * (1.0f - 0.55f * t0);
+                    emitQuad4(pose, vc,
+                            cx0 - vw * dxN, cy0 - vw * dyN, cz0 - vw * dzN + 0.002f, vr, vg, vb, 240,
+                            cx0 + vw * dxN, cy0 + vw * dyN, cz0 + vw * dzN + 0.002f, vr, vg, vb, 240,
+                            cx1 + vw * 0.7f * dxN, cy1 + vw * 0.7f * dyN, cz1 + vw * 0.7f * dzN + 0.002f, vr, vg, vb, 200,
+                            cx1 - vw * 0.7f * dxN, cy1 - vw * 0.7f * dyN, cz1 - vw * 0.7f * dzN + 0.002f, vr, vg, vb, 200);
+                }
+            }
+        }
     }
 
     private static void renderLinesGeometry(

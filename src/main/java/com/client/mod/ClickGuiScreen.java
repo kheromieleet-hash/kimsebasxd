@@ -176,16 +176,6 @@ public class ClickGuiScreen {
                 }
         ));
 
-        // 3b2. Wings (Render)
-        MODULES.add(new ModuleEntry(
-                "Wings", Category.RENDER,
-                () -> config.wingsEnabled,
-                val -> {
-                    config.wingsEnabled = val;
-                    config.save();
-                }
-        ));
-
         // 3c. Xray (Render)
         MODULES.add(new ModuleEntry(
                 "Xray", Category.RENDER,
@@ -1361,13 +1351,6 @@ public class ClickGuiScreen {
                 drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
                         "TrueSight: " + (config.trueSight ? "ON" : "OFF"), config.trueSight);
             }
-            case "Wings" -> {
-                drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
-                        "Wings: " + (config.wingsEnabled ? "ON" : "OFF"), config.wingsEnabled);
-                rowY += 22;
-                drawActionButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
-                        "Mode: " + WingsLogic.modeName(config.wingsMode));
-            }
             case "Item ESP" -> {
                 drawToggleButton(graphics, font, mouseX, mouseY, innerX, rowY, innerW,
                         "Item ESP: " + (config.itemEsp ? "ON" : "OFF"), config.itemEsp);
@@ -1509,7 +1492,7 @@ public class ClickGuiScreen {
             case "Auto Replenish" -> 6;
             case "Packet Mine" -> 4;
             case "Fullbright", "Fast Use" -> 1;
-            case "Fast Place", "Chunk Borders", "Wings" -> 2;
+            case "Fast Place", "Chunk Borders" -> 2;
             case "Auto Tool" -> 1;
             case "Auto Crafter" -> 3 + (AutoCrafterHandler.TARGETS.size() + 1) / 2;
             case "Auto Break" -> 1;
@@ -2400,17 +2383,6 @@ public class ClickGuiScreen {
             case "TrueSight" -> {
                 if (specificRow == 0) {
                     config.trueSight = !config.trueSight;
-                    config.save();
-                    playClickSound();
-                }
-            }
-            case "Wings" -> {
-                if (specificRow == 0) {
-                    config.wingsEnabled = !config.wingsEnabled;
-                    config.save();
-                    playClickSound();
-                } else if (specificRow == 1) {
-                    config.wingsMode = (WingsLogic.clampMode(config.wingsMode) + 1) % WingsLogic.modeCount();
                     config.save();
                     playClickSound();
                 }

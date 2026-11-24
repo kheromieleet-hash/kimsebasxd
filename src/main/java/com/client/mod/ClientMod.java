@@ -44,6 +44,8 @@ public class ClientMod implements ClientModInitializer {
             AutoSpawnerModule.getInstance().onClientTick();
             SpawnerAutoSellModule.getInstance().onClientTick();
             ItemNotifierHudRenderer.tick(client);
+            CosmeticFxHandler.tick(client);
+            CosmeticGlintManager.tick(client);
             boolean inWorld = client.player != null;
             if (inWorld && !wasInWorld) {
                 wasInWorld = true;
@@ -58,6 +60,8 @@ public class ClientMod implements ClientModInitializer {
                 AutoWalkHandler.onLeftWorld(client);
                 AutoSpawnerModule.getInstance().onLeftWorld();
                 SpawnerAutoSellModule.getInstance().onLeftWorld();
+                CosmeticFxHandler.clearAll();
+                CosmeticsLogic.clearLocalEmote();
             }
 
             AutoWalkHandler.tick(client);

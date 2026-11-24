@@ -3,6 +3,7 @@ package com.client.mod.mixin;
 import com.client.mod.AutoFishHandler;
 import com.client.mod.AutoSpawnerModule;
 import com.client.mod.BlockEspHandler;
+import com.client.mod.CosmeticFxHandler;
 import com.client.mod.ExploitPacketRules;
 import com.client.mod.ModConfig;
 import com.client.mod.PacketMineHandler;
@@ -18,6 +19,8 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundClearTitlesPacket;
+import net.minecraft.network.protocol.game.ClientboundDamageEventPacket;
+import net.minecraft.network.protocol.game.ClientboundEntityEventPacket;
 import net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacket;
 import net.minecraft.network.protocol.game.ClientboundExplodePacket;
 import net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket;
@@ -26,6 +29,7 @@ import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundLoginPacket;
 import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
+import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
@@ -331,6 +335,36 @@ public abstract class ClientPlayPacketListenerMixin {
         PacketMineHandler.clear();
         WorldRenderToolsHandler.clearLightCache();
         BlockEspHandler.clearCache();
+        CosmeticFxHandler.clearAll();
+    }
+
+    @Inject(method = "handleDamageEvent", at = @At("TAIL"))
+    private void onHandleDamageEvent(ClientboundDamageEventPacket packet, CallbackInfo ci) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.isSameThread() && packet != null) {
+            CosmeticFxHandler.onDamageEvent(mc, packet.entityId(), packet.sourceCauseId(), packet.sourceDirectId());
+        }
+    }
+
+    @Inject(method = "handleEntityEvent", at = @At("TAIL"))
+    private void onHandleEntityEvent(ClientboundEntityEventPacket packet, CallbackInfo ci) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.isSameThread() && packet != null && this.level != null) {
+            Entity entity = packet.getEntity(this.level);
+            if (entity != null) {
+                CosmeticFxHandler.onEntityEvent(mc, entity, packet.getEventId());
+            }
+        }
+    }
+
+    @Inject(method = "handleRemoveEntities", at = @At("HEAD"))
+    private void onHandleRemoveEntities(ClientboundRemoveEntitiesPacket packet, CallbackInfo ci) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.isSameThread() && packet != null && packet.entityIds() != null) {
+            for (int i = 0, len = packet.entityIds().size(); i < len; i++) {
+                CosmeticFxHandler.onEntityRemoved(mc, packet.entityIds().getInt(i));
+            }
+        }
     }
 
     @Inject(method = "handleBlockUpdate", at = @At("TAIL"))

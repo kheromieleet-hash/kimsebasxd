@@ -88,6 +88,7 @@ public final class WorldRenderToolsHandler {
         BlockEspHandler.render(mc, cfg);
         renderAutoSpawnerEsp(cfg);
         renderSpawnerAutoSellEsp(cfg);
+        CosmeticFxHandler.renderWorldGizmos();
     }
 
     private static final GizmoStyle SPAWNER_DONE_STYLE =

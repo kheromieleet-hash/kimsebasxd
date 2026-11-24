@@ -173,6 +173,20 @@ final class ModernIcons {
         g.fill(x + 5, y + 6, x + 8, y + 8, color);
     }
 
+    /** Crisp symmetrical 10x10 wing emblem for the Cosmetic sidebar tab and wing cards. */
+    static void drawWingIcon(GuiGraphicsExtractor g, int x, int y, int color) {
+        int c = JelloTheme.fade(color);
+        g.fill(x, y + 1, x + 3, y + 3, c);
+        g.fill(x + 7, y + 1, x + 10, y + 3, c);
+        g.fill(x + 1, y + 3, x + 4, y + 5, c);
+        g.fill(x + 6, y + 3, x + 9, y + 5, c);
+        g.fill(x + 2, y + 5, x + 8, y + 6, c);
+        g.fill(x + 2, y + 6, x + 4, y + 8, c);
+        g.fill(x + 6, y + 6, x + 8, y + 8, c);
+        g.fill(x + 3, y + 8, x + 4, y + 9, c);
+        g.fill(x + 6, y + 8, x + 7, y + 9, c);
+    }
+
     /** 5-pointed favorite star icon (9x9 or 10x10) in filled or outline style. */
     static void drawStarIcon(GuiGraphicsExtractor g, int x, int y, int size, boolean filled, int color) {
         SmoothUiAtlas.IconKind kind = filled ? SmoothUiAtlas.IconKind.STAR_FILLED : SmoothUiAtlas.IconKind.STAR_OUTLINE;

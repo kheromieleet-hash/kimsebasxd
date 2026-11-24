@@ -10,16 +10,26 @@ import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.Pose;
+import net.minecraft.world.entity.player.PlayerSkin;
+import net.minecraft.world.item.ItemStack;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 
 import java.nio.file.Path;
 import java.util.*;
+import java.util.function.Supplier;
 
 /**
  * Sestia Leaf Obsidian & Multi-Theme ClickGUI Dashboard.
@@ -30,6 +40,7 @@ public class ModernClickGuiScreen extends Screen {
 
     public enum NavTab {
         MODULES("Modules"),
+        COSMETIC("Cosmetic"),
         MACROS("Macros"),
         GUI("GUI"),
         CONFIG("Config"),
@@ -143,6 +154,23 @@ public class ModernClickGuiScreen extends Screen {
     private final float[] rippleAge = new float[MAX_RIPPLES];
     private final int[] rippleColor = new int[MAX_RIPPLES];
     private int rippleNext = 0;
+
+    // Cosmetic 3D Character + Hover Wing Preview state (zero per-frame allocations)
+    private static float cosmeticPreviewYaw = 32.0f;
+    private static boolean cosmeticCustomizeCollapsed = false;
+    private boolean draggingCosmeticPreview = false;
+    private int cosmeticStageX = 0;
+    private int cosmeticStageY = 0;
+    private int cosmeticStageW = 0;
+    private int cosmeticStageH = 0;
+    private int cosmeticRightX = 0;
+    private int cosmeticRightW = 0;
+    private final AvatarRenderState cosmeticPreviewState = new AvatarRenderState();
+    private final Vector3f cosmeticTranslation = new Vector3f();
+    private final Quaternionf cosmeticRotation = new Quaternionf();
+    private final Quaternionf cosmeticCameraRot = new Quaternionf();
+    private UUID cachedSkinProfileId = null;
+    private Supplier<PlayerSkin> cachedSkinLookup = null;
 
     public ModernClickGuiScreen(Screen parent) {
         this(parent, null);
@@ -429,14 +457,21 @@ public class ModernClickGuiScreen extends Screen {
             int contentH = this.windowH - HEADER_HEIGHT - 2;
 
             boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
+            if (showingModules || this.activeNav != NavTab.COSMETIC) {
+                WingsLogic.setPreviewProfile(null);
+            }
             if (showingModules) {
                 setSecondaryInputsVisible(false, false);
                 renderModulesWorkspace(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH, dt);
             } else {
-                if (this.sliderInputBox != null) {
+                if (this.sliderInputBox != null && (this.activeNav != NavTab.COSMETIC || this.editingSlider == null)) {
                     this.sliderInputBox.visible = false;
                 }
-                if (this.activeNav == NavTab.MACROS) {
+                if (this.activeNav == NavTab.COSMETIC) {
+                    setSecondaryInputsVisible(false, false);
+                    renderCosmeticView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH, openScale);
+                    renderScrollbarAt(graphics, mouseX, mouseY, contentX + contentW - 6, contentY, contentH, this.contentTotalHeight, this.scrollAmount);
+                } else if (this.activeNav == NavTab.MACROS) {
                     setSecondaryInputsVisible(this.editingMacroIndex != -1, false);
                     graphics.enableScissor(contentX, contentY, contentX + contentW, contentY + contentH);
                     renderMacrosView(graphics, mouseX, mouseY, contentX, contentY, contentW, contentH, dt);
@@ -571,6 +606,7 @@ public class ModernClickGuiScreen extends Screen {
                 }
             }
         }
+        items.add(new SidebarItem(NavTab.COSMETIC, null, NAV_ROW_HEIGHT));
         items.add(new SidebarItem(NavTab.MACROS, null, NAV_ROW_HEIGHT));
         items.add(new SidebarItem(NavTab.GUI, null, NAV_ROW_HEIGHT));
         items.add(new SidebarItem(NavTab.CONFIG, null, NAV_ROW_HEIGHT));
@@ -644,6 +680,7 @@ public class ModernClickGuiScreen extends Screen {
                 int iconY = itemY + 12;
                 switch (it.tab) {
                     case MODULES -> ModernIcons.drawGridIcon(graphics, iconX, iconY, iconColor);
+                    case COSMETIC -> ModernIcons.drawWingIcon(graphics, iconX, iconY, iconColor);
                     case MACROS -> ModernIcons.drawBoltIcon(graphics, iconX, iconY, iconColor);
                     case GUI -> ModernIcons.drawLayoutIcon(graphics, iconX, iconY, iconColor);
                     case CONFIG -> ModernIcons.drawSlidersIcon(graphics, iconX, iconY, iconColor);
@@ -1703,6 +1740,461 @@ public class ModernClickGuiScreen extends Screen {
     }
 
     // ==========================================
+    // COSMETIC STUDIO (3D SKIN + LIVE WING LOCKER)
+    // ==========================================
+    private static final int COSMETIC_MASTER_H = 40;
+    private static final int COSMETIC_WING_CARD_H = 38;
+    private static final int COSMETIC_WING_GAP = 6;
+    private static final String[] COSMETIC_ANGLE_LABELS = {"Back", "3/4", "Front"};
+    private static final float[] COSMETIC_ANGLE_VALUES = {0.0f, 32.0f, 180.0f};
+
+    private void computeCosmeticBounds(int contentX, int contentY, int contentW, int contentH) {
+        int pad = 14;
+        this.cosmeticStageX = contentX + pad;
+        this.cosmeticStageY = contentY + pad;
+        this.cosmeticStageW = Math.min(226, Math.max(168, (int) (contentW * 0.35f)));
+        this.cosmeticStageH = Math.max(180, contentH - pad * 2);
+        this.cosmeticRightX = this.cosmeticStageX + this.cosmeticStageW + 12;
+        this.cosmeticRightW = Math.max(180, contentX + contentW - pad - this.cosmeticRightX);
+    }
+
+    private PlayerSkin resolveLocalPlayerSkin() {
+        if (this.minecraft != null && this.minecraft.player != null) {
+            return this.minecraft.player.getSkin();
+        }
+        if (this.minecraft != null && this.minecraft.getGameProfile() != null && this.minecraft.getSkinManager() != null) {
+            com.mojang.authlib.GameProfile profile = this.minecraft.getGameProfile();
+            if (!Objects.equals(profile.id(), this.cachedSkinProfileId) || this.cachedSkinLookup == null) {
+                this.cachedSkinProfileId = profile.id();
+                this.cachedSkinLookup = this.minecraft.getSkinManager().createLookup(profile, false);
+            }
+            PlayerSkin loaded = this.cachedSkinLookup != null ? this.cachedSkinLookup.get() : null;
+            return loaded != null ? loaded : DefaultPlayerSkin.get(profile);
+        }
+        return DefaultPlayerSkin.getDefaultSkin();
+    }
+
+    private int hitTestCosmeticWingCard(int mouseX, int mouseY, int contentY, int contentH, int gridY, int cols, int cardW) {
+        if (mouseY < contentY || mouseY >= contentY + contentH
+                || mouseX < this.cosmeticRightX || mouseX >= this.cosmeticRightX + this.cosmeticRightW) {
+            return -1;
+        }
+        int modeCount = WingsLogic.modeCount();
+        for (int m = 0; m < modeCount; m++) {
+            int col = m % cols;
+            int row = m / cols;
+            int cx = this.cosmeticRightX + col * (cardW + COSMETIC_WING_GAP);
+            int cy = gridY + row * (COSMETIC_WING_CARD_H + COSMETIC_WING_GAP);
+            if (isInside(mouseX, mouseY, cx, cy, cardW, COSMETIC_WING_CARD_H)) {
+                return m;
+            }
+        }
+        return -1;
+    }
+
+    private void renderCosmeticView(
+            GuiGraphicsExtractor graphics,
+            int mouseX, int mouseY,
+            int contentX, int contentY, int contentW, int contentH,
+            float openScale
+    ) {
+        ModConfig config = ModConfig.getInstance();
+        computeCosmeticBounds(contentX, contentY, contentW, contentH);
+        int stageX = this.cosmeticStageX;
+        int stageY = this.cosmeticStageY;
+        int stageW = this.cosmeticStageW;
+        int stageH = this.cosmeticStageH;
+        int rightX = this.cosmeticRightX;
+        int rightW = this.cosmeticRightW;
+
+        int cols = rightW >= 340 ? 3 : 2;
+        int cardW = (rightW - COSMETIC_WING_GAP * (cols - 1)) / cols;
+        int modeCount = WingsLogic.modeCount();
+        int rows = (modeCount + cols - 1) / cols;
+        int gridH = rows * COSMETIC_WING_CARD_H + Math.max(0, rows - 1) * COSMETIC_WING_GAP;
+
+        List<ModernModuleSettings.Control> wingControls =
+                ModernModuleSettings.getCosmeticWingsControls(config, this.settingsActions);
+        int controlsPanelW = Math.max(140, rightW - 20);
+        ModernInspectorLayout.ControlsFlow flow = cosmeticCustomizeCollapsed
+                ? new ModernInspectorLayout.ControlsFlow(List.of(), 0)
+                : ModernInspectorLayout.computeControlsFlow(rightX + 10, 0, controlsPanelW, wingControls);
+
+        int totalRightH = 14 + COSMETIC_MASTER_H + 10 + 18 + gridH + 12 + SETTINGS_SECTION_HEADER_H
+                + (cosmeticCustomizeCollapsed ? 0 : flow.totalHeight() + 8) + 14;
+        this.contentTotalHeight = Math.max(contentH, totalRightH);
+        this.scrollAmount = Mth.clamp(this.scrollAmount, 0.0, Math.max(0, this.contentTotalHeight - contentH));
+        int scroll = (int) Math.round(this.scrollAmount);
+
+        int masterY = stageY - scroll;
+        int gridHeaderY = masterY + COSMETIC_MASTER_H + 10;
+        int gridY = gridHeaderY + 18;
+        int customHeaderY = gridY + gridH + 12;
+        int controlsY = customHeaderY + SETTINGS_SECTION_HEADER_H;
+
+        int hoveredWingMode = hitTestCosmeticWingCard(mouseX, mouseY, contentY, contentH, gridY, cols, cardW);
+        WingsLogic.WingProfile activePreview =
+                WingsLogic.resolvePreviewProfile(config, PanicHandler.isPanicActive(), hoveredWingMode);
+        WingsLogic.setPreviewProfile(activePreview);
+
+        // 1. Left Pinned 3D Character Stage (rendered before right scissor so 3D PiP is unclipped)
+        JelloTheme.fillRoundedCard(graphics, stageX, stageY, stageX + stageW, stageY + stageH, 8,
+                JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
+
+        float ageTicks = (float) ((System.nanoTime() % 3_600_000_000_000L) / 50_000_000.0);
+        int auraArgb = activePreview != null
+                ? (0x36000000 | WingsLogic.resolveRgb(activePreview.colorPreset(), activePreview.customRgb(), ageTicks, 0.0f, false))
+                : withAlpha(JelloTheme.BORDER_SUBTLE, 0x1A);
+        JelloTheme.drawRadialGlow(graphics, stageX + stageW / 2, stageY + stageH / 2 - 4,
+                Math.min(stageW, stageH) / 3, auraArgb);
+
+        String playerName = (this.minecraft != null && this.minecraft.player != null)
+                ? this.minecraft.player.getName().getString()
+                : (this.minecraft != null && this.minecraft.getGameProfile() != null
+                        ? this.minecraft.getGameProfile().name()
+                        : "Player");
+        String statusText;
+        boolean previewHighlighted;
+        if (hoveredWingMode >= 0) {
+            statusText = "Preview: " + WingsLogic.modeName(hoveredWingMode);
+            previewHighlighted = true;
+        } else if (config.wingsEnabled) {
+            statusText = "Equipped: " + WingsLogic.modeName(config.wingsMode);
+            previewHighlighted = true;
+        } else {
+            statusText = "Wings: OFF";
+            previewHighlighted = false;
+        }
+        int statusW = Math.min(stageW - 20, this.font.width(statusText) + 12);
+        int nameMaxW = Math.max(36, stageW - statusW - 24);
+        graphics.text(this.font, Component.literal(fitText(playerName, nameMaxW)),
+                stageX + 10, stageY + 10, JelloTheme.TEXT, false);
+
+        int badgeX = stageX + stageW - 10 - statusW;
+        JelloTheme.fillRoundedCard(graphics, badgeX, stageY + 7, badgeX + statusW, stageY + 21, 4,
+                previewHighlighted ? withAlpha(JelloTheme.ACCENT, 0x3C) : JelloTheme.CONTAINER_BG,
+                previewHighlighted ? JelloTheme.BORDER_ACTIVE_SOFT : JelloTheme.BORDER_SUBTLE);
+        graphics.centeredText(this.font, Component.literal(fitText(statusText, statusW - 6)),
+                badgeX + statusW / 2, stageY + 10, previewHighlighted ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED);
+
+        // Drag-to-rotate hint inside viewport
+        boolean stageDragHov = this.draggingCosmeticPreview
+                || isInside(mouseX, mouseY, stageX + 6, stageY + 28, stageW - 12, stageH - 56);
+        if (stageDragHov) {
+            this.frameInteractiveHover = true;
+        }
+
+        // Populate 3D AvatarRenderState + render live player skin & wings
+        this.cosmeticPreviewState.entityType = EntityTypes.PLAYER;
+        this.cosmeticPreviewState.id = WingsLogic.PREVIEW_ENTITY_ID;
+        this.cosmeticPreviewState.skin = resolveLocalPlayerSkin();
+        this.cosmeticPreviewState.lightCoords = 0xF000F0;
+        this.cosmeticPreviewState.outlineColor = EntityRenderState.NO_OUTLINE;
+        this.cosmeticPreviewState.shadowPieces.clear();
+        this.cosmeticPreviewState.shadowRadius = 0.0f;
+        this.cosmeticPreviewState.pose = Pose.STANDING;
+        this.cosmeticPreviewState.boundingBoxWidth = 0.6f;
+        this.cosmeticPreviewState.boundingBoxHeight = 1.8f;
+        this.cosmeticPreviewState.scale = 1.0f;
+        this.cosmeticPreviewState.ageScale = 1.0f;
+        this.cosmeticPreviewState.showHat = true;
+        this.cosmeticPreviewState.showJacket = true;
+        this.cosmeticPreviewState.showLeftPants = true;
+        this.cosmeticPreviewState.showRightPants = true;
+        this.cosmeticPreviewState.showLeftSleeve = true;
+        this.cosmeticPreviewState.showRightSleeve = true;
+        this.cosmeticPreviewState.showCape = false;
+        this.cosmeticPreviewState.isInvisible = false;
+        this.cosmeticPreviewState.isSpectator = false;
+        this.cosmeticPreviewState.isFallFlying = false;
+        this.cosmeticPreviewState.isCrouching = false;
+        this.cosmeticPreviewState.hasRedOverlay = false;
+        this.cosmeticPreviewState.headEquipment = ItemStack.EMPTY;
+        this.cosmeticPreviewState.chestEquipment = ItemStack.EMPTY;
+        this.cosmeticPreviewState.legsEquipment = ItemStack.EMPTY;
+        this.cosmeticPreviewState.feetEquipment = ItemStack.EMPTY;
+        this.cosmeticPreviewState.ageInTicks = ageTicks;
+        this.cosmeticPreviewState.bodyRot = cosmeticPreviewYaw;
+        this.cosmeticPreviewState.yRot = 0.0f;
+        this.cosmeticPreviewState.xRot = 0.0f;
+
+        float centerX = this.windowX + this.windowW * 0.5f;
+        float centerY = this.windowY + this.windowH * 0.5f;
+        boolean scaling = Math.abs(1.0f - openScale) > 0.002f;
+        int entX1 = scaling ? Math.round(centerX + (stageX + 4 - centerX) * openScale) : stageX + 4;
+        int entY1 = scaling ? Math.round(centerY + (stageY + 26 - centerY) * openScale) : stageY + 26;
+        int entX2 = scaling ? Math.round(centerX + (stageX + stageW - 4 - centerX) * openScale) : stageX + stageW - 4;
+        int entY2 = scaling ? Math.round(centerY + (stageY + stageH - 28 - centerY) * openScale) : stageY + stageH - 28;
+        if (entX2 > entX1 + 16 && entY2 > entY1 + 16) {
+            float entityScale = Math.max(28.0f, Math.min(stageW * 0.25f, (stageH - 54) * 0.27f)) * openScale;
+            this.cosmeticTranslation.set(0.0f, this.cosmeticPreviewState.boundingBoxHeight * 0.5f + 0.08f, 0.0f);
+            this.cosmeticCameraRot.rotationX(6.0f * ((float) Math.PI / 180.0f));
+            this.cosmeticRotation.rotationZ((float) Math.PI).mul(this.cosmeticCameraRot);
+            graphics.entity(
+                    this.cosmeticPreviewState,
+                    entityScale,
+                    this.cosmeticTranslation,
+                    this.cosmeticRotation,
+                    this.cosmeticCameraRot,
+                    entX1, entY1, entX2, entY2
+            );
+        }
+
+        // Bottom angle preset pills (Back / 3/4 / Front)
+        int pillY = stageY + stageH - 22;
+        int pillH = 16;
+        int pillGap = 5;
+        int pillW = (stageW - 16 - pillGap * (COSMETIC_ANGLE_LABELS.length - 1)) / COSMETIC_ANGLE_LABELS.length;
+        for (int i = 0; i < COSMETIC_ANGLE_LABELS.length; i++) {
+            int px = stageX + 8 + i * (pillW + pillGap);
+            int pw = (i == COSMETIC_ANGLE_LABELS.length - 1) ? (stageX + stageW - 8 - px) : pillW;
+            boolean selected = Math.abs(Mth.wrapDegrees(cosmeticPreviewYaw - COSMETIC_ANGLE_VALUES[i])) < 6.0f;
+            boolean hov = isInside(mouseX, mouseY, px, pillY, pw, pillH);
+            if (hov) {
+                this.frameInteractiveHover = true;
+            }
+            int bg = selected ? withAlpha(JelloTheme.ACCENT, 0x52) : (hov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CONTAINER_BG);
+            int border = selected ? JelloTheme.BORDER_ACTIVE_SOFT : (hov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+            JelloTheme.fillRoundedCard(graphics, px, pillY, px + pw, pillY + pillH, 4, bg, border);
+            graphics.centeredText(this.font, Component.literal(COSMETIC_ANGLE_LABELS[i]),
+                    px + pw / 2, pillY + 4, selected ? 0xFFFFFFFF : (hov ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED));
+        }
+
+        // 2. Right Scrollable Wing Locker & Customization
+        graphics.enableScissor(rightX - 2, contentY, contentX + contentW, contentY + contentH);
+        try {
+            String masterSub = config.wingsEnabled
+                    ? "Active: " + WingsLogic.modeName(config.wingsMode) + "  |  Hover cards to preview"
+                    : "Hover any wing card to preview on your skin";
+            drawHudResetCard(graphics, mouseX, mouseY, rightX, masterY, rightW, COSMETIC_MASTER_H,
+                    "3D Wings", masterSub, config.wingsEnabled, true, true, "Reset");
+
+            graphics.text(this.font, Component.literal("§lWING STYLES (" + modeCount + ")"),
+                    rightX, gridHeaderY + 2, JelloTheme.TEXT, false);
+            String gridHint = "Hover to preview, click to equip";
+            int hintW = this.font.width(gridHint);
+            if (rightW - hintW > 130) {
+                graphics.text(this.font, Component.literal(gridHint),
+                        rightX + rightW - hintW, gridHeaderY + 3, JelloTheme.TEXT_MUTED, false);
+            }
+
+            for (int m = 0; m < modeCount; m++) {
+                int col = m % cols;
+                int row = m / cols;
+                int cx = rightX + col * (cardW + COSMETIC_WING_GAP);
+                int cy = gridY + row * (COSMETIC_WING_CARD_H + COSMETIC_WING_GAP);
+                if (cy + COSMETIC_WING_CARD_H < contentY || cy > contentY + contentH) {
+                    continue;
+                }
+                boolean equipped = config.wingsEnabled && config.wingsMode == m;
+                boolean hov = (m == hoveredWingMode);
+                if (hov) {
+                    this.frameInteractiveHover = true;
+                }
+                int bg = equipped
+                        ? (hov ? JelloTheme.CARD_ACTIVE_HOVER : JelloTheme.CARD_ACTIVE)
+                        : (hov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
+                int border = equipped
+                        ? JelloTheme.BORDER_ACTIVE_SOFT
+                        : (hov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+                JelloTheme.fillRoundedCard(graphics, cx, cy, cx + cardW, cy + COSMETIC_WING_CARD_H, 6, bg, border);
+
+                int iconCol = equipped ? JelloTheme.ACCENT_HOVER : (hov ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED);
+                ModernIcons.drawWingIcon(graphics, cx + 8, cy + 8, iconCol);
+
+                String modeName = WingsLogic.modeName(m);
+                String styleTag = WingsLogic.modeStyleTag(m);
+                int textMaxW = Math.max(24, cardW - 40);
+                graphics.text(this.font, Component.literal(fitText(modeName, textMaxW)),
+                        cx + 23, cy + 8, equipped ? JelloTheme.TEXT : (hov ? JelloTheme.TEXT : JelloTheme.TEXT_MUTED), equipped);
+                graphics.text(this.font, Component.literal(fitText(styleTag, cardW - 16)),
+                        cx + 8, cy + 23, equipped ? JelloTheme.TEXT_DIM : JelloTheme.TEXT_MUTED, false);
+
+                if (equipped) {
+                    ModernIcons.drawCheckIcon(graphics, cx + cardW - 15, cy + 8, JelloTheme.ACCENT_HOVER);
+                }
+            }
+
+            // 3. Collapsible Wing Customization section
+            boolean customHov = isInside(mouseX, mouseY, rightX - 4, customHeaderY - 3, rightW + 8, SETTINGS_SECTION_HEADER_H)
+                    && mouseY >= contentY && mouseY < contentY + contentH;
+            if (customHov) {
+                this.frameInteractiveHover = true;
+                JelloTheme.fillRounded(graphics, rightX - 4, customHeaderY - 3, rightX + rightW + 4,
+                        customHeaderY + SETTINGS_SECTION_HEADER_H - 3, 6, withAlpha(JelloTheme.ACCENT, 0x18));
+            }
+            graphics.text(this.font, Component.literal("§lWING CUSTOMIZATION"), rightX, customHeaderY + 1, JelloTheme.TEXT, false);
+            graphics.text(this.font, Component.literal("Color palette, length, height, flap speed & hit flash"),
+                    rightX, customHeaderY + 14, JelloTheme.TEXT_MUTED, false);
+            int chevCol = customHov ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED;
+            int chx = rightX + rightW - 7;
+            int chy = customHeaderY + 7;
+            for (int r = 0; r < 4; r++) {
+                if (cosmeticCustomizeCollapsed) {
+                    JelloTheme.fill(graphics, chx - 2 + r, chy - 3 + r, chx - 1 + r, chy + 4 - r, chevCol);
+                } else {
+                    JelloTheme.fill(graphics, chx - 3 + r, chy + r, chx + 4 - r, chy + r + 1, chevCol);
+                }
+            }
+
+            if (!cosmeticCustomizeCollapsed && !wingControls.isEmpty()) {
+                JelloTheme.fillRoundedCard(graphics, rightX, controlsY, rightX + rightW, controlsY + flow.totalHeight(),
+                        7, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
+                ModernModuleCardUi.SliderEditState editState = this.editingSlider != null
+                        ? new ModernModuleCardUi.SliderEditState(this.editingSlider.key(), this.editingSliderText, false)
+                        : null;
+                ModernModuleCardUi.renderControls(
+                        graphics,
+                        this.font,
+                        mouseX,
+                        mouseY,
+                        rightX + 10,
+                        controlsY,
+                        controlsPanelW,
+                        "Wings",
+                        wingControls,
+                        (sx, sy, sw, sh, skey, pct) -> renderInteractiveSlider(graphics, mouseX, mouseY, sx, sy, sw, sh, skey, pct),
+                        (tx, ty, tw, th, tkey, tactive) -> renderSmoothSwitch(graphics, mouseX, mouseY, tx, ty, tw, th, tkey, tactive, this.currentFrameDt),
+                        editState,
+                        (bx, by, bw, bh) -> {
+                            this.editingBoxX = bx;
+                            this.editingBoxY = by;
+                            this.editingBoxW = bw;
+                            this.editingBoxH = bh;
+                            if (this.sliderInputBox != null && this.editingSlider != null) {
+                                this.sliderInputBox.setX(bx + 4);
+                                this.sliderInputBox.setY(by + 2);
+                                this.sliderInputBox.setWidth(Math.max(16, bw - 8));
+                                this.sliderInputBox.setHeight(9);
+                                this.sliderInputBox.visible = true;
+                            }
+                        }
+                );
+            } else if (cosmeticCustomizeCollapsed && this.editingSlider != null) {
+                cancelEditingSlider();
+            }
+        } finally {
+            graphics.disableScissor();
+        }
+    }
+
+    private boolean handleCosmeticClick(int mouseX, int mouseY, int button, int contentX, int contentY, int contentW, int contentH) {
+        if (!MouseButtonMapping.isLeftClick(button)) {
+            return false;
+        }
+        ModConfig config = ModConfig.getInstance();
+        computeCosmeticBounds(contentX, contentY, contentW, contentH);
+        int stageX = this.cosmeticStageX;
+        int stageY = this.cosmeticStageY;
+        int stageW = this.cosmeticStageW;
+        int stageH = this.cosmeticStageH;
+        int rightX = this.cosmeticRightX;
+        int rightW = this.cosmeticRightW;
+
+        // 1. Left stage bottom angle preset pills (Back / 3/4 / Front)
+        int pillY = stageY + stageH - 22;
+        int pillH = 16;
+        int pillGap = 5;
+        int pillW = (stageW - 16 - pillGap * (COSMETIC_ANGLE_LABELS.length - 1)) / COSMETIC_ANGLE_LABELS.length;
+        for (int i = 0; i < COSMETIC_ANGLE_LABELS.length; i++) {
+            int px = stageX + 8 + i * (pillW + pillGap);
+            int pw = (i == COSMETIC_ANGLE_LABELS.length - 1) ? (stageX + stageW - 8 - px) : pillW;
+            if (isInside(mouseX, mouseY, px, pillY, pw, pillH)) {
+                cosmeticPreviewYaw = COSMETIC_ANGLE_VALUES[i];
+                playClickSound(1.06f);
+                return true;
+            }
+        }
+
+        // 2. Left stage drag-to-rotate start
+        if (isInside(mouseX, mouseY, stageX + 4, stageY + 26, stageW - 8, stageH - 52)) {
+            this.draggingCosmeticPreview = true;
+            return true;
+        }
+
+        if (mouseX < rightX || mouseX >= rightX + rightW || mouseY < contentY || mouseY >= contentY + contentH) {
+            return false;
+        }
+
+        int scroll = (int) Math.round(this.scrollAmount);
+        int masterY = stageY - scroll;
+        int gridHeaderY = masterY + COSMETIC_MASTER_H + 10;
+        int gridY = gridHeaderY + 18;
+        int cols = rightW >= 340 ? 3 : 2;
+        int cardW = (rightW - COSMETIC_WING_GAP * (cols - 1)) / cols;
+        int rows = (WingsLogic.modeCount() + cols - 1) / cols;
+        int gridH = rows * COSMETIC_WING_CARD_H + Math.max(0, rows - 1) * COSMETIC_WING_GAP;
+        int customHeaderY = gridY + gridH + 12;
+        int controlsY = customHeaderY + SETTINGS_SECTION_HEADER_H;
+
+        // 3. Master 3D Wings toggle & Reset card
+        if (handleHudCardClick(mouseX, mouseY, rightX, masterY, rightW, COSMETIC_MASTER_H, true, true, "Reset",
+                () -> {
+                    config.wingsEnabled = !config.wingsEnabled;
+                    config.save();
+                },
+                () -> {
+                    ModernModuleSettings.resetModuleToDefaults("Wings", config, this.settingsActions);
+                    config.save();
+                })) {
+            return true;
+        }
+
+        // 4. 16 Wing style cards (click equips & turns on, or toggles off if already equipped)
+        int clickedMode = hitTestCosmeticWingCard(mouseX, mouseY, contentY, contentH, gridY, cols, cardW);
+        if (clickedMode >= 0) {
+            if (config.wingsEnabled && config.wingsMode == clickedMode) {
+                config.wingsEnabled = false;
+            } else {
+                config.wingsMode = clickedMode;
+                config.wingsEnabled = true;
+            }
+            config.save();
+            spawnRipple(mouseX, mouseY, config.wingsEnabled ? JelloTheme.BORDER_ACTIVE_SOFT : JelloTheme.TEXT_MUTED);
+            playClickSound(config.wingsEnabled ? 1.16f : 0.88f);
+            return true;
+        }
+
+        // 5. Collapsible Wing Customization header
+        if (isInside(mouseX, mouseY, rightX - 4, customHeaderY - 3, rightW + 8, SETTINGS_SECTION_HEADER_H)) {
+            cosmeticCustomizeCollapsed = !cosmeticCustomizeCollapsed;
+            this.draggingSliderKey = null;
+            this.activeSlider = null;
+            if (cosmeticCustomizeCollapsed) {
+                cancelEditingSlider();
+            }
+            playClickSound(cosmeticCustomizeCollapsed ? 0.92f : 1.08f);
+            return true;
+        }
+
+        // 6. Wing customization sliders, color palette & switches
+        if (!cosmeticCustomizeCollapsed) {
+            List<ModernModuleSettings.Control> wingControls =
+                    ModernModuleSettings.getCosmeticWingsControls(config, this.settingsActions);
+            int controlsPanelW = Math.max(140, rightW - 20);
+            return ModernModuleCardUi.handleControlsClick(
+                    this.font,
+                    mouseX,
+                    mouseY,
+                    rightX + 10,
+                    controlsY,
+                    controlsPanelW,
+                    wingControls,
+                    (slider, startX, width, initialPct) -> {
+                        this.draggingSliderKey = slider.key();
+                        this.activeSlider = slider;
+                        this.draggingSliderStartX = startX;
+                        this.draggingSliderWidth = width;
+                        slider.pctSetter().accept(initialPct);
+                    },
+                    this::startEditingSlider,
+                    this::playClickSound
+            );
+        }
+        return false;
+    }
+
+    // ==========================================
     // SETTINGS VIEW (SESTIA LEAF STUDIO + QOL)
     // ==========================================
     private static final int STUDIO_HEADER_H = 32;
@@ -1734,29 +2226,35 @@ public class ModernClickGuiScreen extends Screen {
         int cardH = SETTINGS_CARD_H;
         int cardGap = SETTINGS_CARD_GAP;
 
-        int studioH = studioTotalBlockHeight();
-        int totalContentH = 14 + studioH + 10 + 30 + (cardH + cardGap) * 5 + 10 + 30 + (cardH + cardGap) * 6 + 10 + 30 + (cardH + cardGap) * 3 + 12;
+        int scroll = (int) Math.round(this.scrollAmount);
+        int innerY = contentY + 14 - scroll;
+        computeSettingsLayout(innerY);
+        int totalContentH = this.settingsLayoutBottom - innerY + 14;
         this.contentTotalHeight = Math.max(contentH, totalContentH);
         this.scrollAmount = Mth.clamp(this.scrollAmount, 0.0, Math.max(0, this.contentTotalHeight - contentH));
-        int scroll = (int) Math.round(this.scrollAmount);
-
-        int innerY = contentY + 14 - scroll;
+        int clampedScroll = (int) Math.round(this.scrollAmount);
+        if (clampedScroll != scroll) {
+            innerY = contentY + 14 - clampedScroll;
+            computeSettingsLayout(innerY);
+        }
 
         // 1. Sestia Leaf Studio Header + live preset badge
-        graphics.text(this.font, Component.literal("§lSESTIA LEAF STUDIO"), innerX, innerY, JelloTheme.TEXT, false);
-        graphics.text(this.font, Component.literal("Choose from 6 translucent Leaf palettes (Emerald to Crimson), leaves & glass"), innerX, innerY + 13, JelloTheme.TEXT_MUTED, false);
-        JelloTheme.fillHorizontalGradient(graphics, innerX, innerY + 25, innerX + Math.min(innerW, 210), innerY + 26,
-                JelloTheme.ACCENT, withAlpha(JelloTheme.BORDER_ACTIVE_SOFT, 0x44));
-
         String activeBadge = (config.guiTheme == JelloTheme.THEME_SESTIA_CRIMSON)
                 ? JelloTheme.getThemeName(config.guiTheme)
                 : JelloTheme.getLeafStrainName(config.leafStrain);
         int badgeW = Math.max(66, this.font.width(activeBadge) + 16);
-        int badgeX = innerX + innerW - badgeW;
+        int badgeX = innerX + innerW - badgeW - SETTINGS_CHEVRON_W;
+        renderSettingsSectionHeader(graphics, mouseX, mouseY, innerX, innerY, innerW,
+                "§lSESTIA LEAF STUDIO",
+                fitText("Choose from 6 translucent Leaf palettes (Emerald to Crimson), leaves & glass", badgeX - innerX - 8),
+                SETTINGS_SECTION_STUDIO);
+        JelloTheme.fillHorizontalGradient(graphics, innerX, innerY + 25, innerX + Math.min(innerW, 210), innerY + 26,
+                JelloTheme.ACCENT, withAlpha(JelloTheme.BORDER_ACTIVE_SOFT, 0x44));
         JelloTheme.fillRoundedCard(graphics, badgeX, innerY + 1, badgeX + badgeW, innerY + 17, 5,
                 withAlpha(JelloTheme.ACCENT, 0x42), JelloTheme.BORDER_ACTIVE_SOFT);
         graphics.centeredText(this.font, Component.literal(activeBadge), badgeX + badgeW / 2, innerY + 5, JelloTheme.TEXT);
 
+        if (!collapsedSettingsSections[SETTINGS_SECTION_STUDIO]) {
         // 2. Six Palette Cards (5 Leaf Strains + Sestia Crimson)
         int strainRowY = innerY + STUDIO_HEADER_H;
         renderStudioStrainCards(graphics, mouseX, mouseY, innerX, strainRowY, innerW, STUDIO_STRAIN_H, config);
@@ -1785,13 +2283,16 @@ public class ModernClickGuiScreen extends Screen {
                 Math.round(config.guiGlassOpacity * 100.0f) + "%",
                 (config.guiGlassOpacity - JelloTheme.MIN_GLASS_OPACITY)
                         / (JelloTheme.MAX_GLASS_OPACITY - JelloTheme.MIN_GLASS_OPACITY));
+        }
 
         // 6. General & Inventory Settings
-        int generalHeaderY = innerY + studioH + 10;
-        graphics.text(this.font, Component.literal("§lGENERAL & INVENTORY"), innerX, generalHeaderY, JelloTheme.TEXT, false);
-        graphics.text(this.font, Component.literal("Inventory helpers, zoom & custom visual overrides"), innerX, generalHeaderY + 13, JelloTheme.TEXT_MUTED, false);
+        int generalHeaderY = this.settingsHeaderY[SETTINGS_SECTION_GENERAL];
+        renderSettingsSectionHeader(graphics, mouseX, mouseY, innerX, generalHeaderY, innerW,
+                "§lGENERAL & INVENTORY", "Inventory helpers, zoom & custom visual overrides",
+                SETTINGS_SECTION_GENERAL);
 
-        int generalY = generalHeaderY + 30;
+        if (!collapsedSettingsSections[SETTINGS_SECTION_GENERAL]) {
+        int generalY = generalHeaderY + SETTINGS_SECTION_HEADER_H;
         drawHudResetCard(graphics, mouseX, mouseY, innerX, generalY, innerW, cardH,
                 "Shulker Preview",
                 "Show shulker box contents tooltip when hovering in inventory",
@@ -1816,12 +2317,15 @@ public class ModernClickGuiScreen extends Screen {
                 "Custom Font",
                 "Use Sestia custom Minecraft UI font (reloads resource packs)",
                 config.customFont, true, false, "");
+        }
 
-        int chatHeaderY = generalY + (cardH + cardGap) * 5 + 10;
-        graphics.text(this.font, Component.literal("§lBETTER CHAT"), innerX, chatHeaderY, JelloTheme.TEXT, false);
-        graphics.text(this.font, Component.literal("Toggle individual Better Chat features on or off"), innerX, chatHeaderY + 13, JelloTheme.TEXT_MUTED, false);
+        int chatHeaderY = this.settingsHeaderY[SETTINGS_SECTION_CHAT];
+        renderSettingsSectionHeader(graphics, mouseX, mouseY, innerX, chatHeaderY, innerW,
+                "§lBETTER CHAT", "Toggle individual Better Chat features on or off",
+                SETTINGS_SECTION_CHAT);
 
-        int listY = chatHeaderY + 30;
+        if (!collapsedSettingsSections[SETTINGS_SECTION_CHAT]) {
+        int listY = chatHeaderY + SETTINGS_SECTION_HEADER_H;
 
         drawHudResetCard(graphics, mouseX, mouseY, innerX, listY, innerW, cardH,
                 "Infinite History",
@@ -1852,12 +2356,17 @@ public class ModernClickGuiScreen extends Screen {
                 "Mention Windows Alert",
                 "Sends Windows desktop notification & sound when someone mentions your name",
                 config.chatMentionAlert, true, false, "");
+        }
 
-        int notifierHeaderY = listY + (cardH + cardGap) * 6 + 10;
-        graphics.text(this.font, Component.literal("§lITEM NOTIFIER"), innerX, notifierHeaderY, JelloTheme.TEXT, false);
-        graphics.text(this.font, Component.literal("Pickup/drop HUD alerts (drag position in Open HUD Editor)"), innerX, notifierHeaderY + 13, JelloTheme.TEXT_MUTED, false);
+        int notifierHeaderY = this.settingsHeaderY[SETTINGS_SECTION_NOTIFIER];
+        renderSettingsSectionHeader(graphics, mouseX, mouseY, innerX, notifierHeaderY, innerW,
+                "§lITEM NOTIFIER", "Pickup/drop HUD alerts (drag position in Open HUD Editor)",
+                SETTINGS_SECTION_NOTIFIER);
 
-        int notifierY = notifierHeaderY + 30;
+        if (collapsedSettingsSections[SETTINGS_SECTION_NOTIFIER]) {
+            return;
+        }
+        int notifierY = notifierHeaderY + SETTINGS_SECTION_HEADER_H;
         String notifierPosDesc = (config.itemNotifierX < 0 || config.itemNotifierY < 0)
                 ? "Auto-placed near hotbar (drag in HUD Editor)"
                 : ("Pos: " + config.itemNotifierX + ", " + config.itemNotifierY);
@@ -1875,6 +2384,92 @@ public class ModernClickGuiScreen extends Screen {
                 "Max Items",
                 "Maximum number of simultaneous item alerts shown",
                 Integer.toString(config.itemNotifierMaxItems));
+    }
+
+    private static final int SETTINGS_SECTION_STUDIO = 0;
+    private static final int SETTINGS_SECTION_GENERAL = 1;
+    private static final int SETTINGS_SECTION_CHAT = 2;
+    private static final int SETTINGS_SECTION_NOTIFIER = 3;
+    private static final int SETTINGS_SECTION_COUNT = 4;
+    private static final int SETTINGS_SECTION_HEADER_H = 30;
+    private static final int SETTINGS_SECTION_GAP = 10;
+    private static final int SETTINGS_CHEVRON_W = 18;
+    // Session-persisted collapsed state for Settings section headers
+    private static final boolean[] collapsedSettingsSections = new boolean[SETTINGS_SECTION_COUNT];
+    private static final String[] SETTINGS_SECTION_HOVER_KEYS = {
+            "settings:section:0", "settings:section:1", "settings:section:2", "settings:section:3"
+    };
+    private final int[] settingsHeaderY = new int[SETTINGS_SECTION_COUNT];
+    private int settingsLayoutBottom = 0;
+
+    private static int settingsSectionBodyHeight(int section) {
+        if (collapsedSettingsSections[section]) {
+            return 0;
+        }
+        int row = SETTINGS_CARD_H + SETTINGS_CARD_GAP;
+        return switch (section) {
+            case SETTINGS_SECTION_STUDIO -> studioTotalBlockHeight() - STUDIO_HEADER_H;
+            case SETTINGS_SECTION_GENERAL -> row * 5;
+            case SETTINGS_SECTION_CHAT -> row * 6;
+            default -> row * 3;
+        };
+    }
+
+    /** Fills settingsHeaderY with each section header Y and settingsLayoutBottom with the content end Y (zero-alloc). */
+    private void computeSettingsLayout(int innerY) {
+        this.settingsHeaderY[SETTINGS_SECTION_STUDIO] = innerY;
+        int y = innerY + STUDIO_HEADER_H + settingsSectionBodyHeight(SETTINGS_SECTION_STUDIO);
+        for (int s = SETTINGS_SECTION_GENERAL; s < SETTINGS_SECTION_COUNT; s++) {
+            y += SETTINGS_SECTION_GAP;
+            this.settingsHeaderY[s] = y;
+            y += SETTINGS_SECTION_HEADER_H + settingsSectionBodyHeight(s);
+        }
+        this.settingsLayoutBottom = y + 12;
+    }
+
+    private void renderSettingsSectionHeader(
+            GuiGraphicsExtractor graphics, int mouseX, int mouseY,
+            int x, int y, int w, String title, String subtitle, int section
+    ) {
+        boolean collapsed = collapsedSettingsSections[section];
+        boolean hov = isInside(mouseX, mouseY, x - 6, y - 5, w + 12, SETTINGS_SECTION_HEADER_H);
+        float hoverT = animateHover(SETTINGS_SECTION_HOVER_KEYS[section], hov, this.currentFrameDt);
+        if (hoverT > 0.01f) {
+            JelloTheme.fillRounded(graphics, x - 6, y - 5, x + w + 6, y + SETTINGS_SECTION_HEADER_H - 5, 6,
+                    withAlpha(JelloTheme.ACCENT, Math.round(0x18 * hoverT)));
+        }
+        if (hov) {
+            this.frameInteractiveHover = true;
+        }
+        graphics.text(this.font, Component.literal(title), x, y, JelloTheme.TEXT, false);
+        graphics.text(this.font, Component.literal(subtitle), x, y + 13, JelloTheme.TEXT_MUTED, false);
+
+        int chevronColor = hov ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED;
+        int cx = x + w - 7;
+        int cy = y + 6;
+        for (int r = 0; r < 4; r++) {
+            if (collapsed) {
+                // Right-pointing chevron (section hidden)
+                JelloTheme.fill(graphics, cx - 2 + r, cy - 3 + r, cx - 1 + r, cy + 4 - r, chevronColor);
+            } else {
+                // Down-pointing chevron (section expanded)
+                JelloTheme.fill(graphics, cx - 3 + r, cy + r, cx + 4 - r, cy + r + 1, chevronColor);
+            }
+        }
+    }
+
+    /** Toggles a Settings section when its header row is clicked. */
+    private boolean handleSettingsSectionHeaderClick(int mouseX, int mouseY, int innerX, int innerW) {
+        for (int s = 0; s < SETTINGS_SECTION_COUNT; s++) {
+            int hy = this.settingsHeaderY[s];
+            if (isInside(mouseX, mouseY, innerX - 6, hy - 5, innerW + 12, SETTINGS_SECTION_HEADER_H)) {
+                collapsedSettingsSections[s] = !collapsedSettingsSections[s];
+                this.draggingStudioSlider = -1;
+                playClickSound(collapsedSettingsSections[s] ? 0.92f : 1.08f);
+                return true;
+            }
+        }
+        return false;
     }
 
     private void renderStudioStrainCards(
@@ -2134,7 +2729,14 @@ public class ModernClickGuiScreen extends Screen {
         int innerW = contentW - pad * 2;
         int scroll = (int) Math.round(this.scrollAmount);
         int innerY = contentY + 14 - scroll;
+        computeSettingsLayout(innerY);
 
+        // 0. Collapsible section headers (left click toggles show/hide)
+        if (left && handleSettingsSectionHeaderClick(mouseX, mouseY, innerX, innerW)) {
+            return true;
+        }
+
+        boolean studioOpen = !collapsedSettingsSections[SETTINGS_SECTION_STUDIO];
         int strainRowY = innerY + STUDIO_HEADER_H;
         int modeRowY = strainRowY + STUDIO_STRAIN_H + STUDIO_GAP;
         int sliderStartY = modeRowY + STUDIO_MODE_H + STUDIO_GAP;
@@ -2142,7 +2744,7 @@ public class ModernClickGuiScreen extends Screen {
         int trackX = innerX + innerW - 12 - trackW;
 
         // 1. Studio Sliders (left click starts drag; right click resets to default)
-        for (int s = 0; s < 3; s++) {
+        for (int s = 0; studioOpen && s < 3; s++) {
             int sy = sliderStartY + s * (STUDIO_SLIDER_H + STUDIO_GAP);
             if (isInside(mouseX, mouseY, trackX - 4, sy + 2, trackW + 8, STUDIO_SLIDER_H - 4)) {
                 if (right) {
@@ -2177,7 +2779,7 @@ public class ModernClickGuiScreen extends Screen {
         // 2. Six Palette Cards (5 Leaf Strains + Sestia Crimson)
         int strainGap = 6;
         int baseCardW = (innerW - strainGap * (STUDIO_PALETTE_COUNT - 1)) / STUDIO_PALETTE_COUNT;
-        if (mouseY >= strainRowY && mouseY < strainRowY + STUDIO_STRAIN_H) {
+        if (studioOpen && mouseY >= strainRowY && mouseY < strainRowY + STUDIO_STRAIN_H) {
             for (int s = 0; s < STUDIO_PALETTE_COUNT; s++) {
                 int cx = innerX + s * (baseCardW + strainGap);
                 int cw = (s == STUDIO_PALETTE_COUNT - 1) ? (innerX + innerW - cx) : baseCardW;
@@ -2199,7 +2801,7 @@ public class ModernClickGuiScreen extends Screen {
         }
 
         // 3. Falling Leaves Segmented Pills
-        if (mouseY >= modeRowY && mouseY < modeRowY + STUDIO_MODE_H) {
+        if (studioOpen && mouseY >= modeRowY && mouseY < modeRowY + STUDIO_MODE_H) {
             int pillsTotalW = STUDIO_MODE_WIDTHS[0] + STUDIO_MODE_WIDTHS[1] + STUDIO_MODE_WIDTHS[2] + 8;
             int pillY = modeRowY + (STUDIO_MODE_H - 20) / 2;
             int curX = innerX + innerW - 10 - pillsTotalW;
@@ -2218,7 +2820,8 @@ public class ModernClickGuiScreen extends Screen {
         // 5. General & Inventory Cards
         int cardH = SETTINGS_CARD_H;
         int cardGap = SETTINGS_CARD_GAP;
-        int generalY = innerY + studioTotalBlockHeight() + 10 + 30;
+        int generalY = this.settingsHeaderY[SETTINGS_SECTION_GENERAL] + SETTINGS_SECTION_HEADER_H;
+        if (!collapsedSettingsSections[SETTINGS_SECTION_GENERAL]) {
         if (handleHudCardClick(mouseX, mouseY, innerX, generalY, innerW, cardH, true, false, "",
                 () -> { config.invShulkerPreview = !config.invShulkerPreview; config.save(); }, null)) {
             return true;
@@ -2254,8 +2857,10 @@ public class ModernClickGuiScreen extends Screen {
                 }, null)) {
             return true;
         }
+        }
 
-        int listY = generalY + (cardH + cardGap) * 5 + 10 + 30;
+        int listY = this.settingsHeaderY[SETTINGS_SECTION_CHAT] + SETTINGS_SECTION_HEADER_H;
+        if (!collapsedSettingsSections[SETTINGS_SECTION_CHAT]) {
         if (handleHudCardClick(mouseX, mouseY, innerX, listY, innerW, cardH, true, false, "",
                 () -> { config.chatInfinite = !config.chatInfinite; config.save(); }, null)) {
             return true;
@@ -2280,8 +2885,12 @@ public class ModernClickGuiScreen extends Screen {
                 () -> { config.chatMentionAlert = !config.chatMentionAlert; config.save(); }, null)) {
             return true;
         }
+        }
 
-        int notifierY = listY + (cardH + cardGap) * 6 + 10 + 30;
+        if (collapsedSettingsSections[SETTINGS_SECTION_NOTIFIER]) {
+            return false;
+        }
+        int notifierY = this.settingsHeaderY[SETTINGS_SECTION_NOTIFIER] + SETTINGS_SECTION_HEADER_H;
         if (handleHudCardClick(mouseX, mouseY, innerX, notifierY, innerW, cardH, true, true, "Reset",
                 () -> {
                     config.itemNotifierEnabled = !config.itemNotifierEnabled;
@@ -2753,6 +3362,7 @@ public class ModernClickGuiScreen extends Screen {
                     this.creatingFolder = false;
                     this.renamingFolderId = null;
                     this.draggingStudioSlider = -1;
+                    this.draggingCosmeticPreview = false;
                     this.scrollAmount = 0.0;
                     this.listeningKeybindModule = null;
                     clearExpandedImmediate();
@@ -2809,6 +3419,10 @@ public class ModernClickGuiScreen extends Screen {
             boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
             if (showingModules) {
                 if (handleModulesWorkspaceClick(mouseX, mouseY, button, contentX, contentY, contentW, contentH)) {
+                    return true;
+                }
+            } else if (this.activeNav == NavTab.COSMETIC) {
+                if (handleCosmeticClick(mouseX, mouseY, button, contentX, contentY, contentW, contentH)) {
                     return true;
                 }
             } else if (this.activeNav == NavTab.MACROS) {
@@ -3441,6 +4055,10 @@ public class ModernClickGuiScreen extends Screen {
             this.draggingScrollbar = false;
             return true;
         }
+        if (this.draggingCosmeticPreview) {
+            this.draggingCosmeticPreview = false;
+            return true;
+        }
         if (this.draggingStudioSlider >= 0) {
             this.draggingStudioSlider = -1;
             ModConfig.getInstance().save();
@@ -3469,6 +4087,10 @@ public class ModernClickGuiScreen extends Screen {
             }
             return true;
         }
+        if (this.draggingCosmeticPreview) {
+            cosmeticPreviewYaw = Mth.wrapDegrees(cosmeticPreviewYaw - (float) dragX * 1.4f);
+            return true;
+        }
         if (this.draggingStudioSlider >= 0) {
             updateStudioSliderFromX((int) event.x());
             return true;
@@ -3490,7 +4112,7 @@ public class ModernClickGuiScreen extends Screen {
         boolean showingModules = !this.searchQuery.isEmpty() || this.activeNav == NavTab.MODULES;
         int[] vp = computeModulesViewportMetrics(contentX, contentY, contentW, contentH);
         int bodyY = vp[0];
-        int viewH = vp[1];
+        int viewH = showingModules ? vp[1] : contentH;
         int totalH = showingModules
                 ? resolveAccordionPlan(contentX, bodyY, contentW).plan().totalHeight()
                 : this.contentTotalHeight;
@@ -3971,12 +4593,16 @@ public class ModernClickGuiScreen extends Screen {
 
     @Override
     public void removed() {
+        this.draggingCosmeticPreview = false;
+        WingsLogic.setPreviewProfile(null);
         saveUiTabState();
         super.removed();
     }
 
     @Override
     public void onClose() {
+        this.draggingCosmeticPreview = false;
+        WingsLogic.setPreviewProfile(null);
         this.draggingStudioSlider = -1;
         this.draggingSliderKey = null;
         this.activeSlider = null;
