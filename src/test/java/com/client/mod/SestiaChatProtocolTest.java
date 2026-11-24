@@ -159,10 +159,10 @@ public class SestiaChatProtocolTest {
 
     private static void testDmFormatting() {
         String incoming = SestiaChatProtocol.formatDmMessage("Pannoid", "SelfUser", false, "selam");
-        assert "§8[§cPannoid §7-> §cme§8] §rselam".equals(incoming) : "Unexpected incoming DM: " + incoming;
+        assert "§8[§aPannoid §7-> §ame§8] §rselam".equals(incoming) : "Unexpected incoming DM: " + incoming;
 
         String outgoing = SestiaChatProtocol.formatDmMessage("SelfUser", "Pannoid", true, "yanlis oldu");
-        assert "§8[§cme §7-> §cPannoid§8] §ryanlis oldu".equals(outgoing) : "Unexpected outgoing DM: " + outgoing;
+        assert "§8[§ame §7-> §aPannoid§8] §ryanlis oldu".equals(outgoing) : "Unexpected outgoing DM: " + outgoing;
 
         assert SestiaChatProtocol.isHeartbeatFrame("ping") && SestiaChatProtocol.isHeartbeatFrame("pong");
         assert !SestiaChatProtocol.isHeartbeatFrame("{\"type\":\"chat\"}");

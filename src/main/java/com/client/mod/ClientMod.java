@@ -82,6 +82,8 @@ public class ClientMod implements ClientModInitializer {
                         gui.onClose();
                     } else if (client.gui.screen() == null && client.player != null) {
                         client.gui.setScreen(new ModernClickGuiScreen());
+                    } else if (client.gui.screen() instanceof net.minecraft.client.gui.screens.TitleScreen titleScreen) {
+                        client.gui.setScreen(new ModernClickGuiScreen(titleScreen));
                     }
                 }
                 wasRightShiftDown = rShiftDown;

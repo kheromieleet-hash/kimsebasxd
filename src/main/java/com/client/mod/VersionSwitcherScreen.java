@@ -89,6 +89,7 @@ public class VersionSwitcherScreen extends Screen {
         this.customProtocolBox = new EditBox(this.font, customStartX, customY, customBoxW, 18, Component.literal("Custom Protocol"));
         this.customProtocolBox.setMaxLength(6);
         this.customProtocolBox.setHint(Component.literal("Proto (e.g. 765)"));
+        this.customProtocolBox.setTextColor(JelloTheme.TEXT);
         this.addRenderableWidget(this.customProtocolBox);
 
         this.applyCustomButton = Button.builder(Component.literal("Apply"), btn -> {
@@ -216,18 +217,14 @@ public class VersionSwitcherScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
         updateRowPositions();
 
-        // Dark dim background
-        graphics.fill(0, 0, this.width, this.height, 0xD40C0D11);
+        // Transparent OLED dim backdrop so falling leaves show through
+        graphics.fill(0, 0, this.width, this.height, JelloTheme.isLeafTheme() ? 0x55000000 : JelloTheme.BACKDROP_DIM);
 
         int listLeft = this.width / 2 - 230;
         int listRight = this.width / 2 + 230;
 
         // List frame background
-        graphics.fill(listLeft - 8, this.listTop, listRight + 8, this.listBottom, 0x8808080C);
-        graphics.fill(listLeft - 8, this.listTop, listRight + 8, this.listTop + 1, 0x33E53935);
-        graphics.fill(listLeft - 8, this.listBottom - 1, listRight + 8, this.listBottom, 0x33E53935);
-        graphics.fill(listLeft - 9, this.listTop, listLeft - 8, this.listBottom, 0x33E53935);
-        graphics.fill(listRight + 8, this.listTop, listRight + 9, this.listBottom, 0x33E53935);
+        JelloTheme.fillRoundedCard(graphics, listLeft - 8, this.listTop, listRight + 8, this.listBottom, 8, JelloTheme.WINDOW_BG, JelloTheme.WINDOW_BORDER);
 
         ModConfig config = ModConfig.getInstance();
         int activeProtocol = config != null ? config.targetProtocol : -1;
@@ -250,26 +247,26 @@ public class VersionSwitcherScreen extends Screen {
             boolean hovered = (mouseX >= listLeft - 6 && mouseX <= listRight + 6 && mouseY >= y && mouseY <= y + ROW_HEIGHT - 2);
 
             if (isActive) {
-                graphics.fill(listLeft - 6, y, listRight + 6, y + ROW_HEIGHT - 2, 0x2400E5FF);
-                graphics.fill(listLeft - 6, y, listLeft - 4, y + ROW_HEIGHT - 2, 0xFF00E5FF);
+                graphics.fill(listLeft - 6, y, listRight + 6, y + ROW_HEIGHT - 2, JelloTheme.CARD_ACTIVE);
+                graphics.fill(listLeft - 6, y, listLeft - 4, y + ROW_HEIGHT - 2, JelloTheme.BORDER_ACTIVE_SOFT);
             } else if (hovered) {
-                graphics.fill(listLeft - 6, y, listRight + 6, y + ROW_HEIGHT - 2, 0x1EFFFFFF);
+                graphics.fill(listLeft - 6, y, listRight + 6, y + ROW_HEIGHT - 2, JelloTheme.ROW_HOVER);
             }
 
             // Separator line
-            graphics.fill(listLeft - 6, y + ROW_HEIGHT - 2, listRight + 6, y + ROW_HEIGHT - 1, 0x18FFFFFF);
+            graphics.fill(listLeft - 6, y + ROW_HEIGHT - 2, listRight + 6, y + ROW_HEIGHT - 1, JelloTheme.DIVIDER);
 
             // Version name
-            int titleColor = isActive ? 0xFF00E5FF : 0xFFFFFFFF;
+            int titleColor = isActive ? JelloTheme.BORDER_ACTIVE_SOFT : JelloTheme.TEXT;
             graphics.text(this.font, Component.literal(data.name), listLeft, y + 4, titleColor);
 
             // Protocol tag
             String protoText = data.protocol > 0 ? "Proto " + data.protocol : "Default";
-            int protoColor = isActive ? 0xFF55FF55 : 0xFFE53935;
+            int protoColor = isActive ? 0xFF4DFFAE : JelloTheme.TEXT_DIM;
             graphics.text(this.font, Component.literal(protoText), listLeft + 120, y + 4, protoColor);
 
             // Era / feature info
-            graphics.text(this.font, Component.literal(data.tag), listLeft + 185, y + 5, 0xFF888E99);
+            graphics.text(this.font, Component.literal(data.tag), listLeft + 185, y + 5, JelloTheme.TEXT_MUTED);
         }
         graphics.disableScissor();
 
@@ -281,23 +278,23 @@ public class VersionSwitcherScreen extends Screen {
             int contentHeight = this.versions.size() * ROW_HEIGHT + 8;
             int thumbHeight = Math.max(24, (int) ((float) (viewHeight * viewHeight) / contentHeight));
             int thumbY = this.listTop + (int) ((this.scrollAmount / maxScroll) * (viewHeight - thumbHeight));
-            graphics.fill(barX, this.listTop, barX + 4, this.listBottom, 0xFF141418);
-            graphics.fill(barX, thumbY, barX + 4, thumbY + thumbHeight, 0xFFE53935);
+            JelloTheme.fillRounded(graphics, barX, this.listTop, barX + 4, this.listBottom, 1, JelloTheme.SCROLLBAR_TRACK);
+            JelloTheme.fillRounded(graphics, barX, thumbY, barX + 4, thumbY + thumbHeight, 1, JelloTheme.SCROLLBAR_THUMB);
         }
 
         // Header background & title
-        graphics.fill(0, 0, this.width, this.listTop, 0xF2090A0E);
-        graphics.fill(0, this.listTop - 1, this.width, this.listTop, 0x66E53935);
+        graphics.fill(0, 0, this.width, this.listTop, JelloTheme.HEADER_BG);
+        graphics.fill(0, this.listTop - 1, this.width, this.listTop, JelloTheme.BORDER_ACTIVE_SOFT);
 
-        graphics.centeredText(this.font, Component.literal("§l§cVERSION SWITCHER"), this.width / 2, 8, 0xFFFFFFFF);
+        graphics.centeredText(this.font, Component.literal("§lVERSION SWITCHER"), this.width / 2, 8, JelloTheme.TEXT);
 
-        String currentStatus = "Current: §b" + (config != null ? config.getDisplayVersion() : "Auto") +
+        String currentStatus = "Current: §a" + (config != null ? config.getDisplayVersion() : "Auto") +
                 (config != null && config.targetProtocol > 0 ? " §7(Protocol " + config.targetProtocol + ")" : " §7(Native 26.3, Protocol 777)");
-        graphics.text(this.font, Component.literal(currentStatus), listLeft, 40, 0xFFE0E0E0);
+        graphics.text(this.font, Component.literal(currentStatus), listLeft, 40, JelloTheme.TEXT);
 
         // Footer background
-        graphics.fill(0, this.listBottom, this.width, this.height, 0xF2090A0E);
-        graphics.fill(0, this.listBottom, this.width, this.listBottom + 1, 0x66E53935);
+        graphics.fill(0, this.listBottom, this.width, this.height, JelloTheme.HEADER_BG);
+        graphics.fill(0, this.listBottom, this.width, this.listBottom + 1, JelloTheme.DIVIDER);
 
         super.extractRenderState(graphics, mouseX, mouseY, delta);
     }

@@ -1,6 +1,7 @@
 package com.client.mod;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import dlovin.inventoryhud.InventoryHUDCommon;
 import dlovin.inventoryhud.gui.InventoryGui;
 import dlovin.inventoryhud.platform.ConfigAccess;
@@ -70,8 +71,11 @@ public class HudLayoutEditorScreen extends Screen {
             updateDraggedPosition(config, mouseX, mouseY);
         }
 
-        // Dimmed backdrop
-        graphics.fill(0, 0, this.width, this.height, 0x7807090E);
+        // Dimmed backdrop + cursor-reactive falling leaves under Sestia Leaf
+        graphics.fill(0, 0, this.width, this.height, JelloTheme.BACKDROP_DIM);
+        if (JelloTheme.isLeafTheme() && !PanicHandler.isPanicActive()) {
+            SestiaTitleBackgroundRenderer.renderGuiAmbientLeaves(graphics, 0, 0, this.width, this.height, mouseX, mouseY);
+        }
 
         // 3x3 dashed alignment grid (1/3 & 2/3 guides)
         drawDashedGrid(graphics);
@@ -86,7 +90,7 @@ public class HudLayoutEditorScreen extends Screen {
                 "Keybinds",
                 config.keybindsHudEnabled,
                 this.dragging == HudTarget.KEYBINDS,
-                0x55FF1E2D, 0xFFFF4B5C
+                (0x48 << 24) | (JelloTheme.ACCENT & 0x00FFFFFF), JelloTheme.BORDER_ACTIVE_SOFT
         );
 
         int[] wmBounds = WatermarkArrayListHudRenderer.resolveWatermarkBounds(this.font, this.width, this.height, config);
@@ -222,17 +226,24 @@ public class HudLayoutEditorScreen extends Screen {
         int barW = (doneBtn[0] + doneBtn[2]) - resetBtn[0] + 16;
         int barH = resetBtn[3] + 12;
 
-        JelloTheme.fillRoundedCard(graphics, barX, barY, barX + barW, barY + barH, 8, 0xE610131C, 0x99FF1E2D);
+        JelloTheme.fillRoundedCard(graphics, barX, barY, barX + barW, barY + barH, 8, JelloTheme.WINDOW_BG, JelloTheme.WINDOW_BORDER);
 
         boolean resetHover = isInside(mouseX, mouseY, resetBtn);
         boolean doneHover = isInside(mouseX, mouseY, doneBtn);
+        if ((resetHover || doneHover) && !PanicHandler.isPanicActive()) {
+            graphics.requestCursor(CursorTypes.POINTING_HAND);
+        }
         JelloTheme.fillRoundedCard(
                 graphics, resetBtn[0], resetBtn[1], resetBtn[0] + resetBtn[2], resetBtn[1] + resetBtn[3],
-                5, resetHover ? 0x55FF3D4E : 0x28FFFFFF, 0x66FFFFFF
+                5,
+                resetHover ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE,
+                resetHover ? JelloTheme.BORDER_ACTIVE_SOFT : JelloTheme.BORDER_SUBTLE
         );
         JelloTheme.fillRoundedCard(
                 graphics, doneBtn[0], doneBtn[1], doneBtn[0] + doneBtn[2], doneBtn[1] + doneBtn[3],
-                5, doneHover ? 0xFFFF3D4E : 0xDDFF1E2D, 0xFFFF6674
+                5,
+                doneHover ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT,
+                JelloTheme.BORDER_ACTIVE_SOFT
         );
 
         String resetLabel = "Reset";
@@ -817,19 +828,20 @@ public class HudLayoutEditorScreen extends Screen {
         if (this.dragging != HudTarget.NONE) {
             int cx = this.width / 2;
             int cy = this.height / 2;
+            int centerGuideColor = (0x44 << 24) | (JelloTheme.BORDER_ACTIVE_SOFT & 0x00FFFFFF);
             for (int y = 0; y < this.height; y += 8) {
-                graphics.fill(cx, y, cx + 1, Math.min(this.height, y + 4), 0x33FF4B5C);
+                graphics.fill(cx, y, cx + 1, Math.min(this.height, y + 4), centerGuideColor);
             }
             for (int x = 0; x < this.width; x += 8) {
-                graphics.fill(x, cy, Math.min(this.width, x + 4), cy + 1, 0x33FF4B5C);
+                graphics.fill(x, cy, Math.min(this.width, x + 4), cy + 1, centerGuideColor);
             }
             if (this.activeGuideX != null) {
                 int gx = this.activeGuideX;
-                graphics.fill(gx, 0, gx + 1, this.height, 0xCC38BDF8);
+                graphics.fill(gx, 0, gx + 1, this.height, JelloTheme.BORDER_ACTIVE_SOFT);
             }
             if (this.activeGuideY != null) {
                 int gy = this.activeGuideY;
-                graphics.fill(0, gy, this.width, gy + 1, 0xCC38BDF8);
+                graphics.fill(0, gy, this.width, gy + 1, JelloTheme.BORDER_ACTIVE_SOFT);
             }
         }
     }

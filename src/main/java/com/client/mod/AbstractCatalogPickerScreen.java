@@ -1,12 +1,14 @@
 package com.client.mod;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
@@ -64,6 +66,7 @@ abstract class AbstractCatalogPickerScreen extends Screen {
         this.searchBox.setHint(Component.literal(hint));
         this.searchBox.setBordered(false);
         this.searchBox.setMaxLength(40);
+        this.searchBox.setTextColor(JelloTheme.TEXT);
         this.searchBox.setValue(prev);
         this.searchBox.setResponder(text -> {
             this.searchQuery = text == null ? "" : text.trim().toLowerCase(java.util.Locale.ROOT);
@@ -74,15 +77,30 @@ abstract class AbstractCatalogPickerScreen extends Screen {
     }
 
     protected void renderWindowFrame(GuiGraphicsExtractor graphics, int mouseX, int mouseY, String headerTitle, String subtitle) {
-        graphics.fill(0, 0, this.width, this.height, 0x8805070B);
+        graphics.fill(0, 0, this.width, this.height, JelloTheme.BACKDROP_DIM);
         JelloTheme.drawGlowShadow(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, 0x66000000, 4);
-        JelloTheme.fillRoundedCard(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, JelloTheme.WINDOW_BG, 0x26FFFFFF);
+        JelloTheme.fillRoundedCard(graphics, this.windowX, this.windowY, this.windowX + this.windowW, this.windowY + this.windowH, 10, JelloTheme.WINDOW_BG, JelloTheme.WINDOW_BORDER);
+
+        if (JelloTheme.isLeafTheme() && !PanicHandler.isPanicActive()) {
+            SestiaTitleBackgroundRenderer.renderGuiAmbientLeaves(
+                    graphics,
+                    this.windowX + 4,
+                    this.windowY + 4,
+                    this.windowW - 8,
+                    this.windowH - 8,
+                    mouseX,
+                    mouseY
+            );
+        }
 
         graphics.text(this.font, Component.literal("§l" + headerTitle), this.windowX + PAD, this.windowY + 11, JelloTheme.TEXT, false);
         graphics.text(this.font, Component.literal(subtitle), this.windowX + PAD, this.windowY + 24, JelloTheme.TEXT_MUTED, false);
 
         int[] done = getDoneButtonBounds();
         boolean hovDone = isInside(mouseX, mouseY, done[0], done[1], done[2], done[3]);
+        if (hovDone && !PanicHandler.isPanicActive()) {
+            graphics.requestCursor(CursorTypes.POINTING_HAND);
+        }
         JelloTheme.fillRoundedCard(graphics, done[0], done[1], done[0] + done[2], done[1] + done[3], 5,
                 hovDone ? JelloTheme.ACCENT_HOVER : JelloTheme.ACCENT, JelloTheme.BORDER_ACTIVE_SOFT);
         graphics.centeredText(this.font, Component.literal("Done"), done[0] + done[2] / 2, done[1] + 7, 0xFFFFFFFF);
@@ -93,15 +111,18 @@ abstract class AbstractCatalogPickerScreen extends Screen {
     protected void renderSearchFieldBox(GuiGraphicsExtractor graphics, int searchX, int toolY, int searchW) {
         boolean searchFocused = this.searchBox != null && this.searchBox.isFocused();
         JelloTheme.fillRoundedCard(graphics, searchX, toolY, searchX + searchW, toolY + TOOLBAR_BTN_H, 5,
-                JelloTheme.CONTAINER_BG, searchFocused ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+                JelloTheme.CONTAINER_BG, searchFocused ? JelloTheme.BORDER_ACTIVE_SOFT : JelloTheme.BORDER_SUBTLE);
         ModernIcons.drawSearchIcon(graphics, searchX + 8, toolY + 7, searchFocused ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED);
     }
 
     protected void drawToolbarBtn(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int x, int y, int w, int h, String label) {
         boolean hov = isInside(mouseX, mouseY, x, y, w, h);
+        if (hov && !PanicHandler.isPanicActive()) {
+            graphics.requestCursor(CursorTypes.POINTING_HAND);
+        }
         JelloTheme.fillRoundedCard(graphics, x, y, x + w, y + h, 5,
                 hov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CONTAINER_BG,
-                hov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE);
+                hov ? JelloTheme.BORDER_ACTIVE_SOFT : JelloTheme.BORDER_SUBTLE);
         graphics.centeredText(this.font, Component.literal(fitText(label, w - 8)), x + w / 2, y + (h - 8) / 2, JelloTheme.TEXT);
     }
 
@@ -118,12 +139,15 @@ abstract class AbstractCatalogPickerScreen extends Screen {
             int rightReserve,
             int checkRightOffset
     ) {
+        if (hovered && !PanicHandler.isPanicActive()) {
+            graphics.requestCursor(CursorTypes.POINTING_HAND);
+        }
         int bg = selected
                 ? (hovered ? JelloTheme.CARD_ACTIVE_HOVER : JelloTheme.CARD_ACTIVE)
                 : (hovered ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE);
         int border = inspecting
                 ? 0xFFFFFFFF
-                : (selected ? JelloTheme.ACCENT : (hovered ? JelloTheme.BORDER_SUBTLE : JelloTheme.DIVIDER));
+                : (selected ? JelloTheme.BORDER_ACTIVE_SOFT : (hovered ? JelloTheme.BORDER_SUBTLE : JelloTheme.DIVIDER));
 
         JelloTheme.fillRoundedCard(graphics, cx, cy, cx + cellW, cy + CELL_H, 5, bg, border);
         if (iconStack != null && !iconStack.isEmpty()) {
@@ -147,12 +171,15 @@ abstract class AbstractCatalogPickerScreen extends Screen {
             return;
         }
         int trackX = this.windowX + this.windowW - 8;
-        graphics.fill(trackX, top, trackX + 3, bottom, JelloTheme.SCROLLBAR_TRACK);
+        JelloTheme.fillRounded(graphics, trackX, top, trackX + 3, bottom, 1, JelloTheme.SCROLLBAR_TRACK);
         int thumbH = Math.max(24, (int) ((float) gridH * gridH / this.contentTotalHeight));
         int maxScroll = Math.max(1, this.contentTotalHeight - gridH);
         int thumbY = top + (int) ((gridH - thumbH) * (this.scrollAmount / maxScroll));
         boolean thumbHov = this.draggingScrollbar || (mouseX >= trackX - 4 && mouseX <= trackX + 7 && mouseY >= thumbY && mouseY <= thumbY + thumbH);
-        graphics.fill(trackX, thumbY, trackX + 3, thumbY + thumbH, thumbHov ? JelloTheme.SCROLLBAR_THUMB_HOVER : JelloTheme.SCROLLBAR_THUMB);
+        if (thumbHov && !PanicHandler.isPanicActive()) {
+            graphics.requestCursor(CursorTypes.POINTING_HAND);
+        }
+        JelloTheme.fillRounded(graphics, trackX, thumbY, trackX + 3, thumbY + thumbH, 1, thumbHov ? JelloTheme.SCROLLBAR_THUMB_HOVER : JelloTheme.SCROLLBAR_THUMB);
     }
 
     protected void updateContentScrollBounds(int itemCount, int gridH) {
@@ -306,8 +333,8 @@ abstract class AbstractCatalogPickerScreen extends Screen {
     protected static void playClickSound() {
         try {
             Minecraft mc = Minecraft.getInstance();
-            if (mc.player != null) {
-                mc.player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.25f, 1.2f);
+            if (mc != null && mc.getSoundManager() != null) {
+                mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0f));
             }
         } catch (Throwable ignored) {
         }

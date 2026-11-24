@@ -249,7 +249,7 @@ final class ModernModuleCardUi {
                     }
                     String label = fitText(font, s.label(), Math.max(20, cw - boxW - 6));
                     graphics.text(font, Component.literal(label), cx, cy, JelloTheme.TEXT, false);
-                    JelloTheme.fillRoundedCard(graphics, boxX, boxY, boxX + boxW, boxY + boxH, 3, 0xFF0A0A0F, JelloTheme.ACCENT);
+                    JelloTheme.fillRoundedCard(graphics, boxX, boxY, boxX + boxW, boxY + boxH, 3, JelloTheme.CONTAINER_BG, JelloTheme.BORDER_ACTIVE_SOFT);
                 } else {
                     String valText = s.valueLabel().get();
                     int valW = font.width(valText);

@@ -66,6 +66,10 @@ public abstract class TitleScreenMixin extends Screen {
                 btn.setY(middleRowY);
             }
         }
+
+        int pillX = this.width - com.client.mod.TitleThemePillWidget.PILL_WIDTH - 10;
+        int pillY = this.height - com.client.mod.TitleThemePillWidget.PILL_HEIGHT - 10;
+        this.addRenderableWidget(new com.client.mod.TitleThemePillWidget(pillX, pillY, (Screen) (Object) this));
     }
 
     @Redirect(

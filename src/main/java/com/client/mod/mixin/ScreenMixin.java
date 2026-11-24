@@ -53,6 +53,7 @@ public abstract class ScreenMixin {
         }
         Screen self = (Screen) (Object) this;
         if (shouldUseSestiaBackground(self)) {
+            SestiaTitleBackgroundRenderer.updatePointer(mouseX, mouseY, this.width, this.height);
             if (!(self instanceof TitleScreen)) {
                 SestiaTitleBackgroundRenderer.render(graphics, this.width, this.height, false);
             }

@@ -31,6 +31,7 @@ public final class SestiaCursorManager {
     }
 
     private static boolean loadAttempted = false;
+    private static int loadedTintRgb = -1;
     private static long normalCursorHandle = 0L;
     private static long hoverCursorHandle = 0L;
     private static long activeHandle = 0L;
@@ -92,7 +93,13 @@ public final class SestiaCursorManager {
             return false;
         }
 
-        ensureLoaded();
+        int desiredTint = JelloTheme.isLeafTheme()
+                ? (JelloTheme.getLeafTintRgb() & 0x00FFFFFF)
+                : -1;
+        if (loadAttempted && desiredTint != loadedTintRgb) {
+            destroy();
+        }
+        ensureLoaded(desiredTint);
         long target = (mode == CursorMode.HOVER && hoverCursorHandle != 0L)
                 ? hoverCursorHandle
                 : normalCursorHandle;
@@ -108,16 +115,42 @@ public final class SestiaCursorManager {
         return true;
     }
 
-    private static void ensureLoaded() {
+    static int tintCursorPixel(int argb, int targetRgb, boolean applyTint) {
+        if (!applyTint) {
+            return argb;
+        }
+        int a = (argb >>> 24) & 0xFF;
+        if (a == 0) {
+            return argb;
+        }
+        int r = (argb >>> 16) & 0xFF;
+        int g = (argb >>> 8) & 0xFF;
+        int b = argb & 0xFF;
+        int peak = Math.max(r, Math.max(g, b));
+        float lum = Math.max(0.0f, Math.min(1.0f, (0.55f * peak + 0.45f * (0.25f * r + 0.65f * g + 0.10f * b)) / 230.0f));
+        float highlight = Math.max(0.0f, Math.min(1.0f, (lum - 0.84f) / 0.16f)) * 0.28f;
+
+        int tr = (targetRgb >>> 16) & 0xFF;
+        int tg = (targetRgb >>> 8) & 0xFF;
+        int tb = targetRgb & 0xFF;
+        int outR = Math.max(0, Math.min(255, Math.round(tr * lum + (255 - tr) * highlight)));
+        int outG = Math.max(0, Math.min(255, Math.round(tg * lum + (255 - tg) * highlight)));
+        int outB = Math.max(0, Math.min(255, Math.round(tb * lum + (255 - tb) * highlight)));
+        return (a << 24) | (outR << 16) | (outG << 8) | outB;
+    }
+
+    private static void ensureLoaded(int desiredTintRgb) {
         if (loadAttempted) {
             return;
         }
         loadAttempted = true;
-        normalCursorHandle = createCursorFromResource(NORMAL_CURSOR_RESOURCE);
-        hoverCursorHandle = createCursorFromResource(HOVER_CURSOR_RESOURCE);
+        loadedTintRgb = desiredTintRgb;
+        boolean applyTint = desiredTintRgb >= 0;
+        normalCursorHandle = createCursorFromResource(NORMAL_CURSOR_RESOURCE, desiredTintRgb, applyTint);
+        hoverCursorHandle = createCursorFromResource(HOVER_CURSOR_RESOURCE, desiredTintRgb, applyTint);
     }
 
-    private static long createCursorFromResource(String resourcePath) {
+    private static long createCursorFromResource(String resourcePath, int targetRgb, boolean applyTint) {
         ByteBuffer pixels = null;
         SDL_Surface surface = null;
         try (InputStream in = SestiaCursorManager.class.getResourceAsStream(resourcePath)) {
@@ -137,7 +170,7 @@ public final class SestiaCursorManager {
             pixels = MemoryUtil.memAlloc(w * h * 4);
             for (int y = 0; y < h; y++) {
                 for (int x = 0; x < w; x++) {
-                    int argb = img.getRGB(x, y);
+                    int argb = tintCursorPixel(img.getRGB(x, y), targetRgb, applyTint);
                     // RGBA32 on little-endian stores R, G, B, A bytes sequentially
                     pixels.put((byte) ((argb >>> 16) & 0xFF));
                     pixels.put((byte) ((argb >>> 8) & 0xFF));
@@ -197,5 +230,6 @@ public final class SestiaCursorManager {
         activeHandle = 0L;
         customActive = false;
         loadAttempted = false;
+        loadedTintRgb = -1;
     }
 }

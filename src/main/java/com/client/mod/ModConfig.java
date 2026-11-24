@@ -531,7 +531,12 @@ public class ModConfig {
     public boolean itemSuckerOnlyOnGround = false;
 
     // Right-Shift ClickGUI Tab position & state
-    public int guiTheme = 0; // 0=Sestia OLED, 1=Transparent, 2=Light, 3=Monokai Pro, 4=Dark
+    public int guiTheme = 0; // 0=Sestia Leaf, 1=Crimson
+    public int leafStrain = JelloTheme.STRAIN_NEON_EMERALD; // 0=Neon Emerald, 1=Deep Forest, 2=Frost Mint, 3=Gold Leaf, 4=Obsidian Frost
+    public int leafMode = 2; // 0=Off, 1=Menus Only, 2=Menus + GUI
+    public float leafDensity = 1.0f; // 0.25f..1.50f
+    public float leafSpeed = 1.0f; // 0.40f..2.00f
+    public float guiGlassOpacity = JelloTheme.DEFAULT_GLASS_OPACITY; // 0.55f..1.00f
     public int guiWindowX = 480;
     public int guiWindowY = 34;
     public boolean guiExpanded = true;
@@ -1004,6 +1009,11 @@ public class ModConfig {
         this.itemSuckerOnlyPickable = other.itemSuckerOnlyPickable;
         this.itemSuckerOnlyOnGround = other.itemSuckerOnlyOnGround;
         this.guiTheme = other.guiTheme;
+        this.leafStrain = other.leafStrain;
+        this.leafMode = other.leafMode;
+        this.leafDensity = other.leafDensity;
+        this.leafSpeed = other.leafSpeed;
+        this.guiGlassOpacity = other.guiGlassOpacity;
         this.guiWindowX = other.guiWindowX;
         this.guiWindowY = other.guiWindowY;
         this.guiExpanded = other.guiExpanded;
@@ -1058,9 +1068,15 @@ public class ModConfig {
         this.playerScale = clampFloat(this.playerScale, 0.10f, 2.00f, 1.0f);
         if (this.invHudScale < 0.50f || this.invHudScale > 2.50f) this.invHudScale = 1.0f;
         if (this.zoomFactor < 1.5f || this.zoomFactor > 20.0f) this.zoomFactor = 4.0f;
-        if (this.guiTheme < 0 || this.guiTheme >= JelloTheme.THEME_COUNT) this.guiTheme = 0;
+        if (this.guiTheme == 10) this.guiTheme = JelloTheme.THEME_SESTIA_CRIMSON;
+        if (this.guiTheme < 0 || this.guiTheme >= JelloTheme.THEME_COUNT) this.guiTheme = JelloTheme.THEME_SESTIA;
+        if (this.leafStrain < 0 || this.leafStrain >= JelloTheme.STRAIN_COUNT) this.leafStrain = JelloTheme.STRAIN_NEON_EMERALD;
+        if (this.leafMode < 0 || this.leafMode > 2) this.leafMode = 2;
+        this.leafDensity = clampFloat(this.leafDensity, 0.25f, 1.50f, 1.0f);
+        this.leafSpeed = clampFloat(this.leafSpeed, 0.40f, 2.00f, 1.0f);
+        this.guiGlassOpacity = clampFloat(this.guiGlassOpacity, JelloTheme.MIN_GLASS_OPACITY, JelloTheme.MAX_GLASS_OPACITY, JelloTheme.DEFAULT_GLASS_OPACITY);
         if (this == INSTANCE) {
-            JelloTheme.applyTheme(this.guiTheme);
+            JelloTheme.applyFromConfig(this);
         }
         this.freecamSpeed = clampFloat(this.freecamSpeed, 0.2f, 5.0f, 1.0f);
         this.wingsMode = WingsLogic.clampMode(this.wingsMode);

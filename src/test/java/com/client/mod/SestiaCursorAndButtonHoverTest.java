@@ -17,6 +17,7 @@ public class SestiaCursorAndButtonHoverTest {
         testCursorModeResolution();
         testTransparentButtonAndHoverFrameColors();
         testTransparentSliderMathAndColors();
+        testLeafStrainCursorTintAndButtonAdaptation();
         System.out.println("ALL SestiaCursorAndButtonHoverTest ASSERTIONS PASSED!");
     }
 
@@ -75,14 +76,14 @@ public class SestiaCursorAndButtonHoverTest {
         int disabledHoverBorder = SestiaButtonHoverRenderer.resolveBorderColor(false, true, 1.0f);
 
         assert (hoveredBorder >>> 24) == 0xFF : "Hovered active border should have full alpha";
-        assert (hoveredBorder & 0x00FFFFFF) == 0x0010E88A : "Hovered active border should be neon emerald";
-        assert (normalBorder & 0x00FFFFFF) != 0x0010E88A : "Non-hovered border must not show emerald hover frame";
-        assert (disabledHoverBorder & 0x00FFFFFF) != 0x0010E88A : "Disabled hovered border must not glow emerald";
+        assert (hoveredBorder & 0x00FFFFFF) == 0x005AFCA8 : "Hovered active border should be bright pastel emerald";
+        assert (normalBorder & 0x00FFFFFF) != 0x005AFCA8 : "Non-hovered border must not show emerald hover frame";
+        assert (disabledHoverBorder & 0x00FFFFFF) != 0x005AFCA8 : "Disabled hovered border must not glow emerald";
 
         int halfBorder = SestiaButtonHoverRenderer.resolveBorderColor(true, true, 0.5f);
         int zeroBorder = SestiaButtonHoverRenderer.resolveBorderColor(true, true, 0.0f);
         assert ((halfBorder >>> 24) & 0xFF) == 128 : "Expected 50% scaled border alpha";
-        assert (halfBorder & 0x00FFFFFF) == 0x0010E88A : "RGB channels must remain unchanged";
+        assert (halfBorder & 0x00FFFFFF) == 0x005AFCA8 : "RGB channels must remain unchanged";
         assert ((zeroBorder >>> 24) & 0xFF) == 0 : "Expected zero alpha when widgetAlpha is 0";
     }
 
@@ -103,5 +104,32 @@ public class SestiaCursorAndButtonHoverTest {
         assert ((hoverProgress >>> 24) & 0xFF) <= 0x55 : "Hovered slider fill must keep label sharp";
         assert ((normMarker >>> 24) & 0xFF) >= 0xAA : "Slider marker should remain clearly visible";
         assert ((hoverMarker >>> 24) & 0xFF) == 0xFF : "Hovered slider marker should be crisp bright emerald";
+    }
+
+    private static void testLeafStrainCursorTintAndButtonAdaptation() {
+        int greenPixel = 0xFF10E88A;
+        int clearPixel = 0x0010E88A;
+        assert SestiaCursorManager.tintCursorPixel(greenPixel, 0xFACC15, false) == greenPixel
+                : "Un-tinted cursor mode must preserve original pixel";
+        assert SestiaCursorManager.tintCursorPixel(clearPixel, 0xFACC15, true) == clearPixel
+                : "Transparent pixels must keep zero alpha";
+
+        int goldTinted = SestiaCursorManager.tintCursorPixel(greenPixel, 0xFACC15, true);
+        int outR = (goldTinted >>> 16) & 0xFF;
+        int outG = (goldTinted >>> 8) & 0xFF;
+        int outB = goldTinted & 0xFF;
+        assert ((goldTinted >>> 24) & 0xFF) == 0xFF : "Opaque cursor pixel alpha must stay intact";
+        assert outR > 180 && outG > 140 && outB < 90
+                : "Expected gold-tinted pixel from emerald source, got R=" + outR + " G=" + outG + " B=" + outB;
+
+        JelloTheme.applyTheme(JelloTheme.THEME_SESTIA, JelloTheme.STRAIN_GOLD_LEAF, JelloTheme.DEFAULT_GLASS_OPACITY);
+        int goldBorder = SestiaButtonHoverRenderer.resolveBorderColor(true, true, 1.0f);
+        assert (goldBorder & 0x00FFFFFF) == 0x00FDE68A
+                : "Hovered button border should match active Gold Leaf strain";
+
+        JelloTheme.applyTheme(JelloTheme.THEME_SESTIA, JelloTheme.STRAIN_NEON_EMERALD, JelloTheme.DEFAULT_GLASS_OPACITY);
+        int emeraldBorder = SestiaButtonHoverRenderer.resolveBorderColor(true, true, 1.0f);
+        assert (emeraldBorder & 0x00FFFFFF) == 0x005AFCA8
+                : "Default Neon Emerald border must stay intact";
     }
 }

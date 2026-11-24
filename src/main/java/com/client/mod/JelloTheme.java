@@ -11,435 +11,325 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Multi-theme palette manager (Sestia OLED, Transparent, Light, Monokai Pro, Dark) and rounded drawing utilities.
+ * Multi-theme palette manager (Sestia Leaf with 5 strains + translucent Crimson Leaf) and rounded drawing utilities.
  */
 public final class JelloTheme {
     public static final int THEME_SESTIA = 0;
-    public static final int THEME_TRANSPARENT = 1;
-    public static final int THEME_LIGHT = 2;
-    public static final int THEME_MONOKAI_PRO = 3;
-    public static final int THEME_DARK = 4;
-    public static final int THEME_CYBER_CYAN = 5;
-    public static final int THEME_EMERALD_TOXIC = 6;
-    public static final int THEME_SOLAR_GOLD = 7;
-    public static final int THEME_NORD_FROST = 8;
-    public static final int THEME_BLOOD_MOON = 9;
-    public static final int THEME_COUNT = 10;
+    public static final int THEME_SESTIA_CRIMSON = 1;
+    public static final int THEME_COUNT = 2;
 
-    public static int ACCENT = 0xFFFF1A2B;
-    public static int ACCENT_HOVER = 0xFFFF4757;
-    public static int PANEL = 0xF508080C;
-    public static int HEADER = 0xFC0A0A0E;
-    public static int BORDER = 0xE6FF1A2B;
-    public static int ROW_HOVER = 0x38FF1A2B;
-    public static int TEXT = 0xFFFFFFFF;
-    public static int TEXT_MUTED = 0xFFC8D2E0;
-    public static int TEXT_DIM = 0xFFFF5A67;
-    public static int TRACK = 0x55FF1A2B;
-    public static int SWITCH_ON = 0xFFFF1A2B;
-    public static int SWITCH_ON_HOVER = 0xFFFF4757;
-    public static int SWITCH_OFF = 0xFF1F2029;
-    public static int SWITCH_OFF_HOVER = 0xFF2D2E3B;
-    public static int SLIDER_BAR = 0xFFFF1A2B;
-    public static int SLIDER_BAR_HOVER = 0xFFFF4757;
-    public static int SLIDER_TRACK = 0xFF1F2029;
+    public static final int STRAIN_NEON_EMERALD = 0;
+    public static final int STRAIN_DEEP_FOREST = 1;
+    public static final int STRAIN_FROST_MINT = 2;
+    public static final int STRAIN_GOLD_LEAF = 3;
+    public static final int STRAIN_OBSIDIAN_FROST = 4;
+    public static final int STRAIN_COUNT = 5;
+    public static final int CRIMSON_LEAF_TINT_RGB = 0xFF4757;
+
+    public static final float MIN_GLASS_OPACITY = 0.55f;
+    public static final float MAX_GLASS_OPACITY = 1.00f;
+    public static final float DEFAULT_GLASS_OPACITY = 0.78f;
+
+    private static int currentTheme = THEME_SESTIA;
+    private static int currentLeafStrain = STRAIN_NEON_EMERALD;
+    private static float currentGlassOpacity = DEFAULT_GLASS_OPACITY;
+    private static int currentLeafTintRgb = 0x5AFCA8;
+
+    public static int ACCENT = 0xFF34D399;
+    public static int ACCENT_HOVER = 0xFF6EE7B7;
+    public static int PANEL = 0xC8050708;
+    public static int HEADER = 0xDC090D0E;
+    public static int BORDER = 0xE65AFCA8;
+    public static int ROW_HOVER = 0x2E5AFCA8;
+    public static int TEXT = 0xFFF6FFFA;
+    public static int TEXT_MUTED = 0xFFB0CFC2;
+    public static int TEXT_DIM = 0xFF86EFAC;
+    public static int TRACK = 0x485AFCA8;
+    public static int SWITCH_ON = 0xFF4ADE9B;
+    public static int SWITCH_ON_HOVER = 0xFF86FFD0;
+    public static int SWITCH_OFF = 0xCC161D20;
+    public static int SWITCH_OFF_HOVER = 0xE0202A2E;
+    public static int SLIDER_BAR = 0xFF5AFCA8;
+    public static int SLIDER_BAR_HOVER = 0xFFA7F3D0;
+    public static int SLIDER_TRACK = 0xCC111719;
     public static int SCROLLBAR_TRACK = 0x33000000;
-    public static int SCROLLBAR_THUMB = 0xFFFF1A2B;
-    public static int SCROLLBAR_THUMB_HOVER = 0xFFFF4757;
-    public static int BACKDROP_DIM = 0x80000000;
-    public static int WINDOW_BORDER = 0x48FFFFFF;
+    public static int SCROLLBAR_THUMB = 0xCC5AFCA8;
+    public static int SCROLLBAR_THUMB_HOVER = 0xFFA7F3D0;
+    public static int BACKDROP_DIM = 0x96000000;
+    public static int WINDOW_BORDER = 0x665AFCA8;
 
-    public static int WINDOW_BG = 0xF6060609;
-    public static int HEADER_BG = 0xFC0A0A0E;
-    public static int SIDEBAR_BG = 0xF8060608;
-    public static int CONTAINER_BG = 0xF20C0C11;
-    public static int CARD_INACTIVE = 0xF2111117;
-    public static int CARD_INACTIVE_HOVER = 0xF81A1A23;
-    public static int CARD_ACTIVE = 0xF6340910;
-    public static int CARD_ACTIVE_HOVER = 0xFA450D17;
-    public static int BORDER_SUBTLE = 0x44FFFFFF;
-    public static int BORDER_ACTIVE_SOFT = 0xFFFF2E3E;
-    public static int BORDER_EXPANDED_SOFT = 0xFFFF5260;
-    public static int DIVIDER = 0x2EFFFFFF;
+    public static int WINDOW_BG = 0xE2050708;
+    public static int HEADER_BG = 0xB8090D0E;
+    public static int SIDEBAR_BG = 0xA6080B0C;
+    public static int CONTAINER_BG = 0x9C0D1214;
+    public static int CARD_INACTIVE = 0x7A0D1214;
+    public static int CARD_INACTIVE_HOVER = 0xA6172225;
+    public static int CARD_ACTIVE = 0xBA143025;
+    public static int CARD_ACTIVE_HOVER = 0xCE1C4233;
+    public static int BORDER_SUBTLE = 0x38A7F3D0;
+    public static int BORDER_ACTIVE_SOFT = 0xFF5AFCA8;
+    public static int BORDER_EXPANDED_SOFT = 0xFFA7F3D0;
+    public static int DIVIDER = 0x2E5AFCA8;
 
-    public static String getThemeName(int index) {
-        return switch (index) {
-            case THEME_TRANSPARENT -> "Transparent";
-            case THEME_LIGHT -> "Light";
-            case THEME_MONOKAI_PRO -> "Monokai Pro";
-            case THEME_DARK -> "Dark";
-            case THEME_CYBER_CYAN -> "Cyber Cyan";
-            case THEME_EMERALD_TOXIC -> "Emerald Toxic";
-            case THEME_SOLAR_GOLD -> "Solar Gold";
-            case THEME_NORD_FROST -> "Nord Frost";
-            case THEME_BLOOD_MOON -> "Blood Moon";
-            default -> "Sestia OLED";
+    public static int getCurrentTheme() {
+        return currentTheme;
+    }
+
+    public static boolean isLeafTheme() {
+        return currentTheme == THEME_SESTIA || currentTheme == THEME_SESTIA_CRIMSON;
+    }
+
+    public static int getCurrentLeafStrain() {
+        return currentLeafStrain;
+    }
+
+    public static float getCurrentGlassOpacity() {
+        return currentGlassOpacity;
+    }
+
+    public static int getLeafTintRgb() {
+        return currentLeafTintRgb;
+    }
+
+    public static int normalizeLeafStrain(int strain) {
+        return (strain >= 0 && strain < STRAIN_COUNT) ? strain : STRAIN_NEON_EMERALD;
+    }
+
+    public static float normalizeGlassOpacity(float glassOpacity) {
+        if (!Float.isFinite(glassOpacity)) {
+            return DEFAULT_GLASS_OPACITY;
+        }
+        return Mth.clamp(glassOpacity, MIN_GLASS_OPACITY, MAX_GLASS_OPACITY);
+    }
+
+    public static int getLeafStrainTintRgb(int strain) {
+        return switch (normalizeLeafStrain(strain)) {
+            case STRAIN_DEEP_FOREST -> 0x86EFAC;
+            case STRAIN_FROST_MINT -> 0x7EF9F0;
+            case STRAIN_GOLD_LEAF -> 0xFDE68A;
+            case STRAIN_OBSIDIAN_FROST -> 0xE2E8F0;
+            default -> 0x5AFCA8;
         };
     }
 
+    public static String getLeafStrainName(int strain) {
+        return switch (normalizeLeafStrain(strain)) {
+            case STRAIN_DEEP_FOREST -> "Deep Forest";
+            case STRAIN_FROST_MINT -> "Frost Mint";
+            case STRAIN_GOLD_LEAF -> "Gold Leaf";
+            case STRAIN_OBSIDIAN_FROST -> "Obsidian Frost";
+            default -> "Neon Emerald";
+        };
+    }
+
+    public static String getLeafStrainShortName(int strain) {
+        return switch (normalizeLeafStrain(strain)) {
+            case STRAIN_DEEP_FOREST -> "Forest";
+            case STRAIN_FROST_MINT -> "Frost";
+            case STRAIN_GOLD_LEAF -> "Gold";
+            case STRAIN_OBSIDIAN_FROST -> "Obsidian";
+            default -> "Emerald";
+        };
+    }
+
+    public static int[] getLeafStrainPalette(int strain) {
+        return switch (normalizeLeafStrain(strain)) {
+            case STRAIN_DEEP_FOREST -> new int[]{0xFF86EFAC, 0xFFDCFCE7, 0xFF0D1210};
+            case STRAIN_FROST_MINT -> new int[]{0xFF7EF9F0, 0xFFCCFBF1, 0xFF0C1216};
+            case STRAIN_GOLD_LEAF -> new int[]{0xFFFDE68A, 0xFFFEF9C3, 0xFF101114};
+            case STRAIN_OBSIDIAN_FROST -> new int[]{0xFFE2E8F0, 0xFF64748B, 0xFF050608};
+            default -> new int[]{0xFF5AFCA8, 0xFFA7F3D0, 0xFF0D1214};
+        };
+    }
+
+    public static String getThemeName(int index) {
+        return index == THEME_SESTIA_CRIMSON ? "Crimson" : "Sestia Leaf";
+    }
+
     public static void applyTheme(int index) {
-        switch (index) {
-            case THEME_TRANSPARENT -> {
-                ACCENT = 0xFFB84242;
-                ACCENT_HOVER = 0xFFBD5C5C;
-                PANEL = 0x24A7A7A7;
-                HEADER = 0x28A7A7A7;
-                BORDER = 0x88B84242;
-                ROW_HOVER = 0x28B86060;
-                TEXT = 0xFFDCDCDC;
-                TEXT_MUTED = 0xFFBEBEBE;
-                TEXT_DIM = 0xFFEA6060;
-                TRACK = 0x38A74545;
-                SWITCH_ON = 0xFF5AAF5A;
-                SWITCH_ON_HOVER = 0xFF69BD69;
-                SWITCH_OFF = 0xFFA74545;
-                SWITCH_OFF_HOVER = 0xFFBD5C5C;
-                SLIDER_BAR = 0xFFA74545;
-                SLIDER_BAR_HOVER = 0xFFBD5C5C;
-                SLIDER_TRACK = 0x44A0A0A0;
-                SCROLLBAR_TRACK = 0x32A0A0A0;
-                SCROLLBAR_THUMB = 0x64A0A0A0;
-                SCROLLBAR_THUMB_HOVER = 0x99C8C8C8;
-                BACKDROP_DIM = 0x38000000;
-                WINDOW_BORDER = 0x3CA0A0A0;
-                WINDOW_BG = 0x22B6B6B6;
-                HEADER_BG = 0x26A7A7A7;
-                SIDEBAR_BG = 0x20A7A7A7;
-                CONTAINER_BG = 0x20B1B1B1;
-                CARD_INACTIVE = 0x1EB1B1B1;
-                CARD_INACTIVE_HOVER = 0x2E909090;
-                CARD_ACTIVE = 0x36B84242;
-                CARD_ACTIVE_HOVER = 0x48B86060;
-                BORDER_SUBTLE = 0x3CA0A0A0;
-                BORDER_ACTIVE_SOFT = 0xCCEA6060;
-                BORDER_EXPANDED_SOFT = 0xFFD19898;
-                DIVIDER = 0x2EA0A0A0;
-            }
-            case THEME_LIGHT -> {
-                ACCENT = 0xFFB84242;
-                ACCENT_HOVER = 0xFF9E3434;
-                PANEL = 0xF5A7A7A7;
-                HEADER = 0xF8A7A7A7;
-                BORDER = 0xCCB84242;
-                ROW_HOVER = 0x28612C2C;
-                TEXT = 0xFF232323;
-                TEXT_MUTED = 0xFF343434;
-                TEXT_DIM = 0xFFB84242;
-                TRACK = 0x44A74545;
-                SWITCH_ON = 0xFF5AAF5A;
-                SWITCH_ON_HOVER = 0xFF69BD69;
-                SWITCH_OFF = 0xFFA74545;
-                SWITCH_OFF_HOVER = 0xFFBD5C5C;
-                SLIDER_BAR = 0xFFA74545;
-                SLIDER_BAR_HOVER = 0xFFBD5C5C;
-                SLIDER_TRACK = 0xFF8C8C8C;
-                SCROLLBAR_TRACK = 0x32000000;
-                SCROLLBAR_THUMB = 0x64000000;
-                SCROLLBAR_THUMB_HOVER = 0x99000000;
-                BACKDROP_DIM = 0x55000000;
-                WINDOW_BORDER = 0x55000000;
-                WINDOW_BG = 0xF6B6B6B6;
-                HEADER_BG = 0xF8A7A7A7;
-                SIDEBAR_BG = 0xF6A7A7A7;
-                CONTAINER_BG = 0xF2B1B1B1;
-                CARD_INACTIVE = 0xF4B1B1B1;
-                CARD_INACTIVE_HOVER = 0xF8909090;
-                CARD_ACTIVE = 0xF4C4A4A4;
-                CARD_ACTIVE_HOVER = 0xF8B88C8C;
-                BORDER_SUBTLE = 0x44000000;
-                BORDER_ACTIVE_SOFT = 0xFFB84242;
-                BORDER_EXPANDED_SOFT = 0xFF6D3434;
-                DIVIDER = 0x28000000;
-            }
-            case THEME_MONOKAI_PRO -> {
-                ACCENT = 0xFFA7ED76;
-                ACCENT_HOVER = 0xFF66DEFF;
-                PANEL = 0xF5211F22;
-                HEADER = 0xFC1A191B;
-                BORDER = 0xCCA7ED76;
-                ROW_HOVER = 0x3293D962;
-                TEXT = 0xFFE48561;
-                TEXT_MUTED = 0xFFB4B4B4;
-                TEXT_DIM = 0xFFFF5B7B;
-                TRACK = 0x44A5A1FF;
-                SWITCH_ON = 0xFFDCD350;
-                SWITCH_ON_HOVER = 0xFFEBE155;
-                SWITCH_OFF = 0xFFA5A1FF;
-                SWITCH_OFF_HOVER = 0xFFB4B1FF;
-                SLIDER_BAR = 0xFFA5A1FF;
-                SLIDER_BAR_HOVER = 0xFFB4B1FF;
-                SLIDER_TRACK = 0xFF222222;
-                SCROLLBAR_TRACK = 0x32D1CE5E;
-                SCROLLBAR_THUMB = 0x99D1CE5E;
-                SCROLLBAR_THUMB_HOVER = 0xFFD1CE5E;
-                BACKDROP_DIM = 0x70000000;
-                WINDOW_BORDER = 0x44A7ED76;
-                WINDOW_BG = 0xF61A191B;
-                HEADER_BG = 0xFC1A191B;
-                SIDEBAR_BG = 0xF8211F22;
-                CONTAINER_BG = 0xF2211F22;
-                CARD_INACTIVE = 0xF22C292D;
-                CARD_INACTIVE_HOVER = 0xF83E3B3F;
-                CARD_ACTIVE = 0xF5293624;
-                CARD_ACTIVE_HOVER = 0xFA34472D;
-                BORDER_SUBTLE = 0x38FFFFFF;
-                BORDER_ACTIVE_SOFT = 0xFFA7ED76;
-                BORDER_EXPANDED_SOFT = 0xFF66DEFF;
-                DIVIDER = 0x28FFFFFF;
-            }
-            case THEME_DARK -> {
-                ACCENT = 0xFFFA6464;
-                ACCENT_HOVER = 0xFFBF8D8D;
-                PANEL = 0xF5282828;
-                HEADER = 0xFC242424;
-                BORDER = 0xCCFA6464;
-                ROW_HOVER = 0x30FA6464;
-                TEXT = 0xFFBEBEBE;
-                TEXT_MUTED = 0xFF969696;
-                TEXT_DIM = 0xFFFA6464;
-                TRACK = 0x44963232;
-                SWITCH_ON = 0xFF328232;
-                SWITCH_ON_HOVER = 0xFF55A355;
-                SWITCH_OFF = 0xFF963232;
-                SWITCH_OFF_HOVER = 0xFFB14A4A;
-                SLIDER_BAR = 0xFF963232;
-                SLIDER_BAR_HOVER = 0xFFB14A4A;
-                SLIDER_TRACK = 0xFF222222;
-                SCROLLBAR_TRACK = 0x32000000;
-                SCROLLBAR_THUMB = 0x64000000;
-                SCROLLBAR_THUMB_HOVER = 0x99000000;
-                BACKDROP_DIM = 0x70000000;
-                WINDOW_BORDER = 0x38FFFFFF;
-                WINDOW_BG = 0xF6242424;
-                HEADER_BG = 0xFC242424;
-                SIDEBAR_BG = 0xF8282828;
-                CONTAINER_BG = 0xF2282828;
-                CARD_INACTIVE = 0xF22D2D2D;
-                CARD_INACTIVE_HOVER = 0xF83E3E3E;
-                CARD_ACTIVE = 0xF43C2626;
-                CARD_ACTIVE_HOVER = 0xF84D3030;
-                BORDER_SUBTLE = 0x34FFFFFF;
-                BORDER_ACTIVE_SOFT = 0xFFFA6464;
-                BORDER_EXPANDED_SOFT = 0xFFB47878;
-                DIVIDER = 0x24FFFFFF;
-            }
-            case THEME_CYBER_CYAN -> {
-                ACCENT = 0xFF00E5FF;
-                ACCENT_HOVER = 0xFF4DF0FF;
-                PANEL = 0xF5070B10;
-                HEADER = 0xFC05080C;
-                BORDER = 0xE600E5FF;
-                ROW_HOVER = 0x3600E5FF;
-                TEXT = 0xFFF2FBFF;
-                TEXT_MUTED = 0xFFAEC8D8;
-                TEXT_DIM = 0xFF38ECFF;
-                TRACK = 0x5000E5FF;
-                SWITCH_ON = 0xFF00E5FF;
-                SWITCH_ON_HOVER = 0xFF4DF0FF;
-                SWITCH_OFF = 0xFF16222E;
-                SWITCH_OFF_HOVER = 0xFF223344;
-                SLIDER_BAR = 0xFF00E5FF;
-                SLIDER_BAR_HOVER = 0xFF4DF0FF;
-                SLIDER_TRACK = 0xFF141E28;
-                SCROLLBAR_TRACK = 0x33000000;
-                SCROLLBAR_THUMB = 0xFF00E5FF;
-                SCROLLBAR_THUMB_HOVER = 0xFF4DF0FF;
-                BACKDROP_DIM = 0x78000408;
-                WINDOW_BORDER = 0x4400E5FF;
-                WINDOW_BG = 0xF605080C;
-                HEADER_BG = 0xFC05080C;
-                SIDEBAR_BG = 0xF8060A0F;
-                CONTAINER_BG = 0xF20A1018;
-                CARD_INACTIVE = 0xF20E1620;
-                CARD_INACTIVE_HOVER = 0xF8152231;
-                CARD_ACTIVE = 0xF6062833;
-                CARD_ACTIVE_HOVER = 0xFA093847;
-                BORDER_SUBTLE = 0x3E7CC8E0;
-                BORDER_ACTIVE_SOFT = 0xFF00E5FF;
-                BORDER_EXPANDED_SOFT = 0xFF5EF3FF;
-                DIVIDER = 0x2A7CC8E0;
-            }
-            case THEME_EMERALD_TOXIC -> {
-                ACCENT = 0xFF10F576;
-                ACCENT_HOVER = 0xFF4DFF9B;
-                PANEL = 0xF5070D09;
-                HEADER = 0xFC050907;
-                BORDER = 0xE610F576;
-                ROW_HOVER = 0x3410F576;
-                TEXT = 0xFFF2FFF7;
-                TEXT_MUTED = 0xFFB0D1BE;
-                TEXT_DIM = 0xFF3EF88E;
-                TRACK = 0x5010F576;
-                SWITCH_ON = 0xFF10F576;
-                SWITCH_ON_HOVER = 0xFF4DFF9B;
-                SWITCH_OFF = 0xFF17261D;
-                SWITCH_OFF_HOVER = 0xFF22382B;
-                SLIDER_BAR = 0xFF10F576;
-                SLIDER_BAR_HOVER = 0xFF4DFF9B;
-                SLIDER_TRACK = 0xFF142119;
-                SCROLLBAR_TRACK = 0x33000000;
-                SCROLLBAR_THUMB = 0xFF10F576;
-                SCROLLBAR_THUMB_HOVER = 0xFF4DFF9B;
-                BACKDROP_DIM = 0x78000502;
-                WINDOW_BORDER = 0x4410F576;
-                WINDOW_BG = 0xF6050907;
-                HEADER_BG = 0xFC050907;
-                SIDEBAR_BG = 0xF8060B08;
-                CONTAINER_BG = 0xF20A130E;
-                CARD_INACTIVE = 0xF20E1A13;
-                CARD_INACTIVE_HOVER = 0xF816281E;
-                CARD_ACTIVE = 0xF6092B18;
-                CARD_ACTIVE_HOVER = 0xFA0D3B21;
-                BORDER_SUBTLE = 0x3E7AD9A3;
-                BORDER_ACTIVE_SOFT = 0xFF10F576;
-                BORDER_EXPANDED_SOFT = 0xFF5EFFA3;
-                DIVIDER = 0x2A7AD9A3;
-            }
-            case THEME_SOLAR_GOLD -> {
-                ACCENT = 0xFFFFB800;
-                ACCENT_HOVER = 0xFFFFCF4D;
-                PANEL = 0xF50E0B07;
-                HEADER = 0xFC0A0805;
-                BORDER = 0xE6FFB800;
-                ROW_HOVER = 0x36FFB800;
-                TEXT = 0xFFFFFDF7;
-                TEXT_MUTED = 0xFFD9CC9B;
-                TEXT_DIM = 0xFFFFC938;
-                TRACK = 0x50FFB800;
-                SWITCH_ON = 0xFFFFB800;
-                SWITCH_ON_HOVER = 0xFFFFCF4D;
-                SWITCH_OFF = 0xFF292116;
-                SWITCH_OFF_HOVER = 0xFF3B2F1F;
-                SLIDER_BAR = 0xFFFFB800;
-                SLIDER_BAR_HOVER = 0xFFFFCF4D;
-                SLIDER_TRACK = 0xFF241D13;
-                SCROLLBAR_TRACK = 0x33000000;
-                SCROLLBAR_THUMB = 0xFFFFB800;
-                SCROLLBAR_THUMB_HOVER = 0xFFFFCF4D;
-                BACKDROP_DIM = 0x78060400;
-                WINDOW_BORDER = 0x44FFB800;
-                WINDOW_BG = 0xF60A0805;
-                HEADER_BG = 0xFC0A0805;
-                SIDEBAR_BG = 0xF80C0906;
-                CONTAINER_BG = 0xF214100A;
-                CARD_INACTIVE = 0xF21B150E;
-                CARD_INACTIVE_HOVER = 0xF8282015;
-                CARD_ACTIVE = 0xF6332407;
-                CARD_ACTIVE_HOVER = 0xFA45310A;
-                BORDER_SUBTLE = 0x3EE5C278;
-                BORDER_ACTIVE_SOFT = 0xFFFFB800;
-                BORDER_EXPANDED_SOFT = 0xFFFFD86B;
-                DIVIDER = 0x2AE5C278;
-            }
-            case THEME_NORD_FROST -> {
-                ACCENT = 0xFF88C0D0;
-                ACCENT_HOVER = 0xFF8FBCBB;
-                PANEL = 0xF52E3440;
-                HEADER = 0xFC242933;
-                BORDER = 0xCC88C0D0;
-                ROW_HOVER = 0x3288C0D0;
-                TEXT = 0xFFECEFF4;
-                TEXT_MUTED = 0xFFD8DEE9;
-                TEXT_DIM = 0xFF81A1C1;
-                TRACK = 0x485E81AC;
-                SWITCH_ON = 0xFFA3BE8C;
-                SWITCH_ON_HOVER = 0xFFB5CFA0;
-                SWITCH_OFF = 0xFF4C566A;
-                SWITCH_OFF_HOVER = 0xFF5E6A82;
-                SLIDER_BAR = 0xFF88C0D0;
-                SLIDER_BAR_HOVER = 0xFF8FBCBB;
-                SLIDER_TRACK = 0xFF3B4252;
-                SCROLLBAR_TRACK = 0x33000000;
-                SCROLLBAR_THUMB = 0xAA81A1C1;
-                SCROLLBAR_THUMB_HOVER = 0xFF88C0D0;
-                BACKDROP_DIM = 0x6814181F;
-                WINDOW_BORDER = 0x4488C0D0;
-                WINDOW_BG = 0xF6242933;
-                HEADER_BG = 0xFC242933;
-                SIDEBAR_BG = 0xF8292E39;
-                CONTAINER_BG = 0xF22E3440;
-                CARD_INACTIVE = 0xF23B4252;
-                CARD_INACTIVE_HOVER = 0xF8434C5E;
-                CARD_ACTIVE = 0xF62E4552;
-                CARD_ACTIVE_HOVER = 0xFA375363;
-                BORDER_SUBTLE = 0x3CD8DEE9;
-                BORDER_ACTIVE_SOFT = 0xFF88C0D0;
-                BORDER_EXPANDED_SOFT = 0xFF8FBCBB;
-                DIVIDER = 0x28D8DEE9;
-            }
-            case THEME_BLOOD_MOON -> {
-                ACCENT = 0xFFE6192E;
-                ACCENT_HOVER = 0xFFFF3B4E;
-                PANEL = 0xB80E0507;
-                HEADER = 0xCC0A0305;
-                BORDER = 0xD8E6192E;
-                ROW_HOVER = 0x3AE6192E;
-                TEXT = 0xFFFFF2F4;
-                TEXT_MUTED = 0xFFD9B4BA;
-                TEXT_DIM = 0xFFFF4D5E;
-                TRACK = 0x55E6192E;
-                SWITCH_ON = 0xFFE6192E;
-                SWITCH_ON_HOVER = 0xFFFF3B4E;
-                SWITCH_OFF = 0xAA291216;
-                SWITCH_OFF_HOVER = 0xCC3B1A20;
-                SLIDER_BAR = 0xFFE6192E;
-                SLIDER_BAR_HOVER = 0xFFFF3B4E;
-                SLIDER_TRACK = 0xAA1F0D10;
-                SCROLLBAR_TRACK = 0x33000000;
-                SCROLLBAR_THUMB = 0xCCE6192E;
-                SCROLLBAR_THUMB_HOVER = 0xFFFF3B4E;
-                BACKDROP_DIM = 0x50140003;
-                WINDOW_BORDER = 0x66E6192E;
-                WINDOW_BG = 0xB0090305;
-                HEADER_BG = 0xCC0A0305;
-                SIDEBAR_BG = 0xB80B0406;
-                CONTAINER_BG = 0xA8120609;
-                CARD_INACTIVE = 0xAC1A090D;
-                CARD_INACTIVE_HOVER = 0xC4280E14;
-                CARD_ACTIVE = 0xCC3D0B13;
-                CARD_ACTIVE_HOVER = 0xDC520F1A;
-                BORDER_SUBTLE = 0x44FF808D;
-                BORDER_ACTIVE_SOFT = 0xFFFF243A;
-                BORDER_EXPANDED_SOFT = 0xFFFF5C6C;
-                DIVIDER = 0x30FF808D;
-            }
-            default -> {
-                ACCENT = 0xFFFF1A2B;
-                ACCENT_HOVER = 0xFFFF4757;
-                PANEL = 0xF508080C;
-                HEADER = 0xFC0A0A0E;
-                BORDER = 0xE6FF1A2B;
-                ROW_HOVER = 0x38FF1A2B;
-                TEXT = 0xFFFFFFFF;
-                TEXT_MUTED = 0xFFC8D2E0;
-                TEXT_DIM = 0xFFFF5A67;
-                TRACK = 0x55FF1A2B;
-                SWITCH_ON = 0xFFFF1A2B;
-                SWITCH_ON_HOVER = 0xFFFF4757;
-                SWITCH_OFF = 0xFF1F2029;
-                SWITCH_OFF_HOVER = 0xFF2D2E3B;
-                SLIDER_BAR = 0xFFFF1A2B;
-                SLIDER_BAR_HOVER = 0xFFFF4757;
-                SLIDER_TRACK = 0xFF1F2029;
-                SCROLLBAR_TRACK = 0x33000000;
-                SCROLLBAR_THUMB = 0xFFFF1A2B;
-                SCROLLBAR_THUMB_HOVER = 0xFFFF4757;
-                BACKDROP_DIM = 0x80000000;
-                WINDOW_BORDER = 0x48FFFFFF;
-                WINDOW_BG = 0xF6060609;
-                HEADER_BG = 0xFC0A0A0E;
-                SIDEBAR_BG = 0xF8060608;
-                CONTAINER_BG = 0xF20C0C11;
-                CARD_INACTIVE = 0xF2111117;
-                CARD_INACTIVE_HOVER = 0xF81A1A23;
-                CARD_ACTIVE = 0xF6340910;
-                CARD_ACTIVE_HOVER = 0xFA450D17;
-                BORDER_SUBTLE = 0x44FFFFFF;
-                BORDER_ACTIVE_SOFT = 0xFFFF2E3E;
-                BORDER_EXPANDED_SOFT = 0xFFFF5260;
-                DIVIDER = 0x2EFFFFFF;
-            }
+        applyTheme(index, currentLeafStrain, currentGlassOpacity);
+    }
+
+    public static void applyFromConfig(ModConfig config) {
+        if (config == null) {
+            applyTheme(THEME_SESTIA, STRAIN_NEON_EMERALD, DEFAULT_GLASS_OPACITY);
+            return;
         }
+        applyTheme(config.guiTheme, config.leafStrain, config.guiGlassOpacity);
+    }
+
+    public static void applyTheme(int index, int leafStrain, float glassOpacity) {
+        int normalized = (index >= 0 && index < THEME_COUNT) ? index : THEME_SESTIA;
+        currentTheme = normalized;
+        currentLeafStrain = normalizeLeafStrain(leafStrain);
+        currentGlassOpacity = normalizeGlassOpacity(glassOpacity);
+        if (normalized == THEME_SESTIA_CRIMSON) {
+            currentLeafTintRgb = CRIMSON_LEAF_TINT_RGB;
+            applyCrimsonLeafTokens(currentGlassOpacity);
+        } else {
+            currentLeafTintRgb = getLeafStrainTintRgb(currentLeafStrain);
+            applySestiaLeafStrain(currentLeafStrain, currentGlassOpacity);
+        }
+    }
+
+    private static void applyCrimsonLeafTokens(float glassOpacity) {
+        setLeafStrainTokens(
+                0xFFFF2E43, 0xFFFF6B7A,
+                0xC8090506, 0xDC0E080A,
+                0xE6FF4757, 0x2EFF4757,
+                0xFFFFF7F8, 0xFFD4B8BE, 0xFFFF8A96,
+                0x48FF4757, 0xFFFF3B4F, 0xFFFF7A88,
+                0xCC211619, 0xE0301F24,
+                0xFFFF4757, 0xFFFF9AA4, 0xCC191113,
+                0x33000000, 0xCCFF4757, 0xFFFF9AA4,
+                0x96000000, 0x66FF4757,
+                0xE2090506, 0xB80E080A, 0xA60B0708, 0x9C140C0E,
+                0x7A140C0E, 0xA6241519, 0xBA381219, 0xCE4D1822,
+                0x38FF9AA4, 0xFFFF4757, 0xFFFF9AA4, 0x2EFF4757,
+                glassOpacity
+        );
+    }
+
+    private static void applySestiaLeafStrain(int strain, float glassOpacity) {
+        switch (normalizeLeafStrain(strain)) {
+            case STRAIN_DEEP_FOREST -> setLeafStrainTokens(
+                    0xFF4ADE80, 0xFF86EFAC,
+                    0xC8050706, 0xDC090D0A,
+                    0xE686EFAC, 0x2E86EFAC,
+                    0xFFF7FFF9, 0xFFB5CEBC, 0xFFBBF7D0,
+                    0x4886EFAC, 0xFF6EE787, 0xFFBBF7D0,
+                    0xCC161E18, 0xE0202C23,
+                    0xFF86EFAC, 0xFFDCFCE7, 0xCC111713,
+                    0x33000000, 0xCC86EFAC, 0xFFDCFCE7,
+                    0x96000000, 0x6686EFAC,
+                    0xE2050706, 0xB8090D0A, 0xA6080B09, 0x9C0D1210,
+                    0x7A0D1210, 0xA617221B, 0xBA16301E, 0xCE1F422A,
+                    0x38BBF7D0, 0xFF86EFAC, 0xFFDCFCE7, 0x2E86EFAC,
+                    glassOpacity
+            );
+            case STRAIN_FROST_MINT -> setLeafStrainTokens(
+                    0xFF45E3D3, 0xFF7EF9F0,
+                    0xC8050709, 0xDC090C10,
+                    0xE67EF9F0, 0x2E7EF9F0,
+                    0xFFF5FFFE, 0xFFAFCACE, 0xFF99F6E4,
+                    0x487EF9F0, 0xFF5EEAD4, 0xFF99F6E4,
+                    0xCC151D22, 0xE01F2B32,
+                    0xFF7EF9F0, 0xFFCCFBF1, 0xCC10161B,
+                    0x33000000, 0xCC7EF9F0, 0xFFCCFBF1,
+                    0x96000000, 0x667EF9F0,
+                    0xE2050709, 0xB8090C10, 0xA6080A0E, 0x9C0C1216,
+                    0x7A0C1216, 0xA6162129, 0xBA132D33, 0xCE1B3E46,
+                    0x38CCFBF1, 0xFF7EF9F0, 0xFFCCFBF1, 0x2E7EF9F0,
+                    glassOpacity
+            );
+            case STRAIN_GOLD_LEAF -> setLeafStrainTokens(
+                    0xFFFACC15, 0xFFFDE047,
+                    0xC8070709, 0xDC0B0B0F,
+                    0xE6FDE68A, 0x2EFDE68A,
+                    0xFFFFFEF7, 0xFFCFC8B4, 0xFFFEF08A,
+                    0x48FDE68A, 0xFFFDE047, 0xFFFEF08A,
+                    0xCC1C1B18, 0xE0282721,
+                    0xFFFDE68A, 0xFFFEF9C3, 0xCC151512,
+                    0x33000000, 0xCCFDE68A, 0xFFFEF9C3,
+                    0x96000000, 0x66FDE68A,
+                    0xE2070709, 0xB80B0B0F, 0xA609090D, 0x9C101114,
+                    0x7A101114, 0xA61D1E23, 0xBA2C2818, 0xCE3B3520,
+                    0x38FEF08A, 0xFFFDE68A, 0xFFFEF9C3, 0x2EFDE68A,
+                    glassOpacity
+            );
+            case STRAIN_OBSIDIAN_FROST -> setLeafStrainTokens(
+                    0xFF64748B, 0xFF94A3B8,
+                    0xC8050608, 0xDC090B0F,
+                    0xE6E2E8F0, 0x2EE2E8F0,
+                    0xFFF8FAFC, 0xFF94A3B8, 0xFFCBD5E1,
+                    0x48E2E8F0, 0xFF94A3B8, 0xFFE2E8F0,
+                    0xCC161B22, 0xE0212833,
+                    0xFFCBD5E1, 0xFFF8FAFC, 0xCC11151B,
+                    0x33000000, 0xCCE2E8F0, 0xFFF8FAFC,
+                    0x96000000, 0x66E2E8F0,
+                    0xE2050608, 0xB8090B0F, 0xA6080A0D, 0x9C0D1016,
+                    0x7A0D1016, 0xA6191F2A, 0xBA1E2633, 0xCE293446,
+                    0x38CBD5E1, 0xFFE2E8F0, 0xFFF8FAFC, 0x2EE2E8F0,
+                    glassOpacity
+            );
+            default -> setLeafStrainTokens(
+                    0xFF34D399, 0xFF6EE7B7,
+                    0xC8050708, 0xDC090D0E,
+                    0xE65AFCA8, 0x2E5AFCA8,
+                    0xFFF6FFFA, 0xFFB0CFC2, 0xFF86EFAC,
+                    0x485AFCA8, 0xFF4ADE9B, 0xFF86FFD0,
+                    0xCC161D20, 0xE0202A2E,
+                    0xFF5AFCA8, 0xFFA7F3D0, 0xCC111719,
+                    0x33000000, 0xCC5AFCA8, 0xFFA7F3D0,
+                    0x96000000, 0x665AFCA8,
+                    0xE2050708, 0xB8090D0E, 0xA6080B0C, 0x9C0D1214,
+                    0x7A0D1214, 0xA6172225, 0xBA143025, 0xCE1C4233,
+                    0x38A7F3D0, 0xFF5AFCA8, 0xFFA7F3D0, 0x2E5AFCA8,
+                    glassOpacity
+            );
+        }
+    }
+
+    private static void setLeafStrainTokens(
+            int accent, int accentHover,
+            int panel, int header,
+            int border, int rowHover,
+            int text, int textMuted, int textDim,
+            int track, int switchOn, int switchOnHover,
+            int switchOff, int switchOffHover,
+            int sliderBar, int sliderBarHover, int sliderTrack,
+            int scrollbarTrack, int scrollbarThumb, int scrollbarThumbHover,
+            int backdropDim, int windowBorder,
+            int windowBg, int headerBg, int sidebarBg, int containerBg,
+            int cardInactive, int cardInactiveHover, int cardActive, int cardActiveHover,
+            int borderSubtle, int borderActiveSoft, int borderExpandedSoft, int divider,
+            float glassOpacity
+    ) {
+        ACCENT = accent;
+        ACCENT_HOVER = accentHover;
+        PANEL = scaleGlassAlpha(panel, glassOpacity);
+        HEADER = scaleGlassAlpha(header, glassOpacity);
+        BORDER = border;
+        ROW_HOVER = rowHover;
+        TEXT = text;
+        TEXT_MUTED = textMuted;
+        TEXT_DIM = textDim;
+        TRACK = track;
+        SWITCH_ON = switchOn;
+        SWITCH_ON_HOVER = switchOnHover;
+        SWITCH_OFF = switchOff;
+        SWITCH_OFF_HOVER = switchOffHover;
+        SLIDER_BAR = sliderBar;
+        SLIDER_BAR_HOVER = sliderBarHover;
+        SLIDER_TRACK = sliderTrack;
+        SCROLLBAR_TRACK = scrollbarTrack;
+        SCROLLBAR_THUMB = scrollbarThumb;
+        SCROLLBAR_THUMB_HOVER = scrollbarThumbHover;
+        BACKDROP_DIM = backdropDim;
+        WINDOW_BORDER = windowBorder;
+        WINDOW_BG = scaleGlassAlpha(windowBg, glassOpacity);
+        HEADER_BG = scaleGlassAlpha(headerBg, glassOpacity);
+        SIDEBAR_BG = scaleGlassAlpha(sidebarBg, glassOpacity);
+        CONTAINER_BG = scaleGlassAlpha(containerBg, glassOpacity);
+        CARD_INACTIVE = scaleGlassAlpha(cardInactive, glassOpacity);
+        CARD_INACTIVE_HOVER = scaleGlassAlpha(cardInactiveHover, glassOpacity);
+        CARD_ACTIVE = scaleGlassAlpha(cardActive, glassOpacity);
+        CARD_ACTIVE_HOVER = scaleGlassAlpha(cardActiveHover, glassOpacity);
+        BORDER_SUBTLE = borderSubtle;
+        BORDER_ACTIVE_SOFT = borderActiveSoft;
+        BORDER_EXPANDED_SOFT = borderExpandedSoft;
+        DIVIDER = divider;
+    }
+
+    static int scaleGlassAlpha(int argb, float glassOpacity) {
+        float normalized = normalizeGlassOpacity(glassOpacity);
+        if (Math.abs(normalized - DEFAULT_GLASS_OPACITY) < 1.0e-4f) {
+            return argb;
+        }
+        int baseA = (argb >>> 24) & 0xFF;
+        float ratio = normalized / DEFAULT_GLASS_OPACITY;
+        int scaledA = Math.max(0x38, Math.min(0xFA, Math.round(baseA * ratio)));
+        return (scaledA << 24) | (argb & 0x00FFFFFF);
     }
 
     private static float alpha = 1.0f;

@@ -387,9 +387,9 @@ public final class SestiaChatProtocol {
     public static String formatDmMessage(String from, String to, boolean outgoing, String text) {
         String safeText = sanitizeText(text);
         if (outgoing) {
-            return "§8[§cme §7-> §c" + sanitizeNick(to) + "§8] §r" + safeText;
+            return "§8[§ame §7-> §a" + sanitizeNick(to) + "§8] §r" + safeText;
         }
-        return "§8[§c" + sanitizeNick(from) + " §7-> §cme§8] §r" + safeText;
+        return "§8[§a" + sanitizeNick(from) + " §7-> §ame§8] §r" + safeText;
     }
 
     public static Set<String> parseMuteSet(String mutedCsv) {

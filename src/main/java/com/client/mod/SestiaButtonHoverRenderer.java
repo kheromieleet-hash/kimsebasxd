@@ -14,18 +14,26 @@ public final class SestiaButtonHoverRenderer {
 
     static final int BORDER_DISABLED = 0x24FFFFFF;
     static final int BORDER_NORMAL = 0x42FFFFFF;
-    static final int BORDER_HOVERED = 0xFF10E88A;
-    static final int HOVER_INNER_GLOW = 0x3A10E88A;
+    static final int BORDER_HOVERED = 0xFF5AFCA8;
+    static final int HOVER_INNER_GLOW = 0x3A5AFCA8;
 
     static final int SLIDER_PROGRESS_DISABLED = 0x1AFFFFFF;
-    static final int SLIDER_PROGRESS_NORMAL = 0x2C10B981;
-    static final int SLIDER_PROGRESS_HOVERED = 0x4210E88A;
+    static final int SLIDER_PROGRESS_NORMAL = 0x2C34D399;
+    static final int SLIDER_PROGRESS_HOVERED = 0x425AFCA8;
 
     static final int SLIDER_MARKER_DISABLED = 0x55FFFFFF;
-    static final int SLIDER_MARKER_NORMAL = 0xCC10E88A;
-    static final int SLIDER_MARKER_HOVERED = 0xFF4DFFAE;
+    static final int SLIDER_MARKER_NORMAL = 0xCC5AFCA8;
+    static final int SLIDER_MARKER_HOVERED = 0xFFA7F3D0;
 
     private SestiaButtonHoverRenderer() {
+    }
+
+    private static boolean isStrainOverrideActive() {
+        return JelloTheme.isLeafTheme();
+    }
+
+    private static int resolveFillColor(int normalArgb, int hoveredArgb, int disabledArgb, boolean active, boolean hovered, float widgetAlpha) {
+        return resolveStateColor(normalArgb, hoveredArgb, disabledArgb, active, hovered, widgetAlpha);
     }
 
     private static int resolveStateColor(int normalArgb, int hoveredArgb, int disabledArgb, boolean active, boolean hovered, float widgetAlpha) {
@@ -41,14 +49,25 @@ public final class SestiaButtonHoverRenderer {
     }
 
     static int resolveFillColor(boolean active, boolean hovered, float widgetAlpha) {
-        return resolveStateColor(FILL_NORMAL, FILL_HOVERED, FILL_DISABLED, active, hovered, widgetAlpha);
+        int hoveredFill = isStrainOverrideActive()
+                ? (0x44000000 | (JelloTheme.CARD_ACTIVE & 0x00FFFFFF))
+                : FILL_HOVERED;
+        return resolveFillColor(FILL_NORMAL, hoveredFill, FILL_DISABLED, active, hovered, widgetAlpha);
     }
 
     static int resolveBorderColor(boolean active, boolean hovered, float widgetAlpha) {
-        return resolveStateColor(BORDER_NORMAL, BORDER_HOVERED, BORDER_DISABLED, active, hovered, widgetAlpha);
+        int hoveredBorder = isStrainOverrideActive()
+                ? (0xFF000000 | (JelloTheme.BORDER_ACTIVE_SOFT & 0x00FFFFFF))
+                : BORDER_HOVERED;
+        return resolveStateColor(BORDER_NORMAL, hoveredBorder, BORDER_DISABLED, active, hovered, widgetAlpha);
     }
 
     static int resolveSliderProgressColor(boolean active, boolean highlighted, float widgetAlpha) {
+        if (isStrainOverrideActive()) {
+            int accentRgb = JelloTheme.ACCENT & 0x00FFFFFF;
+            int activeRgb = JelloTheme.BORDER_ACTIVE_SOFT & 0x00FFFFFF;
+            return resolveStateColor(0x2C000000 | accentRgb, 0x42000000 | activeRgb, SLIDER_PROGRESS_DISABLED, active, highlighted, widgetAlpha);
+        }
         return resolveStateColor(
                 SLIDER_PROGRESS_NORMAL, SLIDER_PROGRESS_HOVERED, SLIDER_PROGRESS_DISABLED,
                 active, highlighted, widgetAlpha
@@ -56,6 +75,11 @@ public final class SestiaButtonHoverRenderer {
     }
 
     static int resolveSliderMarkerColor(boolean active, boolean highlighted, float widgetAlpha) {
+        if (isStrainOverrideActive()) {
+            int normRgb = JelloTheme.BORDER_ACTIVE_SOFT & 0x00FFFFFF;
+            int hovRgb = JelloTheme.BORDER_EXPANDED_SOFT & 0x00FFFFFF;
+            return resolveStateColor(0xCC000000 | normRgb, 0xFF000000 | hovRgb, SLIDER_MARKER_DISABLED, active, highlighted, widgetAlpha);
+        }
         return resolveStateColor(
                 SLIDER_MARKER_NORMAL, SLIDER_MARKER_HOVERED, SLIDER_MARKER_DISABLED,
                 active, highlighted, widgetAlpha
@@ -107,7 +131,10 @@ public final class SestiaButtonHoverRenderer {
         graphics.fill(x + width - 1, y + 1, x + width, y + height - 1, borderColor);
 
         if (active && hovered && width > 2 && height > 3) {
-            graphics.fill(x + 1, y + 1, x + width - 1, y + 2, applyAlpha(HOVER_INNER_GLOW, widgetAlpha));
+            int innerGlow = isStrainOverrideActive()
+                    ? (0x3A000000 | (JelloTheme.BORDER_ACTIVE_SOFT & 0x00FFFFFF))
+                    : HOVER_INNER_GLOW;
+            graphics.fill(x + 1, y + 1, x + width - 1, y + 2, applyAlpha(innerGlow, widgetAlpha));
         }
     }
 

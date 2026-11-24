@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class SestiaChatClient {
 
+    private static final String CHAT_PREFIX = "§8[§aSestiaChat§8] ";
     private static final long HEARTBEAT_INTERVAL_SEC = 25L;
     private static final long HEARTBEAT_TIMEOUT_MS = 65_000L;
     private static final int MAX_PENDING_OUTBOX = 3;
@@ -108,7 +109,7 @@ public final class SestiaChatClient {
             return;
         }
         if (loggedIn && activeSocket != null) {
-            postChat("§8[§cSestiaChat§8] §aGlobal chat active §8(§7Online: §f" + Math.max(1, lastOnlineCount) + " §8| §f.c <message>§8)");
+            postChat(CHAT_PREFIX + "§aGlobal chat active §8(§7Online: §f" + Math.max(1, lastOnlineCount) + " §8| §f.c <message>§8)");
         } else if (!connecting) {
             connectAsync(0);
         }
@@ -117,11 +118,11 @@ public final class SestiaChatClient {
     public static void reconnect() {
         ModConfig cfg = ModConfig.getInstance();
         if (!cfg.clientChatEnabled) {
-            postChat("§8[§cSestiaChat§8] §cClient Chat is disabled. Enable the module first.");
+            postChat(CHAT_PREFIX + "§cClient Chat is disabled. Enable the module first.");
             return;
         }
         if (SestiaChatProtocol.resolveEffectiveUrl(cfg.clientChatUrl).isEmpty()) {
-            postChat("§8[§cSestiaChat§8] §7Worker URL is not configured.");
+            postChat(CHAT_PREFIX + "§7Worker URL is not configured.");
             return;
         }
         reconnectAttempts = 0;
@@ -184,7 +185,7 @@ public final class SestiaChatClient {
             case LIST -> sendOrQueue(SestiaChatProtocol.buildListJson());
             case DM -> {
                 if (!cfg.clientChatAllowDms) {
-                    postChat("§8[§cSestiaChat§8] §cDMs are disabled in settings (Allow DMs).");
+                    postChat(CHAT_PREFIX + "§cDMs are disabled in settings (Allow DMs).");
                     return true;
                 }
                 sendOrQueue(SestiaChatProtocol.buildDmJson(cmd.arg1(), cmd.arg2()));
@@ -203,7 +204,7 @@ public final class SestiaChatClient {
     }
 
     public static void printHelpInChat() {
-        postChat("§8[§cSestiaChat§8] §fCommands:");
+        postChat(CHAT_PREFIX + "§fCommands:");
         postChat("  §e.c <message> §7- Send a message to global chat");
         postChat("  §e.c msg <player> <message> §7- Send a private message (DM)");
         postChat("  §e.c list §7- Show online Sestia users");
@@ -213,7 +214,7 @@ public final class SestiaChatClient {
     private static void sendOrQueue(String json) {
         ModConfig cfg = ModConfig.getInstance();
         if (SestiaChatProtocol.resolveEffectiveUrl(cfg.clientChatUrl).isEmpty()) {
-            postChat("§8[§cSestiaChat§8] §cServer URL is not set.");
+            postChat(CHAT_PREFIX + "§cServer URL is not set.");
             return;
         }
         WebSocket ws = activeSocket;
@@ -222,7 +223,7 @@ public final class SestiaChatClient {
             return;
         }
         queuePending(json);
-        postChat("§8[§cSestiaChat§8] §7Reconnecting, your message will send shortly...");
+        postChat(CHAT_PREFIX + "§7Reconnecting, your message will send shortly...");
         if (!connecting) {
             connectAsync(0);
         }
@@ -413,7 +414,7 @@ public final class SestiaChatClient {
                 silentAutoReconnect = true;
             } else if (reconnectAttempts == 3 && reason != null && !reason.isBlank()) {
                 silentAutoReconnect = false;
-                postChat("§8[§cSestiaChat§8] §cDisconnected (" + reason + "), reconnecting...");
+                postChat(CHAT_PREFIX + "§cDisconnected (" + reason + "), reconnecting...");
             }
             long waitMs = SestiaChatProtocol.computeBackoffMs(reconnectAttempts);
             reconnectAttempts++;
@@ -442,7 +443,7 @@ public final class SestiaChatClient {
             closeSocketOnly(false);
         }
         if (announce) {
-            postChat("§8[§cSestiaChat§8] §7Connection closed.");
+            postChat(CHAT_PREFIX + "§7Connection closed.");
         }
     }
 
@@ -493,7 +494,7 @@ public final class SestiaChatClient {
                 boolean wasSilent = silentAutoReconnect;
                 silentAutoReconnect = false;
                 if (!wasSilent) {
-                    postChat("§8[§cSestiaChat§8] §aConnected to global chat! §8(§7Online: §f" + lastOnlineCount + "§8)");
+                    postChat(CHAT_PREFIX + "§aConnected to global chat! §8(§7Online: §f" + lastOnlineCount + "§8)");
                 }
                 flushPendingOutbox();
             }
@@ -502,7 +503,7 @@ public final class SestiaChatClient {
                     KNOWN_USERS.add(ev.from());
                 }
                 if (!SestiaChatProtocol.isMuted(ev.from(), cfg.clientChatMuted)) {
-                    postChat("§8[§cSestiaChat§8] §f" + ev.from() + "§7: §r" + ev.text());
+                    postChat(CHAT_PREFIX + "§f" + ev.from() + "§7: §r" + ev.text());
                 }
             }
             case DM -> {
@@ -525,10 +526,10 @@ public final class SestiaChatClient {
                     KNOWN_USERS.addAll(ev.users());
                 }
                 String names = ev.users().isEmpty() ? "(none)" : String.join(", ", ev.users());
-                postChat("§8[§cSestiaChat§8] §7Online (§f" + lastOnlineCount + "§7): §f" + names);
+                postChat(CHAT_PREFIX + "§7Online (§f" + lastOnlineCount + "§7): §f" + names);
             }
-            case SYSTEM -> postChat("§8[§cSestiaChat§8] §7" + ev.text());
-            case ERROR -> postChat("§8[§cSestiaChat§8] §c" + ev.text());
+            case SYSTEM -> postChat(CHAT_PREFIX + "§7" + ev.text());
+            case ERROR -> postChat(CHAT_PREFIX + "§c" + ev.text());
             case WINGS -> {
                 if (!ev.from().isBlank()) {
                     KNOWN_USERS.add(ev.from());

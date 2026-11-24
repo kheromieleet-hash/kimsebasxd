@@ -211,7 +211,8 @@ Pop-Location
 if ($LASTEXITCODE -ne 0) { throw "Failed to pack sestia.jar" }
 
 # Deploy clean bootloader JAR locally (handle active Minecraft lock cleanly)
-$prismMods = "C:\Users\PC\AppData\Roaming\PrismLauncher\instances\26.3\minecraft\mods"
+$prismMc = "C:\Users\PC\AppData\Roaming\PrismLauncher\instances\26.3\minecraft"
+$prismMods = Join-Path $prismMc "mods"
 if (Test-Path $prismMods) {
     try {
         foreach ($oldJar in @("ClientMod-1.0.0.jar", "SCTClient.jar")) {
@@ -222,6 +223,17 @@ if (Test-Path $prismMods) {
         Write-Host "Updated PrismLauncher mods/sestia.jar"
     } catch {
         Write-Warning "Could not update PrismLauncher mods/ while Minecraft is running. Close Minecraft, delete ClientMod-1.0.0.jar / SCTClient.jar, and copy dist\sestia.jar to $prismMods"
+    }
+    try {
+        # Clear cached core JAR/state so same-versionCode local rebuilds always extract the fresh core JAR
+        $prismState = Join-Path $prismMc "sestia\state.json"
+        if (Test-Path $prismState) { Remove-Item $prismState -Force }
+        $prismCoreDir = Join-Path $prismMc "sestia\core"
+        if (Test-Path $prismCoreDir) {
+            Get-ChildItem -Path $prismCoreDir -Filter "*.jar" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+        }
+    } catch {
+        Write-Warning "Could not clear cached sestia/core files while Minecraft is running."
     }
 }
 Copy-Item $loaderJarOut "C:\Users\PC\Desktop\sestia.jar" -Force

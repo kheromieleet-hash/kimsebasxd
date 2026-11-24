@@ -1,6 +1,6 @@
 ================================================================================
 SESTIA CLIENT - TUM MODULLER VE OZELLIKLER REHBERI
-Surum: v2.2.9 (VersionCode: 229) | Minecraft: 26.3 Fabric
+Surum: v2.3.5 (VersionCode: 235) | Minecraft: 26.3 Fabric
 Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
 ================================================================================
 
@@ -480,16 +480,27 @@ Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
 - HUD Layout Editor Snap: HUD elemanlarini suruklerken merkez ve kenar
   çizgilerine otomatik manyetik hizalama (`Shift` basili iken serbest) destegi
   bulunur.
-- GUI Temalari (Settings -> GENERAL -> GUI Theme): Toplam 10 farkli tema arasinda
-  (< / > tuslariyla) aninda gecis yapabilme:
-  1. Sestia OLED (Neon Crimson & Koyu OLED)
-  2. Transparent (Yari saydam buzlu cam)
-  3. Light (Acik gri & kirmizi vurgu)
-  4. Monokai Pro (Yesil/Sari/Mercan editor paleti)
-  5. Dark (Klasik koyu gri & mercan kirmizisi)
-  6. Cyber Cyan (Elektrik camgobegi & derin gece mavisi)
-  7. Emerald Toxic (Asit zumrut yesili & obsidyen karbon)
-  8. Solar Gold (Erimis altin/kehribar & volkanik oniks)
-  9. Nord Frost (Kutup gecesi arduvaz & buz mavisi)
-  10. Blood Moon (Yari saydam koyu cam & kizil kan ayi)
+- Sestia Leaf Studio & GUI Temalari (Settings -> SESTIA LEAF STUDIO): Tum 6
+  saydam cam + yaprak temasi tek satirda tiklanabilir kartlarla sunulur:
+  * 6 Leaf Palet Karti: Neon Emerald (Varsayilan), Deep Forest, Frost Mint,
+    Gold Leaf, Obsidian Frost ve Crimson. Secilen tema; dusen yapraklari
+    (Crimson'da canli kirmizi yapraklar), donanim kenevir imlecini, seffaf menu
+    butonlarini/sliderlarini ve ClickGUI cam paletini aninda eslestirir.
+  * Falling Leaves Modu: Off / Menus / Menus + GUI secenekleriyle yaprak
+    suzulusunu yalnizca menulerle sinirlama veya tamamen kapatma.
+  * Canli Studio Kaydiricilari (Sag tikla sifirlanabilir):
+    - Leaf Density (0.25x - 1.50x): Ekrandaki dusen yaprak yogunlugu.
+    - Leaf Speed (0.40x - 2.00x): Yaprak suzulme hizi carpani.
+    - Glass Opacity (55% - 100%): Tum cam kart/pencere opakligi (Crimson dahil).
+  * Tum temalarda ClickGUI, esya/blok seciciler (Xray/ESP/AutoCrafter),
+    Version Switcher, HUD Layout Editor ve SestiaChat ayni saydam cam ve dusen
+    yaprak diliyle butunlesir (fareye tepkili yaprak ruzgari/parallax, yayli
+    acilis, hover pariltisi, tiklama ripple dalgasi, hover yaprak imleci ve
+    perdeli klik sesleri dahil):
+  * Ana Menu Hizli Tema Kapsulu & Sag Shift Destegi: Dunyaya/sunucuya girmeden
+    ana menunun sag alt kosesindeki saydam cam kapsulden 6 tema arasinda tek tikla
+    gecis yapilabilir (sol taraftaki yaprak ikonu dogrudan Leaf Studio ayarlarini
+    acar); ayrica ana menudeyken de Sag Shift tusuyla ClickGUI acilip kapatilabilir.
+  1. Sestia Leaf (5 saydam cam & yaprak cesidi: Emerald, Forest, Frost, Gold, Obsidian)
+  2. Crimson (Saydam cam, kirmizi dusen yapraklar, kirmizi imlec & buton pariltisi)
 ================================================================================
