@@ -143,10 +143,9 @@ public class JelloThemeTest {
     private static void testTitleThemePillGeometryAndSelection() {
         int wx = 100;
         int wy = 200;
-        assert TitleThemePillWidget.hitTestSlot(wx, wy, 50, 210) == -2 : "Outside left should return -2";
-        assert TitleThemePillWidget.hitTestSlot(wx, wy, wx + 10, wy + 12) == -1 : "Leaf icon zone should return -1";
-        assert TitleThemePillWidget.hitTestSlot(wx, wy, wx + 39, wy + 12) == 0 : "First dot should hit slot 0 (Emerald)";
-        assert TitleThemePillWidget.hitTestSlot(wx, wy, wx + 39 + 5 * 19, wy + 12) == 5 : "Sixth dot should hit slot 5 (Crimson)";
+        assert TitleThemePillWidget.hitTestSlot(wx, wy, 50, 210) == -1 : "Outside left should return -1";
+        assert TitleThemePillWidget.hitTestSlot(wx, wy, wx + 16, wy + 12) == 0 : "First leaf should hit slot 0 (Emerald)";
+        assert TitleThemePillWidget.hitTestSlot(wx, wy, wx + 16 + 5 * 20, wy + 12) == 5 : "Sixth leaf should hit slot 5 (Crimson)";
 
         ModConfig cfg = new ModConfig();
         cfg.guiTheme = JelloTheme.THEME_SESTIA;

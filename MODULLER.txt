@@ -1,6 +1,6 @@
 ================================================================================
 SESTIA CLIENT - TUM MODULLER VE OZELLIKLER REHBERI
-Surum: v2.3.5 (VersionCode: 235) | Minecraft: 26.3 Fabric
+Surum: v2.3.6 (VersionCode: 236) | Minecraft: 26.3 Fabric
 Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
 ================================================================================
 
@@ -498,9 +498,9 @@ Toplam Kayitli Modul: 38 (+ 6 Yerlesik Sistem Ozelligi)
     acilis, hover pariltisi, tiklama ripple dalgasi, hover yaprak imleci ve
     perdeli klik sesleri dahil):
   * Ana Menu Hizli Tema Kapsulu & Sag Shift Destegi: Dunyaya/sunucuya girmeden
-    ana menunun sag alt kosesindeki saydam cam kapsulden 6 tema arasinda tek tikla
-    gecis yapilabilir (sol taraftaki yaprak ikonu dogrudan Leaf Studio ayarlarini
-    acar); ayrica ana menudeyken de Sag Shift tusuyla ClickGUI acilip kapatilabilir.
+    ana menunun sag alt kosesindeki 6 renkli yaprak ikonlu saydam cam kapsulden
+    tek tikla tema degistirilebilir; ayrica ana menudeyken de Sag Shift tusuyla
+    ClickGUI acilip kapatilabilir.
   1. Sestia Leaf (5 saydam cam & yaprak cesidi: Emerald, Forest, Frost, Gold, Obsidian)
   2. Crimson (Saydam cam, kirmizi dusen yapraklar, kirmizi imlec & buton pariltisi)
 ================================================================================
