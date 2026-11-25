@@ -71,6 +71,7 @@ function sanitizeCosmetics(raw) {
   const gl = arr("gl");
   const ha = arr("ha");
   const sa = arr("sa");
+  const gr = arr("gr");
 
   return {
     v: 2,
@@ -87,9 +88,9 @@ function sanitizeCosmetics(raw) {
       Number(clamp(w[9], 0.0, 3.0, 1.0).toFixed(3)),
       w[10] !== false,
     ],
-    cl: [Boolean(cl[0]), clampInt(cl[1], 0, 3, 0), clampInt(cl[2], 0, 9, 6), clampInt(cl[3], 0, 0xFFFFFF, 0x34D399)],
-    h: [Boolean(h[0]), clampInt(h[1], 0, 5, 0), clampInt(h[2], 0, 9, 6), clampInt(h[3], 0, 0xFFFFFF, 0x34D399), Number(clamp(h[4], 0.7, 1.45, 1.0).toFixed(3))],
-    p: [Boolean(p[0]), clampInt(p[1], 0, 4, 0), clampInt(p[2], 0, 2, 0), clampInt(p[3], 0, 9, 6), clampInt(p[4], 0, 0xFFFFFF, 0x34D399)],
+    cl: [Boolean(cl[0]), clampInt(cl[1], 0, 4, 0), clampInt(cl[2], 0, 9, 6), clampInt(cl[3], 0, 0xFFFFFF, 0x34D399)],
+    h: [Boolean(h[0]), clampInt(h[1], 0, 6, 0), clampInt(h[2], 0, 9, 6), clampInt(h[3], 0, 0xFFFFFF, 0x34D399), Number(clamp(h[4], 0.7, 1.45, 1.0).toFixed(3))],
+    p: [Boolean(p[0]), clampInt(p[1], 0, 7, 0), clampInt(p[2], 0, 2, 0), clampInt(p[3], 0, 9, 6), clampInt(p[4], 0, 0xFFFFFF, 0x34D399)],
     g: [Boolean(g[0]), clampInt(g[1], 0, 4, 0), clampInt(g[2], 0, 9, 6), clampInt(g[3], 0, 0xFFFFFF, 0x34D399)],
     a: [Boolean(a[0]), clampInt(a[1], 0, 3, 0), clampInt(a[2], 0, 9, 6), clampInt(a[3], 0, 0xFFFFFF, 0x34D399), Number(clamp(a[4], 0.55, 1.65, 0.95).toFixed(3)), Number(clamp(a[5], 0.2, 2.5, 1.0).toFixed(3))],
     t: [Boolean(t[0]), clampInt(t[1], 0, 3, 1), clampInt(t[2], 0, 9, 6), clampInt(t[3], 0, 0xFFFFFF, 0x34D399)],
@@ -99,6 +100,7 @@ function sanitizeCosmetics(raw) {
     gl: [Boolean(gl[0]), clampInt(gl[1], 0, 9, 6), clampInt(gl[2], 0, 0xFFFFFF, 0x34D399), Number(clamp(gl[3], 0.25, 1.35, 0.85).toFixed(3))],
     ha: [Boolean(ha[0]), clampInt(ha[1], 0, 1, 0)],
     sa: [Boolean(sa[0]), clampInt(sa[1], 0, 1, 0), clampInt(sa[2], 0, 9, 6), clampInt(sa[3], 0, 0xFFFFFF, 0x34D399)],
+    gr: [clampInt(gr[0], 0, 3, 0), clampInt(gr[1], 0, 0xFFFFFF, 0x00D4FF)],
   };
 }
 
@@ -303,7 +305,7 @@ export class ChatRoom extends DurableObject {
           return;
         }
         const idNum = Number(packet.id);
-        const id = Number.isFinite(idNum) ? Math.max(-1, Math.min(4, idNum | 0)) : -1;
+        const id = Number.isFinite(idNum) ? Math.max(-1, Math.min(10, idNum | 0)) : -1;
         state.lastFxAt = now;
         ws.serializeAttachment(state);
 

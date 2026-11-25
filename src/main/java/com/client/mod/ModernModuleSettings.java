@@ -944,7 +944,139 @@ public final class ModernModuleSettings {
                 () -> cfg.cosmeticCloakColorPreset, v -> cfg.cosmeticCloakColorPreset = v,
                 () -> cfg.cosmeticCloakCustomRgb, v -> cfg.cosmeticCloakCustomRgb = v,
                 0x34D399, actions);
+        controls.add(new CycleControl("Custom PNG File",
+                () -> {
+                    List<String> files = CustomCapeManager.listCapeFiles(false);
+                    if (files.isEmpty()) return "Drop .png in capes/";
+                    String cur = cfg.cosmeticCustomCapeFile != null ? cfg.cosmeticCustomCapeFile.trim() : "";
+                    return cur.isEmpty() ? files.get(0) : cur;
+                },
+                () -> {
+                    List<String> files = CustomCapeManager.listCapeFiles(true);
+                    if (files.isEmpty()) {
+                        cfg.cosmeticCustomCapeFile = "";
+                    } else {
+                        int idx = -1;
+                        for (int i = 0; i < files.size(); i++) {
+                            if (files.get(i).equalsIgnoreCase(cfg.cosmeticCustomCapeFile)) {
+                                idx = i;
+                                break;
+                            }
+                        }
+                        cfg.cosmeticCustomCapeFile = files.get((idx + 1) % files.size());
+                    }
+                    actions.persist(false);
+                }));
+        controls.add(toggle("PNG Border Glow", () -> cfg.cosmeticCustomCapeBorderGlow,
+                v -> cfg.cosmeticCustomCapeBorderGlow = v, actions, false));
+        controls.add(new ActionControl(() -> "Open Capes Folder (config/sestia/capes)", CustomCapeManager::openCapesFolder));
+        controls.add(new ActionControl(() -> "Refresh PNG Capes", () -> CustomCapeManager.listCapeFiles(true)));
         return controls;
+    }
+
+    // MC 26.3 SDL3 InputConstants scancodes: KEY_B=5, KEY_G=10, KEY_V=25, KEY_H=11, KEY_R=21
+    private static final int[] WHEEL_KEY_CODES = {5, 10, 25, 11, 21};
+    private static final String[] WHEEL_KEY_LABELS = {"Hold [B]", "Hold [G]", "Hold [V]", "Hold [H]", "Hold [R]"};
+
+    public static List<Control> getCosmeticStudioPowerControls(ModConfig cfg, Actions actions, List<String> outfitNames) {
+        if (cfg == null || actions == null) return List.of();
+        List<Control> controls = new ArrayList<>();
+
+        // Dual-Color Gradient & Pulse Engine
+        controls.add(new CycleControl("2-Color Gradient",
+                () -> CosmeticsLogic.gradientName(cfg.cosmeticGradientMode),
+                () -> {
+                    cfg.cosmeticGradientMode = (CosmeticsLogic.clampGradientMode(cfg.cosmeticGradientMode) + 1)
+                            % CosmeticsLogic.gradientCount();
+                    actions.persist(false);
+                }));
+        controls.add(new CycleControl("Gradient Color 2",
+                () -> WingsLogic.formatHexRgb(cfg.cosmeticGradientSecondaryRgb),
+                () -> {
+                    int[] sw = WingsLogic.PALETTE_SWATCHES;
+                    int idx = 0;
+                    for (int i = 0; i < sw.length; i++) {
+                        if (sw[i] == WingsLogic.clampRgb(cfg.cosmeticGradientSecondaryRgb)) {
+                            idx = i;
+                            break;
+                        }
+                    }
+                    cfg.cosmeticGradientSecondaryRgb = sw[(idx + 1) % sw.length];
+                    if (cfg.cosmeticGradientMode == CosmeticsLogic.GRADIENT_SOLID) {
+                        cfg.cosmeticGradientMode = CosmeticsLogic.GRADIENT_TIP_TO_BASE;
+                    }
+                    actions.persist(false);
+                }));
+        controls.add(new ActionControl(() -> "Apply 2-Color Harmony Match", () -> {
+            int accent = (cfg.guiTheme == JelloTheme.THEME_SESTIA_CRIMSON)
+                    ? 0xF43F5E
+                    : CosmeticsLogic.resolveStrainAccentRgb(cfg.leafStrain);
+            CosmeticsLogic.applyHarmonyTheme(cfg, accent);
+            actions.persist(false);
+        }));
+
+        // Quick Radial Wheel Keybind
+        controls.add(new CycleControl("Quick Wheel Key",
+                () -> {
+                    for (int i = 0; i < WHEEL_KEY_CODES.length; i++) {
+                        if (WHEEL_KEY_CODES[i] == cfg.cosmeticWheelKey) return WHEEL_KEY_LABELS[i];
+                    }
+                    return "Hold [B]";
+                },
+                () -> {
+                    int idx = 0;
+                    for (int i = 0; i < WHEEL_KEY_CODES.length; i++) {
+                        if (WHEEL_KEY_CODES[i] == cfg.cosmeticWheelKey) {
+                            idx = i;
+                            break;
+                        }
+                    }
+                    cfg.cosmeticWheelKey = WHEEL_KEY_CODES[(idx + 1) % WHEEL_KEY_CODES.length];
+                    actions.persist(false);
+                }));
+
+        // Smart Auto-Outfit Rules
+        controls.add(toggle("Smart Auto-Outfit Rules", () -> cfg.cosmeticAutoOutfitEnabled, v -> {
+            cfg.cosmeticAutoOutfitEnabled = v;
+            CosmeticFxHandler.invalidateAutoOutfitCache();
+        }, actions, false));
+        controls.add(autoOutfitCycle("PvP Combat Outfit", outfitNames, () -> cfg.cosmeticAutoOutfitPvp, v -> cfg.cosmeticAutoOutfitPvp = v, actions));
+        controls.add(autoOutfitCycle("Elytra Flight Outfit", outfitNames, () -> cfg.cosmeticAutoOutfitElytra, v -> cfg.cosmeticAutoOutfitElytra = v, actions));
+        controls.add(autoOutfitCycle("Mining Outfit", outfitNames, () -> cfg.cosmeticAutoOutfitMining, v -> cfg.cosmeticAutoOutfitMining = v, actions));
+        controls.add(autoOutfitCycle("Night / Nether Outfit", outfitNames, () -> cfg.cosmeticAutoOutfitNight, v -> cfg.cosmeticAutoOutfitNight = v, actions));
+        return controls;
+    }
+
+    private static CycleControl autoOutfitCycle(
+            String label, List<String> outfitNames, Supplier<String> getter,
+            java.util.function.Consumer<String> setter, Actions actions
+    ) {
+        return new CycleControl(label,
+                () -> {
+                    String cur = getter.get();
+                    return (cur == null || cur.isBlank()) ? "Off" : cur;
+                },
+                () -> {
+                    if (outfitNames == null || outfitNames.isEmpty()) {
+                        setter.accept("");
+                    } else {
+                        String cur = getter.get() != null ? getter.get().trim() : "";
+                        int idx = -1;
+                        for (int i = 0; i < outfitNames.size(); i++) {
+                            if (outfitNames.get(i).equalsIgnoreCase(cur)) {
+                                idx = i;
+                                break;
+                            }
+                        }
+                        if (idx == outfitNames.size() - 1) {
+                            setter.accept("");
+                        } else {
+                            setter.accept(outfitNames.get(idx + 1));
+                        }
+                    }
+                    CosmeticFxHandler.invalidateAutoOutfitCache();
+                    actions.persist(false);
+                });
     }
 
     public static List<Control> getCosmeticHatControls(ModConfig cfg, Actions actions) {

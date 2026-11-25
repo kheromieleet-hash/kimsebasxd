@@ -1,6 +1,6 @@
 ================================================================================
 SESTIA CLIENT - TUM MODULLER VE OZELLIKLER REHBERI
-Surum: v2.4.0 (VersionCode: 240) | Minecraft: 26.3 Fabric
+Surum: v2.5.0 (VersionCode: 250) | Minecraft: 26.3 Fabric
 Toplam Kayitli Modul: 37 (+ 8 Yerlesik Sistem Ozelligi)
 ================================================================================
 
@@ -489,16 +489,22 @@ Toplam Kayitli Modul: 37 (+ 8 Yerlesik Sistem Ozelligi)
   `Wings` Modules listesinden kaldirilip 6 ana sutundan olusan tam kapsamli bir
   coklu-slot kozmetik studyosuna donusturulmustur (`Wings | Capes | Hats | Pets
   | Gear | Auras | FX & Emotes | Outfits`):
-  * 17. Kanat Modeli (Sestia Leaf) + Animasyonlu 3D Pelerinler (Capes):
+  * 17. Kanat Modeli (Sestia Leaf) + Animasyonlu 3D Pelerinler & Ozel PNG Yukleyici:
     `Sestia Leaf` (7 yaprakli isik sacan kenevir yapragi kanadi), `Chroma
-    Nebula`, `Cyber Grid`, `Obsidian Royal` ve `Sestia Leaf` 3D pelerinler.
-    Ozel pelerin aktifken vanilya Mojang pelerini otomatik gizlenir; Elytra ve
-    gogusluk zirhi icin derinlik/ofset korumasi uygulanir (.panic'te vanilyaya doner).
+    Nebula`, `Cyber Grid`, `Obsidian Royal`, `Sestia Leaf` ve `Custom PNG`
+    (`config/sestia/capes/` klasorune atilan yerel PNG pelerinleri + istege bagli
+    parlak kenar seridi) 3D pelerinler. Ozel pelerin aktifken vanilya Mojang
+    pelerini otomatik gizlenir; cift katmanli 3D kumas kalinligi ve
+    ceket/gogusluk zirhi + yurume/egilme bacak carpisma ofset korumasi uygulanir
+    (.panic'te vanilyaya doner).
   * 3D Basliklar, Omuz Yoldaslari ve Sirt Ekipmanlari / Kuyruklar:
-    - Hats (6 model): Seraph Halo, Leaf Wreath, Demon Horns, Royal Crown, Cyber
-      Ears, Kitsune Visor (kask takiliyken otomatik yukari ofset + Scale ayari).
-    - Pets (5 yoldas): Emerald Wisp, Cyber Drone, Mini Fox, Mini Allay, Mini
-      Bee (Right / Left omuz veya Orbit etrafina donen mod).
+    - Hats (7 model): Seraph Halo, Leaf Wreath, Demon Horns, Royal Crown, Cyber
+      Ears, Kitsune Visor, Cat Ears (yumusak 3D kedi kulaklari + hafif kulak
+      seyirme animasyonu; kask takiliyken otomatik yukari ofset + Scale ayari).
+    - Pets (8 yoldas): Emerald Wisp, Cyber Drone, Mini Fox, Mini Allay, Mini
+      Bee, Baby Dragon, Mini Cat, Arcane Owl (daha buyuk ve belirgin 3D
+      siluetler + ozgun animasyonlar; Right / Left omuz veya Orbit etrafina
+      donen mod).
     - Gear & Tails (5 model): Katana Sheath, Tech Pack, Vine Tail, Demon Tail,
       Fox Tail (yuruyuse ve hiza bagli sallanan artikule kuyruklar).
   * 3D Oyuncu Auralari, Izler ve Savas Gorsel Efektleri:
@@ -514,19 +520,28 @@ Toplam Kayitli Modul: 37 (+ 8 Yerlesik Sistem Ozelligi)
       ve parlaklik; .panic'te aninda vanilya mora doner).
     - 1P Hand Aura (`Forearm Rings`, `Blade Edge`) & Melee Slash Arc (`Emerald
       Crescent`, `Crimson Wave`).
-    - 3D Pose Emotes (`Arms Crossed`, `Salute`, `Hover Meditate`, `Wave`,
-      `Point`): Tiklayinca canli oynatir ve SestiaChat ile diger oyunculara
-      yayinlar; yuruyunce/egilince/saldirinca otomatik iptal olur.
+    - 11 Hareketli, 3D Prop ve Partner Emote'u (`Arms Crossed`, `Salute`,
+      `Hover Meditate`, `Wave`, `Point`, `Sit Anywhere`, `360° Backflip`,
+      `Hype Dance`, `Rune Book` [onunde suzulen 3D rün kitabi & halkalari],
+      `High-Five`, `Fist Bump` [yakindaki Sestia arkadasiyla senkronlu
+      kivilcim/kalp patlamasi]): SestiaChat ile yayinlanir; yuruyunce/egilince
+      otomatik iptal olur.
+    - Hizli Emote Carki (Varsayilan: `B` tusuna basili tut, `B/G/V/H/R`):
+      ClickGUI acmadan oyun icinde tek fare hareketiyle 8 favori Emote (`Sit`,
+      `Backflip`, `Dance`, `Rune Book`, `High-Five`, `Fist Bump`, `Wave`,
+      `Stop`) arasinda aninda secim yapar (eliptik carpisma-onleyici duzen).
   * Sosyal Kimlik (Sestia Leaf Rozetleri) & Chat Sync v2:
     Vanilya Tab listesinde, dunya ici isim etiketlerinde ve `Player List` HUD
     kartinda cevrimici Sestia Client kullanicilarina tema renginde Leaf/Yildiz
-    rozeti gosterilir. Tum kozmetik yuvalari ve emote'lar sikistirilmis v2
-    protokolu uzerinden senkronize edilir.
-  * Gelismis Cosmetic Locker UI & SC1: Kiyafet Kodlari (Outfits):
+    rozeti gosterilir. Tum kozmetik yuvalari, 2-renk gradyan ve 11 emote
+    sikistirilmis v2 protokolu uzerinden senkronize edilir.
+  * Gelismis Cosmetic Studio, 2-Renk Gradyan, Slot Kilidi & Akilli Otomatik Kiyafet:
     2 eksenli fareyle dondurme (yaw + pitch), fare tekerlegi zoom (0.75x -
-    1.85x), sekme degistirince akilli kamera kadraji, `Match` (tema eslestir),
-    `Armor` (zirh bosluk testi), `Idle | Walk | Sneak | Glide | Hit` poz seridi,
-    hizli aktif slot cip'leri, yakindaki arkadas kombinlerini onizleme + `Clone`,
-    ve tek tikla disari aktarilip yapistirilabilen `SC1:...` Outfit paylasim
-    kodlari yer alir.
+    1.85x), `Spin` (3D Turntable otomatik donus), `Match` (Sol Tik: tema eslestir,
+    Sag Tik: 2-Renk Harmony eslestir), `Armor` (zirh bosluk testi),
+    `2-Color Gradient & Pulse` (`Solid | Tip-to-Base | Pulse | Wave` + ikincil
+    renk), `Slot Locks` (kiyafet/SC1: yuklerken kilitli slotlari koruma),
+    kiyafet kartlarinda `★` Hizli Cark sabitleme (6 adede kadar), ve
+    `Smart Auto-Outfit Rules` (`PvP | Elytra | Mining | Night/Nether` durumuna
+    gore otomatik kiyafet gecisi) yer alir.
 ================================================================================

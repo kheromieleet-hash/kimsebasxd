@@ -29,6 +29,7 @@ public class HudOverlayMixin {
             ItemNotifierHudRenderer.render(graphics);
             com.client.mod.AutoSpawnerModule.renderHud(graphics);
             com.client.mod.SpawnerAutoSellModule.renderHud(graphics);
+            com.client.mod.CosmeticWheelController.render(graphics);
         }
     }
 }

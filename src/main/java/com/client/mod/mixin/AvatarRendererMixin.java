@@ -5,8 +5,10 @@ import com.client.mod.CosmeticsLogic;
 import com.client.mod.JelloTheme;
 import com.client.mod.ModConfig;
 import com.client.mod.PanicHandler;
+import com.client.mod.WingsLogic;
 import com.client.mod.WingsRenderLayer;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.player.PlayerModel;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
@@ -15,6 +17,7 @@ import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Avatar;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -52,6 +55,37 @@ public class AvatarRendererMixin {
         if (isSelf || CosmeticsLogic.isOnlineSestiaUser(name)) {
             int badgeRgb = (JelloTheme.ACCENT != 0 ? (JelloTheme.ACCENT & 0xFFFFFF) : 0x34D399);
             state.nameTag = Component.literal("✦ ").withColor(badgeRgb).append(state.nameTag);
+        }
+    }
+
+    @Inject(
+            method = "setupRotations(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;FF)V",
+            at = @At("TAIL")
+    )
+    private void sestia$onSetupRotations(AvatarRenderState state, PoseStack poseStack, float bodyRot, float scale, CallbackInfo ci) {
+        if (PanicHandler.isPanicActive() || state == null) {
+            return;
+        }
+        boolean isPreview = state.id == WingsLogic.PREVIEW_ENTITY_ID;
+        boolean isSelf = false;
+        String remoteName = null;
+        if (!isPreview) {
+            Minecraft mc = Minecraft.getInstance();
+            isSelf = mc != null && mc.player != null && state.id == mc.player.getId();
+            if (!isSelf && mc != null && mc.level != null) {
+                Entity e = mc.level.getEntity(state.id);
+                if (e instanceof Player p) {
+                    remoteName = p.getName().getString();
+                }
+            }
+        }
+        int emoteId = CosmeticsLogic.resolveActiveEmote(isPreview, isSelf, remoteName, System.currentTimeMillis());
+        if (emoteId == CosmeticsLogic.EMOTE_BACKFLIP) {
+            float lift = CosmeticsLogic.computeEmoteBodyLiftY(emoteId, state.ageInTicks);
+            float pitchDeg = CosmeticsLogic.computeEmoteBodyPitchDeg(emoteId, state.ageInTicks);
+            poseStack.translate(0.0f, 0.90f + lift, 0.0f);
+            poseStack.rotateDegrees(Axis.XP, pitchDeg);
+            poseStack.translate(0.0f, -0.90f, 0.0f);
         }
     }
 

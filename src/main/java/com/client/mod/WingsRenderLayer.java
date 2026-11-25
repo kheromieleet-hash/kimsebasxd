@@ -161,10 +161,16 @@ public class WingsRenderLayer extends RenderLayer<AvatarRenderState, PlayerModel
         }
         WingsLogic.WingProfile profile;
         boolean hasCustomCloak = false;
+        int gradMode = CosmeticsLogic.GRADIENT_SOLID;
+        int gradSec = 0x00D4FF;
         if (state.id == WingsLogic.PREVIEW_ENTITY_ID) {
             profile = WingsLogic.getPreviewProfile();
             CosmeticsLogic.CosmeticLoadout previewLoadout = CosmeticsLogic.getPreviewLoadout();
             hasCustomCloak = previewLoadout != null && previewLoadout.cloakEnabled();
+            if (previewLoadout != null) {
+                gradMode = previewLoadout.gradientMode();
+                gradSec = previewLoadout.gradientSecondaryRgb();
+            }
             if (profile == null || !profile.enabled()) {
                 return;
             }
@@ -184,8 +190,14 @@ public class WingsRenderLayer extends RenderLayer<AvatarRenderState, PlayerModel
                 }
                 CosmeticsLogic.CosmeticLoadout rl = CosmeticsLogic.getRemoteLoadout(remoteName);
                 hasCustomCloak = rl != null && rl.cloakEnabled();
+                if (rl != null) {
+                    gradMode = rl.gradientMode();
+                    gradSec = rl.gradientSecondaryRgb();
+                }
             } else {
                 hasCustomCloak = cfg.cosmeticCloakEnabled;
+                gradMode = cfg.cosmeticGradientMode;
+                gradSec = cfg.cosmeticGradientSecondaryRgb;
             }
             profile = WingsLogic.resolveRenderProfile(
                     cfg,
@@ -247,7 +259,12 @@ public class WingsRenderLayer extends RenderLayer<AvatarRenderState, PlayerModel
             final boolean isFallFlying = state.isFallFlying;
             final boolean isCrouching = state.isCrouching;
 
+            final int finalGradMode = gradMode;
+            final int finalGradSec = gradSec;
+
             collector.submitCustomGeometry(poseStack, RenderTypes.debugQuads(), (pose, vc) -> {
+                CosmeticsLogic.pushRenderGradient(finalGradMode, finalGradSec);
+                try {
                 switch (mode) {
                     case WingsLogic.MODE_ANGEL -> renderAngelGeometry(
                             pose, vc, length, flapSpeed, colorPreset, customRgb, ageInTicks, isFallFlying, isCrouching, damageFlash);
@@ -282,6 +299,9 @@ public class WingsRenderLayer extends RenderLayer<AvatarRenderState, PlayerModel
                     default -> renderLinesGeometry(
                             pose, vc, linesCount, length, width, fadeStart, flapSpeed,
                             colorPreset, customRgb, ageInTicks, isFallFlying, damageFlash);
+                }
+                } finally {
+                    CosmeticsLogic.clearRenderGradient();
                 }
             });
         }

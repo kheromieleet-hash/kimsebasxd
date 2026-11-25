@@ -49,6 +49,10 @@ public abstract class MouseHandlerMixin {
                 }
                 return;
             }
+            if (com.client.mod.CosmeticWheelController.handleMouseButton(this.minecraft, buttonInfo.button(), action)) {
+                ci.cancel();
+                return;
+            }
             if (!com.client.mod.PanicHandler.isPanicActive() && action == 1 && this.minecraft.gui.screen() == null && this.minecraft.player != null) {
                 ClickGuiScreen.handleInGameMacroMouse(buttonInfo.button());
                 ClickGuiScreen.handleInGameModuleMouse(buttonInfo.button());
@@ -69,6 +73,13 @@ public abstract class MouseHandlerMixin {
 
     @Inject(method = "turnPlayer", at = @At("HEAD"), cancellable = true)
     private void onTurnPlayerHead(double movementTime, CallbackInfo ci) {
+        if (com.client.mod.CosmeticWheelController.isOpen()) {
+            com.client.mod.CosmeticWheelController.onMouseDelta(this.accumulatedDX, this.accumulatedDY);
+            this.accumulatedDX = 0.0;
+            this.accumulatedDY = 0.0;
+            ci.cancel();
+            return;
+        }
         AutoSpawnerModule mod = AutoSpawnerModule.getInstance();
         SpawnerAutoSellModule sellMod = SpawnerAutoSellModule.getInstance();
         if ((mod != null && mod.isActiveLockingMouse())
@@ -106,7 +117,8 @@ public abstract class MouseHandlerMixin {
             mouseX = this.getScaledXPos(win);
             mouseY = this.getScaledYPos(win);
         }
-        if (FreecamHandler.onMouseScroll(vertical)
+        if (com.client.mod.CosmeticWheelController.handleMouseScroll(vertical)
+                || FreecamHandler.onMouseScroll(vertical)
                 || ZoomHandler.onMouseScrolled(vertical)
                 || PlayerListHudRenderer.onMouseScroll(this.minecraft, mouseX, mouseY, vertical)) {
             ci.cancel();

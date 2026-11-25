@@ -30,6 +30,10 @@ public class KeyboardHandlerMixin {
             }
             return;
         }
+        if (com.client.mod.CosmeticWheelController.handleKeyPress(this.minecraft, action, event.key())) {
+            ci.cancel();
+            return;
+        }
         if (!com.client.mod.PanicHandler.isPanicActive()
                 && action == InputConstants.PRESS
                 && this.minecraft.gui != null

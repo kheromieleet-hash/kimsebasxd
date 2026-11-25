@@ -19,11 +19,12 @@ public final class CosmeticsLogic {
     public static final int CLOAK_CHROMA_NEBULA = 1;
     public static final int CLOAK_CYBER_GRID = 2;
     public static final int CLOAK_OBSIDIAN_ROYAL = 3;
+    public static final int CLOAK_CUSTOM_PNG = 4;
     private static final String[] CLOAK_NAMES = {
-            "Sestia Leaf", "Chroma Nebula", "Cyber Grid", "Obsidian Royal"
+            "Sestia Leaf", "Chroma Nebula", "Cyber Grid", "Obsidian Royal", "Custom PNG"
     };
     private static final String[] CLOAK_TAGS = {
-            "7-Leaf Weave", "Aurora Flow", "Holo Scanline", "Gold Trim"
+            "7-Leaf Weave", "Aurora Flow", "Holo Scanline", "Gold Trim", "Local Image"
     };
 
     // 3D Headwear modes
@@ -33,11 +34,12 @@ public final class CosmeticsLogic {
     public static final int HAT_ROYAL_CROWN = 3;
     public static final int HAT_CYBER_EARS = 4;
     public static final int HAT_KITSUNE_VISOR = 5;
+    public static final int HAT_CAT_EARS = 6;
     private static final String[] HAT_NAMES = {
-            "Seraph Halo", "Leaf Wreath", "Demon Horns", "Royal Crown", "Cyber Ears", "Kitsune Visor"
+            "Seraph Halo", "Leaf Wreath", "Demon Horns", "Royal Crown", "Cyber Ears", "Kitsune Visor", "Cat Ears"
     };
     private static final String[] HAT_TAGS = {
-            "Floating Ring", "7-Leaf Crown", "Curved Obsidian", "Gem Diadem", "Holo Cat", "Neon Mask"
+            "Floating Ring", "7-Leaf Crown", "Curved Obsidian", "Gem Diadem", "Holo Cat", "Neon Mask", "Plush Twitch"
     };
 
     // Shoulder Pets & Orbiting Companions
@@ -46,11 +48,16 @@ public final class CosmeticsLogic {
     public static final int PET_MINI_FOX = 2;
     public static final int PET_MINI_ALLAY = 3;
     public static final int PET_MINI_BEE = 4;
+    public static final int PET_BABY_DRAGON = 5;
+    public static final int PET_MINI_CAT = 6;
+    public static final int PET_PHANTOM_OWL = 7;
     private static final String[] PET_NAMES = {
-            "Emerald Wisp", "Cyber Drone", "Mini Fox", "Mini Allay", "Mini Bee"
+            "Emerald Wisp", "Cyber Drone", "Mini Fox", "Mini Allay", "Mini Bee",
+            "Baby Dragon", "Mini Cat", "Arcane Owl"
     };
     private static final String[] PET_TAGS = {
-            "Orbit Flame", "Twin Rotor", "Shoulder Sit", "Flutter Wing", "Hover Buzz"
+            "Orbit Flame", "Twin Rotor", "Shoulder Sit", "Flutter Wing", "Hover Buzz",
+            "Ember Wing", "Purr Buddy", "Mystic Glide"
     };
 
     public static final int PET_SIDE_RIGHT = 0;
@@ -123,16 +130,46 @@ public final class CosmeticsLogic {
             "Emerald Crescent", "Crimson Wave"
     };
 
-    // 3D Pose Emotes
+    // 3D Pose, Kinetic, Prop & Partner Emotes (11 total)
     public static final int EMOTE_NONE = -1;
     public static final int EMOTE_ARMS_CROSSED = 0;
     public static final int EMOTE_SALUTE = 1;
     public static final int EMOTE_HOVER_MEDITATE = 2;
     public static final int EMOTE_WAVE = 3;
     public static final int EMOTE_POINT = 4;
+    public static final int EMOTE_SIT = 5;
+    public static final int EMOTE_BACKFLIP = 6;
+    public static final int EMOTE_HYPE_DANCE = 7;
+    public static final int EMOTE_RUNE_MEDITATE = 8;
+    public static final int EMOTE_HIGH_FIVE = 9;
+    public static final int EMOTE_FIST_BUMP = 10;
     private static final String[] EMOTE_NAMES = {
-            "Arms Crossed", "Salute", "Hover Meditate", "Wave", "Point"
+            "Arms Crossed", "Salute", "Hover Meditate", "Wave", "Point",
+            "Sit Anywhere", "360° Backflip", "Hype Dance", "Rune Book", "High-Five", "Fist Bump"
     };
+
+    // Dual-Color Gradient & Pulse modes
+    public static final int GRADIENT_SOLID = 0;
+    public static final int GRADIENT_TIP_TO_BASE = 1;
+    public static final int GRADIENT_PULSE = 2;
+    public static final int GRADIENT_WAVE = 3;
+    private static final String[] GRADIENT_NAMES = {
+            "Solid", "Tip-to-Base", "Pulse", "Wave"
+    };
+
+    // Slot Lock bitmask (prevents Outfit / SC1: equip from overwriting locked slots)
+    public static final int LOCK_WINGS = 1 << 0;
+    public static final int LOCK_CLOAK = 1 << 1;
+    public static final int LOCK_HAT = 1 << 2;
+    public static final int LOCK_PET = 1 << 3;
+    public static final int LOCK_GEAR = 1 << 4;
+    public static final int LOCK_AURA = 1 << 5;
+    public static final int LOCK_TRAIL = 1 << 6;
+    public static final int LOCK_COMBAT_FX = 1 << 7;
+    public static final int LOCK_GLINT = 1 << 8;
+    public static final int LOCK_WEAPON_FX = 1 << 9;
+    public static final int LOCK_ALL_MASK = (1 << 10) - 1;
+    public static final int MAX_PINNED_OUTFITS = 6;
 
     // Locker Preview Pose Strip
     public static final int PREVIEW_POSE_IDLE = 0;
@@ -178,8 +215,40 @@ public final class CosmeticsLogic {
             boolean totemFxEnabled, float totemFxScale, boolean totemFxRing,
             boolean glintEnabled, int glintColorPreset, int glintCustomRgb, float glintIntensity,
             boolean handAuraEnabled, int handAuraMode,
-            boolean slashArcEnabled, int slashArcMode, int slashArcColorPreset, int slashArcCustomRgb
+            boolean slashArcEnabled, int slashArcMode, int slashArcColorPreset, int slashArcCustomRgb,
+            int gradientMode, int gradientSecondaryRgb
     ) {
+        public CosmeticLoadout(
+                WingsLogic.WingProfile wings,
+                boolean cloakEnabled, int cloakMode, int cloakColorPreset, int cloakCustomRgb,
+                boolean hatEnabled, int hatMode, int hatColorPreset, int hatCustomRgb, float hatScale,
+                boolean petEnabled, int petMode, int petSide, int petColorPreset, int petCustomRgb,
+                boolean gearEnabled, int gearMode, int gearColorPreset, int gearCustomRgb,
+                boolean auraEnabled, int auraMode, int auraColorPreset, int auraCustomRgb, float auraRadius, float auraSpeed,
+                boolean trailEnabled, int trailMode, int trailColorPreset, int trailCustomRgb,
+                boolean hitFxEnabled, int hitFxMode, int hitFxColorPreset, int hitFxCustomRgb,
+                boolean killFxEnabled, int killFxMode, int killFxColorPreset, int killFxCustomRgb,
+                boolean totemFxEnabled, float totemFxScale, boolean totemFxRing,
+                boolean glintEnabled, int glintColorPreset, int glintCustomRgb, float glintIntensity,
+                boolean handAuraEnabled, int handAuraMode,
+                boolean slashArcEnabled, int slashArcMode, int slashArcColorPreset, int slashArcCustomRgb
+        ) {
+            this(wings,
+                    cloakEnabled, cloakMode, cloakColorPreset, cloakCustomRgb,
+                    hatEnabled, hatMode, hatColorPreset, hatCustomRgb, hatScale,
+                    petEnabled, petMode, petSide, petColorPreset, petCustomRgb,
+                    gearEnabled, gearMode, gearColorPreset, gearCustomRgb,
+                    auraEnabled, auraMode, auraColorPreset, auraCustomRgb, auraRadius, auraSpeed,
+                    trailEnabled, trailMode, trailColorPreset, trailCustomRgb,
+                    hitFxEnabled, hitFxMode, hitFxColorPreset, hitFxCustomRgb,
+                    killFxEnabled, killFxMode, killFxColorPreset, killFxCustomRgb,
+                    totemFxEnabled, totemFxScale, totemFxRing,
+                    glintEnabled, glintColorPreset, glintCustomRgb, glintIntensity,
+                    handAuraEnabled, handAuraMode,
+                    slashArcEnabled, slashArcMode, slashArcColorPreset, slashArcCustomRgb,
+                    GRADIENT_SOLID, 0x00D4FF);
+        }
+
         public CosmeticLoadout sanitized() {
             WingsLogic.WingProfile safeWings = wings != null
                     ? wings.sanitized()
@@ -197,7 +266,8 @@ public final class CosmeticsLogic {
                     totemFxEnabled, clampTotemScale(totemFxScale), totemFxRing,
                     glintEnabled, WingsLogic.clampColorPreset(glintColorPreset), WingsLogic.clampRgb(glintCustomRgb), clampGlintIntensity(glintIntensity),
                     handAuraEnabled, clampHandAuraMode(handAuraMode),
-                    slashArcEnabled, clampSlashArcMode(slashArcMode), WingsLogic.clampColorPreset(slashArcColorPreset), WingsLogic.clampRgb(slashArcCustomRgb)
+                    slashArcEnabled, clampSlashArcMode(slashArcMode), WingsLogic.clampColorPreset(slashArcColorPreset), WingsLogic.clampRgb(slashArcCustomRgb),
+                    clampGradientMode(gradientMode), WingsLogic.clampRgb(gradientSecondaryRgb)
             );
         }
 
@@ -230,6 +300,25 @@ public final class CosmeticsLogic {
     private static volatile boolean previewShowArmor = false;
     private static volatile int localActiveEmote = EMOTE_NONE;
     private static volatile long localEmoteStartedAtMs = 0L;
+    private static int renderGradientMode = GRADIENT_SOLID;
+    private static int renderGradientSecondaryRgb = 0x00D4FF;
+
+    public static void pushRenderGradient(int mode, int secondaryRgb) {
+        renderGradientMode = clampGradientMode(mode);
+        renderGradientSecondaryRgb = WingsLogic.clampRgb(secondaryRgb);
+    }
+
+    public static void clearRenderGradient() {
+        renderGradientMode = GRADIENT_SOLID;
+    }
+
+    public static int getActiveRenderGradientMode() {
+        return renderGradientMode;
+    }
+
+    public static int getActiveRenderGradientSecondaryRgb() {
+        return renderGradientSecondaryRgb;
+    }
 
     private CosmeticsLogic() {
     }
@@ -251,7 +340,8 @@ public final class CosmeticsLogic {
                 cfg.cosmeticTotemFxEnabled, cfg.cosmeticTotemFxScale, cfg.cosmeticTotemFxRing,
                 cfg.cosmeticGlintEnabled, cfg.cosmeticGlintColorPreset, cfg.cosmeticGlintCustomRgb, cfg.cosmeticGlintIntensity,
                 cfg.cosmeticHandAuraEnabled, cfg.cosmeticHandAuraMode,
-                cfg.cosmeticSlashArcEnabled, cfg.cosmeticSlashArcMode, cfg.cosmeticSlashArcColorPreset, cfg.cosmeticSlashArcCustomRgb
+                cfg.cosmeticSlashArcEnabled, cfg.cosmeticSlashArcMode, cfg.cosmeticSlashArcColorPreset, cfg.cosmeticSlashArcCustomRgb,
+                cfg.cosmeticGradientMode, cfg.cosmeticGradientSecondaryRgb
         ).sanitized();
     }
 
@@ -269,92 +359,182 @@ public final class CosmeticsLogic {
                 false, 0.78f, true,
                 false, WingsLogic.COLOR_EMERALD, 0x34D399, 0.85f,
                 false, HAND_AURA_FOREARM_RINGS,
-                false, SLASH_ARC_EMERALD_CRESCENT, WingsLogic.COLOR_EMERALD, 0x34D399
+                false, SLASH_ARC_EMERALD_CRESCENT, WingsLogic.COLOR_EMERALD, 0x34D399,
+                GRADIENT_SOLID, 0x00D4FF
         );
     }
 
     public static void applyLoadoutToConfig(CosmeticLoadout raw, ModConfig cfg) {
+        applyLoadoutToConfig(raw, cfg, 0);
+    }
+
+    public static void applyLoadoutToConfig(CosmeticLoadout raw, ModConfig cfg, int lockMask) {
         if (raw == null || cfg == null) {
             return;
         }
         CosmeticLoadout l = raw.sanitized();
-        WingsLogic.WingProfile w = l.wings();
-        cfg.wingsEnabled = w.enabled();
-        cfg.wingsMode = w.mode();
-        cfg.wingsColorPreset = w.colorPreset();
-        cfg.wingsCustomRgb = w.customRgb();
-        float[] hsv = WingsLogic.rgbToHsv(w.customRgb());
-        cfg.wingsCustomHue = hsv[0];
-        cfg.wingsCustomSat = hsv[1];
-        cfg.wingsCustomVal = Math.max(0.10f, hsv[2]);
-        cfg.wingsLength = w.length();
-        cfg.wingsWidth = w.width();
-        cfg.wingsLinesCount = w.linesCount();
-        cfg.wingsFadeStart = w.fadeStart();
-        cfg.wingsHeight = w.height();
-        cfg.wingsFlapSpeed = w.flapSpeed();
-        cfg.wingsShowDamage = w.showDamage();
+        if ((lockMask & LOCK_WINGS) == 0) {
+            WingsLogic.WingProfile w = l.wings();
+            cfg.wingsEnabled = w.enabled();
+            cfg.wingsMode = w.mode();
+            cfg.wingsColorPreset = w.colorPreset();
+            cfg.wingsCustomRgb = w.customRgb();
+            float[] hsv = WingsLogic.rgbToHsv(w.customRgb());
+            cfg.wingsCustomHue = hsv[0];
+            cfg.wingsCustomSat = hsv[1];
+            cfg.wingsCustomVal = Math.max(0.10f, hsv[2]);
+            cfg.wingsLength = w.length();
+            cfg.wingsWidth = w.width();
+            cfg.wingsLinesCount = w.linesCount();
+            cfg.wingsFadeStart = w.fadeStart();
+            cfg.wingsHeight = w.height();
+            cfg.wingsFlapSpeed = w.flapSpeed();
+            cfg.wingsShowDamage = w.showDamage();
+        }
+        if ((lockMask & LOCK_CLOAK) == 0) {
+            cfg.cosmeticCloakEnabled = l.cloakEnabled();
+            cfg.cosmeticCloakMode = l.cloakMode();
+            cfg.cosmeticCloakColorPreset = l.cloakColorPreset();
+            cfg.cosmeticCloakCustomRgb = l.cloakCustomRgb();
+        }
+        if ((lockMask & LOCK_HAT) == 0) {
+            cfg.cosmeticHatEnabled = l.hatEnabled();
+            cfg.cosmeticHatMode = l.hatMode();
+            cfg.cosmeticHatColorPreset = l.hatColorPreset();
+            cfg.cosmeticHatCustomRgb = l.hatCustomRgb();
+            cfg.cosmeticHatScale = l.hatScale();
+        }
+        if ((lockMask & LOCK_PET) == 0) {
+            cfg.cosmeticPetEnabled = l.petEnabled();
+            cfg.cosmeticPetMode = l.petMode();
+            cfg.cosmeticPetSide = l.petSide();
+            cfg.cosmeticPetColorPreset = l.petColorPreset();
+            cfg.cosmeticPetCustomRgb = l.petCustomRgb();
+        }
+        if ((lockMask & LOCK_GEAR) == 0) {
+            cfg.cosmeticGearEnabled = l.gearEnabled();
+            cfg.cosmeticGearMode = l.gearMode();
+            cfg.cosmeticGearColorPreset = l.gearColorPreset();
+            cfg.cosmeticGearCustomRgb = l.gearCustomRgb();
+        }
+        if ((lockMask & LOCK_AURA) == 0) {
+            cfg.cosmeticAuraEnabled = l.auraEnabled();
+            cfg.cosmeticAuraMode = l.auraMode();
+            cfg.cosmeticAuraColorPreset = l.auraColorPreset();
+            cfg.cosmeticAuraCustomRgb = l.auraCustomRgb();
+            cfg.cosmeticAuraRadius = l.auraRadius();
+            cfg.cosmeticAuraSpeed = l.auraSpeed();
+        }
+        if ((lockMask & LOCK_TRAIL) == 0) {
+            cfg.cosmeticTrailEnabled = l.trailEnabled();
+            cfg.cosmeticTrailMode = l.trailMode();
+            cfg.cosmeticTrailColorPreset = l.trailColorPreset();
+            cfg.cosmeticTrailCustomRgb = l.trailCustomRgb();
+        }
+        if ((lockMask & LOCK_COMBAT_FX) == 0) {
+            cfg.cosmeticHitFxEnabled = l.hitFxEnabled();
+            cfg.cosmeticHitFxMode = l.hitFxMode();
+            cfg.cosmeticHitFxColorPreset = l.hitFxColorPreset();
+            cfg.cosmeticHitFxCustomRgb = l.hitFxCustomRgb();
 
-        cfg.cosmeticCloakEnabled = l.cloakEnabled();
-        cfg.cosmeticCloakMode = l.cloakMode();
-        cfg.cosmeticCloakColorPreset = l.cloakColorPreset();
-        cfg.cosmeticCloakCustomRgb = l.cloakCustomRgb();
+            cfg.cosmeticKillFxEnabled = l.killFxEnabled();
+            cfg.cosmeticKillFxMode = l.killFxMode();
+            cfg.cosmeticKillFxColorPreset = l.killFxColorPreset();
+            cfg.cosmeticKillFxCustomRgb = l.killFxCustomRgb();
 
-        cfg.cosmeticHatEnabled = l.hatEnabled();
-        cfg.cosmeticHatMode = l.hatMode();
-        cfg.cosmeticHatColorPreset = l.hatColorPreset();
-        cfg.cosmeticHatCustomRgb = l.hatCustomRgb();
-        cfg.cosmeticHatScale = l.hatScale();
+            cfg.cosmeticTotemFxEnabled = l.totemFxEnabled();
+            cfg.cosmeticTotemFxScale = l.totemFxScale();
+            cfg.cosmeticTotemFxRing = l.totemFxRing();
+        }
+        if ((lockMask & LOCK_GLINT) == 0) {
+            cfg.cosmeticGlintEnabled = l.glintEnabled();
+            cfg.cosmeticGlintColorPreset = l.glintColorPreset();
+            cfg.cosmeticGlintCustomRgb = l.glintCustomRgb();
+            cfg.cosmeticGlintIntensity = l.glintIntensity();
+        }
+        if ((lockMask & LOCK_WEAPON_FX) == 0) {
+            cfg.cosmeticHandAuraEnabled = l.handAuraEnabled();
+            cfg.cosmeticHandAuraMode = l.handAuraMode();
 
-        cfg.cosmeticPetEnabled = l.petEnabled();
-        cfg.cosmeticPetMode = l.petMode();
-        cfg.cosmeticPetSide = l.petSide();
-        cfg.cosmeticPetColorPreset = l.petColorPreset();
-        cfg.cosmeticPetCustomRgb = l.petCustomRgb();
+            cfg.cosmeticSlashArcEnabled = l.slashArcEnabled();
+            cfg.cosmeticSlashArcMode = l.slashArcMode();
+            cfg.cosmeticSlashArcColorPreset = l.slashArcColorPreset();
+            cfg.cosmeticSlashArcCustomRgb = l.slashArcCustomRgb();
+        }
+        cfg.cosmeticGradientMode = l.gradientMode();
+        cfg.cosmeticGradientSecondaryRgb = l.gradientSecondaryRgb();
+    }
 
-        cfg.cosmeticGearEnabled = l.gearEnabled();
-        cfg.cosmeticGearMode = l.gearMode();
-        cfg.cosmeticGearColorPreset = l.gearColorPreset();
-        cfg.cosmeticGearCustomRgb = l.gearCustomRgb();
+    public static boolean isSlotLocked(int lockMask, int slotIndex) {
+        if (slotIndex < 0 || slotIndex >= 10) {
+            return false;
+        }
+        return (lockMask & (1 << slotIndex)) != 0;
+    }
 
-        cfg.cosmeticAuraEnabled = l.auraEnabled();
-        cfg.cosmeticAuraMode = l.auraMode();
-        cfg.cosmeticAuraColorPreset = l.auraColorPreset();
-        cfg.cosmeticAuraCustomRgb = l.auraCustomRgb();
-        cfg.cosmeticAuraRadius = l.auraRadius();
-        cfg.cosmeticAuraSpeed = l.auraSpeed();
+    public static int toggleSlotLock(int lockMask, int slotIndex) {
+        if (slotIndex < 0 || slotIndex >= 10) {
+            return lockMask & LOCK_ALL_MASK;
+        }
+        return (lockMask ^ (1 << slotIndex)) & LOCK_ALL_MASK;
+    }
 
-        cfg.cosmeticTrailEnabled = l.trailEnabled();
-        cfg.cosmeticTrailMode = l.trailMode();
-        cfg.cosmeticTrailColorPreset = l.trailColorPreset();
-        cfg.cosmeticTrailCustomRgb = l.trailCustomRgb();
+    public static int harmonySecondaryForAccent(int accentRgb) {
+        int clean = WingsLogic.clampRgb(accentRgb);
+        return switch (clean) {
+            case 0x34D399, 0x22C55E -> 0x00D4FF; // Emerald / Forest -> Cyan
+            case 0x2DD4BF -> 0xA855F7;           // Mint -> Violet
+            case 0xFACC15 -> 0xFB7185;           // Gold -> Coral Rose
+            case 0xE2E8F0 -> 0x38BDF8;           // Frost -> Ice Blue
+            case 0xF43F5E -> 0xFACC15;           // Crimson -> Gold
+            default -> {
+                float[] hsv = WingsLogic.rgbToHsv(clean);
+                float shiftedHue = (hsv[0] + 0.16f) % 1.0f;
+                yield WingsLogic.hsvToRgb(shiftedHue, Math.max(0.65f, hsv[1]), Math.max(0.85f, hsv[2]));
+            }
+        };
+    }
 
-        cfg.cosmeticHitFxEnabled = l.hitFxEnabled();
-        cfg.cosmeticHitFxMode = l.hitFxMode();
-        cfg.cosmeticHitFxColorPreset = l.hitFxColorPreset();
-        cfg.cosmeticHitFxCustomRgb = l.hitFxCustomRgb();
+    public static void applyHarmonyTheme(ModConfig cfg, int accentRgb) {
+        if (cfg == null) {
+            return;
+        }
+        matchStrainTheme(cfg, accentRgb);
+        cfg.cosmeticGradientMode = GRADIENT_TIP_TO_BASE;
+        cfg.cosmeticGradientSecondaryRgb = harmonySecondaryForAccent(accentRgb);
+    }
 
-        cfg.cosmeticKillFxEnabled = l.killFxEnabled();
-        cfg.cosmeticKillFxMode = l.killFxMode();
-        cfg.cosmeticKillFxColorPreset = l.killFxColorPreset();
-        cfg.cosmeticKillFxCustomRgb = l.killFxCustomRgb();
-
-        cfg.cosmeticTotemFxEnabled = l.totemFxEnabled();
-        cfg.cosmeticTotemFxScale = l.totemFxScale();
-        cfg.cosmeticTotemFxRing = l.totemFxRing();
-
-        cfg.cosmeticGlintEnabled = l.glintEnabled();
-        cfg.cosmeticGlintColorPreset = l.glintColorPreset();
-        cfg.cosmeticGlintCustomRgb = l.glintCustomRgb();
-        cfg.cosmeticGlintIntensity = l.glintIntensity();
-
-        cfg.cosmeticHandAuraEnabled = l.handAuraEnabled();
-        cfg.cosmeticHandAuraMode = l.handAuraMode();
-
-        cfg.cosmeticSlashArcEnabled = l.slashArcEnabled();
-        cfg.cosmeticSlashArcMode = l.slashArcMode();
-        cfg.cosmeticSlashArcColorPreset = l.slashArcColorPreset();
-        cfg.cosmeticSlashArcCustomRgb = l.slashArcCustomRgb();
+    /**
+     * Resolves highest-priority Auto-Outfit target name: PvP > Elytra > Mining > Night.
+     * Returns null when Auto-Outfit is disabled or no rule matches (caller restores base outfit).
+     */
+    public static String resolveAutoOutfitTarget(
+            boolean enabled,
+            boolean inCombat,
+            boolean fallFlying,
+            boolean mining,
+            boolean nightOrDarkDim,
+            String pvpOutfit,
+            String elytraOutfit,
+            String miningOutfit,
+            String nightOutfit
+    ) {
+        if (!enabled) {
+            return null;
+        }
+        if (inCombat && pvpOutfit != null && !pvpOutfit.isBlank()) {
+            return pvpOutfit.trim();
+        }
+        if (fallFlying && elytraOutfit != null && !elytraOutfit.isBlank()) {
+            return elytraOutfit.trim();
+        }
+        if (mining && miningOutfit != null && !miningOutfit.isBlank()) {
+            return miningOutfit.trim();
+        }
+        if (nightOrDarkDim && nightOutfit != null && !nightOutfit.isBlank()) {
+            return nightOutfit.trim();
+        }
+        return null;
     }
 
     /**
@@ -691,8 +871,105 @@ public final class CosmeticsLogic {
                     -0.08f, -0.04f,
                     0.10f, 0.04f
             );
+            case EMOTE_SIT -> new EmotePose(
+                    0.06f + (float) Math.sin(t * 0.07f) * 0.03f, (float) Math.sin(t * 0.04f) * 0.08f, 0.0f,
+                    0.08f, 0.0f, 9.6f,
+                    -0.62f, 0.16f, -0.14f,
+                    -0.62f, -0.16f, 0.14f,
+                    -1.42f, -0.14f,
+                    -1.42f, 0.14f
+            );
+            case EMOTE_BACKFLIP -> {
+                float cycle = (t * 0.045f) % 1.0f;
+                float tuck = (float) Math.sin(cycle * Math.PI);
+                yield new EmotePose(
+                        -0.35f * tuck, 0.0f, 0.0f,
+                        0.0f, 0.0f, 0.0f,
+                        -1.65f * tuck - 0.35f, 0.25f * tuck, -0.28f * tuck,
+                        -1.65f * tuck - 0.35f, -0.25f * tuck, 0.28f * tuck,
+                        -1.15f * tuck, -0.06f,
+                        -1.15f * tuck, 0.06f
+                );
+            }
+            case EMOTE_HYPE_DANCE -> {
+                float beat = t * 0.38f;
+                float bounce = Math.abs((float) Math.sin(beat)) * 2.1f;
+                float swing = (float) Math.sin(beat);
+                float opp = -swing;
+                yield new EmotePose(
+                        0.08f * (float) Math.cos(beat * 2.0f), 0.16f * swing, 0.12f * swing,
+                        0.06f, 0.22f * swing, bounce,
+                        -1.45f + 0.72f * swing, 0.28f * opp, -0.45f - 0.30f * swing,
+                        -1.45f + 0.72f * opp, -0.28f * swing, 0.45f + 0.30f * opp,
+                        0.32f * swing, -0.10f - 0.06f * swing,
+                        0.32f * opp, 0.10f + 0.06f * opp
+                );
+            }
+            case EMOTE_RUNE_MEDITATE -> {
+                float bob = (float) Math.sin(t * 0.13f) * 0.22f;
+                yield new EmotePose(
+                        0.18f, 0.0f, 0.0f,
+                        0.0f, 0.0f, -3.2f + bob * 4.2f,
+                        -0.96f, 0.34f, -0.18f + bob * 0.12f,
+                        -0.96f, -0.34f, 0.18f - bob * 0.12f,
+                        -1.08f, -0.42f,
+                        -1.08f, 0.42f
+                );
+            }
+            case EMOTE_HIGH_FIVE -> {
+                float wave = (float) Math.sin(t * 0.32f);
+                yield new EmotePose(
+                        -0.12f, -0.08f, 0.04f,
+                        -0.06f, -0.14f, 0.0f,
+                        0.22f, 0.0f, -0.14f,
+                        -2.78f + 0.14f * wave, -0.18f, 0.16f + 0.08f * wave,
+                        -0.10f, -0.05f,
+                        0.12f, 0.05f
+                );
+            }
+            case EMOTE_FIST_BUMP -> {
+                float thrust = 0.5f + 0.5f * (float) Math.sin(t * 0.28f);
+                yield new EmotePose(
+                        0.02f, -0.06f, 0.0f,
+                        0.04f, -0.18f * thrust, 0.0f,
+                        0.18f, 0.0f, -0.12f,
+                        -1.56f - 0.14f * thrust, -0.12f, 0.06f,
+                        -0.12f, -0.05f,
+                        0.14f, 0.05f
+                );
+            }
             default -> EmotePose.NEUTRAL;
         };
+    }
+
+    public static boolean isPartnerEmote(int emoteId) {
+        return emoteId == EMOTE_HIGH_FIVE || emoteId == EMOTE_FIST_BUMP;
+    }
+
+    public static boolean hasEmoteProp(int emoteId) {
+        return emoteId == EMOTE_RUNE_MEDITATE;
+    }
+
+    public static float computeEmoteBodyPitchDeg(int emoteId, float ageInTicks) {
+        if (emoteId != EMOTE_BACKFLIP) {
+            return 0.0f;
+        }
+        float t = Float.isFinite(ageInTicks) ? ageInTicks : 0.0f;
+        float cycle = (t * 0.045f) % 1.0f;
+        if (cycle < 0.0f) cycle += 1.0f;
+        // Smooth ease-in-out full 360-degree backflip
+        float eased = cycle * cycle * (3.0f - 2.0f * cycle);
+        return -360.0f * eased;
+    }
+
+    public static float computeEmoteBodyLiftY(int emoteId, float ageInTicks) {
+        if (emoteId != EMOTE_BACKFLIP) {
+            return 0.0f;
+        }
+        float t = Float.isFinite(ageInTicks) ? ageInTicks : 0.0f;
+        float cycle = (t * 0.045f) % 1.0f;
+        if (cycle < 0.0f) cycle += 1.0f;
+        return (float) Math.sin(cycle * Math.PI) * 0.72f;
     }
 
     public static float computeHelmetClearanceY(boolean hasHelmet) {
@@ -700,16 +977,66 @@ public final class CosmeticsLogic {
     }
 
     public static float computeCloakBackZ(boolean hasChestplate) {
-        return 0.135f + (hasChestplate ? 0.055f : 0.0f);
+        return hasChestplate ? 0.255f : 0.175f;
+    }
+
+    public static float computeCloakTopY(boolean hasChestplate) {
+        return hasChestplate ? -0.040f : 0.015f;
+    }
+
+    public static float computeCloakLeanRad(float capeLean, float capeFlap, float walkSpeed, boolean crouching) {
+        float safeLean = (Float.isFinite(capeLean) && capeLean > 0.0f) ? capeLean : 0.0f;
+        float safeFlap = (Float.isFinite(capeFlap) && capeFlap > 0.0f) ? capeFlap : 0.0f;
+        float safeWalk = clampFloat(walkSpeed, 0.0f, 1.5f, 0.0f);
+        float leanDeg = 12.0f
+                + safeWalk * 22.0f
+                + safeLean * 0.55f
+                + safeFlap * 0.75f
+                + (crouching ? 10.0f : 0.0f);
+        float clampedDeg = Math.max(12.0f, Math.min(76.0f, leanDeg));
+        return clampedDeg * (float) (Math.PI / 180.0);
     }
 
     public static float computeGearBackZ(boolean hasChestplate, boolean hasCloak) {
-        return 0.135f + (hasChestplate ? 0.065f : 0.0f) + (hasCloak ? 0.045f : 0.0f);
+        float base = hasChestplate ? 0.235f : 0.165f;
+        return hasCloak ? computeCloakBackZ(hasChestplate) + 0.048f : base;
     }
 
     public static int resolveColorRgb(int colorPreset, int customRgb, float ageInTicks, float phaseOffset) {
         return WingsLogic.resolveRgb(colorPreset, customRgb, ageInTicks, phaseOffset, false);
     }
+
+    public static int resolveGradientRgb(int primaryRgb, int secondaryRgb, int gradientMode, float ageInTicks, float t) {
+        int c1 = WingsLogic.clampRgb(primaryRgb);
+        int mode = clampGradientMode(gradientMode);
+        if (mode == GRADIENT_SOLID) {
+            return c1;
+        }
+        int c2 = WingsLogic.clampRgb(secondaryRgb);
+        float safeAge = Float.isFinite(ageInTicks) ? ageInTicks : 0.0f;
+        float safeT = clampFloat(t, 0.0f, 1.0f, 0.0f);
+        float blend = switch (mode) {
+            case GRADIENT_TIP_TO_BASE -> safeT;
+            case GRADIENT_PULSE -> 0.5f + 0.5f * (float) Math.sin(safeAge * 0.14f);
+            case GRADIENT_WAVE -> 0.5f + 0.5f * (float) Math.sin(safeAge * 0.18f - safeT * (float) Math.PI * 1.6f);
+            default -> 0.0f;
+        };
+        return WingsLogic.blendRgb(c1, c2, blend);
+    }
+
+    public static int resolveColorRgb(
+            int colorPreset, int customRgb, int secondaryRgb, int gradientMode, float ageInTicks, float t
+    ) {
+        int primary = WingsLogic.resolveRgb(colorPreset, customRgb, ageInTicks, t * 0.25f, false);
+        if (WingsLogic.clampColorPreset(colorPreset) == WingsLogic.COLOR_CHROMA || clampGradientMode(gradientMode) == GRADIENT_SOLID) {
+            return primary;
+        }
+        return resolveGradientRgb(primary, secondaryRgb, gradientMode, ageInTicks, t);
+    }
+
+    public static int gradientCount() { return GRADIENT_NAMES.length; }
+    public static String gradientName(int mode) { return GRADIENT_NAMES[clampGradientMode(mode)]; }
+    public static int clampGradientMode(int mode) { return clampIndex(mode, GRADIENT_NAMES.length); }
 
     // Metadata & Clamping helpers
     public static int cloakCount() { return CLOAK_NAMES.length; }

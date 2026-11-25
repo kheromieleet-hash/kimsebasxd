@@ -317,6 +317,20 @@ public class ModConfig {
     public boolean cosmeticShowFriends = true;
     public boolean cosmeticShowBadges = true;
 
+    // Next-Wave Cosmetic Studio & Quick Radial Wheel (v2.5.0)
+    public int cosmeticGradientMode = CosmeticsLogic.GRADIENT_SOLID;
+    public int cosmeticGradientSecondaryRgb = 0x00D4FF;
+    public String cosmeticCustomCapeFile = "";
+    public boolean cosmeticCustomCapeBorderGlow = true;
+    public int cosmeticLockedSlotMask = 0;
+    public int cosmeticWheelKey = 5; // MC 26.3 SDL3 InputConstants.KEY_B
+    public List<String> cosmeticPinnedOutfits = new ArrayList<>();
+    public boolean cosmeticAutoOutfitEnabled = false;
+    public String cosmeticAutoOutfitPvp = "";
+    public String cosmeticAutoOutfitElytra = "";
+    public String cosmeticAutoOutfitMining = "";
+    public String cosmeticAutoOutfitNight = "";
+
     // Xray (Meteor parity)
     public boolean xrayEnabled = false;
     public int xrayOpacity = 0; // 0 = hide non-targets, 1..254 = translucent, 255 = solid
@@ -1381,6 +1395,30 @@ public class ModConfig {
         this.cosmeticSlashArcMode = CosmeticsLogic.clampSlashArcMode(this.cosmeticSlashArcMode);
         this.cosmeticSlashArcColorPreset = WingsLogic.clampColorPreset(this.cosmeticSlashArcColorPreset);
         this.cosmeticSlashArcCustomRgb = WingsLogic.clampRgb(this.cosmeticSlashArcCustomRgb);
+        this.cosmeticGradientMode = CosmeticsLogic.clampGradientMode(this.cosmeticGradientMode);
+        this.cosmeticGradientSecondaryRgb = WingsLogic.clampRgb(this.cosmeticGradientSecondaryRgb);
+        if (this.cosmeticCustomCapeFile == null) {
+            this.cosmeticCustomCapeFile = "";
+        }
+        this.cosmeticLockedSlotMask &= CosmeticsLogic.LOCK_ALL_MASK;
+        // Migrate legacy GLFW ASCII codes (from early v2.5.0) to MC 26.3 SDL3 scancodes
+        if (this.cosmeticWheelKey == 66) this.cosmeticWheelKey = 5;       // B
+        else if (this.cosmeticWheelKey == 71) this.cosmeticWheelKey = 10; // G
+        else if (this.cosmeticWheelKey == 72) this.cosmeticWheelKey = 11; // H
+        else if (this.cosmeticWheelKey == 82) this.cosmeticWheelKey = 21; // R
+        else if (this.cosmeticWheelKey == 86) this.cosmeticWheelKey = 25; // V
+        if (this.cosmeticWheelKey <= 0 || this.cosmeticWheelKey > 348) {
+            this.cosmeticWheelKey = 5; // InputConstants.KEY_B
+        }
+        if (this.cosmeticPinnedOutfits == null) {
+            this.cosmeticPinnedOutfits = new ArrayList<>();
+        } else if (this.cosmeticPinnedOutfits.size() > CosmeticsLogic.MAX_PINNED_OUTFITS) {
+            this.cosmeticPinnedOutfits = new ArrayList<>(this.cosmeticPinnedOutfits.subList(0, CosmeticsLogic.MAX_PINNED_OUTFITS));
+        }
+        if (this.cosmeticAutoOutfitPvp == null) this.cosmeticAutoOutfitPvp = "";
+        if (this.cosmeticAutoOutfitElytra == null) this.cosmeticAutoOutfitElytra = "";
+        if (this.cosmeticAutoOutfitMining == null) this.cosmeticAutoOutfitMining = "";
+        if (this.cosmeticAutoOutfitNight == null) this.cosmeticAutoOutfitNight = "";
     }
 
     private void removeObsoleteModule(String obsoleteName) {

@@ -4,10 +4,15 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.gizmos.GizmoStyle;
 import net.minecraft.gizmos.Gizmos;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+
+import java.util.List;
 
 /**
  * Fixed-capacity zero-allocation world VFX engine for:
@@ -35,6 +40,7 @@ public final class CosmeticFxHandler {
     private static final int BURST_KIND_HIT = 0;
     private static final int BURST_KIND_KILL = 1;
     private static final int BURST_KIND_TOTEM = 2;
+    private static final int BURST_KIND_PARTNER = 3;
 
     private static final double[] BURST_X = new double[BURST_CAPACITY];
     private static final double[] BURST_Y = new double[BURST_CAPACITY];
@@ -71,6 +77,12 @@ public final class CosmeticFxHandler {
     private static boolean wasOnGround = true;
     private static int tickCounter = 0;
     private static int pseudoRand = 0x5E571A01;
+    private static long lastPartnerBurstAtMs = 0L;
+    private static long lastCombatAtMs = 0L;
+    private static String autoOutfitActiveName = null;
+    private static CosmeticsLogic.CosmeticLoadout autoOutfitBaseLoadout = null;
+    private static List<CosmeticOutfitManager.OutfitSummary> cachedAutoOutfits = List.of();
+    private static long lastAutoOutfitsRefreshMs = 0L;
 
     private CosmeticFxHandler() {
     }
@@ -84,8 +96,16 @@ public final class CosmeticFxHandler {
         partCursor = 0;
         lastHitEntityId = -1;
         lastHitAtMs = 0L;
+        lastCombatAtMs = 0L;
+        lastPartnerBurstAtMs = 0L;
+        autoOutfitActiveName = null;
+        autoOutfitBaseLoadout = null;
         lastTrailSampleX = Double.NaN;
         wasOnGround = true;
+    }
+
+    public static void invalidateAutoOutfitCache() {
+        lastAutoOutfitsRefreshMs = 0L;
     }
 
     public static void tick(Minecraft mc) {
@@ -93,6 +113,8 @@ public final class CosmeticFxHandler {
             if (PanicHandler.isPanicActive()) {
                 clearAll();
                 CosmeticsLogic.clearLocalEmote();
+                CustomCapeManager.releaseTexture(mc);
+                CosmeticWheelController.forceClose();
             }
             return;
         }
@@ -103,8 +125,9 @@ public final class CosmeticFxHandler {
             return;
         }
 
-        // 1. Local 3D Pose Emote movement/action auto-cancel
-        if (CosmeticsLogic.getLocalActiveEmote() >= 0) {
+        // 1. Local 3D Pose Emote movement/action auto-cancel + Partner Emote Synced Spark/Heart Burst
+        int activeEmote = CosmeticsLogic.getLocalActiveEmote();
+        if (activeEmote >= 0) {
             Vec3 delta = p.getDeltaMovement();
             boolean moved = (delta.x * delta.x + delta.z * delta.z) > 0.0008;
             boolean jumped = !p.onGround() && delta.y > 0.08;
@@ -120,14 +143,118 @@ public final class CosmeticFxHandler {
             if (cancel) {
                 CosmeticsLogic.clearLocalEmote();
                 SestiaChatClient.broadcastEmote(CosmeticsLogic.EMOTE_NONE);
+            } else if (CosmeticsLogic.isPartnerEmote(activeEmote) && (tickCounter % 3 == 0)) {
+                checkPartnerEmoteBurst(mc, p, activeEmote);
             }
         }
 
-        // 2. World Trails (Step Ripples / Leaf Ribbon / Neon Sparks / Elytra Contrail)
+        // 2. Smart Auto-Outfit Rules (PvP > Elytra > Mining > Night, throttled every 10 ticks)
+        if (tickCounter % 10 == 0) {
+            tickAutoOutfit(mc, p, cfg);
+        }
+
+        // 3. World Trails (Step Ripples / Leaf Ribbon / Neon Sparks / Elytra Contrail)
         if (cfg.cosmeticTrailEnabled) {
             samplePlayerTrail(p, cfg);
         }
         wasOnGround = p.onGround();
+    }
+
+    private static void checkPartnerEmoteBurst(Minecraft mc, LocalPlayer p, int localEmote) {
+        long now = System.currentTimeMillis();
+        if ((now - lastPartnerBurstAtMs) < 2_200L || mc.level == null) {
+            return;
+        }
+        for (Player other : mc.level.players()) {
+            if (other == null || other == p) {
+                continue;
+            }
+            if (other.distanceToSqr(p) > 20.25) { // 4.5 blocks max
+                continue;
+            }
+            int remoteEmote = CosmeticsLogic.resolveActiveEmote(false, false, other.getName().getString(), now);
+            if (CosmeticsLogic.isPartnerEmote(remoteEmote)) {
+                double midX = (p.getX() + other.getX()) * 0.5;
+                double midY = (p.getY() + other.getY()) * 0.5 + 1.38;
+                double midZ = (p.getZ() + other.getZ()) * 0.5;
+                int accent = (JelloTheme.ACCENT != 0 ? (JelloTheme.ACCENT & 0xFFFFFF) : 0x34D399);
+                triggerPartnerBurst(midX, midY, midZ, localEmote == CosmeticsLogic.EMOTE_HIGH_FIVE, accent, now);
+                lastPartnerBurstAtMs = now;
+                return;
+            }
+        }
+    }
+
+    public static void triggerPartnerBurst(double x, double y, double z, boolean isHighFive, int primaryRgb, long now) {
+        int goldRgb = 0xFACC15;
+        int heartRgb = 0xF43F5E;
+        pushBurst(x, y, z, BURST_KIND_PARTNER, isHighFive ? 1 : 0, isHighFive ? goldRgb : primaryRgb, 950L, now);
+        for (int i = 0; i < 20; i++) {
+            double a = (i / 20.0) * Math.PI * 2.0;
+            double spd = 0.06 + nextUnit() * 0.09;
+            double vy = 0.03 + nextUnit() * 0.09;
+            int col = (i % 3 == 0) ? heartRgb : ((i % 2 == 0) ? goldRgb : primaryRgb);
+            spawnParticle(x, y, z, Math.cos(a) * spd, vy, Math.sin(a) * spd, 850L, col, 4.6f, now);
+        }
+    }
+
+    private static void tickAutoOutfit(Minecraft mc, LocalPlayer p, ModConfig cfg) {
+        long now = System.currentTimeMillis();
+        if (!cfg.cosmeticAutoOutfitEnabled) {
+            if (autoOutfitActiveName != null && autoOutfitBaseLoadout != null) {
+                CosmeticsLogic.applyLoadoutToConfig(autoOutfitBaseLoadout, cfg, cfg.cosmeticLockedSlotMask);
+                SestiaChatClient.broadcastCosmeticsUpdate();
+            }
+            autoOutfitActiveName = null;
+            autoOutfitBaseLoadout = null;
+            return;
+        }
+        boolean inCombat = (now - lastCombatAtMs) < 12_000L;
+        boolean fallFlying = p.isFallFlying();
+        ItemStack held = p.getMainHandItem();
+        boolean miningTool = held != null && !held.isEmpty() && (held.is(ItemTags.PICKAXES) || held.is(ItemTags.SHOVELS));
+        boolean mining = !inCombat && !fallFlying && miningTool && (p.getY() < 56.0 || p.isSwinging());
+        boolean nightOrDark = !mc.level.dimensionType().hasSkyLight() || mc.level.isDarkOutside();
+
+        String target = CosmeticsLogic.resolveAutoOutfitTarget(
+                true, inCombat, fallFlying, mining, nightOrDark,
+                cfg.cosmeticAutoOutfitPvp,
+                cfg.cosmeticAutoOutfitElytra,
+                cfg.cosmeticAutoOutfitMining,
+                cfg.cosmeticAutoOutfitNight
+        );
+
+        if (target == null) {
+            if (autoOutfitActiveName != null) {
+                if (autoOutfitBaseLoadout != null) {
+                    CosmeticsLogic.applyLoadoutToConfig(autoOutfitBaseLoadout, cfg, cfg.cosmeticLockedSlotMask);
+                    SestiaChatClient.broadcastCosmeticsUpdate();
+                }
+                autoOutfitActiveName = null;
+                autoOutfitBaseLoadout = null;
+            }
+            return;
+        }
+
+        if (target.equalsIgnoreCase(autoOutfitActiveName)) {
+            return;
+        }
+
+        if ((now - lastAutoOutfitsRefreshMs) > 5_000L) {
+            cachedAutoOutfits = CosmeticOutfitManager.listOutfits(CosmeticOutfitManager.getDefaultOutfitsDir());
+            lastAutoOutfitsRefreshMs = now;
+        }
+        for (CosmeticOutfitManager.OutfitSummary summary : cachedAutoOutfits) {
+            if (summary != null && summary.name().equalsIgnoreCase(target)) {
+                if (autoOutfitBaseLoadout == null) {
+                    autoOutfitBaseLoadout = CosmeticsLogic.fromConfig(cfg);
+                }
+                CosmeticsLogic.applyLoadoutToConfig(summary.loadout(), cfg, cfg.cosmeticLockedSlotMask);
+                autoOutfitActiveName = summary.name();
+                SestiaChatClient.broadcastCosmeticsUpdate();
+                return;
+            }
+        }
     }
 
     private static void samplePlayerTrail(LocalPlayer p, ModConfig cfg) {
@@ -191,6 +318,9 @@ public final class CosmeticFxHandler {
         }
         int selfId = mc.player.getId();
         boolean causedBySelf = (sourceCauseId == selfId || sourceDirectId == selfId);
+        if (causedBySelf || targetEntityId == selfId) {
+            lastCombatAtMs = System.currentTimeMillis();
+        }
         if (!causedBySelf || targetEntityId == selfId) {
             return;
         }
@@ -379,6 +509,16 @@ public final class CosmeticFxHandler {
                 float rad2 = 0.25f + t * 1.8f;
                 Gizmos.circle(new Vec3(x, y, z), rad1, GizmoStyle.stroke(argb, 3.2f * fade + 0.8f));
                 Gizmos.circle(new Vec3(x, y + t * 0.85, z), rad2, GizmoStyle.stroke(argb, 2.2f * fade + 0.5f));
+            } else if (kind == BURST_KIND_PARTNER) {
+                float rad = 0.20f + t * 1.35f;
+                int goldArgb = (alpha << 24) | 0xFACC15;
+                int roseArgb = (alpha << 24) | 0xF43F5E;
+                Gizmos.circle(new Vec3(x, y, z), rad, GizmoStyle.stroke(argb, 3.0f * fade + 0.6f));
+                Gizmos.circle(new Vec3(x, y + t * 0.42, z), rad * 0.65f, GizmoStyle.stroke(goldArgb, 2.2f * fade + 0.5f));
+                float star = 0.16f + t * 0.45f;
+                Gizmos.line(new Vec3(x - star, y, z), new Vec3(x + star, y, z), roseArgb, 2.2f);
+                Gizmos.line(new Vec3(x, y - star, z), new Vec3(x, y + star, z), goldArgb, 2.2f);
+                Gizmos.line(new Vec3(x, y, z - star), new Vec3(x, y, z + star), roseArgb, 2.2f);
             } else if (kind == BURST_KIND_KILL) {
                 if (sub == CosmeticsLogic.KILL_FX_SOUL_BEACON) {
                     float beamW = 0.34f * fade + 0.04f;

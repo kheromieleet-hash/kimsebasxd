@@ -357,7 +357,7 @@ public final class WingsLogic {
         if (hasElytra) {
             base += 0.095f;
         } else if (hasCustomCloak) {
-            base += 0.050f;
+            base += 0.085f;
         }
         return base;
     }
@@ -390,10 +390,13 @@ public final class WingsLogic {
             float hue = rawHue - (float) Math.floor(rawHue);
             return hsvToRgb(hue, 0.85f, 1.0f);
         }
-        if (clamped == COLOR_CUSTOM) {
-            return clampRgb(customRgb);
+        int baseRgb = (clamped == COLOR_CUSTOM) ? clampRgb(customRgb) : COLOR_VALUES[clamped];
+        int gMode = CosmeticsLogic.getActiveRenderGradientMode();
+        if (gMode != CosmeticsLogic.GRADIENT_SOLID) {
+            float t = Float.isFinite(phaseOffset) ? Math.max(0.0f, Math.min(1.0f, Math.abs(phaseOffset) * 2.2f)) : 0.0f;
+            return CosmeticsLogic.resolveGradientRgb(baseRgb, CosmeticsLogic.getActiveRenderGradientSecondaryRgb(), gMode, ageInTicks, t);
         }
-        return COLOR_VALUES[clamped];
+        return baseRgb;
     }
 
     public static DragonAnimState computeDragonAnim(

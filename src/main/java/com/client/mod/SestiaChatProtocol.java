@@ -304,6 +304,11 @@ public final class SestiaChatProtocol {
         c.add("ha", haArr);
 
         c.add("sa", arr(l.slashArcEnabled(), l.slashArcMode(), l.slashArcColorPreset(), l.slashArcCustomRgb()));
+
+        JsonArray grArr = new JsonArray();
+        grArr.add(l.gradientMode());
+        grArr.add(l.gradientSecondaryRgb());
+        c.add("gr", grArr);
         return c;
     }
 
@@ -340,6 +345,7 @@ public final class SestiaChatProtocol {
         JsonArray gl = getArray(c, "gl");
         JsonArray ha = getArray(c, "ha");
         JsonArray sa = getArray(c, "sa");
+        JsonArray gr = getArray(c, "gr");
 
         return new CosmeticsLogic.CosmeticLoadout(
                 wings,
@@ -354,7 +360,8 @@ public final class SestiaChatProtocol {
                 arrBool(tf, 0, def.totemFxEnabled()), arrFloat(tf, 1, def.totemFxScale()), arrBool(tf, 2, def.totemFxRing()),
                 arrBool(gl, 0, def.glintEnabled()), arrInt(gl, 1, def.glintColorPreset()), arrInt(gl, 2, def.glintCustomRgb()), arrFloat(gl, 3, def.glintIntensity()),
                 arrBool(ha, 0, def.handAuraEnabled()), arrInt(ha, 1, def.handAuraMode()),
-                arrBool(sa, 0, def.slashArcEnabled()), arrInt(sa, 1, def.slashArcMode()), arrInt(sa, 2, def.slashArcColorPreset()), arrInt(sa, 3, def.slashArcCustomRgb())
+                arrBool(sa, 0, def.slashArcEnabled()), arrInt(sa, 1, def.slashArcMode()), arrInt(sa, 2, def.slashArcColorPreset()), arrInt(sa, 3, def.slashArcCustomRgb()),
+                arrInt(gr, 0, def.gradientMode()), arrInt(gr, 1, def.gradientSecondaryRgb())
         ).sanitized();
     }
 

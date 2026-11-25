@@ -165,8 +165,18 @@ public class ModernClickGuiScreen extends Screen {
     private static float cosmeticPreviewZoom = 1.0f;
     private static int cosmeticPreviewPose = CosmeticsLogic.PREVIEW_POSE_IDLE;
     private static boolean cosmeticCustomizeCollapsed = false;
-    private static final ItemStack PREVIEW_ARMOR_HELMET = new ItemStack(Items.DIAMOND_HELMET);
-    private static final ItemStack PREVIEW_ARMOR_CHEST = new ItemStack(Items.DIAMOND_CHESTPLATE);
+    private static boolean cosmeticTurntableSpin = false;
+    private static ItemStack previewArmorHelmet = null;
+    private static ItemStack previewArmorChest = null;
+
+    public static void openCosmeticStudio(Minecraft mc) {
+        if (mc == null || mc.gui == null) {
+            return;
+        }
+        ModernClickGuiScreen screen = new ModernClickGuiScreen();
+        screen.activeNav = NavTab.COSMETIC;
+        mc.gui.setScreen(screen);
+    }
     private boolean draggingCosmeticPreview = false;
     private int cosmeticStageX = 0;
     private int cosmeticStageY = 0;
@@ -1792,6 +1802,9 @@ public class ModernClickGuiScreen extends Screen {
     private static final String[] COSMETIC_CHIP_LABELS = {
             "Wings", "Cape", "Hat", "Pet", "Gear", "Aura", "FX"
     };
+    private static final String[] COSMETIC_LOCK_LABELS = {
+            "Wings", "Cape", "Hat", "Pet", "Gear", "Aura", "Trail", "FX", "Glint", "Hand"
+    };
 
     private void computeCosmeticBounds(int contentX, int contentY, int contentW, int contentH) {
         int pad = 14;
@@ -1877,6 +1890,28 @@ public class ModernClickGuiScreen extends Screen {
             return DefaultPlayerSkin.getDefaultSkin();
         }
         return resolveLocalPlayerSkin();
+    }
+
+    private static ItemStack getPreviewArmorHelmet() {
+        if (previewArmorHelmet == null) {
+            try {
+                previewArmorHelmet = new ItemStack(Items.DIAMOND_HELMET);
+            } catch (Throwable ignored) {
+                return ItemStack.EMPTY;
+            }
+        }
+        return previewArmorHelmet;
+    }
+
+    private static ItemStack getPreviewArmorChest() {
+        if (previewArmorChest == null) {
+            try {
+                previewArmorChest = new ItemStack(Items.DIAMOND_CHESTPLATE);
+            } catch (Throwable ignored) {
+                return ItemStack.EMPTY;
+            }
+        }
+        return previewArmorChest;
     }
 
     private void refreshCosmeticFriendNames() {
@@ -2072,6 +2107,13 @@ public class ModernClickGuiScreen extends Screen {
             case 4 -> ModernModuleSettings.getCosmeticGearControls(cfg, this.settingsActions);
             case 5 -> ModernModuleSettings.getCosmeticAuraControls(cfg, this.settingsActions);
             case 6 -> ModernModuleSettings.getCosmeticFxControls(cfg, this.settingsActions);
+            case 7 -> {
+                List<String> names = new ArrayList<>(this.cachedOutfits.size());
+                for (CosmeticOutfitManager.OutfitSummary s : this.cachedOutfits) {
+                    names.add(s.name());
+                }
+                yield ModernModuleSettings.getCosmeticStudioPowerControls(cfg, this.settingsActions, names);
+            }
             default -> List.of();
         };
     }
@@ -2126,7 +2168,8 @@ public class ModernClickGuiScreen extends Screen {
                 base.totemFxEnabled(), base.totemFxScale(), base.totemFxRing(),
                 base.glintEnabled(), base.glintColorPreset(), base.glintCustomRgb(), base.glintIntensity(),
                 base.handAuraEnabled(), base.handAuraMode(),
-                base.slashArcEnabled(), base.slashArcMode(), base.slashArcColorPreset(), base.slashArcCustomRgb()
+                base.slashArcEnabled(), base.slashArcMode(), base.slashArcColorPreset(), base.slashArcCustomRgb(),
+                base.gradientMode(), base.gradientSecondaryRgb()
         ).sanitized();
     }
 
@@ -2248,7 +2291,10 @@ public class ModernClickGuiScreen extends Screen {
                 }
             }
             int listH = visibleOutfits == 0 ? 64 : visibleOutfits * (cardH + gap);
-            int totalRightH = headerPanelH + 14 + listH + 14;
+            activeControls = getControlsForCosmeticSubTab(config, 7);
+            controlsFlow = ModernInspectorLayout.computeControlsFlow(rightX + 10, 0, controlsPanelW, activeControls);
+            int locksPanelH = 58;
+            int totalRightH = headerPanelH + 14 + listH + 14 + locksPanelH + 14 + 18 + controlsFlow.totalHeight() + 18;
             int clampedBodyH = Math.max(rightBodyH, totalRightH);
             this.contentTotalHeight = headerOffset + clampedBodyH;
             this.scrollAmount = Mth.clamp(this.scrollAmount, 0.0, Math.max(0, clampedBodyH - rightBodyH));
@@ -2299,7 +2345,7 @@ public class ModernClickGuiScreen extends Screen {
                         scroll, cols, cardW, hoveredEmote, activeControls, controlsPanelW);
             } else {
                 renderCosmeticOutfitsSubTab(graphics, mouseX, mouseY, rightX, rightW, rightBodyY, rightBodyBottom,
-                        scroll, qLower);
+                        scroll, qLower, config, activeControls, controlsPanelW);
             }
         } finally {
             graphics.disableScissor();
@@ -2319,6 +2365,9 @@ public class ModernClickGuiScreen extends Screen {
         JelloTheme.fillRoundedCard(graphics, stageX, stageY, stageX + stageW, stageY + stageH, 8,
                 JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
 
+        if (cosmeticTurntableSpin && !this.draggingCosmeticPreview) {
+            cosmeticPreviewYaw = (cosmeticPreviewYaw + this.currentFrameDt * 38.0f) % 360.0f;
+        }
         float ageTicks = (float) ((System.nanoTime() % 3_600_000_000_000L) / 50_000_000.0);
         int glowRgb = effectivePreview.wings().enabled()
                 ? WingsLogic.resolveRgb(effectivePreview.wings().colorPreset(), effectivePreview.wings().customRgb(), ageTicks, 0.0f, false)
@@ -2393,8 +2442,8 @@ public class ModernClickGuiScreen extends Screen {
         this.cosmeticPreviewState.isInvisible = false;
         this.cosmeticPreviewState.isSpectator = false;
         this.cosmeticPreviewState.hasRedOverlay = false;
-        this.cosmeticPreviewState.headEquipment = armorOn ? PREVIEW_ARMOR_HELMET : ItemStack.EMPTY;
-        this.cosmeticPreviewState.chestEquipment = armorOn ? PREVIEW_ARMOR_CHEST : ItemStack.EMPTY;
+        this.cosmeticPreviewState.headEquipment = armorOn ? getPreviewArmorHelmet() : ItemStack.EMPTY;
+        this.cosmeticPreviewState.chestEquipment = armorOn ? getPreviewArmorChest() : ItemStack.EMPTY;
         this.cosmeticPreviewState.legsEquipment = ItemStack.EMPTY;
         this.cosmeticPreviewState.feetEquipment = ItemStack.EMPTY;
         this.cosmeticPreviewState.ageInTicks = ageTicks;
@@ -2480,17 +2529,19 @@ public class ModernClickGuiScreen extends Screen {
                     px + pw / 2, poseY + 3, sel ? 0xFFFFFFFF : JelloTheme.TEXT_MUTED);
         }
 
-        // Bottom Strip 2: Angle Presets (Back | 3/4 | Front) + Zoom Reset Chip
+        // Bottom Strip 2: Angle Presets (Back | 3/4 | Front) + Spin + Zoom Reset Chip
         int angleY = stageY + stageH - 59;
-        int zoomW = 34;
+        int zoomW = 30;
+        int spinW = 30;
         int zoomX = stageX + stageW - 8 - zoomW;
-        int availAngleW = zoomX - (stageX + 8) - 4;
-        int aGap = 4;
+        int spinX = zoomX - 3 - spinW;
+        int availAngleW = spinX - (stageX + 8) - 4;
+        int aGap = 3;
         int aW = (availAngleW - aGap * (COSMETIC_ANGLE_LABELS.length - 1)) / COSMETIC_ANGLE_LABELS.length;
         for (int i = 0; i < COSMETIC_ANGLE_LABELS.length; i++) {
             int px = stageX + 8 + i * (aW + aGap);
             int pw = (i == COSMETIC_ANGLE_LABELS.length - 1) ? (stageX + 8 + availAngleW - px) : aW;
-            boolean sel = Math.abs(Mth.wrapDegrees(cosmeticPreviewYaw - COSMETIC_ANGLE_VALUES[i])) < 6.0f;
+            boolean sel = !cosmeticTurntableSpin && Math.abs(Mth.wrapDegrees(cosmeticPreviewYaw - COSMETIC_ANGLE_VALUES[i])) < 6.0f;
             boolean hov = isInside(mouseX, mouseY, px, angleY, pw, 15);
             if (hov) this.frameInteractiveHover = true;
             JelloTheme.fillRoundedCard(graphics, px, angleY, px + pw, angleY + 15, 3,
@@ -2499,6 +2550,14 @@ public class ModernClickGuiScreen extends Screen {
             graphics.centeredText(this.font, Component.literal(COSMETIC_ANGLE_LABELS[i]),
                     px + pw / 2, angleY + 3, sel ? 0xFFFFFFFF : JelloTheme.TEXT_MUTED);
         }
+        boolean spinHov = isInside(mouseX, mouseY, spinX, angleY, spinW, 15);
+        if (spinHov) this.frameInteractiveHover = true;
+        JelloTheme.fillRoundedCard(graphics, spinX, angleY, spinX + spinW, angleY + 15, 3,
+                cosmeticTurntableSpin ? withAlpha(JelloTheme.ACCENT, 0x52) : (spinHov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CONTAINER_BG),
+                cosmeticTurntableSpin ? JelloTheme.BORDER_ACTIVE_SOFT : (spinHov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE));
+        graphics.centeredText(this.font, Component.literal("Spin"),
+                spinX + spinW / 2, angleY + 3, cosmeticTurntableSpin ? 0xFFFFFFFF : JelloTheme.TEXT_MUTED);
+
         boolean zoomHov = isInside(mouseX, mouseY, zoomX, angleY, zoomW, 15);
         if (zoomHov) this.frameInteractiveHover = true;
         JelloTheme.fillRoundedCard(graphics, zoomX, angleY, zoomX + zoomW, angleY + 15, 3,
@@ -2515,16 +2574,18 @@ public class ModernClickGuiScreen extends Screen {
         for (int c = 0; c < COSMETIC_CHIP_LABELS.length; c++) {
             if (!isLoadoutSlotActive(effectivePreview, c)) continue;
             anyActiveChip = true;
-            String lbl = COSMETIC_CHIP_LABELS[c];
+            boolean locked = CosmeticsLogic.isSlotLocked(config.cosmeticLockedSlotMask, c);
+            String lbl = locked ? ("*" + COSMETIC_CHIP_LABELS[c]) : COSMETIC_CHIP_LABELS[c];
             int cw = this.font.width(lbl) + 8;
             if (chipX + cw > maxChipRight) break;
             boolean sel = (cosmeticSubTab == c);
             boolean hov = isInside(mouseX, mouseY, chipX, chipY, cw, 15);
             if (hov) this.frameInteractiveHover = true;
             JelloTheme.fillRoundedCard(graphics, chipX, chipY, chipX + cw, chipY + 15, 3,
-                    sel ? withAlpha(JelloTheme.ACCENT, 0x48) : 0x2610B981,
-                    (sel || hov) ? JelloTheme.BORDER_ACTIVE_SOFT : 0x6634D399);
-            graphics.centeredText(this.font, Component.literal(lbl), chipX + cw / 2, chipY + 3, 0xFF86EFAC);
+                    sel ? withAlpha(JelloTheme.ACCENT, 0x48) : (locked ? 0x33F59E0B : 0x2610B981),
+                    (sel || hov) ? JelloTheme.BORDER_ACTIVE_SOFT : (locked ? 0xAAFACC15 : 0x6634D399));
+            graphics.centeredText(this.font, Component.literal(lbl), chipX + cw / 2, chipY + 3,
+                    locked ? 0xFFFDE047 : 0xFF86EFAC);
             chipX += cw + 3;
         }
         if (!anyActiveChip) {
@@ -2686,7 +2747,7 @@ public class ModernClickGuiScreen extends Screen {
             List<ModernModuleSettings.Control> fxControls, int controlsPanelW
     ) {
         int startY = bodyY - scroll;
-        graphics.text(this.font, Component.literal("§l3D POSE EMOTES (LIVE + SESTIA SYNC)"),
+        graphics.text(this.font, Component.literal("§l3D POSE, KINETIC & PARTNER EMOTES (HOLD [B] WHEEL)"),
                 rightX, startY + 2, JelloTheme.TEXT, false);
 
         int emoteGridY = startY + 18;
@@ -2705,7 +2766,12 @@ public class ModernClickGuiScreen extends Screen {
                         active ? JelloTheme.BORDER_ACTIVE_SOFT : (hov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE));
                 graphics.text(this.font, Component.literal(fitText(CosmeticsLogic.emoteName(e), cardW - 22)),
                         cx + 10, cy + 8, active ? JelloTheme.TEXT : JelloTheme.TEXT_DIM, active);
-                graphics.text(this.font, Component.literal(active ? "Playing (RMB stop)" : "Click to play"),
+                String subLbl = active
+                        ? "Playing (RMB stop)"
+                        : (CosmeticsLogic.isPartnerEmote(e) ? "Partner Sync FX"
+                                : (CosmeticsLogic.hasEmoteProp(e) ? "3D Arcane Prop"
+                                        : (e >= 5 ? "Kinetic Motion" : "Click to play")));
+                graphics.text(this.font, Component.literal(fitText(subLbl, cardW - 18)),
                         cx + 10, cy + 23, active ? JelloTheme.ACCENT_HOVER : JelloTheme.TEXT_MUTED, false);
                 if (active) {
                     ModernIcons.drawCheckIcon(graphics, cx + cardW - 15, cy + 8, JelloTheme.ACCENT_HOVER);
@@ -2729,7 +2795,8 @@ public class ModernClickGuiScreen extends Screen {
     private void renderCosmeticOutfitsSubTab(
             GuiGraphicsExtractor graphics, int mouseX, int mouseY,
             int rightX, int rightW, int bodyY, int bodyBottom,
-            int scroll, String qLower
+            int scroll, String qLower,
+            ModConfig config, List<ModernModuleSettings.Control> powerControls, int controlsPanelW
     ) {
         int panelY = bodyY - scroll;
         int headerPanelH = 74;
@@ -2763,62 +2830,134 @@ public class ModernClickGuiScreen extends Screen {
         }
 
         int listY = panelY + headerPanelH + 14;
+        int cardH = 44;
+        int gap = 7;
+        int drawIdx = 0;
         if (this.cachedOutfits.isEmpty()) {
             JelloTheme.fillRoundedCard(graphics, rightX, listY, rightX + rightW, listY + 60, 7,
                     JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
             graphics.centeredText(this.font, Component.literal("No saved outfits yet."), rightX + rightW / 2, listY + 18, JelloTheme.TEXT);
             graphics.centeredText(this.font, Component.literal("Equip cosmetics, type a name, and click '+ Save Outfit'."),
                     rightX + rightW / 2, listY + 34, JelloTheme.TEXT_MUTED);
-            return;
+        } else {
+            for (int i = 0; i < this.cachedOutfits.size(); i++) {
+                CosmeticOutfitManager.OutfitSummary o = this.cachedOutfits.get(i);
+                if (!qLower.isEmpty() && !o.name().toLowerCase(Locale.ROOT).contains(qLower)) continue;
+                int cy = listY + drawIdx * (cardH + gap);
+                drawIdx++;
+                if (cy + cardH < bodyY || cy > bodyBottom) continue;
+
+                boolean cardHov = isInside(mouseX, mouseY, rightX, cy, rightW, cardH);
+                boolean pinned = isOutfitPinned(config, o.name());
+                JelloTheme.fillRoundedCard(graphics, rightX, cy, rightX + rightW, cy + cardH, 6,
+                        cardHov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE,
+                        cardHov ? JelloTheme.BORDER_ACTIVE_SOFT : (pinned ? 0x88FACC15 : JelloTheme.BORDER_SUBTLE));
+
+                int delW = 20;
+                int copyW = 54;
+                int equipW = 42;
+                int pinW = 20;
+                int delX = rightX + rightW - 8 - delW;
+                int copyX = delX - 4 - copyW;
+                int equipX = copyX - 4 - equipW;
+                int pinX = equipX - 4 - pinW;
+                int btnY = cy + 13;
+
+                int textMaxW = Math.max(44, pinX - rightX - 16);
+                graphics.text(this.font, Component.literal(fitText(o.name(), textMaxW)), rightX + 10, cy + 8, JelloTheme.TEXT, false);
+                graphics.text(this.font, Component.literal(o.activeSlots() + " Slots" + (pinned ? " | Wheel ★" : " | Hover preview")),
+                        rightX + 10, cy + 24, pinned ? 0xFFFDE047 : JelloTheme.TEXT_MUTED, false);
+
+                boolean pHov = isInside(mouseX, mouseY, pinX, btnY, pinW, 18);
+                boolean eHov = isInside(mouseX, mouseY, equipX, btnY, equipW, 18);
+                boolean cHov = isInside(mouseX, mouseY, copyX, btnY, copyW, 18);
+                boolean dHov = isInside(mouseX, mouseY, delX, btnY, delW, 18);
+                if (pHov || eHov || cHov || dHov) this.frameInteractiveHover = true;
+
+                JelloTheme.fillRoundedCard(graphics, pinX, btnY, pinX + pinW, btnY + 18, 4,
+                        pinned ? 0x44F59E0B : (pHov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CONTAINER_BG),
+                        pinned ? 0xFFFACC15 : (pHov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE));
+                graphics.centeredText(this.font, Component.literal("★"), pinX + pinW / 2, btnY + 5,
+                        pinned ? 0xFFFDE047 : JelloTheme.TEXT_MUTED);
+
+                JelloTheme.fillRoundedCard(graphics, equipX, btnY, equipX + equipW, btnY + 18, 4,
+                        eHov ? JelloTheme.ACCENT_HOVER : withAlpha(JelloTheme.ACCENT, 0x48), JelloTheme.BORDER_ACTIVE_SOFT);
+                graphics.centeredText(this.font, Component.literal("Equip"), equipX + equipW / 2, btnY + 5, 0xFFFFFFFF);
+
+                JelloTheme.fillRoundedCard(graphics, copyX, btnY, copyX + copyW, btnY + 18, 4,
+                        cHov ? withAlpha(JelloTheme.ACCENT, 0x44) : JelloTheme.CONTAINER_BG,
+                        cHov ? JelloTheme.BORDER_ACTIVE_SOFT : JelloTheme.BORDER_SUBTLE);
+                graphics.centeredText(this.font, Component.literal("Copy SC1:"), copyX + copyW / 2, btnY + 5,
+                        cHov ? 0xFFFFFFFF : JelloTheme.TEXT_DIM);
+
+                JelloTheme.fillRoundedCard(graphics, delX, btnY, delX + delW, btnY + 18, 4,
+                        dHov ? 0x77FF1E2D : JelloTheme.CONTAINER_BG, dHov ? 0xFFFF4D5E : JelloTheme.BORDER_SUBTLE);
+                ModernIcons.drawCloseIcon(graphics, delX + delW / 2, btnY + 9, dHov ? 0xFFFFFFFF : 0xFFFF6666);
+            }
         }
 
-        int cardH = 44;
-        int gap = 7;
-        int drawIdx = 0;
-        for (int i = 0; i < this.cachedOutfits.size(); i++) {
-            CosmeticOutfitManager.OutfitSummary o = this.cachedOutfits.get(i);
-            if (!qLower.isEmpty() && !o.name().toLowerCase(Locale.ROOT).contains(qLower)) continue;
-            int cy = listY + drawIdx * (cardH + gap);
-            drawIdx++;
-            if (cy + cardH < bodyY || cy > bodyBottom) continue;
-
-            boolean cardHov = isInside(mouseX, mouseY, rightX, cy, rightW, cardH);
-            JelloTheme.fillRoundedCard(graphics, rightX, cy, rightX + rightW, cy + cardH, 6,
-                    cardHov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CARD_INACTIVE,
-                    cardHov ? JelloTheme.BORDER_ACTIVE_SOFT : JelloTheme.BORDER_SUBTLE);
-
-            int delW = 20;
-            int copyW = 56;
-            int equipW = 46;
-            int delX = rightX + rightW - 8 - delW;
-            int copyX = delX - 5 - copyW;
-            int equipX = copyX - 5 - equipW;
-            int btnY = cy + 13;
-
-            int textMaxW = Math.max(48, equipX - rightX - 18);
-            graphics.text(this.font, Component.literal(fitText(o.name(), textMaxW)), rightX + 10, cy + 8, JelloTheme.TEXT, false);
-            graphics.text(this.font, Component.literal(o.activeSlots() + " Active Slots  |  Hover to preview"),
-                    rightX + 10, cy + 24, JelloTheme.TEXT_MUTED, false);
-
-            boolean eHov = isInside(mouseX, mouseY, equipX, btnY, equipW, 18);
-            boolean cHov = isInside(mouseX, mouseY, copyX, btnY, copyW, 18);
-            boolean dHov = isInside(mouseX, mouseY, delX, btnY, delW, 18);
-            if (eHov || cHov || dHov) this.frameInteractiveHover = true;
-
-            JelloTheme.fillRoundedCard(graphics, equipX, btnY, equipX + equipW, btnY + 18, 4,
-                    eHov ? JelloTheme.ACCENT_HOVER : withAlpha(JelloTheme.ACCENT, 0x48), JelloTheme.BORDER_ACTIVE_SOFT);
-            graphics.centeredText(this.font, Component.literal("Equip"), equipX + equipW / 2, btnY + 5, 0xFFFFFFFF);
-
-            JelloTheme.fillRoundedCard(graphics, copyX, btnY, copyX + copyW, btnY + 18, 4,
-                    cHov ? withAlpha(JelloTheme.ACCENT, 0x44) : JelloTheme.CONTAINER_BG,
-                    cHov ? JelloTheme.BORDER_ACTIVE_SOFT : JelloTheme.BORDER_SUBTLE);
-            graphics.centeredText(this.font, Component.literal("Copy SC1:"), copyX + copyW / 2, btnY + 5,
-                    cHov ? 0xFFFFFFFF : JelloTheme.TEXT_DIM);
-
-            JelloTheme.fillRoundedCard(graphics, delX, btnY, delX + delW, btnY + 18, 4,
-                    dHov ? 0x77FF1E2D : JelloTheme.CONTAINER_BG, dHov ? 0xFFFF4D5E : JelloTheme.BORDER_SUBTLE);
-            ModernIcons.drawCloseIcon(graphics, delX + delW / 2, btnY + 9, dHov ? 0xFFFFFFFF : 0xFFFF6666);
+        // Slot Lock Bar (protects selected slots on Outfit / SC1: / Auto-Outfit equip)
+        int listH = drawIdx == 0 ? 64 : drawIdx * (cardH + gap);
+        int locksY = listY + listH + 14;
+        int locksPanelH = 58;
+        if (locksY + locksPanelH >= bodyY && locksY <= bodyBottom) {
+            JelloTheme.fillRoundedCard(graphics, rightX, locksY, rightX + rightW, locksY + locksPanelH, 7,
+                    JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
+            graphics.text(this.font, Component.literal("§lSLOT LOCKS (KEEP LOCKED SLOTS ON EQUIP / SC1:)"),
+                    rightX + 10, locksY + 7, JelloTheme.TEXT, false);
+            int lockCols = 5;
+            int lockGap = 4;
+            int lockW = (rightW - 20 - lockGap * (lockCols - 1)) / lockCols;
+            for (int s = 0; s < COSMETIC_LOCK_LABELS.length; s++) {
+                int lc = s % lockCols;
+                int lr = s / lockCols;
+                int lx = rightX + 10 + lc * (lockW + lockGap);
+                int ly = locksY + 21 + lr * 17;
+                boolean locked = CosmeticsLogic.isSlotLocked(config.cosmeticLockedSlotMask, s);
+                boolean hov = isInside(mouseX, mouseY, lx, ly, lockW, 14);
+                if (hov) this.frameInteractiveHover = true;
+                JelloTheme.fillRoundedCard(graphics, lx, ly, lx + lockW, ly + 14, 3,
+                        locked ? 0x44F59E0B : (hov ? JelloTheme.CARD_INACTIVE_HOVER : JelloTheme.CONTAINER_BG),
+                        locked ? 0xFFFACC15 : (hov ? JelloTheme.ACCENT : JelloTheme.BORDER_SUBTLE));
+                String lbl = (locked ? "*" : "") + COSMETIC_LOCK_LABELS[s];
+                graphics.centeredText(this.font, Component.literal(fitText(lbl, lockW - 4)),
+                        lx + lockW / 2, ly + 3, locked ? 0xFFFDE047 : JelloTheme.TEXT_MUTED);
+            }
         }
+
+        // Studio Power Controls: 2-Color Gradient Engine, Quick Wheel Key, Smart Auto-Outfit Rules
+        int powerHeaderY = locksY + locksPanelH + 14;
+        graphics.text(this.font, Component.literal("§l2-COLOR GRADIENT, QUICK WHEEL & AUTO-OUTFIT RULES"),
+                rightX, powerHeaderY + 2, JelloTheme.TEXT, false);
+        int powerCardY = powerHeaderY + 18;
+        ModernInspectorLayout.ControlsFlow flow = ModernInspectorLayout.computeControlsFlow(rightX + 10, powerCardY, controlsPanelW, powerControls);
+        JelloTheme.fillRoundedCard(graphics, rightX, powerCardY, rightX + rightW, powerCardY + flow.totalHeight(),
+                7, JelloTheme.CARD_INACTIVE, JelloTheme.BORDER_SUBTLE);
+        renderCosmeticControlsBlock(graphics, mouseX, mouseY, rightX + 10, powerCardY, controlsPanelW, powerControls);
+    }
+
+    private static boolean isOutfitPinned(ModConfig cfg, String name) {
+        if (cfg == null || cfg.cosmeticPinnedOutfits == null || name == null) return false;
+        for (String p : cfg.cosmeticPinnedOutfits) {
+            if (name.equalsIgnoreCase(p)) return true;
+        }
+        return false;
+    }
+
+    private static boolean toggleOutfitPinned(ModConfig cfg, String name) {
+        if (cfg == null || name == null || name.isBlank()) return false;
+        if (cfg.cosmeticPinnedOutfits == null) cfg.cosmeticPinnedOutfits = new ArrayList<>();
+        for (int i = 0; i < cfg.cosmeticPinnedOutfits.size(); i++) {
+            if (name.equalsIgnoreCase(cfg.cosmeticPinnedOutfits.get(i))) {
+                cfg.cosmeticPinnedOutfits.remove(i);
+                return false;
+            }
+        }
+        if (cfg.cosmeticPinnedOutfits.size() >= CosmeticsLogic.MAX_PINNED_OUTFITS) {
+            cfg.cosmeticPinnedOutfits.remove(0);
+        }
+        cfg.cosmeticPinnedOutfits.add(name);
+        return true;
     }
 
     private void renderCosmeticControlsBlock(
@@ -2881,7 +3020,14 @@ public class ModernClickGuiScreen extends Screen {
             int armorX = stageX + stageW - 8 - armorW;
             int matchX = armorX - 4 - matchW;
             int topBtnY = stageY + 6;
-            if (isLmb && isInside(mouseX, mouseY, matchX, topBtnY, matchW, 16)) {
+            if (isInside(mouseX, mouseY, matchX, topBtnY, matchW, 16)) {
+                if (isRmb) {
+                    CosmeticsLogic.applyHarmonyTheme(config, JelloTheme.ACCENT);
+                    config.save();
+                    setCosmeticStatus("2-Color Harmony applied!", false);
+                    playClickSound(1.22f);
+                    return true;
+                }
                 CosmeticsLogic.matchStrainTheme(config, JelloTheme.ACCENT);
                 config.save();
                 setCosmeticStatus("Matched Strain theme!", false);
@@ -2911,24 +3057,32 @@ public class ModernClickGuiScreen extends Screen {
                 }
             }
 
-            // Angle presets + zoom reset
+            // Angle presets + Spin + zoom reset
             int angleY = stageY + stageH - 59;
-            int zoomW = 34;
+            int zoomW = 30;
+            int spinW = 30;
             int zoomX = stageX + stageW - 8 - zoomW;
+            int spinX = zoomX - 3 - spinW;
+            if (isLmb && isInside(mouseX, mouseY, spinX, angleY, spinW, 15)) {
+                cosmeticTurntableSpin = !cosmeticTurntableSpin;
+                playClickSound(cosmeticTurntableSpin ? 1.14f : 0.92f);
+                return true;
+            }
             if (isLmb && isInside(mouseX, mouseY, zoomX, angleY, zoomW, 15)) {
                 cosmeticPreviewZoom = 1.0f;
                 cosmeticPreviewPitch = 6.0f;
                 playClickSound(1.0f);
                 return true;
             }
-            int availAngleW = zoomX - (stageX + 8) - 4;
-            int aGap = 4;
+            int availAngleW = spinX - (stageX + 8) - 4;
+            int aGap = 3;
             int aW = (availAngleW - aGap * (COSMETIC_ANGLE_LABELS.length - 1)) / COSMETIC_ANGLE_LABELS.length;
             if (isLmb) {
                 for (int i = 0; i < COSMETIC_ANGLE_LABELS.length; i++) {
                     int px = stageX + 8 + i * (aW + aGap);
                     int pw = (i == COSMETIC_ANGLE_LABELS.length - 1) ? (stageX + 8 + availAngleW - px) : aW;
                     if (isInside(mouseX, mouseY, px, angleY, pw, 15)) {
+                        cosmeticTurntableSpin = false;
                         cosmeticPreviewYaw = COSMETIC_ANGLE_VALUES[i];
                         cosmeticPreviewPitch = 6.0f;
                         playClickSound(1.06f);
@@ -2947,7 +3101,9 @@ public class ModernClickGuiScreen extends Screen {
             int maxChipRight = stageX + stageW - 8;
             for (int c = 0; c < COSMETIC_CHIP_LABELS.length; c++) {
                 if (!isLoadoutSlotActive(activePreview, c)) continue;
-                int cw = this.font.width(COSMETIC_CHIP_LABELS[c]) + 8;
+                boolean locked = CosmeticsLogic.isSlotLocked(config.cosmeticLockedSlotMask, c);
+                String lbl = locked ? ("*" + COSMETIC_CHIP_LABELS[c]) : COSMETIC_CHIP_LABELS[c];
+                int cw = this.font.width(lbl) + 8;
                 if (chipX + cw > maxChipRight) break;
                 if (isInside(mouseX, mouseY, chipX, chipY, cw, 15)) {
                     if (isRmb && remoteFriend == null) {
@@ -3161,9 +3317,10 @@ public class ModernClickGuiScreen extends Screen {
                         ? this.minecraft.keyboardHandler.getClipboard()
                         : "";
                 CosmeticOutfitManager.OutfitEnvelope env = CosmeticOutfitManager.parseShareCode(clip);
-                CosmeticsLogic.applyLoadoutToConfig(env.loadout(), config);
+                CosmeticsLogic.applyLoadoutToConfig(env.loadout(), config, config.cosmeticLockedSlotMask);
                 config.save();
                 CosmeticOutfitManager.saveOutfit(CosmeticOutfitManager.getDefaultOutfitsDir(), env.name(), env.loadout());
+                CosmeticFxHandler.invalidateAutoOutfitCache();
                 refreshOutfitsList();
                 setCosmeticStatus("Loaded '" + env.name() + "'!", false);
                 playClickSound(1.20f);
@@ -3187,14 +3344,22 @@ public class ModernClickGuiScreen extends Screen {
             if (cy + cardH < rightBodyY || cy > rightBodyBottom) continue;
             if (!isInside(mouseX, mouseY, rightX, cy, rightW, cardH)) continue;
 
-            int delW = 20, copyW = 56, equipW = 46;
+            int delW = 20, copyW = 54, equipW = 42, pinW = 20;
             int delX = rightX + rightW - 8 - delW;
-            int copyX = delX - 5 - copyW;
-            int equipX = copyX - 5 - equipW;
+            int copyX = delX - 4 - copyW;
+            int equipX = copyX - 4 - equipW;
+            int pinX = equipX - 4 - pinW;
             int btnY = cy + 13;
 
+            if (isInside(mouseX, mouseY, pinX, btnY, pinW, 18)) {
+                boolean nowPinned = toggleOutfitPinned(config, o.name());
+                config.save();
+                setCosmeticStatus(nowPinned ? ("Pinned '" + o.name() + "' to Wheel") : ("Unpinned '" + o.name() + "'"), false);
+                playClickSound(nowPinned ? 1.16f : 0.90f);
+                return true;
+            }
             if (isInside(mouseX, mouseY, equipX, btnY, equipW, 18)) {
-                CosmeticsLogic.applyLoadoutToConfig(o.loadout(), config);
+                CosmeticsLogic.applyLoadoutToConfig(o.loadout(), config, config.cosmeticLockedSlotMask);
                 config.save();
                 this.inspectedCosmeticFriend = null;
                 setCosmeticStatus("Equipped '" + o.name() + "'!", false);
@@ -3210,6 +3375,7 @@ public class ModernClickGuiScreen extends Screen {
             if (isInside(mouseX, mouseY, delX, btnY, delW, 18)) {
                 try {
                     CosmeticOutfitManager.deleteOutfit(o.file());
+                    CosmeticFxHandler.invalidateAutoOutfitCache();
                     refreshOutfitsList();
                     setCosmeticStatus("Deleted '" + o.name() + "'", false);
                 } catch (Exception ex) {
@@ -3220,7 +3386,33 @@ public class ModernClickGuiScreen extends Screen {
             }
             return true;
         }
-        return false;
+
+        // Slot Lock Pills Click
+        int listH = drawIdx == 0 ? 64 : drawIdx * (cardH + gap);
+        int locksY = listY + listH + 14;
+        int locksPanelH = 58;
+        int lockCols = 5;
+        int lockGap = 4;
+        int lockW = (rightW - 20 - lockGap * (lockCols - 1)) / lockCols;
+        for (int s = 0; s < COSMETIC_LOCK_LABELS.length; s++) {
+            int lc = s % lockCols;
+            int lr = s / lockCols;
+            int lx = rightX + 10 + lc * (lockW + lockGap);
+            int ly = locksY + 21 + lr * 17;
+            if (isInside(mouseX, mouseY, lx, ly, lockW, 14)) {
+                config.cosmeticLockedSlotMask = CosmeticsLogic.toggleSlotLock(config.cosmeticLockedSlotMask, s);
+                config.save();
+                boolean nowLocked = CosmeticsLogic.isSlotLocked(config.cosmeticLockedSlotMask, s);
+                setCosmeticStatus((nowLocked ? "Locked " : "Unlocked ") + COSMETIC_LOCK_LABELS[s], false);
+                playClickSound(nowLocked ? 1.14f : 0.90f);
+                return true;
+            }
+        }
+
+        // Studio Power Controls Click (2-Color Gradient, Quick Wheel Key, Auto-Outfit Rules)
+        int powerCardY = locksY + locksPanelH + 14 + 18;
+        List<ModernModuleSettings.Control> powerControls = getControlsForCosmeticSubTab(config, 7);
+        return handleCosmeticControlsClick(mouseX, mouseY, rightX + 10, powerCardY, controlsPanelW, powerControls);
     }
 
     private String stageOwnerLabel(CosmeticsLogic.CosmeticLoadout ignored) {
